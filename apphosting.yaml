@@ -1,0 +1,16 @@
+# Settings to manage and configure a Firebase App Hosting backend.
+# https://firebase.google.com/docs/app-hosting/configure
+
+# A unique identifier for your backend.
+# This value is not used in the public URL of your app.
+backendId: oraora-backend
+
+# The location to deploy your backend
+# This value should be one of the regions supported by App Hosting
+# https://firebase.google.com/docs/app-hosting/locations
+location: us-central1
+
+runConfig:
+  # Increase this value if you'd like to automatically spin up
+  # more instances in response to increased traffic.
+  maxInstances: 1

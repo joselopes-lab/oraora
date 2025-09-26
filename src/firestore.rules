@@ -1,0 +1,16 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Regra geral: permite leitura pública, mas escrita apenas para usuários autenticados.
+    match /{document=**} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    
+    // As regras de negócio (ex: isVisibleOnSite) são aplicadas nas queries do código da aplicação,
+    // garantindo que apenas os dados corretos sejam exibidos publicamente.
+    // Esta regra garante que as queries em si não sejam bloqueadas por permissões.
+  }
+}

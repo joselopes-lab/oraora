@@ -1,0 +1,32 @@
+
+{
+  "hosting": [
+    {
+      "site": "oraora-com-br-www",
+      "public": "public",
+      "frameworksBackend": {
+        "region": "us-central1"
+      },
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**"
+      ]
+    },
+    {
+      "site": "oraora-com-br",
+      "public": "public",
+      "redirects": [
+        {
+          "source": "/:path*",
+          "destination": "https://www.oraora.com.br/:path*",
+          "type": 301
+        }
+      ]
+    }
+  ],
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  }
+}
