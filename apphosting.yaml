@@ -3,7 +3,7 @@
 
 # A unique identifier for your backend.
 # This value is not used in the public URL of your app.
-backendId: oraora-backend
+backendId: oraora
 
 # The location to deploy your backend
 # This value should be one of the regions supported by App Hosting
