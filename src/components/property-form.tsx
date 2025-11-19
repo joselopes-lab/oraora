@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, type FormEvent, type ChangeEvent } from 'react';
@@ -67,9 +68,10 @@ interface PropertyFormProps {
     initialData: Partial<Property> | null;
     onSave: () => void;
     onCancel: () => void;
+    isDialog?: boolean;
 }
 
-export default function PropertyForm({ initialData, onSave, onCancel }: PropertyFormProps) {
+export default function PropertyForm({ initialData, onSave, onCancel, isDialog = false }: PropertyFormProps) {
     const { toast } = useToast();
     const router = useRouter();
     const { user, panelUserType } = useAuth();
@@ -97,23 +99,27 @@ export default function PropertyForm({ initialData, onSave, onCancel }: Property
     const [isUploading, setIsUploading] = useState<string | null>(null);
 
     useEffect(() => {
-        if (initialData) {
-            const dataToSet = {...getInitialState(), ...initialData};
-            if (dataToSet.id) {
-                setIsEditing(true);
-            }
-             if (dataToSet.caracteristicasimovel?.unidades?.quartos && !Array.isArray(dataToSet.caracteristicasimovel.unidades.quartos)) {
-                dataToSet.caracteristicasimovel.unidades.quartos = [dataToSet.caracteristicasimovel.unidades.quartos];
-            }
-            setCurrentProperty(dataToSet);
-
-            if (dataToSet.localizacao?.estado) {
-                handleStateChange(dataToSet.localizacao.estado, false);
-                if (dataToSet.localizacao.cidade) {
-                    handleCityChange(dataToSet.localizacao.cidade, false);
+        const initializeForm = async () => {
+            if (initialData) {
+                const dataToSet = { ...getInitialState(), ...initialData };
+                if (dataToSet.id) {
+                    setIsEditing(true);
                 }
+                if (dataToSet.caracteristicasimovel?.unidades?.quartos && !Array.isArray(dataToSet.caracteristicasimovel.unidades.quartos)) {
+                    dataToSet.caracteristicasimovel.unidades.quartos = [dataToSet.caracteristicasimovel.unidades.quartos];
+                }
+                
+                if (dataToSet.localizacao?.estado) {
+                    await handleStateChange(dataToSet.localizacao.estado, false);
+                    if (dataToSet.localizacao.cidade) {
+                       await handleCityChange(dataToSet.localizacao.cidade, false, dataToSet.localizacao.estado);
+                    }
+                }
+                setCurrentProperty(dataToSet);
             }
-        }
+        };
+        initializeForm();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [initialData]);
 
     useEffect(() => {
@@ -156,16 +162,17 @@ export default function PropertyForm({ initialData, onSave, onCancel }: Property
         setIsLoadingCities(false);
     };
 
-    const handleCityChange = async (cityName: string, resetNeighborhood = true) => {
+    const handleCityChange = async (cityName: string, resetNeighborhood = true, stateAcronym?: string) => {
+        const currentState = stateAcronym || currentProperty.localizacao?.estado;
         setCurrentProperty((prev) => ({...prev, localizacao: { ...prev.localizacao, cidade: cityName, ...(resetNeighborhood && { bairro: '' }) } }));
         setIsLoadingNeighborhoods(true);
         setNeighborhoods([]);
-        if (cityName) {
-            const selectedCity = cities.find(c => c.nome === cityName);
-            const stateId = states.find(s => s.sigla === currentProperty.localizacao?.estado)?.id;
-            if (selectedCity || (stateId && cityName)) {
-                const cityId = selectedCity ? selectedCity.id : 0; 
-                const neighborhoodsData = await getNeighborhoodsByCity(cityId, cityName);
+        if (cityName && currentState) {
+            const citiesOfState = await getCitiesByState(currentState);
+            const selectedCity = citiesOfState.find(c => c.nome === cityName);
+
+            if (selectedCity) {
+                const neighborhoodsData = await getNeighborhoodsByCity(selectedCity.id, cityName);
                 setNeighborhoods(neighborhoodsData);
             }
         }
@@ -313,7 +320,8 @@ export default function PropertyForm({ initialData, onSave, onCancel }: Property
                 await updateDoc(propertyRef, propertyData);
                 toast({ title: 'Imóvel Atualizado!' });
             } else {
-                await addDoc(collection(db, 'properties'), { ...propertyData, createdAt: Timestamp.now() });
+                const newDocRef = doc(collection(db, 'properties'));
+                await setDoc(newDocRef, { ...propertyData, id: newDocRef.id, createdAt: Timestamp.now() });
                 toast({ title: 'Imóvel Salvo!' });
             }
             onSave();
@@ -326,12 +334,14 @@ export default function PropertyForm({ initialData, onSave, onCancel }: Property
     
     return (
         <form onSubmit={handleSubmit} className="flex flex-col h-full overflow-hidden">
-            <DialogHeader>
-                <DialogTitle>{isEditing ? 'Editar Imóvel' : 'Cadastrar Novo Imóvel'}</DialogTitle>
-                <DialogDescription>
-                    {isEditing ? `Alterando dados do imóvel: ${currentProperty?.informacoesbasicas?.nome || ''}` : 'Preencha os dados do novo empreendimento.'}
-                </DialogDescription>
-            </DialogHeader>
+             {isDialog && (
+                 <DialogHeader>
+                    <DialogTitle>{isEditing ? 'Editar Imóvel' : 'Cadastrar Novo Imóvel'}</DialogTitle>
+                    <DialogDescription>
+                        {isEditing ? `Alterando dados do imóvel: ${currentProperty?.informacoesbasicas?.nome || ''}` : 'Preencha os dados do novo empreendimento.'}
+                    </DialogDescription>
+                </DialogHeader>
+             )}
             <div className="flex-grow overflow-y-auto pr-6 space-y-8 py-4">
                 <Accordion type="multiple" className="w-full space-y-4" defaultValue={['item-1', 'item-2', 'item-3', 'item-4', 'item-5', 'item-6', 'item-7', 'item-8', 'item-9', 'item-10', 'item-11']}>
                     
@@ -489,10 +499,10 @@ export default function PropertyForm({ initialData, onSave, onCancel }: Property
 
                   </Accordion>
             </div>
-             <DialogFooter className="pt-4 border-t mt-auto">
+             <div className="pt-4 border-t mt-auto flex justify-end gap-2">
                 <Button type="button" variant="outline" onClick={onCancel}>Cancelar</Button>
                 <Button type="submit" disabled={isSubmitting}>{isSubmitting ? <Loader2 className="animate-spin" /> : 'Salvar Imóvel'}</Button>
-             </DialogFooter>
+             </div>
         </form>
     );
 }

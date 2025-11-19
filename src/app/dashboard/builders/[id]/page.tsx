@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -275,7 +276,7 @@ export default function BuilderDetailPage() {
         </CardHeader>
         <CardContent>
             {properties.length > 0 ? (
-                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                 <div className="grid grid-cols-1 gap-6">
                     {properties.map(prop => (
                        <PropertyCard 
                             key={prop.id} 

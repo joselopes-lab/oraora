@@ -8,6 +8,13 @@ import { type Property } from '@/app/dashboard/properties/page';
 import PropertyForm from '@/components/property-form';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 
 export default function PropertyEditPage() {
     const params = useParams();
@@ -66,14 +73,10 @@ export default function PropertyEditPage() {
     }
 
     return (
-        <div>
-            {initialData && (
-                <PropertyForm 
-                    initialData={initialData}
-                    onSave={handleSave}
-                    onCancel={handleCancel}
-                />
-            )}
-        </div>
+        <PropertyForm 
+            initialData={initialData}
+            onSave={handleSave}
+            onCancel={handleCancel}
+        />
     );
 }
