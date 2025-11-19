@@ -1,10 +1,10 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -36,8 +36,9 @@ function FacebookIcon() {
     )
 }
 
-export default function LoginPage() {
+function LoginPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -45,6 +46,8 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [logoUrl, setLogoUrl] = useState<string>('');
+  
+  const redirectUrl = searchParams.get('redirect') || '/';
 
   useEffect(() => {
     async function fetchLogo() {
@@ -76,13 +79,23 @@ export default function LoginPage() {
         description: 'Bem-vindo de volta!',
       });
 
-      if (userDoc.exists() && userDoc.data().role === 'Corretor') {
-         router.push('/corretor/dashboard');
-      } else if (userDoc.exists() && userDoc.data().roleId) {
-         router.push('/dashboard');
-      } else {
-         router.push('/'); // Redirect regular clients to homepage
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        if (userData.role === 'Corretor') {
+            router.push('/corretor/dashboard');
+            return;
+        }
+        if (userData.role === 'Construtora') {
+            router.push('/dashboard-construtora/dashboard');
+            return;
+        }
+        if (userData.roleId || user.email === 'vinicius@teste.com' || userData.role === 'Admin') {
+            router.push('/dashboard');
+            return;
+        }
       }
+      
+      router.push('/');
 
     } catch (error: any) {
       toast({
@@ -99,7 +112,7 @@ export default function LoginPage() {
     <div className="min-h-screen w-full lg:grid lg:grid-cols-2">
       <div className="relative hidden items-center justify-center bg-primary p-12 lg:flex">
          <div className="absolute top-8 left-8 flex items-start gap-2">
-            <Link href="/" className="flex items-center gap-1">
+            <Link href={redirectUrl} className="flex items-center gap-1">
                 {logoUrl ? (
                     <Image src={logoUrl} alt="Oraora Logo" width={200} height={60} className="h-12 w-auto object-contain" />
                 ) : (
@@ -110,7 +123,7 @@ export default function LoginPage() {
                 )}
             </Link>
          </div>
-          <Link href="/" className="absolute top-8 right-8 flex items-center gap-2 text-primary-foreground hover:opacity-80 transition-opacity">
+          <Link href={redirectUrl} className="absolute top-8 right-8 flex items-center gap-2 text-primary-foreground hover:opacity-80 transition-opacity">
             <ArrowLeft className="h-4 w-4" />
             <span>Voltar para o site</span>
          </Link>
@@ -217,4 +230,12 @@ export default function LoginPage() {
       </div>
     </div>
   );
+}
+
+export default function LoginPage() {
+    return (
+        <Suspense fallback={<div>Carregando...</div>}>
+            <LoginPageContent />
+        </Suspense>
+    )
 }

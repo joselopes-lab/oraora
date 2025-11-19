@@ -3,7 +3,6 @@ import { NextResponse } from 'next/server';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { type Property } from '@/app/dashboard/properties/page';
-import { type Builder } from '@/app/dashboard/builders/page';
 
 export async function GET() {
   const baseUrl = 'https://oraora.com.br';
@@ -99,4 +98,3 @@ export async function GET() {
     },
   });
 }
-

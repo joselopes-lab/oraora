@@ -6,7 +6,7 @@ const nextConfig: NextConfig = {
   experimental: {
     allowedDevOrigins: ['*'],
   },
-  reactStrictMode: true,
+  reactStrictMode: false,
   typescript: {
     ignoreBuildErrors: true,
   },
@@ -29,7 +29,9 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: 'https',
-        hostname: '**',
+        hostname: 'firebasestorage.googleapis.com',
+        port: '',
+        pathname: '/**',
       }
     ],
   },

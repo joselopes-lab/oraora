@@ -1,5 +1,4 @@
-
-'use client';
+"use client"
 
 import {
   Dialog,
@@ -39,13 +38,13 @@ export default function StateSelectionModal({ isOpen, states, onStateSelect, isL
         <DialogHeader>
           <DialogTitle>Bem-vindo ao Oraora!</DialogTitle>
           <DialogDescription>
-            Para começar, por favor, selecione o seu estado. Isso nos ajudará a personalizar sua experiência de busca.
+            Para começar, escolha o estado onde você deseja pesquisar imóveis.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <Select onValueChange={setSelected} disabled={isLoading}>
             <SelectTrigger>
-              <SelectValue placeholder={isLoading ? 'Carregando estados...' : 'Selecione seu estado'} />
+              <SelectValue placeholder={isLoading ? 'Carregando...' : 'Escolha o estado'} />
             </SelectTrigger>
             <SelectContent>
               {states.map(s => (

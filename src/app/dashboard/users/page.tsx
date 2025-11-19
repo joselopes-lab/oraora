@@ -117,7 +117,11 @@ export default function UsersPage() {
     });
 
     const unsubscribeRoles = onSnapshot(collection(db, 'roles'), (snapshot) => {
-      const rolesData = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name } as Role));
+      let rolesData = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name } as Role));
+      // Manually add "Corretor" if it doesn't exist as a formal role
+        if (!rolesData.some(role => role.name === 'Corretor')) {
+            rolesData.push({ id: 'corretor_role', name: 'Corretor' });
+        }
       setRoles(rolesData);
       if (rolesData.length > 0 && !newRoleId) {
         setNewRoleId(rolesData[0].id); // Define um padrão

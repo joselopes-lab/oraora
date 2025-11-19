@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -24,7 +23,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, User, Mail, Phone, Home, Loader2, Users, FileText } from 'lucide-react';
-import { type Client } from '../../page';
+import { type Client } from '../../../clientes/page';
 import { type Persona } from '@/app/dashboard/personas/page';
 import { type Property } from '@/app/dashboard/properties/page';
 import PropertyCard from '@/components/property-card';

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -19,6 +18,8 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { getStates, type State } from '@/services/location';
 import { type Property } from './properties/page';
+import { useAuth } from '@/context/auth-context';
+import { useRouter } from 'next/navigation';
 
 
 interface Counts {
@@ -36,12 +37,20 @@ interface LeadData {
 }
 
 export default function DashboardPage() {
+  const { panelUserType } = useAuth();
+  const router = useRouter();
   const [counts, setCounts] = useState<Counts>({ users: 0, roles: 0, properties: 0, leads: 0, builders: 0, brokers: 0 });
   const [leadChartData, setLeadChartData] = useState<LeadData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [statePropertyCounts, setStatePropertyCounts] = useState<Record<string, number>>({});
   const [inactiveStatePropertyCounts, setInactiveStatePropertyCounts] = useState<Record<string, number>>({});
   const [allStates, setAllStates] = useState<State[]>([]);
+
+  useEffect(() => {
+    if (panelUserType === 'construtora') {
+      router.push('/dashboard-construtora/dashboard');
+    }
+  }, [panelUserType, router]);
 
   useEffect(() => {
     const fetchStates = async () => {
@@ -140,6 +149,10 @@ export default function DashboardPage() {
 
   const getStateName = (acronym: string) => {
     return allStates.find(s => s.sigla === acronym)?.nome || acronym;
+  }
+
+  if (panelUserType === 'construtora') {
+     return <div className="flex h-screen w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /><p className="ml-2">Redirecionando para o seu painel...</p></div>;
   }
 
   return (

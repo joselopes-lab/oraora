@@ -1,3 +1,4 @@
+
 {
   "indexes": [
     {
@@ -25,6 +26,34 @@
       ]
     },
     {
+      "collectionGroup": "broker_notes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "clientId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "broker_tasks",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "brokerId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "date",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "users",
       "queryScope": "COLLECTION",
       "fields": [
@@ -35,6 +64,20 @@
         {
           "fieldPath": "name",
           "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "broker_documents",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "brokerId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
         }
       ]
     }

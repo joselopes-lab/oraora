@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Eye, EyeOff } from 'lucide-react';
+import { Loader2, Eye, EyeOff, Phone, Instagram } from 'lucide-react';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import { doc, setDoc } from 'firebase/firestore';
@@ -26,6 +26,8 @@ export default function RegisterBrokerPage() {
   const { toast } = useToast();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [whatsapp, setWhatsapp] = useState('');
+  const [instagram, setInstagram] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -68,6 +70,8 @@ export default function RegisterBrokerPage() {
         uid: user.uid,
         name: name,
         email: email,
+        whatsapp: whatsapp,
+        instagram: instagram,
         role: 'Corretor',
         roleId: 'corretor_role', // Simple role identifier
         status: 'Active',
@@ -95,7 +99,7 @@ export default function RegisterBrokerPage() {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-muted/40">
+    <div className="flex items-center justify-center min-h-screen bg-muted/40 py-12">
       <div className="w-full max-w-md p-8 space-y-8 bg-white rounded-lg shadow-md">
         <div className="text-center">
           <h1 className="text-3xl font-bold">Cadastro de Corretor</h1>
@@ -125,6 +129,36 @@ export default function RegisterBrokerPage() {
               onChange={(e) => setEmail(e.target.value)}
               disabled={isLoading}
             />
+          </div>
+           <div className="space-y-2">
+            <Label htmlFor="whatsapp">WhatsApp</Label>
+             <div className="relative">
+                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="whatsapp"
+                  type="tel"
+                  placeholder="(99) 99999-9999"
+                  value={whatsapp}
+                  onChange={(e) => setWhatsapp(e.target.value)}
+                  disabled={isLoading}
+                  className="pl-10"
+                />
+             </div>
+          </div>
+           <div className="space-y-2">
+            <Label htmlFor="instagram">Instagram</Label>
+            <div className="relative">
+                <Instagram className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="instagram"
+                  type="text"
+                  placeholder="@seuusuario"
+                  value={instagram}
+                  onChange={(e) => setInstagram(e.target.value)}
+                  disabled={isLoading}
+                  className="pl-10"
+                />
+            </div>
           </div>
           <div className="space-y-2">
             <Label htmlFor="password">Senha</Label>

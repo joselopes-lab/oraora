@@ -33,15 +33,15 @@ export default function MobileStateSelector() {
             </DialogTrigger>
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>Selecione seu estado</DialogTitle>
+                    <DialogTitle>Escolha o estado</DialogTitle>
                     <DialogDescription>
-                        Isso nos ajudará a encontrar os melhores imóveis para você.
+                        Selecione o estado onde você deseja pesquisar imóveis.
                     </DialogDescription>
                 </DialogHeader>
                 <div className="py-4">
                      <Select onValueChange={setTempSelectedState} value={tempSelectedState || ''} disabled={isLoading}>
                         <SelectTrigger>
-                            <SelectValue placeholder={isLoading ? 'Carregando...' : 'Selecione um estado'} />
+                            <SelectValue placeholder={isLoading ? 'Carregando...' : 'Escolha o estado'} />
                         </SelectTrigger>
                         <SelectContent>
                             {states.map(s => <SelectItem key={s.id} value={s.sigla}>{s.nome}</SelectItem>)}

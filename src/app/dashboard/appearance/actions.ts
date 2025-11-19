@@ -22,6 +22,10 @@ export interface AppearanceSettings {
   seoTitle?: string;
   seoDescription?: string;
   seoKeywords?: string;
+  brokerCallDesktopImage?: string;
+  brokerCallMobileImage?: string;
+  brokerCallLink?: string;
+  brokerCallLinkTargetBlank?: boolean;
 }
 
 export async function getAppearanceSettings(): Promise<AppearanceSettings> {
@@ -40,7 +44,11 @@ export async function getAppearanceSettings(): Promise<AppearanceSettings> {
     socialYoutube: '#',
     seoTitle: 'Oraora | Encontre Lançamentos e Imóveis Prontos',
     seoDescription: 'A Oraora é o seu hub de imóveis. Encontre, compare e decida entre os melhores lançamentos e imóveis prontos nas principais cidades do Brasil.',
-    seoKeywords: 'imóveis, comprar apartamento, lançamentos, imóveis prontos, imobiliária, apartamentos à venda, casas à venda'
+    seoKeywords: 'imóveis, comprar apartamento, lançamentos, imóveis prontos, imobiliária',
+    brokerCallDesktopImage: '',
+    brokerCallMobileImage: '',
+    brokerCallLink: '',
+    brokerCallLinkTargetBlank: false,
   };
   
   try {

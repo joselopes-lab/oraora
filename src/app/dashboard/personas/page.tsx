@@ -422,7 +422,7 @@ export default function PersonasPage() {
                     <Link href={`/dashboard/personas/${persona.id}`} className="block">
                       <div className="relative aspect-video bg-muted flex items-center justify-center">
                           {persona.imageUrl ? (
-                              <Image src={persona.imageUrl} alt={persona.name} fill className="object-cover group-hover:scale-105 transition-transform" />
+                              <Image src={persona.imageUrl} alt={persona.name} fill sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" className="object-cover group-hover:scale-105 transition-transform" />
                           ): (
                               <ImageOff className="h-10 w-10 text-muted-foreground"/>
                           )}

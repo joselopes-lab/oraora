@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams, notFound } from 'next/navigation';
 import { db, auth } from '@/lib/firebase';
-import { doc, getDoc, collection, query, where, getDocs, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { doc, getDoc, onSnapshot, collection, query, where, getDocs, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -14,18 +14,13 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { ArrowLeft, Building2, Mail, Phone, Instagram, Home, Loader2, FileText, PlusCircle, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Building2, Mail, Phone, Instagram, Home, Loader2, PlusCircle, CheckCircle } from 'lucide-react';
 import PropertyCard from '@/components/property-card';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { useToast } from '@/hooks/use-toast';
+import { type Property } from '@/app/dashboard/properties/page';
+import { usePropertyActions } from '@/hooks/use-property-actions';
+import { useAuth } from '@/context/auth-context';
 
 interface Builder {
   id: string;
@@ -39,32 +34,26 @@ interface Builder {
   email: string;
 }
 
-interface Property {
-  id: string;
-  slug: string;
-  informacoesbasicas: {
-    nome: string;
-  };
-  localizacao: {
-    cidade?: string;
-    estado?: string;
-  };
-  caracteristicasimovel: {
-    tipo?: string;
-  };
-}
-
-
 export default function BuilderDetailPageCorretor() {
   const params = useParams();
   const { toast } = useToast();
-  const [user] = useAuthState(auth);
+  const { user, propertyCount, propertyLimit } = useAuth();
   const builderId = Array.isArray(params.id) ? params.id[0] : params.id;
   
   const [builder, setBuilder] = useState<Builder | null>(null);
   const [properties, setProperties] = useState<Property[]>([]);
-  const [isInPortfolio, setIsInPortfolio] = useState(false);
+  const [portfolioPropertyIds, setPortfolioPropertyIds] = useState<string[]>([]);
+  const [hiddenPropertyIds, setHiddenPropertyIds] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  
+  const { 
+    selectedProperty, 
+    isSheetOpen, 
+    handleViewDetails, 
+    setIsSheetOpen,
+    PropertyDetailSheet
+  } = usePropertyActions({ id: builder?.id || '', name: builder?.name || '', whatsapp: builder?.whatsapp }, 'broker-panel');
+
 
   useEffect(() => {
     if (!builderId) return;
@@ -100,19 +89,18 @@ export default function BuilderDetailPageCorretor() {
     fetchBuilderAndProperties();
   }, [builderId]);
   
-  useEffect(() => {
-      if (!user || !builderId || properties.length === 0) return;
-      const userDocRef = doc(db, 'users', user.uid);
-      getDoc(userDocRef).then(doc => {
-          if (doc.exists()) {
-              const portfolioIds = doc.data().portfolioPropertyIds || [];
-              const builderPropertyIds = properties.map(p => p.id);
-              // Considered in portfolio if all properties of this builder are in the portfolio
-              const allInPortfolio = builderPropertyIds.every(id => portfolioIds.includes(id));
-              setIsInPortfolio(allInPortfolio);
-          }
-      });
-  }, [user, builderId, properties]);
+ useEffect(() => {
+    if (!user) return;
+    const userDocRef = doc(db, 'users', user.uid);
+    const unsubscribe = onSnapshot(userDocRef, (doc) => {
+      if (doc.exists()) {
+        const data = doc.data();
+        setPortfolioPropertyIds(data.portfolioPropertyIds || []);
+        setHiddenPropertyIds(data.hiddenPortfolioPropertyIds || []);
+      }
+    });
+    return () => unsubscribe();
+  }, [user]);
 
   const togglePortfolio = async () => {
     if (!user || !builderId || properties.length === 0) return;
@@ -120,19 +108,47 @@ export default function BuilderDetailPageCorretor() {
     const builderPropertyIds = properties.map(p => p.id);
 
     try {
-        if (isInPortfolio) {
-            await updateDoc(userDocRef, { portfolioPropertyIds: arrayRemove(...builderPropertyIds) });
+        const allInPortfolio = builderPropertyIds.every(id => portfolioPropertyIds.includes(id));
+        if (allInPortfolio) {
+            await updateDoc(userDocRef, { 
+                portfolioPropertyIds: arrayRemove(...builderPropertyIds),
+                hiddenPortfolioPropertyIds: arrayRemove(...builderPropertyIds)
+            });
             toast({ title: "Removido da Carteira!" });
-            setIsInPortfolio(false);
         } else {
+             if (propertyLimit !== null) {
+                const newPropertiesCount = builderPropertyIds.filter(id => !portfolioPropertyIds.includes(id)).length;
+                if (propertyCount + newPropertiesCount > propertyLimit) {
+                    toast({ variant: 'destructive', title: "Limite do plano atingido!", description: "Você não pode adicionar mais imóveis." });
+                    return;
+                }
+            }
             await updateDoc(userDocRef, { portfolioPropertyIds: arrayUnion(...builderPropertyIds) });
             toast({ title: "Adicionado à Carteira!" });
-            setIsInPortfolio(true);
         }
     } catch (error) {
         toast({ variant: 'destructive', title: "Erro ao atualizar a carteira." });
     }
   };
+
+  const handleToggleVisibility = async (propertyId: string, isVisible: boolean) => {
+    if (!user) return;
+    const userDocRef = doc(db, 'users', user.uid);
+    try {
+        if (isVisible) {
+            await updateDoc(userDocRef, { hiddenPortfolioPropertyIds: arrayRemove(propertyId) });
+            toast({ title: 'Imóvel agora está visível no seu site.' });
+        } else {
+            await updateDoc(userDocRef, { hiddenPortfolioPropertyIds: arrayUnion(propertyId) });
+            toast({ title: 'Imóvel agora está oculto no seu site.' });
+        }
+    } catch (error) {
+        toast({ variant: 'destructive', title: 'Erro ao alterar visibilidade.' });
+    }
+  };
+
+  const allBuilderPropertiesInPortfolio = properties.length > 0 && properties.every(p => portfolioPropertyIds.includes(p.id));
+  const isLimitReached = propertyLimit !== null && propertyCount >= propertyLimit;
 
   if (isLoading) {
     return (
@@ -166,13 +182,16 @@ export default function BuilderDetailPageCorretor() {
                 Voltar para a Lista de Construtoras
             </Button>
         </Link>
-        <Button 
-            variant={isInPortfolio ? 'secondary' : 'default'} 
-            onClick={togglePortfolio}
-        >
-            {isInPortfolio ? <CheckCircle className="mr-2 h-4 w-4"/> : <PlusCircle className="mr-2 h-4 w-4"/>}
-            {isInPortfolio ? 'Na sua carteira' : 'Adicionar à carteira'}
-        </Button>
+        {properties.length > 0 && (
+            <Button 
+                variant={allBuilderPropertiesInPortfolio ? 'secondary' : 'default'} 
+                onClick={togglePortfolio}
+                disabled={isLimitReached && !allBuilderPropertiesInPortfolio}
+            >
+                {allBuilderPropertiesInPortfolio ? <CheckCircle className="mr-2 h-4 w-4"/> : <PlusCircle className="mr-2 h-4 w-4"/>}
+                {allBuilderPropertiesInPortfolio ? 'Na sua carteira' : 'Adicionar à carteira'}
+            </Button>
+        )}
       </div>
       
       <Card>
@@ -214,17 +233,20 @@ export default function BuilderDetailPageCorretor() {
         <CardContent>
             {properties.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {properties.map(prop => (
-                       <div key={prop.id} className="flex flex-col">
-                           <PropertyCard property={prop as any} hideClientActions />
-                           <Button asChild className="mt-2 bg-[#83e800] text-black hover:bg-[#72c900]">
-                               <Link href={`/imoveis/${prop.slug}`} target="_blank">
-                                    <FileText className="mr-2 h-4 w-4" />
-                                    Ver Detalhes do Imóvel
-                               </Link>
-                           </Button>
-                       </div>
-                    ))}
+                    {properties.map(prop => {
+                        const isInPortfolio = portfolioPropertyIds.includes(prop.id);
+                        return (
+                           <PropertyCard 
+                                key={prop.id} 
+                                property={prop} 
+                                variant={isInPortfolio ? 'portfolio' : 'default'}
+                                onToggleVisibility={isInPortfolio ? handleToggleVisibility : undefined}
+                                isPubliclyVisible={isInPortfolio ? !hiddenPropertyIds.includes(prop.id) : undefined}
+                                hideClientActions={true}
+                                onViewDetails={() => handleViewDetails(prop)}
+                            />
+                        )
+                    })}
                 </div>
             ) : (
                  <div className="h-24 text-center flex items-center justify-center">
@@ -233,6 +255,17 @@ export default function BuilderDetailPageCorretor() {
             )}
         </CardContent>
       </Card>
+      
+       {selectedProperty && user && (
+            <PropertyDetailSheet
+                property={selectedProperty}
+                brokerId={user.uid}
+                brokerWhatsApp={user.phoneNumber}
+                isOpen={isSheetOpen}
+                onOpenChange={setIsSheetOpen}
+                source="broker-panel"
+            />
+        )}
     </div>
   );
 }

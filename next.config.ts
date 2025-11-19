@@ -3,7 +3,10 @@ import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
   /* config options here */
-  reactStrictMode: true,
+  experimental: {
+    allowedDevOrigins: ['*'],
+  },
+  reactStrictMode: false,
   typescript: {
     ignoreBuildErrors: true,
   },
@@ -26,7 +29,9 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: 'https',
-        hostname: '**',
+        hostname: 'firebasestorage.googleapis.com',
+        port: '',
+        pathname: '/**',
       }
     ],
   },

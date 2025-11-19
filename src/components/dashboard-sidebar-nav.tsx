@@ -21,6 +21,10 @@ import {
     Handshake,
     Download,
     Map,
+    BarChart,
+    Package,
+    HelpCircle,
+    Globe,
 } from 'lucide-react';
 import React from 'react';
 
@@ -44,12 +48,16 @@ const navLinks: NavLink[] = [
   { href: '/dashboard/leads-corretores', label: 'Leads de Corretores', permission: 'Acessar Leads de Corretores', icon: UserCheck },
   { href: '/dashboard/featured', label: 'Destaques', permission: 'Acessar Destaques', icon: Star },
   { href: '/dashboard/banners', label: 'Banners', permission: 'Acessar Banners', icon: ImageIcon },
+  { href: '/dashboard/monitoring', label: 'Monitoramento', permission: 'Acessar Painel', icon: Globe },
+  { href: '/dashboard/statistics', label: 'Estatísticas', permission: 'Acessar Painel', icon: BarChart },
+  { href: '/dashboard/plans', label: 'Planos', permission: 'Acessar Configurações', icon: Package },
   { href: '/dashboard/support', label: 'Suporte', permission: 'Acessar Suporte', icon: LifeBuoy },
   { href: '/dashboard/appearance', label: 'Aparência', permission: 'Acessar Aparência', icon: Paintbrush },
   { href: '/dashboard/users', label: 'Usuários', permission: 'Acessar Usuários', icon: Users },
   { href: '/dashboard/roles', label: 'Funções', permission: 'Acessar Funções', icon: Shield },
   { href: '/dashboard/regions', label: 'Regiões', permission: 'Acessar Configurações', icon: Map },
   { href: '/dashboard/exportar', label: 'Exportar Dados', permission: 'Acessar Configurações', icon: Download },
+  { href: '/dashboard/help', label: 'Ajuda', permission: 'Acessar Ajuda', icon: HelpCircle },
 ];
 
 export default function DashboardSidebarNav({ permissions }: { permissions: string[] }) {

@@ -68,15 +68,15 @@ export default function FaleConoscoPage() {
                         ) : (
                              <form ref={formRef} action={formAction} className="space-y-6">
                                 <div className="space-y-2">
-                                    <Select name="subject" defaultValue="Cadastro" required>
+                                    <Select name="subject" defaultValue="Dúvidas" required>
                                         <SelectTrigger>
                                             <SelectValue placeholder="Selecione o assunto" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="Cadastro">Cadastro</SelectItem>
                                             <SelectItem value="Dúvidas">Dúvidas</SelectItem>
                                             <SelectItem value="Sugestões">Sugestões</SelectItem>
                                             <SelectItem value="Problemas Técnicos">Problemas Técnicos</SelectItem>
+                                            <SelectItem value="Upgrade de Plano">Upgrade de Plano</SelectItem>
                                             <SelectItem value="Outro">Outro</SelectItem>
                                         </SelectContent>
                                     </Select>

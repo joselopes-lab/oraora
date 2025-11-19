@@ -50,7 +50,7 @@ function HomePageContent() {
         setAppearance({
           logoUrl: '',
           heroTitle: 'Reunimos automaticamente os imóveis das construtoras em um ambiente exclusivo, investigado e atualizado para você.',
-          searchFormTitle: 'Vamos investigar',
+          searchFormTitle: 'Encontre seu imóvel',
           heroBackgroundImage: 'https://placehold.co/500x611.png'
         } as AppearanceSettings);
       }
@@ -127,7 +127,7 @@ function HomePageContent() {
   }, [allStateProperties]);
 
   const heroTitle = appearance?.heroTitle || 'Encontre seu imóvel dos sonhos para você.';
-  const searchFormTitle = appearance?.searchFormTitle || 'Vamos investigar';
+  const searchFormTitle = appearance?.searchFormTitle || 'Encontre seu imóvel';
   const heroBackgroundImage = appearance?.heroBackgroundImage || 'https://placehold.co/1200x600.png';
 
 
@@ -161,9 +161,9 @@ function HomePageContent() {
 
             <div className="lg:col-span-4 z-10">
               <div className="bg-gradient-to-b from-[#b6e803] to-[#0fe808] backdrop-blur-sm p-6 md:p-8 rounded-2xl shadow-2xl">
-                <h2 className="text-2xl font-bold text-black mb-6 text-center">{searchFormTitle}</h2>
+                <h2 className="text-3xl font-bold text-black mb-6 text-center">{searchFormTitle}</h2>
                 <Suspense fallback={<div className="h-40 flex justify-center items-center"><Loader2 className="h-8 w-8 animate-spin text-white"/></div>}>
-                  <SearchForm isHomePage />
+                  <SearchForm isHomePage properties={allStateProperties}/>
                 </Suspense>
               </div>
             </div>
@@ -171,12 +171,13 @@ function HomePageContent() {
           </div>
         </div>
       </section>
+      
+      <section className="w-full">
+        <BannerDisplay banners={homeTopBanners} />
+      </section>
         
       <section className="py-12 sm:py-16">
         <div className="container mx-auto px-4">
-          
-          <BannerDisplay banners={homeTopBanners} />
-
           <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-center mb-12">O melhor da {selectedState?.nome || '...'}, revelado para você</h2>
           {isLoading ? (
             <div className="flex justify-center">
@@ -197,6 +198,26 @@ function HomePageContent() {
           )}
         </div>
       </section>
+
+      {appearance?.brokerCallDesktopImage && (
+        <section className="py-12 sm:py-16">
+            <div className="container mx-auto px-4">
+                <Link 
+                    href={appearance.brokerCallLink || '#'} 
+                    target={appearance.brokerCallLinkTargetBlank ? '_blank' : '_self'}
+                    rel={appearance.brokerCallLinkTargetBlank ? 'noopener noreferrer' : ''}
+                    className={!appearance.brokerCallLink ? 'pointer-events-none' : ''}
+                >
+                    <div className="hidden md:block">
+                        {appearance.brokerCallDesktopImage && <Image src={appearance.brokerCallDesktopImage} alt="Chamada para corretores" width={1280} height={200} className="w-full h-auto rounded-lg" />}
+                    </div>
+                     <div className="block md:hidden">
+                        {appearance.brokerCallMobileImage && <Image src={appearance.brokerCallMobileImage} alt="Chamada para corretores" width={375} height={300} className="w-full h-auto rounded-lg" />}
+                    </div>
+                </Link>
+            </div>
+        </section>
+      )}
 
        <section className="py-12 sm:py-16 bg-secondary/30">
         <div className="container mx-auto px-4">

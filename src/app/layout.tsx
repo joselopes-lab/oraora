@@ -1,3 +1,4 @@
+
 import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
@@ -36,7 +37,7 @@ export default async function RootLayout({
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" />
+        <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@100;200;300;400;500;600;700&display=swap" rel="stylesheet" />
         {/* Google tag (gtag.js) */}
         <Script async src="https://www.googletagmanager.com/gtag/js?id=G-NKK4615JX3"></Script>
         <Script id="google-analytics">
@@ -49,7 +50,7 @@ export default async function RootLayout({
           `}
         </Script>
       </head>
-      <body className={cn('font-body antialiased', 'min-h-screen bg-background pb-16 md:pb-0')}>
+      <body className={cn('font-body antialiased', 'min-h-screen bg-background')}>
         {children}
         <Toaster />
       </body>

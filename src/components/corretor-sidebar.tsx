@@ -1,84 +1,108 @@
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image';
-import { useEffect, useState } from 'react';
-import { getAppearanceSettings } from '@/app/dashboard/appearance/actions';
-import { Icons } from '@/components/icons';
-import { Building, Users, Briefcase, Home, Inbox } from 'lucide-react';
+import { Building, Users, Briefcase, Home, Inbox, FilePlus, Paintbrush, Calendar, Wallet, FileText, Handshake, Package } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
-const CorretorSidebarNav = () => {
+interface CorretorSidebarProps {
+    isMobile?: boolean;
+}
+
+const CorretorSidebarNav = ({ isMobile = false }: CorretorSidebarProps) => {
     const pathname = usePathname();
 
     const navLinks = [
         { href: "/corretor/dashboard", label: "Dashboard", icon: Home, exact: true },
+        { href: "/corretor/agenda", label: "Agenda", icon: Calendar },
         { href: "/corretor/clientes", label: "Clientes", icon: Users },
         { href: "/corretor/construtoras", label: "Construtoras", icon: Building },
-        { href: "/corretor/carteira", label: "Minha Carteira", icon: Briefcase },
-        { href: "/corretor/leads", label: "Meus Leads", icon: Inbox },
+        { href: "/corretor/carteira", label: "Carteira", icon: Briefcase },
+        { href: "/corretor/avulso", label: "Avulsos", icon: FilePlus },
+        { href: "/corretor/leads", label: "Leads", icon: Inbox },
+        { href: "/corretor/financeiro", label: "Finanças", icon: Wallet },
+        { href: "/corretor/documentos", label: "Documentos", icon: FileText },
+        { href: "/corretor/parcerias", label: "Parcerias", icon: Handshake },
+        { href: "/corretor/meu-plano", label: "Meu Plano", icon: Package },
+        { href: "/corretor/appearance", label: "Aparência", icon: Paintbrush },
     ];
 
+    if (isMobile) {
+        return (
+            <nav className="flex flex-col gap-2 p-4 text-lg font-medium">
+                {navLinks.map(link => {
+                     const isActive = link.exact ? pathname === link.href : pathname.startsWith(link.href);
+                     return (
+                         <Link
+                             key={link.href}
+                             href={link.href}
+                             className={cn(
+                                 "flex items-center gap-4 rounded-lg px-3 py-2 text-foreground transition-colors hover:text-primary hover:bg-muted",
+                                 isActive && "bg-muted text-primary"
+                             )}
+                         >
+                             <link.icon className="h-5 w-5" />
+                             {link.label}
+                         </Link>
+                     )
+                })}
+            </nav>
+        );
+    }
+
     return (
-        <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
-            {navLinks.map(link => {
-                const isActive = link.exact ? pathname === link.href : pathname.startsWith(link.href);
-                 return (
-                 <Link key={link.href} href={link.href} className={cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-2 text-base font-semibold text-foreground transition-all hover:text-primary",
-                    isActive && "text-primary bg-muted"
-                    )}
-                >
-                   <link.icon className="h-4 w-4" />
-                   {link.label}
-                </Link>
-                 )
-            })}
-        </nav>
+        <TooltipProvider delayDuration={0}>
+            <nav className="flex flex-col items-center gap-2 px-2 pt-5">
+                {navLinks.map(link => {
+                    const isActive = link.exact ? pathname === link.href : pathname.startsWith(link.href);
+                    return (
+                        <Tooltip key={link.href}>
+                            <TooltipTrigger asChild>
+                                <Link
+                                    href={link.href}
+                                    className={cn(
+                                        "flex h-12 w-12 items-center justify-center rounded-full text-foreground transition-colors hover:text-primary hover:bg-white",
+                                        isActive && "bg-white text-primary shadow-lg"
+                                    )}
+                                >
+                                    <link.icon className="h-5 w-5" />
+                                    <span className="sr-only">{link.label}</span>
+                                </Link>
+                            </TooltipTrigger>
+                            <TooltipContent side="right">
+                                <p>{link.label}</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    )
+                })}
+            </nav>
+        </TooltipProvider>
     )
 }
 
-
-export default function CorretorSidebar({ isMobile = false }: { isMobile?: boolean }) {
-    const [logoUrl, setLogoUrl] = useState<string>('');
-
-    useEffect(() => {
-        async function fetchLogo() {
-          const settings = await getAppearanceSettings();
-          if (settings.logoUrl) {
-            setLogoUrl(settings.logoUrl);
-          }
-        }
-        fetchLogo();
-    }, []);
+export default function CorretorSidebar({ isMobile = false }: CorretorSidebarProps) {
 
     const content = (
-         <div className="flex h-full max-h-screen flex-col gap-2">
-            <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
-                <Link href="/corretor/dashboard" className="flex items-center gap-2 font-semibold">
-                    {logoUrl ? (
-                        <Image src={logoUrl} alt="Logo" width={120} height={40} className="h-10 w-auto object-contain" />
-                    ) : (
-                        <>
-                            <Icons.logo className="h-6 w-6 text-primary" />
-                            <span className="">oraora</span>
-                        </>
-                    )}
-                </Link>
-            </div>
-            <div className="flex-1">
-               <CorretorSidebarNav />
+         <div className="flex h-full max-h-screen flex-col items-center gap-2">
+            <div className="flex-1 w-full">
+               <CorretorSidebarNav isMobile={isMobile} />
             </div>
         </div>
     );
     
     if (isMobile) {
-        return content;
+        return (
+            <div className="flex h-full max-h-screen flex-col gap-2">
+                 <div className="flex-1 overflow-y-auto">
+                    <CorretorSidebarNav isMobile={isMobile} />
+                </div>
+            </div>
+        )
     }
 
     return (
-        <div className="hidden border-r bg-muted/40 md:block">
+        <div className="hidden md:block fixed top-0 left-0 h-full z-50 w-20">
            {content}
         </div>
     );

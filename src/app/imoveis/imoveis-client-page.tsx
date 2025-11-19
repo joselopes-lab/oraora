@@ -2,7 +2,7 @@
 'use client'
 
 import { useState, useEffect, useContext, useMemo } from 'react';
-import { useSearchParams, useRouter, usePathname } from 'next/navigation';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { collection, getDocs, query, where, Query, DocumentData, doc, documentId, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { type Property } from '../dashboard/properties/page';
@@ -53,6 +53,8 @@ export default function ImoveisClientPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState(1);
     const [isPersonaBoxVisible, setIsPersonaBoxVisible] = useState(true);
+    const [allStateProperties, setAllStateProperties] = useState<Property[]>([]);
+
 
     useEffect(() => {
         const fetchBannersAndPersonas = async () => {
@@ -78,7 +80,14 @@ export default function ImoveisClientPage() {
 
     useEffect(() => {
         const fetchProperties = async () => {
-            if (!selectedState) return;
+            if (!selectedState) {
+                setAllStateProperties([]);
+                setFeaturedProperties([]);
+                setProperties([]);
+                setIsLoading(false);
+                return;
+            }
+            
             setIsLoading(true);
 
             const featuredIds = await getFeaturedPropertyIds();
@@ -99,58 +108,58 @@ export default function ImoveisClientPage() {
                     where('isVisibleOnSite', '==', true),
                 ]
             );
+            
+            setAllStateProperties(allPropsData);
 
             const currentParams = new URLSearchParams(Array.from(searchParams.entries()));
 
             if (selectedPersonaId) {
                 allPropsData = allPropsData.filter(p => p.personaIds?.includes(selectedPersonaId));
-            } else {
-                 const cidade = currentParams.get('cidade');
-                 if (cidade) allPropsData = allPropsData.filter(p => p.localizacao.cidade === cidade);
-                 
-                 const bairros = currentParams.get('bairro')?.split(',').filter(Boolean);
-                 if (bairros && bairros.length > 0 && !bairros.includes('Todos os bairros')) {
-                    allPropsData = allPropsData.filter(p => {
-                      return bairros.includes(p.localizacao.bairro || '');
-                    });
-                 }
-                 
-                 const tipos = currentParams.get('tipo')?.split(',').filter(Boolean);
-                 if (tipos && tipos.length > 0) {
-                    allPropsData = allPropsData.filter(p => p.caracteristicasimovel.tipo && tipos.includes(p.caracteristicasimovel.tipo));
-                 }
-
-                 if (currentParams.get('status')) allPropsData = allPropsData.filter(p => p.informacoesbasicas.status === currentParams.get('status'));
+            } 
+            
+            const cidade = currentParams.get('cidade');
+            if (cidade) allPropsData = allPropsData.filter(p => p.localizacao.cidade === cidade);
+            
+            const bairros = currentParams.get('bairro')?.split(',').filter(Boolean);
+            if (bairros && bairros.length > 0 && !bairros.includes('Todos os bairros')) {
+                allPropsData = allPropsData.filter(p => {
+                    return bairros.includes(p.localizacao.bairro || '');
+                });
             }
-                
-            if (!selectedPersonaId) {
-                if (currentParams.get('quartos')) {
-                    const quartosParam = currentParams.get('quartos');
-                    allPropsData = allPropsData.filter(p => {
-                        const propQuartos = p.caracteristicasimovel.unidades.quartos;
-                        if (!propQuartos) return false;
-                        if (Array.isArray(propQuartos)) return propQuartos.some(q => (quartosParam === '5+' ? parseInt(q) >= 5 : q === quartosParam));
-                        if (typeof propQuartos === 'string') return quartosParam === '5+' ? parseInt(propQuartos) >= 5 : propQuartos === quartosParam;
-                        return false;
-                    });
-                }
-                if (currentParams.get('vagas')) {
-                    const vagasParam = currentParams.get('vagas');
-                    allPropsData = allPropsData.filter(p => {
-                        const propVagas = p.caracteristicasimovel.unidades.vagasgaragem;
-                        if (!propVagas) return false;
-                        return vagasParam === '4+' ? parseInt(propVagas) >= 4 : propVagas === vagasParam;
-                    });
-                }
-                if (currentParams.get('valorMin') || currentParams.get('valorMax')) {
-                    const min = Number(currentParams.get('valorMin') || 0);
-                    const max = Number(currentParams.get('valorMax') || Infinity);
-                    allPropsData = allPropsData.filter(p => p.informacoesbasicas.valor && p.informacoesbasicas.valor >= min && p.informacoesbasicas.valor <= max);
-                }
-                if (currentParams.get('areas_comuns')) {
-                    const areasParam = currentParams.get('areas_comuns')!.split(',');
-                    allPropsData = allPropsData.filter(p => areasParam.every(area => p.areascomuns?.includes(area)));
-                }
+            
+            const tipos = currentParams.get('tipo')?.split(',').filter(Boolean);
+            if (tipos && tipos.length > 0) {
+                allPropsData = allPropsData.filter(p => p.caracteristicasimovel.tipo && tipos.includes(p.caracteristicasimovel.tipo));
+            }
+
+            if (currentParams.get('status')) allPropsData = allPropsData.filter(p => p.informacoesbasicas.status === currentParams.get('status'));
+            
+            if (currentParams.get('quartos')) {
+                const quartosParam = currentParams.get('quartos');
+                allPropsData = allPropsData.filter(p => {
+                    const propQuartos = p.caracteristicasimovel.unidades.quartos;
+                    if (!propQuartos) return false;
+                    if (Array.isArray(propQuartos)) return propQuartos.some(q => (quartosParam === '5+' ? parseInt(q) >= 5 : q === quartosParam));
+                    if (typeof propQuartos === 'string') return quartosParam === '5+' ? parseInt(propQuartos) >= 5 : propQuartos === quartosParam;
+                    return false;
+                });
+            }
+            if (currentParams.get('vagas')) {
+                const vagasParam = currentParams.get('vagas');
+                allPropsData = allPropsData.filter(p => {
+                    const propVagas = p.caracteristicasimovel.unidades.vagasgaragem;
+                    if (!propVagas) return false;
+                    return vagasParam === '4+' ? parseInt(propVagas) >= 4 : propVagas === vagasParam;
+                });
+            }
+            if (currentParams.get('valorMin') || currentParams.get('valorMax')) {
+                const min = Number(currentParams.get('valorMin') || 0);
+                const max = Number(currentParams.get('valorMax') || Infinity);
+                allPropsData = allPropsData.filter(p => p.informacoesbasicas.valor && p.informacoesbasicas.valor >= min && p.informacoesbasicas.valor <= max);
+            }
+            if (currentParams.get('areas_comuns')) {
+                const areasParam = currentParams.get('areas_comuns')!.split(',');
+                allPropsData = allPropsData.filter(p => areasParam.every(area => p.areascomuns?.includes(area)));
             }
 
             // Randomize non-featured properties
@@ -189,11 +198,11 @@ export default function ImoveisClientPage() {
                     <aside className="lg:col-span-1">
                         <div className="lg:hidden">
                             <Accordion type="single" collapsible className="w-full">
-                                <AccordionItem value="filters" className="border rounded-lg bg-card shadow-sm"><AccordionTrigger className="p-4 text-lg font-semibold flex items-center gap-2"><Filter className="h-5 w-5" />Filtrar Imóveis</AccordionTrigger><AccordionContent className="p-6 pt-0"><SearchForm /></AccordionContent></AccordionItem>
+                                <AccordionItem value="filters" className="border rounded-lg bg-card shadow-sm"><AccordionTrigger className="p-4 text-lg font-semibold flex items-center gap-2"><Filter className="h-5 w-5" />Filtrar Imóveis</AccordionTrigger><AccordionContent className="p-6 pt-0"><SearchForm properties={allStateProperties} /></AccordionContent></AccordionItem>
                             </Accordion>
                         </div>
                         <div className="hidden lg:block p-6 rounded-lg bg-card border shadow-sm sticky top-24">
-                            <h2 className="text-xl font-semibold mb-4 text-card-foreground">Filtrar Imóveis</h2><SearchForm />
+                            <h2 className="text-xl font-semibold mb-4 text-card-foreground">Filtrar Imóveis</h2><SearchForm properties={allStateProperties} />
                         </div>
                     </aside>
                     
@@ -203,7 +212,7 @@ export default function ImoveisClientPage() {
                     ) : (
                         <>
                             <div className="mb-6 pb-4 border-b">
-                                <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Imóveis Encontrados em {selectedState?.nome}</h1>
+                                <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Imóveis Encontrados {selectedState?.nome ? `em ${selectedState.nome}`: ''}</h1>
                                 <p className="text-muted-foreground mt-1">{totalResults} resultado(s) para sua busca.</p>
                             </div>
 
@@ -238,7 +247,7 @@ export default function ImoveisClientPage() {
                                                         >
                                                             <CardContent className="flex flex-col p-4 gap-4 flex-grow">
                                                                 <div className="relative w-full aspect-video rounded-md overflow-hidden">
-                                                                    <Image src={p.imageUrl || 'https://placehold.co/400x225.png'} alt={p.name} fill className="object-cover" data-ai-hint="lifestyle" />
+                                                                    <Image src={p.imageUrl || 'https://placehold.co/400x225.png'} alt={p.name} fill sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" className="object-cover" data-ai-hint="lifestyle" />
                                                                 </div>
                                                                 <div className="text-left w-full">
                                                                     <p className="font-semibold text-lg text-left">{p.name}</p>

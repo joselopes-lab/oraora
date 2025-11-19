@@ -4,9 +4,15 @@
 import React, { createContext, useState, useEffect, useContext, ReactNode } from 'react';
 import { onAuthStateChanged, type User } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
-import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, collection, query, where, onSnapshot, getDocs } from 'firebase/firestore';
 
-type PanelUserType = 'admin' | 'broker' | 'none';
+type PanelUserType = 'admin' | 'broker' | 'builder' | 'none';
+
+interface Plan {
+    id: string;
+    propertyLimit?: number;
+    storageLimit?: number;
+}
 
 interface AuthContextType {
   user: User | null;
@@ -18,6 +24,9 @@ interface AuthContextType {
   panelUserType: PanelUserType;
   selectedPersonaId: string | null;
   setSelectedPersonaId: (personaId: string | null) => void;
+  propertyCount: number;
+  propertyLimit: number | null;
+  storageLimit: number | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -30,38 +39,83 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [panelUserType, setPanelUserType] = useState<PanelUserType>('none');
   const [selectedPersonaId, _setSelectedPersonaId] = useState<string | null>(null);
 
+  const [propertyCount, setPropertyCount] = useState(0);
+  const [propertyLimit, setPropertyLimit] = useState<number | null>(null);
+  const [storageLimit, setStorageLimit] = useState<number | null>(null);
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setUser(user);
       if (user) {
         const userDocRef = doc(db, 'users', user.uid);
-        const userDoc = await getDoc(userDocRef);
-        if (userDoc.exists()) {
-            const userData = userDoc.data();
-            setFavorites(userData.favorites || []);
-            setUserName(userData.name || user.displayName);
-            _setSelectedPersonaId(userData.selectedPersonaId || null);
-            
-            if (userData.role === 'Corretor') {
-              setPanelUserType('broker');
-            } else if (userData.roleId || user.email === 'vinicius@teste.com') {
-              setPanelUserType('admin');
+        
+        // Listen to user document changes
+        const unsubUser = onSnapshot(userDocRef, (userDoc) => {
+            if (userDoc.exists()) {
+                const userData = userDoc.data();
+                setFavorites(userData.favorites || []);
+                setUserName(userData.name || user.displayName);
+                _setSelectedPersonaId(userData.selectedPersonaId || null);
+                
+                 const fetchPlanData = async (planId: string) => {
+                    const planDocRef = doc(db, 'plans', planId);
+                    const planDoc = await getDoc(planDocRef);
+                    if (planDoc.exists()) {
+                        const planData = planDoc.data() as Plan;
+                        setPropertyLimit(planData.propertyLimit ?? null);
+                        setStorageLimit(planData.storageLimit ?? null);
+                    } else {
+                        setPropertyLimit(null);
+                        setStorageLimit(null);
+                    }
+                };
+                
+                if (userData.planId) {
+                    fetchPlanData(userData.planId);
+                } else {
+                    setPropertyLimit(null);
+                    setStorageLimit(null);
+                }
+
+                if (userData.role === 'Corretor') {
+                    setPanelUserType('broker');
+                    const portfolioCount = userData.portfolioPropertyIds?.length || 0;
+                    const avulsoQuery = query(collection(db, 'properties'), where('builderId', '==', user.uid));
+                    getDocs(avulsoQuery).then(avulsoSnapshot => {
+                        setPropertyCount(portfolioCount + avulsoSnapshot.size);
+                    });
+
+                } else if (userData.role === 'Construtora') {
+                    setPanelUserType('builder');
+                } else if (userData.roleId || user.email === 'vinicius@teste.com' || userData.role === 'Admin') {
+                    setPanelUserType('admin');
+                } else {
+                    setPanelUserType('none');
+                }
             } else {
-              setPanelUserType('none');
+                setFavorites([]);
+                setUserName(user.displayName);
+                _setSelectedPersonaId(null);
+                setPanelUserType('none');
+                setPropertyCount(0);
+                setPropertyLimit(null);
+                setStorageLimit(null);
             }
-        } else {
-          setFavorites([]);
-          setUserName(user.displayName);
-          _setSelectedPersonaId(null);
-          setPanelUserType('none');
-        }
+            setLoading(false);
+        });
+        
+        return () => unsubUser();
+
       } else {
         setFavorites([]);
         setUserName(null);
         _setSelectedPersonaId(null);
         setPanelUserType('none');
+        setLoading(false);
+        setPropertyCount(0);
+        setPropertyLimit(null);
+        setStorageLimit(null);
       }
-      setLoading(false);
     });
 
     return () => unsubscribe();
@@ -77,8 +131,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const userDocRef = doc(db, 'users', currentUser.uid);
     let currentFavorites: string[] = favorites;
 
-    // If forcing an add (right after login), fetch the latest favorites from DB
-    // to prevent overwriting with a potentially stale local state.
     if (forceAdd) {
         const userDoc = await getDoc(userDocRef);
         if (userDoc.exists()) {
@@ -91,7 +143,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (!currentFavorites.includes(propertyId)) {
         newFavorites = [...currentFavorites, propertyId];
       } else {
-        newFavorites = currentFavorites; // Already there, no change
+        newFavorites = currentFavorites; 
       }
     } else {
        newFavorites = currentFavorites.includes(propertyId)
@@ -116,9 +168,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-
   return (
-    <AuthContext.Provider value={{ user, userName, loading, favorites, toggleFavorite, isFavorite, panelUserType, selectedPersonaId, setSelectedPersonaId }}>
+    <AuthContext.Provider value={{ user, userName, loading, favorites, toggleFavorite, isFavorite, panelUserType, selectedPersonaId, setSelectedPersonaId, propertyCount, propertyLimit, storageLimit }}>
       {children}
     </AuthContext.Provider>
   );

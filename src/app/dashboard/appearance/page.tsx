@@ -16,12 +16,13 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { getAppearanceSettings, revalidateHomepage, handleGenerateSeo, type AppearanceSettings } from './actions';
-import { Loader2, Paintbrush, Sparkles, Facebook, Instagram, Twitter, Youtube } from 'lucide-react';
+import { Loader2, Paintbrush, Sparkles, Facebook, Instagram, Twitter, Youtube, Monitor, Smartphone } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { db } from '@/lib/firebase';
 import { doc, setDoc } from 'firebase/firestore';
 import { z } from 'zod';
 import { Separator } from '@/components/ui/separator';
+import { Switch } from '@/components/ui/switch';
 
 const settingsSchema = z.object({
   logoUrl: z.string().url('URL do logo é inválida.').or(z.literal('')),
@@ -39,6 +40,10 @@ const settingsSchema = z.object({
   seoTitle: z.string().optional(),
   seoDescription: z.string().optional(),
   seoKeywords: z.string().optional(),
+  brokerCallDesktopImage: z.string().url('URL inválida.').or(z.literal('')),
+  brokerCallMobileImage: z.string().url('URL inválida.').or(z.literal('')),
+  brokerCallLink: z.string().url('URL do link inválida.').or(z.literal('')),
+  brokerCallLinkTargetBlank: z.preprocess((val) => val === 'on' || val === true, z.boolean()),
 });
 
 export default function AppearancePage() {
@@ -195,6 +200,57 @@ export default function AppearancePage() {
             </div>
           </div>
           
+          <Separator />
+          
+          <h3 className="text-lg font-medium pt-2">Chamada para Corretores</h3>
+           <div className="space-y-4 pl-2 border-l-2 border-primary">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                        <Label htmlFor="brokerCallDesktopImage" className="flex items-center gap-2"><Monitor className="h-4 w-4"/> Imagem para Desktop</Label>
+                        <Input
+                            id="brokerCallDesktopImage"
+                            name="brokerCallDesktopImage"
+                            defaultValue={settings.brokerCallDesktopImage}
+                            placeholder="https://exemplo.com/imagem-desktop.png"
+                            disabled={isSaving}
+                        />
+                         <p className="text-xs text-muted-foreground">ou faça upload:</p>
+                        <Input type="file" disabled={isSaving}/>
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="brokerCallMobileImage" className="flex items-center gap-2"><Smartphone className="h-4 w-4"/> Imagem para Celular</Label>
+                        <Input
+                            id="brokerCallMobileImage"
+                            name="brokerCallMobileImage"
+                            defaultValue={settings.brokerCallMobileImage}
+                            placeholder="https://exemplo.com/imagem-mobile.png"
+                            disabled={isSaving}
+                        />
+                        <p className="text-xs text-muted-foreground">ou faça upload:</p>
+                        <Input type="file" disabled={isSaving}/>
+                    </div>
+                </div>
+                 <div className="space-y-2">
+                    <Label htmlFor="brokerCallLink">Link de Destino do Banner</Label>
+                    <Input
+                        id="brokerCallLink"
+                        name="brokerCallLink"
+                        defaultValue={settings.brokerCallLink}
+                        placeholder="https://exemplo.com/pagina"
+                        disabled={isSaving}
+                    />
+                </div>
+                 <div className="flex items-center space-x-2">
+                    <Switch
+                        id="brokerCallLinkTargetBlank"
+                        name="brokerCallLinkTargetBlank"
+                        defaultChecked={settings.brokerCallLinkTargetBlank}
+                        onCheckedChange={(checked) => setSettings(prev => prev ? ({ ...prev, brokerCallLinkTargetBlank: checked }) : null)}
+                    />
+                    <Label htmlFor="brokerCallLinkTargetBlank">Abrir em nova aba</Label>
+                </div>
+           </div>
+
           <Separator />
 
           <h3 className="text-lg font-medium pt-2">Rodapé</h3>

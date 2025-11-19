@@ -2,16 +2,17 @@
 'use client';
 
 import { useState, useEffect, useMemo, type FormEvent, type ChangeEvent } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from '@/components/ui/card';
 import {
   Table,
@@ -21,14 +22,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from '@/components/ui/dialog';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -44,11 +37,15 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Building2, PlusCircle, FilePen, Trash2, ImageOff, Download, ArrowLeft, ArrowRight, Search } from 'lucide-react';
+import { Loader2, Building2, PlusCircle, FilePen, Trash2, X, Upload, CheckCircle, XCircle, ImageOff, FilterX, ArrowLeft, ArrowRight, Search } from 'lucide-react';
 import { getStates, getCitiesByState, type State, type City } from '@/services/location';
 import { db } from '@/lib/firebase';
-import { collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, getDoc } from 'firebase/firestore';
-import Image from 'next/image';
+import { collection, onSnapshot, doc, updateDoc, deleteDoc, getDoc, setDoc } from 'firebase/firestore';
+import { uploadFile } from '@/lib/storage';
+import { useAuthState } from 'react-firebase-hooks/auth';
+import { auth } from '@/lib/firebase';
+import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+
 
 export interface Builder {
   id: string;
@@ -62,9 +59,10 @@ export interface Builder {
   whatsapp: string;
   email: string;
   isVisibleOnSite: boolean;
+  website?: string;
 }
 
-const initialState: Omit<Builder, 'id'> = {
+const getInitialState = (): Partial<Builder> => ({
   name: '',
   logoUrl: '',
   address: '',
@@ -74,8 +72,9 @@ const initialState: Omit<Builder, 'id'> = {
   phone: '',
   whatsapp: '',
   email: '',
+  website: '',
   isVisibleOnSite: true,
-};
+});
 
 const BUILDERS_PER_PAGE = 10;
 
@@ -83,13 +82,15 @@ export default function BuildersPage() {
   const { toast } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [user] = useAuthState(auth);
   const [allBuilders, setAllBuilders] = useState<Builder[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
   
   // Dialog State
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [currentBuilder, setCurrentBuilder] = useState<Partial<Builder>>(initialState);
+  const [currentBuilder, setCurrentBuilder] = useState<Partial<Builder>>(getInitialState());
+  const [isUploading, setIsUploading] = useState(false);
   
   // Form State
   const [states, setStates] = useState<State[]>([]);
@@ -113,7 +114,22 @@ export default function BuildersPage() {
       const editId = searchParams.get('edit');
       if (editId) {
         if (editId === 'new') {
-          openDialog(null);
+            const name = searchParams.get('name') || '';
+            const website = searchParams.get('website') || '';
+            const address = searchParams.get('address') || '';
+            const city = searchParams.get('city') || '';
+            const state = searchParams.get('state') || '';
+            const phone = searchParams.get('phone') || '';
+            const whatsapp = searchParams.get('whatsapp') || '';
+            const email = searchParams.get('email') || '';
+            const instagram = searchParams.get('instagram') || '';
+
+            const newBuilderData: Partial<Builder> = {
+                ...getInitialState(), 
+                name, website, address, city, state, phone, whatsapp, email, instagram
+            };
+
+            openDialog(null, newBuilderData);
         } else {
           const docRef = doc(db, 'builders', editId);
           const docSnap = await getDoc(docRef);
@@ -161,7 +177,7 @@ export default function BuildersPage() {
   }, [allBuilders, searchTerm, selectedState]);
   
   useEffect(() => {
-    setCurrentPage(1);
+    setCurrentPage(1); // Reset page only when filters change
   }, [filteredBuilders]);
   
   const stateCounts = useMemo(() => {
@@ -202,17 +218,40 @@ export default function BuildersPage() {
     }
   }
 
-  const openDialog = (builder: Builder | null = null) => {
+  const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    setIsUploading(true);
+    try {
+        const path = `builders_logos/${file.name}`;
+        const downloadURL = await uploadFile(file, path);
+        setCurrentBuilder(prev => ({...prev, logoUrl: downloadURL}));
+        toast({ title: 'Logo carregado com sucesso!' });
+    } catch (error) {
+        toast({ variant: 'destructive', title: 'Erro no Upload', description: 'Não foi possível carregar a imagem.' });
+    } finally {
+        setIsUploading(false);
+    }
+  };
+
+  const openDialog = async (builder: Builder | null, initialData?: Partial<Builder>) => {
     if (builder) {
         setIsEditing(true);
         setCurrentBuilder(builder);
         if(builder.state) {
-            handleStateChange(builder.state, false);
+            await handleStateChange(builder.state, false);
         }
     } else {
         setIsEditing(false);
-        setCurrentBuilder(initialState);
-        setCities([]);
+        const dataToSet = initialData || getInitialState();
+        setCurrentBuilder(dataToSet);
+        if (dataToSet.state) {
+            await handleStateChange(dataToSet.state, false);
+            if (dataToSet.city) {
+              setCurrentBuilder(prev => ({...prev, city: dataToSet.city}))
+            }
+        }
     }
     setIsDialogOpen(true);
   };
@@ -225,8 +264,8 @@ export default function BuildersPage() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!currentBuilder.name || !currentBuilder.state || !currentBuilder.city) {
-      toast({ variant: 'destructive', title: 'Campos Obrigatórios', description: 'Nome, estado e cidade são obrigatórios.' });
+    if (!currentBuilder.name || !currentBuilder.state || !currentBuilder.city || !currentBuilder.email) {
+      toast({ variant: 'destructive', title: 'Campos Obrigatórios', description: 'Nome, estado, cidade e e-mail são obrigatórios.' });
       return;
     }
     
@@ -236,18 +275,41 @@ export default function BuildersPage() {
     delete builderData.id;
 
     try {
-      if(isEditing && currentBuilder.id) {
-        const builderRef = doc(db, 'builders', currentBuilder.id);
-        await updateDoc(builderRef, builderData);
-        toast({ title: 'Construtora Atualizada!', description: 'Os dados da construtora foram atualizados.' });
+      if(isEditing) {
+        // A lógica de edição foi movida para uma página dedicada, então este modal só cria.
+        toast({ variant: 'destructive', title: 'Ação Inválida', description: 'A edição deve ser feita na página de detalhes da construtora.' });
       } else {
-        await addDoc(collection(db, 'builders'), { ...builderData, createdAt: new Date() });
-        toast({ title: 'Construtora Salva!', description: 'A nova construtora foi cadastrada com sucesso.' });
+        // Create user in Auth
+        const userCredential = await createUserWithEmailAndPassword(auth, currentBuilder.email!, '@Construtora2025');
+        const newUser = userCredential.user;
+
+        // Set display name
+        await updateProfile(newUser, { displayName: currentBuilder.name });
+
+        // Save builder data with user UID as doc ID
+        const builderRef = doc(db, 'builders', newUser.uid);
+        await setDoc(builderRef, { ...builderData, id: newUser.uid });
+
+        // Save corresponding user document in 'users' collection
+        await setDoc(doc(db, "users", newUser.uid), {
+            uid: newUser.uid,
+            name: currentBuilder.name,
+            email: currentBuilder.email,
+            role: 'Construtora',
+            status: 'Active',
+            createdAt: new Date(),
+        });
+
+        toast({ title: 'Construtora e Usuário Criados!', description: 'A construtora e seu usuário de acesso foram cadastrados.' });
       }
       closeDialog();
     } catch (error: any) {
       console.error("Error saving builder: ", error);
-      toast({ variant: 'destructive', title: 'Falha ao Salvar', description: error.message });
+      let errorMessage = 'Ocorreu um erro desconhecido.';
+      if (error.code === 'auth/email-already-in-use') {
+        errorMessage = 'Este e-mail já está em uso por outro usuário. Utilize um e-mail diferente.';
+      }
+      toast({ variant: 'destructive', title: 'Falha ao Salvar', description: errorMessage });
     } finally {
       setIsSubmitting(false);
     }
@@ -345,7 +407,7 @@ export default function BuildersPage() {
                         ))}
                     </SelectContent>
                 </Select>
-                <Button size="sm" className="gap-1 w-full sm:w-auto" onClick={() => openDialog()}>
+                <Button size="sm" className="gap-1 w-full sm:w-auto" onClick={() => openDialog(null)}>
                     <PlusCircle className="h-4 w-4" />
                     Cadastrar
                 </Button>
@@ -396,21 +458,21 @@ export default function BuildersPage() {
                                 </TableCell>
                                 <TableCell className="text-right space-x-2">
                                     <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => openDialog(builder)}
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => router.push(`/dashboard/builders/${builder.id}/edit`)}
                                     >
-                                    <FilePen className="h-4 w-4" />
-                                    <span className="sr-only">Editar</span>
+                                      <FilePen className="h-4 w-4" />
+                                      <span className="sr-only">Editar</span>
                                     </Button>
                                     <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="text-destructive hover:text-destructive"
-                                    onClick={() => openDeleteAlert(builder)}
+                                      variant="ghost"
+                                      size="icon"
+                                      className="text-destructive hover:text-destructive"
+                                      onClick={() => openDeleteAlert(builder)}
                                     >
-                                    <Trash2 className="h-4 w-4" />
-                                    <span className="sr-only">Deletar</span>
+                                      <Trash2 className="h-4 w-4" />
+                                      <span className="sr-only">Deletar</span>
                                     </Button>
                                 </TableCell>
                             </TableRow>
@@ -445,94 +507,10 @@ export default function BuildersPage() {
         </Card>
       </div>
 
-      <Dialog open={isDialogOpen} onOpenChange={(isOpen) => { if (!isOpen) closeDialog(); }}>
-          <DialogContent className="sm:max-w-3xl">
-              <form onSubmit={handleSubmit}>
-                <DialogHeader>
-                    <DialogTitle>{isEditing ? 'Editar Construtora' : 'Cadastrar Nova Construtora'}</DialogTitle>
-                    <DialogDescription>{isEditing ? 'Atualize os dados da construtora.' : 'Preencha os dados para cadastrar uma nova construtora.'}</DialogDescription>
-                </DialogHeader>
-                
-                <div className="grid gap-6 py-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                        <Label htmlFor="name">Nome da Construtora</Label>
-                        <Input id="name" value={currentBuilder.name || ''} onChange={handleInputChange} placeholder="Ex: Construções & Cia" required />
-                    </div>
-                     <div className="space-y-2">
-                        <Label htmlFor="logoUrl">URL do Logo</Label>
-                        <Input id="logoUrl" value={currentBuilder.logoUrl || ''} onChange={handleInputChange} placeholder="https://exemplo.com/logo.png" />
-                    </div>
-                    <div className="space-y-2 md:col-span-2">
-                        <Label htmlFor="address">Endereço</Label>
-                        <Input id="address" value={currentBuilder.address || ''} onChange={handleInputChange} placeholder="Ex: Rua das Obras, 123" />
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="state">Estado</Label>
-                        <Select onValueChange={(value) => handleSelectChange('state', value)} value={currentBuilder.state || ''} required disabled={isLoadingStates}>
-                            <SelectTrigger id="state">
-                                <SelectValue placeholder={isLoadingStates ? 'Carregando...' : 'Selecione um estado'} />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {states.map((s) => (
-                                <SelectItem key={s.id} value={s.sigla}>{s.nome}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="city">Cidade</Label>
-                        <Select onValueChange={(value) => handleSelectChange('city', value)} value={currentBuilder.city || ''} required disabled={!currentBuilder.state || isLoadingCities}>
-                            <SelectTrigger id="city">
-                                <SelectValue placeholder={
-                                isLoadingCities ? 'Carregando...' :
-                                !currentBuilder.state ? 'Selecione um estado' :
-                                'Selecione uma cidade'
-                                } />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {cities.map((c) => (
-                                <SelectItem key={c.id} value={c.nome}>{c.nome}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                     <div className="space-y-2">
-                        <Label htmlFor="phone">Telefone</Label>
-                        <Input id="phone" type="tel" value={currentBuilder.phone || ''} onChange={handleInputChange} placeholder="(99) 9999-9999" />
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="whatsapp">WhatsApp</Label>
-                        <Input id="whatsapp" type="tel" value={currentBuilder.whatsapp || ''} onChange={handleInputChange} placeholder="(99) 99999-9999" />
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="email">Email</Label>
-                        <Input id="email" type="email" value={currentBuilder.email || ''} onChange={handleInputChange} placeholder="contato@construtora.com" />
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="instagram">Instagram</Label>
-                        <Input id="instagram" value={currentBuilder.instagram || ''} onChange={handleInputChange} placeholder="@construtora" />
-                    </div>
-                </div>
-
-                 <div className="flex items-center space-x-2 pt-4">
-                    <Switch id="isVisibleOnSite" checked={currentBuilder.isVisibleOnSite} onCheckedChange={(checked) => setCurrentBuilder(prev => ({...prev, isVisibleOnSite: checked}))} />
-                    <Label htmlFor="isVisibleOnSite">Visível no site público</Label>
-                 </div>
-
-                <DialogFooter className="mt-6">
-                    <Button type="button" variant="outline" onClick={closeDialog} disabled={isSubmitting}>Cancelar</Button>
-                    <Button type="submit" disabled={isSubmitting}>
-                        {isSubmitting ? <Loader2 className="animate-spin" /> : 'Salvar'}
-                    </Button>
-                </DialogFooter>
-              </form>
-          </DialogContent>
-      </Dialog>
-      
       <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Você tem certeza absoluta?</AlertDialogTitle>
+            <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
             <AlertDialogDescription>
               Essa ação não pode ser desfeita. Isso irá deletar permanentemente a construtora {' '}
               <strong>{builderToDelete?.name}</strong>.

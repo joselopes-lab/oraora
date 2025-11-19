@@ -7,13 +7,16 @@ import { type Property } from '@/app/dashboard/properties/page';
 import PublicLayout from '@/components/public-layout';
 import PropertyPageClient from './property-page-client';
 import type { Metadata } from 'next';
+import { queryInBatches } from '@/lib/firestoreUtils';
 
 interface PropertyPageProps {
   params: { slug: string };
 }
 
 async function getPropertyData(slug: string): Promise<Property | null> {
-    const q = query(collection(db, 'properties'), where('slug', '==', slug), limit(1));
+    if (!slug) return null;
+    
+    const q = query(collection(db, 'properties'), where('slug', '==', slug), where('isVisibleOnSite', '==', true), limit(1));
     const querySnapshot = await getDocs(q);
 
     if (querySnapshot.empty) {
@@ -23,11 +26,6 @@ async function getPropertyData(slug: string): Promise<Property | null> {
     const docSnap = querySnapshot.docs[0];
     const propData = { id: docSnap.id, ...docSnap.data() } as Property;
     
-    // Check if property itself is visible
-    if (!propData.isVisibleOnSite) {
-        return null;
-    }
-
     // If there's no builderId, it's a legacy property, consider it visible.
     if (!propData.builderId) {
         return propData;
@@ -83,20 +81,23 @@ export default async function PublicPropertyPage({ params }: PropertyPageProps) 
 
     let relatedProperties: Property[] = [];
     try {
-        if (property.localizacao.cidade) {
-            const relatedQuery = query(
-              collection(db, 'properties'),
-              where('localizacao.cidade', '==', property.localizacao.cidade),
-              where('isVisibleOnSite', '==', true),
-              limit(5) // Fetch 5, one might be the current one
+        const buildersSnapshot = await getDocs(query(collection(db, 'builders'), where('isVisibleOnSite', '==', true)));
+        const visibleBuilderIds = buildersSnapshot.docs.map(doc => doc.id);
+        
+        if (visibleBuilderIds.length > 0) {
+            const allVisibleProperties = await queryInBatches<Property>(
+                'properties',
+                'builderId',
+                visibleBuilderIds,
+                [where('isVisibleOnSite', '==', true)]
             );
+            
+            // Filter out the current property and shuffle the rest
+            const shuffled = allVisibleProperties
+                .filter(p => p.slug !== property.slug)
+                .sort(() => 0.5 - Math.random());
 
-            const relatedSnapshot = await getDocs(relatedQuery);
-            // Filter out the current property from the results
-            relatedProperties = relatedSnapshot.docs
-              .map(doc => ({ id: doc.id, ...doc.data() } as Property))
-              .filter(p => p.slug !== property.slug)
-              .slice(0, 4); // And then take the first 4
+            relatedProperties = shuffled.slice(0, 4);
         }
     } catch (error) {
         console.error("Error fetching related properties on server:", error);

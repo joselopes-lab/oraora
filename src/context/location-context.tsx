@@ -23,7 +23,7 @@ export const LocationContext = createContext<LocationContextType>({
   isLoading: true,
 });
 
-export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export function LocationProvider({ children }: { children: React.ReactNode }) {
   const [selectedState, setSelectedState] = useState<State | null>(null);
   const [states, setStates] = useState<State[]>([]);
   const [isLoading, setIsLoading] = useState(true);

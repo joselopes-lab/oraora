@@ -49,23 +49,25 @@ export default function BannerDisplay({ banners }: BannerDisplayProps) {
         
         if (selectedBanner.type === 'image') {
             const image = (
-                <Image 
-                    src={selectedBanner.content} 
-                    alt={selectedBanner.name} 
-                    width={728} 
-                    height={90} 
-                    className="rounded-md object-contain h-auto w-auto max-w-full"
-                />
+                <div className="relative w-full aspect-[728/90]">
+                    <Image 
+                        src={selectedBanner.content} 
+                        alt={selectedBanner.name} 
+                        fill
+                        sizes="100vw"
+                        className="rounded-md object-contain"
+                    />
+                </div>
             );
 
              if (selectedBanner.link) {
                 return (
-                    <div onClick={handleClick} className="cursor-pointer">
+                    <div onClick={handleClick} className="cursor-pointer w-full">
                         {image}
                     </div>
                 );
             }
-            return <div onClick={handleClick}>{image}</div>;
+            return <div onClick={handleClick} className="w-full">{image}</div>;
         }
         return null;
     }

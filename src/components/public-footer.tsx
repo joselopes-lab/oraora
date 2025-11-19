@@ -65,7 +65,7 @@ export default function PublicFooter() {
                     <div className="md:col-span-12 lg:col-span-5 space-y-4">
                         <div className="flex items-center space-x-1.5 mb-4">
                             {settings?.logoUrl ? (
-                                <Image src={settings.logoUrl} alt="Oraora Logo" width={180} height={60} className="h-12 w-auto object-contain" />
+                                <Image src={settings.logoUrl} alt="Oraora Logo" width={180} height={60} className="h-12 w-auto object-contain" style={{height: 'auto'}} />
                             ) : (
                                 <>
                                     <Icons.logo className="h-10 w-10 text-primary" />

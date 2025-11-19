@@ -11,7 +11,7 @@ import { getStorage } from "firebase/storage";
 //   apiKey: "AIzaSyBSRvXjw8-5b_AbHQVGsZdoHUuOIFevHtc",
 //   authDomain: "oraora.com.br",
 //   projectId: "secureadminpanel",
-//   storageBucket: "secureadminpanel.appspot.com",
+//   storageBucket: "secureadminpanel.firebasestorage.app",
 //   messagingSenderId: "184982072878",
 //   appId: "1:184982072878:web:5d651f2df6ae1964e4f9bf"
 // };
@@ -25,7 +25,6 @@ const firebaseConfig = {
   appId: "1:645528171911:web:78cfa11e4ac41ac2f60f22",
   measurementId: "G-ZS6T2F8VZM"
 };
-
 
 // Initialize Firebase
 export const app = initializeApp(firebaseConfig);

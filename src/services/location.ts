@@ -1,3 +1,4 @@
+
 // src/services/location.ts
 import { allStates } from '@/lib/states';
 
@@ -351,6 +352,83 @@ const recifeNeighborhoods: Neighborhood[] = [
     { id: 592, nome: "Zumbi" },
 ].sort((a, b) => a.nome.localeCompare(b.nome));
 
+const curitibaNeighborhoods: Neighborhood[] = [
+    { id: 600, nome: "Não informado" },
+    { id: 601, nome: "Abranches" },
+    { id: 602, nome: "Água Verde" },
+    { id: 603, nome: "Ahú" },
+    { id: 604, nome: "Alto Boqueirão" },
+    { id: 605, nome: "Alto da Glória" },
+    { id: 606, nome: "Alto da Rua XV" },
+    { id: 607, nome: "Augusta" },
+    { id: 608, nome: "Bacacheri" },
+    { id: 609, nome: "Bairro Alto" },
+    { id: 610, nome: "Barreirinha" },
+    { id: 611, nome: "Batel" },
+    { id: 612, nome: "Bigorrilho" },
+    { id: 613, nome: "Boa Vista" },
+    { id: 614, nome: "Bom Retiro" },
+    { id: 615, nome: "Boqueirão" },
+    { id: 616, nome: "Butiatuvinha" },
+    { id: 617, nome: "Cabral" },
+    { id: 618, nome: "Cachoeira" },
+    { id: 619, nome: "Cajuru" },
+    { id: 620, nome: "Campina do Siqueira" },
+    { id: 621, nome: "Campo Comprido" },
+    { id: 622, nome: "Campo de Santana" },
+    { id: 623, nome: "Capão da Imbuia" },
+    { id: 624, nome: "Capão Raso" },
+    { id: 625, nome: "Cascatinha" },
+    { id: 626, nome: "Centro" },
+    { id: 627, nome: "Centro Cívico" },
+    { id: 628, nome: "Cidade Industrial de Curitiba (CIC)" },
+    { id: 629, nome: "Cristo Rei" },
+    { id: 630, nome: "Fanny" },
+    { id: 631, nome: "Fazendinha" },
+    { id: 632, nome: "Ganchinho" },
+    { id: 633, nome: "Guabirotuba" },
+    { id: 634, nome: "Guaíra" },
+    { id: 635, nome: "Hauer" },
+    { id: 636, nome: "Hugo Lange" },
+    { id: 637, nome: "Jardim Botânico" },
+    { id: 638, nome: "Jardim das Américas" },
+    { id: 639, nome: "Jardim Social" },
+    { id: 640, nome: "Juvevê" },
+    { id: 641, nome: "LamENHA Pequena" },
+    { id: 642, nome: "Lindoia" },
+    { id: 643, nome: "Mercês" },
+    { id: 644, nome: "Mossunguê" },
+    { id: 645, nome: "Novo Mundo" },
+    { id: 646, nome: "Orleans" },
+    { id: 647, nome: "Parolin" },
+    { id: 648, nome: "Pilarzinho" },
+    { id: 649, nome: "Pinheirinho" },
+    { id: 650, nome: "Portão" },
+    { id: 651, nome: "Prado Velho" },
+    { id: 652, nome: "Rebouças" },
+    { id: 653, nome: "Riviera" },
+    { id: 654, nome: "Santa Cândida" },
+    { id: 655, nome: "Santa Felicidade" },
+    { id: 656, nome: "Santa Quitéria" },
+    { id: 657, nome: "Santo Inácio" },
+    { id: 658, nome: "São Braz" },
+    { id: 659, nome: "São Francisco" },
+    { id: 660, nome: "São João" },
+    { id: 661, nome: "São Lourenço" },
+    { id: 662, nome: "São Miguel" },
+    { id: 663, nome: "Seminário" },
+    { id: 664, nome: "Sítio Cercado" },
+    { id: 665, nome: "Taboão" },
+    { id: 666, nome: "Tarumã" },
+    { id: 667, nome: "Tatuquara" },
+    { id: 668, nome: "Tingui" },
+    { id: 669, nome: "Uberaba" },
+    { id: 670, nome: "Umbará" },
+    { id: 671, nome: "Vila Izabel" },
+    { id: 672, nome: "Vista Alegre" },
+    { id: 673, nome: "Xaxim" },
+].sort((a,b) => a.nome.localeCompare(b.nome));
+
 export async function getStates(): Promise<State[]> {
   // Return the local list of states directly.
   return Promise.resolve(allStates);
@@ -400,6 +478,10 @@ export async function getNeighborhoodsByCity(cityId: number, cityName?: string):
 
     if (cityName === 'Recife') {
         return Promise.resolve(recifeNeighborhoods);
+    }
+
+    if (cityName === 'Curitiba') {
+        return Promise.resolve(curitibaNeighborhoods);
     }
     
     try {
