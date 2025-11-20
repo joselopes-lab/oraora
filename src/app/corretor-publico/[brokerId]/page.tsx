@@ -110,7 +110,7 @@ export default async function BrokerPublicPage({ params }: { params: Promise<{ b
                 <BrokerPublicPageClient broker={plainBroker} properties={plainProperties} featuredProperties={plainFeaturedProperties} />
                  <footer style={{ backgroundColor: '#232323' }} className="text-white py-8 px-4">
                     <div className="container mx-auto text-center">
-                        <p>Proteção completa desde a explosão de uma panela de pressão até mesmo incêndio ou queda de aeronave.</p>
+                        {/* <p>Proteção completa desde a explosão de uma panela de pressão até mesmo incêndio ou queda de aeronave.</p> */}
                         {broker.logoUrl && (
                           <div className="mt-6 flex justify-center">
                             <Image

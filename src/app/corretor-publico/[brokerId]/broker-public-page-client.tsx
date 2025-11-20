@@ -132,7 +132,7 @@ export default function BrokerPublicPageClient({ broker, properties, featuredPro
           </div>
         )}
 
-        {broker.videoCoverUrl && youtubeEmbedUrl && (
+        {/* {broker.videoCoverUrl && youtubeEmbedUrl && (
           <section className="mt-16">
             <div className="max-w-4xl mx-auto">
               <Dialog open={isVideoModalOpen} onOpenChange={setIsVideoModalOpen}>
@@ -161,7 +161,7 @@ export default function BrokerPublicPageClient({ broker, properties, featuredPro
               </Dialog>
             </div>
           </section>
-        )}
+        )} */}
 
         <section className="mt-16 px-4 sm:px-8 md:px-16 py-16 md:py-24">
             <div className="container mx-auto">
