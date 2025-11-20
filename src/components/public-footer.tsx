@@ -74,7 +74,7 @@ export default function PublicFooter() {
                             )}
                         </div>
                         <p className="text-muted-foreground text-sm leading-relaxed">
-                            {settings?.footerAboutText || 'Carregando...'}
+                            {settings?.footerAboutText || 'Carregando....'}
                             <br/><br/>
                             <strong>Segredos do mercado imobiliário, revelados para você.</strong>
                         </p>
