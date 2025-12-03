@@ -31,7 +31,9 @@ function ShareableLink({ userId }: { userId: string }) {
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
-            setPublicUrl(`${window.location.origin}/corretor-publico/${userId}`);
+            // Updated to use the new slug-based route
+            const userSlug = auth.currentUser?.displayName?.toLowerCase().replace(/\s+/g, '-') || userId;
+            setPublicUrl(`${window.location.origin}/corretor/${userSlug}`);
         }
     }, [userId]);
 
@@ -346,7 +348,5 @@ export default function CorretorDashboardPage() {
     </div>
   );
 }
-
-
 
     

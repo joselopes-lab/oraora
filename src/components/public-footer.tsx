@@ -56,6 +56,15 @@ export default function PublicFooter() {
         fetchSettings();
     }, []);
 
+    const formatInstagramUrl = (handleOrUrl: string) => {
+        if (!handleOrUrl) return '#';
+        if (handleOrUrl.includes('instagram.com')) {
+            return handleOrUrl;
+        }
+        const handle = handleOrUrl.replace('@', '');
+        return `https://instagram.com/${handle}`;
+    }
+
 
     return (
         <footer className="bg-secondary/50 text-foreground">
@@ -65,7 +74,7 @@ export default function PublicFooter() {
                     <div className="md:col-span-12 lg:col-span-5 space-y-4">
                         <div className="flex items-center space-x-1.5 mb-4">
                             {settings?.logoUrl ? (
-                                <Image src={settings.logoUrl} alt="Oraora Logo" width={180} height={60} className="h-12 w-auto object-contain" style={{height: '50px'}} />
+                                <Image src={settings.logoUrl} alt="Oraora Logo" width={180} height={60} className="h-12 w-auto object-contain" style={{height: 'auto'}} />
                             ) : (
                                 <>
                                     <Icons.logo className="h-10 w-10 text-primary" />
@@ -74,7 +83,7 @@ export default function PublicFooter() {
                             )}
                         </div>
                         <p className="text-muted-foreground text-sm leading-relaxed">
-                            {settings?.footerAboutText || 'Carregando....'}
+                            {settings?.footerAboutText || 'Carregando...'}
                             <br/><br/>
                             <strong>Segredos do mercado imobiliário, revelados para você.</strong>
                         </p>
@@ -86,7 +95,7 @@ export default function PublicFooter() {
                             <div className="flex space-x-3">
                                 {settings?.socialYoutube && <a href={settings.socialYoutube} target="_blank" rel="noopener noreferrer" className="p-2 bg-foreground text-background rounded-full hover:bg-primary transition-colors"><Youtube className="h-5 w-5" /></a>}
                                 {settings?.socialTwitter && <a href={settings.socialTwitter} target="_blank" rel="noopener noreferrer" className="p-2 bg-foreground text-background rounded-full hover:bg-primary transition-colors"><Twitter className="h-5 w-5" /></a>}
-                                {settings?.socialInstagram && <a href={settings.socialInstagram} target="_blank" rel="noopener noreferrer" className="p-2 bg-foreground text-background rounded-full hover:bg-primary transition-colors"><Instagram className="h-5 w-5" /></a>}
+                                {settings?.socialInstagram && <a href={formatInstagramUrl(settings.socialInstagram)} target="_blank" rel="noopener noreferrer" className="p-2 bg-foreground text-background rounded-full hover:bg-primary transition-colors"><Instagram className="h-5 w-5" /></a>}
                                 {settings?.socialFacebook && <a href={settings.socialFacebook} target="_blank" rel="noopener noreferrer" className="p-2 bg-foreground text-background rounded-full hover:bg-primary transition-colors"><Facebook className="h-5 w-5" /></a>}
                             </div>
                         </div>

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Building, Users, Briefcase, Home, Inbox, FilePlus, Paintbrush, Calendar, Wallet, FileText, Handshake, Package } from 'lucide-react';
+import { Building, Users, Briefcase, Home, Inbox, FilePlus, Paintbrush, Calendar, Wallet, FileText, Handshake, Package, Search } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -17,6 +17,7 @@ const CorretorSidebarNav = ({ isMobile = false }: CorretorSidebarProps) => {
         { href: "/corretor/dashboard", label: "Dashboard", icon: Home, exact: true },
         { href: "/corretor/agenda", label: "Agenda", icon: Calendar },
         { href: "/corretor/clientes", label: "Clientes", icon: Users },
+        { href: "/corretor/explorar", label: "Explorar Imóveis", icon: Search },
         { href: "/corretor/construtoras", label: "Construtoras", icon: Building },
         { href: "/corretor/carteira", label: "Carteira", icon: Briefcase },
         { href: "/corretor/avulso", label: "Avulsos", icon: FilePlus },

@@ -8,10 +8,10 @@ import { db } from '@/lib/firebase';
 import { type Property } from './dashboard/properties/page';
 import { type Builder } from './dashboard/builders/page';
 import PropertyCard from '@/components/property-card';
-import { Loader2, Building, Home, LandPlot, Store } from 'lucide-react';
+import { Loader2, Building, Home, LandPlot, Store, ArrowRight } from 'lucide-react';
 import PublicLayout from '@/components/public-layout';
 import { LocationContext } from '@/context/location-context';
-import { type AppearanceSettings } from './dashboard/appearance/actions';
+import { type AppearanceSettings, type CategoryImages } from './dashboard/appearance/actions';
 import { type Banner } from './dashboard/banners/page';
 import BannerDisplay from '@/components/banner-display';
 import Image from 'next/image';
@@ -20,16 +20,20 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import { queryInBatches } from '@/lib/firestoreUtils';
 
+type PropertyTypeCategory = {
+    name: keyof CategoryImages;
+    href: string;
+    dataAiHint: string;
+};
 
-const allPropertyTypes = [
-  { name: 'Apartamento', icon: Building, href: '/imoveis?tipo=Apartamento' },
-  { name: 'Casa em Condomínio', icon: Home, href: '/imoveis?tipo=Casa%20em%20Condomínio' },
-  { name: 'Casa', icon: Home, href: '/imoveis?tipo=Casa' },
-  { name: 'Terreno', icon: LandPlot, href: '/imoveis?tipo=Terreno' },
-  { name: 'Sala Comercial', icon: Store, href: '/imoveis?tipo=Sala%20Comercial' },
-  { name: 'Flat', icon: Building, href: '/imoveis?tipo=Flat' },
-  { name: 'Loja', icon: Store, href: '/imoveis?tipo=Loja' },
-]
+const allPropertyTypeCategories: PropertyTypeCategory[] = [
+  { name: 'Apartamento', href: '/imoveis?tipo=Apartamento', dataAiHint: 'apartment living' },
+  { name: 'Casa em Condomínio', href: '/imoveis?tipo=Casa%20em%20Condomínio', dataAiHint: 'gated community' },
+  { name: 'Casa', href: '/imoveis?tipo=Casa', dataAiHint: 'family house' },
+  { name: 'Flat', href: '/imoveis?tipo=Flat', dataAiHint: 'modern flat' },
+  { name: 'Terreno', href: '/imoveis?tipo=Terreno', dataAiHint: 'land plot' },
+  { name: 'Loja', href: '/imoveis?tipo=Loja', dataAiHint: 'store front' },
+];
 
 function HomePageContent() {
   const [featuredProperties, setFeaturedProperties] = useState<Property[]>([]);
@@ -121,14 +125,17 @@ function HomePageContent() {
     fetchStateData();
   }, [selectedState]);
 
-  const availablePropertyTypes = useMemo(() => {
-    const typesInState = new Set(allStateProperties.map(p => p.caracteristicasimovel?.tipo).filter(Boolean));
-    return allPropertyTypes.filter(type => typesInState.has(type.name));
-  }, [allStateProperties]);
-
   const heroTitle = appearance?.heroTitle || 'Encontre seu imóvel dos sonhos para você.';
   const searchFormTitle = appearance?.searchFormTitle || 'Encontre seu imóvel';
   const heroBackgroundImage = appearance?.heroBackgroundImage || 'https://placehold.co/1200x600.png';
+
+  const availableCategories = useMemo(() => {
+    if (allStateProperties.length === 0) {
+      return [];
+    }
+    const availableTypes = new Set(allStateProperties.map(p => p.caracteristicasimovel.tipo).filter(Boolean));
+    return allPropertyTypeCategories.filter(category => availableTypes.has(category.name));
+  }, [allStateProperties]);
 
 
   return (
@@ -176,7 +183,7 @@ function HomePageContent() {
         <BannerDisplay banners={homeTopBanners} />
       </section>
         
-      <section className="py-12 sm:py-16">
+      <section className="py-12 sm:py-16 bg-secondary/30">
         <div className="container mx-auto px-4">
           <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-center mb-12">O melhor da {selectedState?.nome || '...'}, revelado para você</h2>
           {isLoading ? (
@@ -219,35 +226,36 @@ function HomePageContent() {
         </section>
       )}
 
-       <section className="py-12 sm:py-16 bg-secondary/30">
+      {availableCategories.length > 0 && (
+       <section className="py-12 sm:py-16">
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-center mb-12">Investigue por categoria</h2>
-          {availablePropertyTypes.length > 0 ? (
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-              {availablePropertyTypes.map((type) => {
-                const Icon = type.icon;
-                return (
-                  <Link key={type.name} href={`${type.href}&estado=${selectedState?.sigla || ''}`} className="group">
-                    <Card className="h-full hover:bg-card/80 hover:border-primary transition-all duration-300 transform hover:-translate-y-1">
-                      <CardHeader className="items-center text-center gap-4">
-                        <Icon className="h-10 w-10 text-primary" />
-                        <CardTitle className="text-xl">{type.name}</CardTitle>
-                      </CardHeader>
-                    </Card>
+          <div className="text-center mb-12">
+            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">Procure por tipo de imóvel</h2>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {availableCategories.slice(0, 4).map((type) => (
+                <div key={type.name}>
+                  <Link href={`${type.href}&estado=${selectedState?.sigla || ''}`} className="group block">
+                    <div className="relative aspect-[4/5] w-full overflow-hidden rounded-lg">
+                      <Image
+                        src={appearance?.categoryImages?.[type.name] || `https://picsum.photos/seed/${type.name.toLowerCase()}/400/500`}
+                        alt={type.name}
+                        fill
+                        sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
+                        className="object-cover transition-transform duration-300 group-hover:scale-105"
+                        data-ai-hint={type.dataAiHint}
+                      />
+                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+                       <p className="absolute bottom-4 left-4 text-white text-xl font-semibold">{type.name}</p>
+                    </div>
                   </Link>
-                )
-              })}
-            </div>
-          ) : (
-            !isLoading && (
-              <div className="text-center text-muted-foreground">
-                  <p>Nenhum tipo de imóvel encontrado para {selectedState?.nome}.</p>
-              </div>
-            )
-          )}
+                </div>
+              ))}
+          </div>
         </div>
       </section>
-      
+      )}
+
       {builders.length > 0 && (
         <section className="py-12 sm:py-16">
           <div className="container mx-auto px-4">

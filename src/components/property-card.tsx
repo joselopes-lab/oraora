@@ -292,7 +292,7 @@ export default function PropertyCard({
                     </div>
                     {variant === 'portfolio' && onRemoveFromPortfolio && onToggleVisibility && isPubliclyVisible !== undefined && (
                          <div className="flex items-center justify-between gap-2 border-t pt-4">
-                            <div className="flex items-center space-x-2">
+                            <div className="flex items-center space-x-2" onClick={(e) => e.stopPropagation()}>
                                 <Switch
                                     id={`visibility-${property.id}`}
                                     checked={isPubliclyVisible}
@@ -536,3 +536,5 @@ export default function PropertyCard({
     </>
   );
 }
+
+    

@@ -1,12 +1,13 @@
 
 import { notFound } from 'next/navigation';
 import { db } from '@/lib/firebase';
-import { doc, getDoc, collection, query, where, documentId, getDocs } from 'firebase/firestore';
-import BrokerPublicPageClient from '@/app/corretor/[slug]/broker-public-page-client';
+import { doc, getDoc, collection, query, where, documentId, getDocs, limit } from 'firebase/firestore';
+import BrokerPublicHeader from '@/components/broker-public-header';
 import { type Property } from '@/app/dashboard/properties/page';
 import { queryInBatches } from '@/lib/firestoreUtils';
 import { AuthProvider } from '@/context/auth-context';
 import { LocationProvider } from '@/context/location-context';
+import ImoveisClientPage from './imoveis-client-page';
 import Image from 'next/image';
 
 interface Broker {
@@ -19,32 +20,23 @@ interface Broker {
   hiddenPortfolioPropertyIds?: string[];
   backgroundColor?: string;
   theme?: 'light' | 'dark';
-  verMaisButtonColor?: string;
-  verMaisButtonBackgroundColor?: string;
-  faleAgoraButtonColor?: string;
-  faleAgoraButtonBackgroundColor?: string;
-  bannerDesktopUrl?: string;
-  bannerMobileUrl?: string;
-  featuredPropertyIds?: string[];
-  videoCoverUrl?: string;
-  youtubeUrl?: string;
   footerText?: string;
 }
 
-async function getBrokerData(brokerId: string): Promise<{ broker: Broker | null, properties: Property[], featuredProperties: Property[] }> {
-  if (!brokerId) return { broker: null, properties: [], featuredProperties: [] };
+async function getBrokerData(brokerId: string): Promise<{ broker: Broker | null, properties: Property[] }> {
+  if (!brokerId) return { broker: null, properties: [] };
 
   try {
     const brokerDocRef = doc(db, 'users', brokerId);
     const brokerDocSnap = await getDoc(brokerDocRef);
 
     if (!brokerDocSnap.exists() || brokerDocSnap.data().role !== 'Corretor') {
-      return { broker: null, properties: [], featuredProperties: [] };
+      return { broker: null, properties: [] };
     }
 
     const brokerData = { id: brokerDocSnap.id, ...brokerDocSnap.data() } as Broker;
     let portfolioProperties: Property[] = [];
-    
+
     // 1. Fetch properties from portfolio (from builders)
     const propertyIds = brokerData.portfolioPropertyIds || [];
     const hiddenPropertyIds = brokerData.hiddenPortfolioPropertyIds || [];
@@ -59,38 +51,39 @@ async function getBrokerData(brokerId: string): Promise<{ broker: Broker | null,
         );
     }
     
-    // 2. Fetch "avulso" properties (where builderId is the broker's own ID)
+    // 2. Fetch "avulso" properties
     const avulsoQuery = query(collection(db, 'properties'), where('builderId', '==', brokerId), where('isVisibleOnSite', '==', true));
     const avulsoSnapshot = await getDocs(avulsoQuery);
     const avulsoProperties = avulsoSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Property));
-    
+
     // 3. Combine and remove duplicates
-    const allVisiblePropsMap = new Map<string, Property>();
+    const allPropertiesMap = new Map<string, Property>();
     [...portfolioProperties, ...avulsoProperties].forEach(p => {
-      if (!allVisiblePropsMap.has(p.id)) {
-        allVisiblePropsMap.set(p.id, p);
+      if (!allPropertiesMap.has(p.id)) {
+        allPropertiesMap.set(p.id, p);
       }
     });
-    const allVisibleProps = Array.from(allVisiblePropsMap.values());
 
-    // 4. Separate featured from regular properties
-    const featuredPropertyIds = brokerData.featuredPropertyIds?.filter(Boolean) || [];
-    const properties = allVisibleProps.filter(p => !featuredPropertyIds.includes(p.id));
-    const featuredProperties = allVisibleProps
-        .filter(p => featuredPropertyIds.includes(p.id))
-        .sort((a, b) => featuredPropertyIds.indexOf(a.id) - featuredPropertyIds.indexOf(b.id));
+    const properties = Array.from(allPropertiesMap.values());
     
-    return { broker: brokerData, properties, featuredProperties };
+    return { broker: brokerData, properties };
 
   } catch (error) {
     console.error("Erro ao buscar dados do corretor:", error);
-    return { broker: null, properties: [], featuredProperties: [] };
+    return { broker: null, properties: [] };
   }
 }
 
-export default async function BrokerPublicPage({ params }: { params: Promise<{ brokerId: string }> }) {
-  const { brokerId } = await params;
-  const { broker, properties, featuredProperties } = await getBrokerData(brokerId);
+export default async function BrokerSearchPage({ params }: { params: { slug: string } }) {
+  const brokerUserQuery = query(collection(db, 'users'), where('slug', '==', params.slug), limit(1));
+  const brokerUserSnapshot = await getDocs(brokerUserQuery);
+
+  if (brokerUserSnapshot.empty) {
+      notFound();
+  }
+  const brokerId = brokerUserSnapshot.docs[0].id;
+
+  const { broker, properties } = await getBrokerData(brokerId);
 
   if (!broker) {
     notFound();
@@ -98,7 +91,6 @@ export default async function BrokerPublicPage({ params }: { params: Promise<{ b
 
   const plainBroker = JSON.parse(JSON.stringify(broker));
   const plainProperties = JSON.parse(JSON.stringify(properties));
-  const plainFeaturedProperties = JSON.parse(JSON.stringify(featuredProperties));
   
   const pageStyle = {
     backgroundColor: broker.theme === 'dark' ? '#000000' : (broker.backgroundColor || 'transparent'),
@@ -108,10 +100,11 @@ export default async function BrokerPublicPage({ params }: { params: Promise<{ b
     <LocationProvider>
         <AuthProvider>
             <div style={pageStyle} className="flex flex-col min-h-screen">
-                <BrokerPublicPageClient broker={plainBroker} properties={plainProperties} featuredProperties={plainFeaturedProperties} />
+                <BrokerPublicHeader broker={plainBroker} />
+                <ImoveisClientPage broker={plainBroker} initialProperties={plainProperties} />
                  <footer style={{ backgroundColor: '#232323' }} className="text-white py-8 px-4">
                     <div className="container mx-auto text-center">
-                        <p>{broker.footerText}</p>
+                        {broker.footerText && <p>{broker.footerText}</p>}
                         {broker.logoUrl && (
                           <div className="mt-6 flex justify-center">
                             <Image

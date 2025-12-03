@@ -7,7 +7,7 @@ import { type Property } from '@/app/dashboard/properties/page';
 import { queryInBatches } from '@/lib/firestoreUtils';
 import { AuthProvider } from '@/context/auth-context';
 import { LocationProvider } from '@/context/location-context';
-import ImoveisClientPage from './imoveis-client-page';
+import ImoveisClientPage from '@/app/corretor/[slug]/imoveis/imoveis-client-page';
 import Image from 'next/image';
 
 interface Broker {
@@ -20,6 +20,7 @@ interface Broker {
   hiddenPortfolioPropertyIds?: string[];
   backgroundColor?: string;
   theme?: 'light' | 'dark';
+  footerText?: string;
 }
 
 async function getBrokerData(brokerId: string): Promise<{ broker: Broker | null, properties: Property[] }> {
@@ -91,12 +92,12 @@ export default async function BrokerSearchPage({ params }: { params: { brokerId:
   return (
     <LocationProvider>
         <AuthProvider>
-            <div style={pageStyle} className="flex flex-col min-h-screen">
+            <div style={{ pageStyle }} className="flex flex-col min-h-screen">
                 <BrokerPublicHeader broker={plainBroker} />
                 <ImoveisClientPage broker={plainBroker} initialProperties={plainProperties} />
                  <footer style={{ backgroundColor: '#232323' }} className="text-white py-8 px-4">
                     <div className="container mx-auto text-center">
-                        <p>Proteção completa desde a explosão de uma panela de pressão até mesmo incêndio ou queda de aeronave.</p>
+                        {broker.footerText && <p>{broker.footerText}</p>}
                         {broker.logoUrl && (
                           <div className="mt-6 flex justify-center">
                             <Image

@@ -19,6 +19,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { type Property } from '@/app/dashboard/properties/page';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { queryInBatches } from '@/lib/firestoreUtils';
+import { Textarea } from '@/components/ui/textarea';
 
 interface AppearanceSettings {
     logoUrl?: string;
@@ -33,6 +34,7 @@ interface AppearanceSettings {
     featuredPropertyIds?: string[];
     videoCoverUrl?: string;
     youtubeUrl?: string;
+    footerText?: string;
 }
 
 export default function CorretorAppearancePage() {
@@ -69,6 +71,7 @@ export default function CorretorAppearancePage() {
                         featuredPropertyIds: userData.featuredPropertyIds || [],
                         videoCoverUrl: userData.videoCoverUrl || '',
                         youtubeUrl: userData.youtubeUrl || '',
+                        footerText: userData.footerText || '',
                     });
 
                     const propertyIds = userData.portfolioPropertyIds || [];
@@ -152,10 +155,11 @@ export default function CorretorAppearancePage() {
                 <form onSubmit={handleSave}>
                     <CardContent className="pt-6">
                         <Tabs defaultValue="appearance">
-                            <TabsList className="grid w-full grid-cols-3">
+                            <TabsList className="grid w-full grid-cols-4">
                                 <TabsTrigger value="appearance">Aparência</TabsTrigger>
                                 <TabsTrigger value="featured">Destaques</TabsTrigger>
                                 <TabsTrigger value="video">Vídeo</TabsTrigger>
+                                <TabsTrigger value="footer">Rodapé</TabsTrigger>
                             </TabsList>
                             
                             <TabsContent value="appearance" className="pt-6 space-y-8">
@@ -363,6 +367,19 @@ export default function CorretorAppearancePage() {
                                     <p className="text-xs text-muted-foreground">Insira o link completo do vídeo do YouTube que deve ser aberto ao clicar na imagem.</p>
                                 </div>
                             </TabsContent>
+                             <TabsContent value="footer" className="pt-6 space-y-8">
+                                <div className="space-y-2">
+                                    <h3 className="font-semibold text-lg">Texto do Rodapé</h3>
+                                    <Label htmlFor="footerText">Este texto aparecerá no rodapé do seu site público.</Label>
+                                    <Textarea 
+                                        id="footerText" 
+                                        value={settings.footerText || ''} 
+                                        onChange={(e) => handleFieldChange('footerText', e.target.value)} 
+                                        rows={4}
+                                        placeholder="Digite aqui um texto para o rodapé..."
+                                    />
+                                </div>
+                            </TabsContent>
                         </Tabs>
                     </CardContent>
                     <CardFooter>
@@ -376,7 +393,3 @@ export default function CorretorAppearancePage() {
         </div>
     );
 }
-
-    
-
-    

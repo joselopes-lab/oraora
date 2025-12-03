@@ -27,6 +27,7 @@ interface AuthContextType {
   propertyCount: number;
   propertyLimit: number | null;
   storageLimit: number | null;
+  portfolioPropertyIds: string[];
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -38,6 +39,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [favorites, setFavorites] = useState<string[]>([]);
   const [panelUserType, setPanelUserType] = useState<PanelUserType>('none');
   const [selectedPersonaId, _setSelectedPersonaId] = useState<string | null>(null);
+  const [portfolioPropertyIds, setPortfolioPropertyIds] = useState<string[]>([]);
+
 
   const [propertyCount, setPropertyCount] = useState(0);
   const [propertyLimit, setPropertyLimit] = useState<number | null>(null);
@@ -54,6 +57,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             if (userDoc.exists()) {
                 const userData = userDoc.data();
                 setFavorites(userData.favorites || []);
+                setPortfolioPropertyIds(userData.portfolioPropertyIds || []);
                 setUserName(userData.name || user.displayName);
                 _setSelectedPersonaId(userData.selectedPersonaId || null);
                 
@@ -94,6 +98,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 }
             } else {
                 setFavorites([]);
+                setPortfolioPropertyIds([]);
                 setUserName(user.displayName);
                 _setSelectedPersonaId(null);
                 setPanelUserType('none');
@@ -108,6 +113,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       } else {
         setFavorites([]);
+        setPortfolioPropertyIds([]);
         setUserName(null);
         _setSelectedPersonaId(null);
         setPanelUserType('none');
@@ -169,7 +175,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, userName, loading, favorites, toggleFavorite, isFavorite, panelUserType, selectedPersonaId, setSelectedPersonaId, propertyCount, propertyLimit, storageLimit }}>
+    <AuthContext.Provider value={{ user, userName, loading, favorites, toggleFavorite, isFavorite, panelUserType, selectedPersonaId, setSelectedPersonaId, propertyCount, propertyLimit, storageLimit, portfolioPropertyIds }}>
       {children}
     </AuthContext.Provider>
   );

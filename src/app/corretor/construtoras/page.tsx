@@ -18,13 +18,66 @@ import { useAuthState } from 'react-firebase-hooks/auth';
 import { type Property } from '@/app/dashboard/properties/page';
 import Image from 'next/image';
 import { useAuth } from '@/context/auth-context';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
+function BuilderGrid({ builders, propertiesByBuilder, portfolioPropertyIds, togglePortfolio, isLimitReached }: { builders: BuilderType[], propertiesByBuilder: Record<string, string[]>, portfolioPropertyIds: string[], togglePortfolio: (builderId: string, isInPortfolio: boolean) => void, isLimitReached: boolean }) {
+    
+    const isBuilderInPortfolio = (builderId: string) => {
+        const builderPropertyIds = propertiesByBuilder[builderId] || [];
+        if (builderPropertyIds.length === 0) return false;
+        return builderPropertyIds.some(id => portfolioPropertyIds.includes(id));
+    };
+
+    if (builders.length === 0) {
+        return (
+            <div className="col-span-full text-center py-12">
+                <p className="text-muted-foreground">Nenhuma construtora encontrada.</p>
+            </div>
+        );
+    }
+
+    return (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {builders.map(builder => {
+                const isInPortfolio = isBuilderInPortfolio(builder.id);
+                return (
+                    <Card key={builder.id} className="overflow-hidden h-full flex flex-col">
+                        <Link href={`/corretor/construtoras/${builder.id}`} className="group block">
+                            <div className="relative aspect-video bg-muted flex items-center justify-center">
+                                {builder.logoUrl ? (
+                                    <Image src={builder.logoUrl} alt={builder.name} fill className="object-contain p-4"/>
+                                ) : (
+                                    <ImageOff className="h-10 w-10 text-muted-foreground" />
+                                )}
+                            </div>
+                            <div className="p-4">
+                                <h3 className="font-semibold text-lg group-hover:text-primary">{builder.name}</h3>
+                                <p className="text-sm text-muted-foreground">{builder.city} - {builder.state}</p>
+                            </div>
+                        </Link>
+                        <CardFooter className="mt-auto p-4">
+                            <Button 
+                                variant={isInPortfolio ? 'secondary' : 'default'} 
+                                className="w-full"
+                                onClick={() => togglePortfolio(builder.id, isInPortfolio)}
+                                disabled={isLimitReached && !isInPortfolio}
+                            >
+                                {isInPortfolio ? <CheckCircle className="mr-2 h-4 w-4"/> : <PlusCircle className="mr-2 h-4 w-4"/>}
+                                {isInPortfolio ? 'Na sua carteira' : 'Adicionar à carteira'}
+                            </Button>
+                        </CardFooter>
+                    </Card>
+                )
+            })}
+        </div>
+    )
+}
 
 export default function CorretorConstrutorasPage() {
     const { toast } = useToast();
     const [user] = useAuthState(auth);
     const { propertyCount, propertyLimit } = useAuth();
     const [allBuilders, setAllBuilders] = useState<BuilderType[]>([]);
-    const [filteredBuilders, setFilteredBuilders] = useState<BuilderType[]>([]);
     const [portfolioPropertyIds, setPortfolioPropertyIds] = useState<string[]>([]);
     const [propertiesByBuilder, setPropertiesByBuilder] = useState<Record<string, string[]>>({});
     const [states, setStates] = useState<State[]>([]);
@@ -85,17 +138,6 @@ export default function CorretorConstrutorasPage() {
         return () => unsubscribe();
     }, [user]);
 
-    useEffect(() => {
-        let builders = allBuilders;
-        if (selectedState && selectedState !== 'all') {
-            builders = builders.filter(builder => builder.state === selectedState);
-        }
-        if (searchTerm) {
-            builders = builders.filter(builder => builder.name.toLowerCase().includes(searchTerm.toLowerCase()));
-        }
-        setFilteredBuilders(builders);
-    }, [selectedState, allBuilders, searchTerm]);
-
     const handleStateChange = (stateAcronym: string) => {
         setSelectedState(stateAcronym);
         localStorage.setItem('corretorConstrutorasStateFilter', stateAcronym);
@@ -130,12 +172,25 @@ export default function CorretorConstrutorasPage() {
             toast({ variant: 'destructive', title: "Erro ao atualizar a carteira." });
         }
     };
+    
+    const isLimitReached = propertyLimit !== null && propertyCount >= propertyLimit;
+    
+    const filteredAndSortedBuilders = useMemo(() => {
+        return allBuilders
+            .filter(builder => {
+                const matchesState = selectedState === 'all' || builder.state === selectedState;
+                const matchesSearch = builder.name.toLowerCase().includes(searchTerm.toLowerCase());
+                return matchesState && matchesSearch;
+            });
+    }, [allBuilders, selectedState, searchTerm]);
+    
+    const myBuilders = useMemo(() => {
+        return filteredAndSortedBuilders.filter(builder => {
+            const builderPropertyIds = propertiesByBuilder[builder.id] || [];
+            return builderPropertyIds.length > 0 && builderPropertyIds.some(id => portfolioPropertyIds.includes(id));
+        });
+    }, [filteredAndSortedBuilders, propertiesByBuilder, portfolioPropertyIds]);
 
-    const isBuilderInPortfolio = (builderId: string) => {
-        const builderPropertyIds = propertiesByBuilder[builderId] || [];
-        if (builderPropertyIds.length === 0) return false;
-        return builderPropertyIds.every(id => portfolioPropertyIds.includes(id));
-    };
 
     return (
       <div className="space-y-6">
@@ -146,75 +201,62 @@ export default function CorretorConstrutorasPage() {
                 <p className="font-light text-[23px] text-black">Explore os imóveis de nossas construtoras parceiras.</p>
             </div>
         </div>
-        <div className="flex flex-col sm:flex-row justify-end items-start sm:items-center gap-4">
-            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                <div className="relative w-full sm:w-auto">
-                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                        placeholder="Buscar por nome..."
-                        className="pl-8"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                </div>
-                <div className="w-full sm:w-auto sm:min-w-[200px]">
-                    <Label htmlFor="state-filter" className="sr-only">Filtrar por Estado</Label>
-                    <Select onValueChange={handleStateChange} value={selectedState}>
-                        <SelectTrigger id="state-filter">
-                            <SelectValue placeholder="Filtrar por estado..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">Todos os Estados</SelectItem>
-                            {states.map(state => (
-                                <SelectItem key={state.id} value={state.sigla}>{state.nome}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                </div>
-            </div>
-        </div>
         
         {isLoading ? (
              <div className="flex justify-center items-center h-48"><Loader2 className="h-8 w-8 animate-spin" /></div>
         ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {filteredBuilders.length > 0 ? filteredBuilders.map(builder => {
-                    const isInPortfolio = isBuilderInPortfolio(builder.id);
-                    const isLimitReached = propertyLimit !== null && propertyCount >= propertyLimit;
-                    return (
-                        <Card key={builder.id} className="overflow-hidden h-full flex flex-col">
-                            <Link href={`/corretor/construtoras/${builder.id}`} className="group block">
-                                <div className="relative aspect-video bg-muted flex items-center justify-center">
-                                    {builder.logoUrl ? (
-                                        <Image src={builder.logoUrl} alt={builder.name} fill className="object-contain p-4"/>
-                                    ) : (
-                                        <ImageOff className="h-10 w-10 text-muted-foreground" />
-                                    )}
-                                </div>
-                                <div className="p-4">
-                                    <h3 className="font-semibold text-lg group-hover:text-primary">{builder.name}</h3>
-                                    <p className="text-sm text-muted-foreground">{builder.city} - {builder.state}</p>
-                                </div>
-                            </Link>
-                            <CardFooter className="mt-auto p-4">
-                                <Button 
-                                    variant={isInPortfolio ? 'secondary' : 'default'} 
-                                    className="w-full"
-                                    onClick={() => togglePortfolio(builder.id, isInPortfolio)}
-                                    disabled={isLimitReached && !isInPortfolio}
-                                >
-                                    {isInPortfolio ? <CheckCircle className="mr-2 h-4 w-4"/> : <PlusCircle className="mr-2 h-4 w-4"/>}
-                                    {isInPortfolio ? 'Na sua carteira' : 'Adicionar à carteira'}
-                                </Button>
-                            </CardFooter>
-                        </Card>
-                    )
-                }) : (
-                    <div className="col-span-full text-center py-12">
-                        <p className="text-muted-foreground">Nenhuma construtora encontrada.</p>
+             <Tabs defaultValue="explore" className="w-full">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <TabsList className="grid w-full sm:w-auto grid-cols-2">
+                        <TabsTrigger value="explore">Explorar Construtoras</TabsTrigger>
+                        <TabsTrigger value="my-builders">Minhas Construtoras</TabsTrigger>
+                    </TabsList>
+                     <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
+                        <div className="relative w-full sm:w-auto">
+                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                placeholder="Buscar por nome..."
+                                className="pl-8"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                            />
+                        </div>
+                        <div className="w-full sm:w-auto sm:min-w-[200px]">
+                            <Label htmlFor="state-filter" className="sr-only">Filtrar por Estado</Label>
+                            <Select onValueChange={handleStateChange} value={selectedState}>
+                                <SelectTrigger id="state-filter">
+                                    <SelectValue placeholder="Filtrar por estado..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">Todos os Estados</SelectItem>
+                                    {states.map(state => (
+                                        <SelectItem key={state.id} value={state.sigla}>{state.nome}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
                     </div>
-                )}
-            </div>
+                </div>
+                
+                <TabsContent value="explore" className="mt-6">
+                     <BuilderGrid 
+                        builders={filteredAndSortedBuilders}
+                        propertiesByBuilder={propertiesByBuilder}
+                        portfolioPropertyIds={portfolioPropertyIds}
+                        togglePortfolio={togglePortfolio}
+                        isLimitReached={isLimitReached}
+                    />
+                </TabsContent>
+                <TabsContent value="my-builders" className="mt-6">
+                    <BuilderGrid 
+                        builders={myBuilders}
+                        propertiesByBuilder={propertiesByBuilder}
+                        portfolioPropertyIds={portfolioPropertyIds}
+                        togglePortfolio={togglePortfolio}
+                        isLimitReached={isLimitReached}
+                    />
+                </TabsContent>
+             </Tabs>
         )}
       </div>
     );

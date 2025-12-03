@@ -1,8 +1,8 @@
 
 import { notFound } from 'next/navigation';
 import { db } from '@/lib/firebase';
-import { doc, getDoc, collection, query, where, documentId, getDocs } from 'firebase/firestore';
-import BrokerPublicPageClient from '@/app/corretor/[slug]/broker-public-page-client';
+import { doc, getDoc, collection, query, where, documentId, getDocs, limit } from 'firebase/firestore';
+import BrokerPublicPageClient from './broker-public-page-client';
 import { type Property } from '@/app/dashboard/properties/page';
 import { queryInBatches } from '@/lib/firestoreUtils';
 import { AuthProvider } from '@/context/auth-context';
@@ -88,8 +88,15 @@ async function getBrokerData(brokerId: string): Promise<{ broker: Broker | null,
   }
 }
 
-export default async function BrokerPublicPage({ params }: { params: Promise<{ brokerId: string }> }) {
-  const { brokerId } = await params;
+export default async function BrokerPublicPage({ params }: { params: { slug: string } }) {
+    const brokerUserQuery = query(collection(db, 'users'), where('slug', '==', params.slug), limit(1));
+    const brokerUserSnapshot = await getDocs(brokerUserQuery);
+
+    if (brokerUserSnapshot.empty) {
+        notFound();
+    }
+    const brokerId = brokerUserSnapshot.docs[0].id;
+  
   const { broker, properties, featuredProperties } = await getBrokerData(brokerId);
 
   if (!broker) {
@@ -111,7 +118,7 @@ export default async function BrokerPublicPage({ params }: { params: Promise<{ b
                 <BrokerPublicPageClient broker={plainBroker} properties={plainProperties} featuredProperties={plainFeaturedProperties} />
                  <footer style={{ backgroundColor: '#232323' }} className="text-white py-8 px-4">
                     <div className="container mx-auto text-center">
-                        <p>{broker.footerText}</p>
+                        {broker.footerText && <p>{broker.footerText}</p>}
                         {broker.logoUrl && (
                           <div className="mt-6 flex justify-center">
                             <Image

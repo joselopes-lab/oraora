@@ -6,6 +6,16 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 import { generateSeo, GenerateSeoOutput } from '@/ai/flows/generate-seo-flow';
 
+export interface CategoryImages {
+  Apartamento?: string;
+  'Casa em Condomínio'?: string;
+  Casa?: string;
+  Terreno?: string;
+  'Sala Comercial'?: string;
+  Flat?: string;
+  Loja?: string;
+}
+
 export interface AppearanceSettings {
   logoUrl: string;
   faviconUrl?: string;
@@ -26,6 +36,7 @@ export interface AppearanceSettings {
   brokerCallMobileImage?: string;
   brokerCallLink?: string;
   brokerCallLinkTargetBlank?: boolean;
+  categoryImages?: CategoryImages;
 }
 
 export async function getAppearanceSettings(): Promise<AppearanceSettings> {
@@ -49,6 +60,7 @@ export async function getAppearanceSettings(): Promise<AppearanceSettings> {
     brokerCallMobileImage: '',
     brokerCallLink: '',
     brokerCallLinkTargetBlank: false,
+    categoryImages: {},
   };
   
   try {
