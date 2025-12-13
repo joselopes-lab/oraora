@@ -14,11 +14,15 @@ import { LocationContext } from '@/context/location-context';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './ui/accordion';
 import { Input } from './ui/input';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent } from './ui/dropdown-menu';
+import { query, collection, where, getDocs } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { queryInBatches } from '@/lib/firestoreUtils';
 
 interface SearchFormProps {
     isHomePage?: boolean;
     properties?: Property[];
     brokerId?: string;
+    onSearch?: () => void;
 }
 
 const bedroomOptions = [
@@ -65,7 +69,7 @@ const unformatCurrency = (value: string) => {
 
 const allPropertyTypes = ["Apartamento", "Casa em Condomínio", "Casa", "Flat", "Terreno", "Sala Comercial", "Loja"];
 
-export default function SearchForm({ isHomePage = false, properties: providedProperties, brokerId }: SearchFormProps) {
+export default function SearchForm({ isHomePage = false, properties: providedProperties, brokerId, onSearch }: SearchFormProps) {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { selectedState } = useContext(LocationContext);
@@ -84,9 +88,36 @@ export default function SearchForm({ isHomePage = false, properties: providedPro
     const [commonAreas, setCommonAreas] = useState<string[]>(searchParams.get('areas_comuns')?.split(',') || []);
     
     useEffect(() => {
-        setAllProperties(providedProperties || []);
-        setIsLoading(!providedProperties);
-    }, [providedProperties]);
+        if (providedProperties) {
+            setAllProperties(providedProperties);
+            setIsLoading(false);
+        } else if (selectedState) {
+            // Fetch properties if not provided (for modal case)
+            const fetchPropertiesForModal = async () => {
+                setIsLoading(true);
+                const buildersSnapshot = await getDocs(query(collection(db, 'builders'), where('isVisibleOnSite', '==', true)));
+                const visibleBuilderIds = buildersSnapshot.docs.map(doc => doc.id);
+
+                if (visibleBuilderIds.length > 0) {
+                     const propsData = await queryInBatches<Property>(
+                        'properties', 
+                        'builderId', 
+                        visibleBuilderIds,
+                        [
+                            where('localizacao.estado', '==', selectedState.sigla),
+                            where('isVisibleOnSite', '==', true),
+                        ]
+                    );
+                    setAllProperties(propsData);
+                } else {
+                    setAllProperties([]);
+                }
+                setIsLoading(false);
+            };
+            fetchPropertiesForModal();
+        }
+    }, [providedProperties, selectedState]);
+
 
      useEffect(() => {
         const paramsCity = searchParams.get('cidade') || '';
@@ -184,8 +215,12 @@ export default function SearchForm({ isHomePage = false, properties: providedPro
         if (min) params.set('valorMin', min);
         if (max) params.set('valorMax', max);
         
-        const searchPath = brokerId ? `/corretor-publico/${brokerId}/imoveis` : '/imoveis';
+        const searchPath = brokerId ? `/corretor/${brokerId}/imoveis` : '/imoveis';
         router.push(`${searchPath}?${params.toString()}`);
+
+        if (onSearch) {
+            onSearch();
+        }
     };
     
     const labelBaseClass = 'text-foreground text-sm font-medium';

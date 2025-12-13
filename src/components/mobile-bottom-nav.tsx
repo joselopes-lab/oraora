@@ -84,7 +84,7 @@ export default function MobileBottomNav() {
             <DialogTitle>Buscar Imóveis</DialogTitle>
           </DialogHeader>
           <div className="pt-4">
-            <SearchForm isHomePage />
+            <SearchForm isHomePage onSearch={() => setIsSearchModalOpen(false)} />
           </div>
         </DialogContent>
       </Dialog>

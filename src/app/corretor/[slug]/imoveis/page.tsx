@@ -21,20 +21,22 @@ interface Broker {
   backgroundColor?: string;
   theme?: 'light' | 'dark';
   footerText?: string;
+  slug?: string;
 }
 
-async function getBrokerData(brokerId: string): Promise<{ broker: Broker | null, properties: Property[] }> {
-  if (!brokerId) return { broker: null, properties: [] };
+async function getBrokerData(slug: string): Promise<{ broker: Broker | null, properties: Property[] }> {
+  if (!slug) return { broker: null, properties: [] };
 
   try {
-    const brokerDocRef = doc(db, 'users', brokerId);
-    const brokerDocSnap = await getDoc(brokerDocRef);
+    const brokerUserQuery = query(collection(db, 'users'), where('slug', '==', slug), limit(1));
+    const brokerUserSnapshot = await getDocs(brokerUserQuery);
 
-    if (!brokerDocSnap.exists() || brokerDocSnap.data().role !== 'Corretor') {
+    if (brokerUserSnapshot.empty) {
       return { broker: null, properties: [] };
     }
-
-    const brokerData = { id: brokerDocSnap.id, ...brokerDocSnap.data() } as Broker;
+    const brokerId = brokerUserSnapshot.docs[0].id;
+    const brokerData = { id: brokerId, ...brokerUserSnapshot.docs[0].data() } as Broker;
+    
     let portfolioProperties: Property[] = [];
 
     // 1. Fetch properties from portfolio (from builders)
@@ -75,15 +77,7 @@ async function getBrokerData(brokerId: string): Promise<{ broker: Broker | null,
 }
 
 export default async function BrokerSearchPage({ params }: { params: { slug: string } }) {
-  const brokerUserQuery = query(collection(db, 'users'), where('slug', '==', params.slug), limit(1));
-  const brokerUserSnapshot = await getDocs(brokerUserQuery);
-
-  if (brokerUserSnapshot.empty) {
-      notFound();
-  }
-  const brokerId = brokerUserSnapshot.docs[0].id;
-
-  const { broker, properties } = await getBrokerData(brokerId);
+  const { broker, properties } = await getBrokerData(params.slug);
 
   if (!broker) {
     notFound();

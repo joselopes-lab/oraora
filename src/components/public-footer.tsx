@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useActionState, useEffect, useRef, useState } from 'react';
@@ -72,14 +71,15 @@ export default function PublicFooter() {
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-8 lg:gap-12">
                     
                     <div className="md:col-span-12 lg:col-span-5 space-y-4">
-                        <div className="flex items-center space-x-1.5 mb-4">
+                         <div className="flex items-end space-x-1.5 mb-4">
                             {settings?.logoUrl ? (
-                                <Image src={settings.logoUrl} alt="Oraora Logo" width={180} height={60} className="h-12 w-auto object-contain" style={{height: 'auto'}} />
+                                <Image src={settings.logoUrl} alt="Oraora Logo" width={180} height={60} className="h-auto w-[250px] object-contain" />
                             ) : (
-                                <>
-                                    <Icons.logo className="h-10 w-10 text-primary" />
-                                    <span className="font-headline font-bold text-[40px] tracking-tighter">oraora</span>
-                                </>
+                                <div className="flex items-end">
+                                    <Icons.logo className="h-16 w-16 text-primary" />
+                                    <div className="font-headline font-bold text-[6rem] leading-none tracking-tighter -ml-2">oraora</div>
+                                    <span className="font-headline font-normal text-[1.5rem] leading-none tracking-tight mb-2">achamos</span>
+                                </div>
                             )}
                         </div>
                         <p className="text-muted-foreground text-sm leading-relaxed">

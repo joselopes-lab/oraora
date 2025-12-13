@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, type ChangeEvent } from 'react';
@@ -13,7 +12,6 @@ import { Loader2, Inbox, Mail, Phone, FileText, GripVertical, PlusCircle, Trash2
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import Link from 'next/link';
-import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { Input } from '@/components/ui/input';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
@@ -251,57 +249,6 @@ export default function CorretorLeadsPage() {
         return format(new Date(timestamp.seconds * 1000), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
     };
 
-    const onDragEnd = async (result: DropResult) => {
-        const { source, destination, draggableId } = result;
-
-        if (!destination) return;
-        
-        if (source.droppableId === destination.droppableId && source.index === destination.index) {
-          return;
-        }
-
-        const start = columns[source.droppableId];
-        const finish = columns[destination.droppableId];
-        
-        // Moving within the same column
-        if (start === finish) {
-          const newItems = Array.from(start.items);
-          const [reorderedItem] = newItems.splice(source.index, 1);
-          newItems.splice(destination.index, 0, reorderedItem);
-
-          const newColumn = { ...start, items: newItems };
-          const newColumns = { ...columns, [start.id]: newColumn };
-          
-          setColumns(newColumns);
-          return;
-        }
-
-        // Moving from one column to another
-        const startItems = Array.from(start.items);
-        const [movedItem] = startItems.splice(source.index, 1);
-        const finishItems = Array.from(finish.items);
-        finishItems.splice(destination.index, 0, movedItem);
-
-        const newStart = { ...start, items: startItems };
-        const newFinish = { ...finish, items: finishItems };
-
-        const newColumns = {
-          ...columns,
-          [start.id]: newStart,
-          [finish.id]: newFinish
-        };
-        setColumns(newColumns);
-            
-        const leadRef = doc(db, 'broker_leads', draggableId);
-        try {
-            await updateDoc(leadRef, { status: finish.id });
-            toast({ title: "Status do Lead Atualizado!" });
-        } catch (error: any) {
-            setColumns(columns); // Revert on error
-            toast({ variant: 'destructive', title: "Erro ao atualizar status", description: error.message });
-        }
-    };
-    
     if (isLoading || loadingAuth) {
         return (
             <div className="flex justify-center items-center h-48">
@@ -317,112 +264,97 @@ export default function CorretorLeadsPage() {
             <Inbox className="h-10 w-10 mt-2"/>
             <div>
                 <h1 className="text-6xl font-thin tracking-tight">Meus Leads</h1>
-                <p className="font-light text-[23px] text-black">Arraste e solte os leads para organizar seu funil de vendas.</p>
+                <p className="font-light text-[23px] text-black">Gerencie seu funil de vendas.</p>
             </div>
         </div>
 
-        <DragDropContext onDragEnd={onDragEnd}>
-            <div className="flex gap-6 items-start overflow-x-auto pb-4">
-                {columnOrder.map((columnId) => {
-                    const column = columns[columnId];
-                    if (!column) return null;
-                    return (
-                    <Droppable droppableId={columnId} key={columnId}>
-                        {(provided, snapshot) => (
-                            <div
-                                ref={provided.innerRef}
-                                {...provided.droppableProps}
-                                className={`p-4 rounded-lg bg-muted/50 min-h-[500px] w-[350px] shrink-0 flex flex-col transition-colors ${snapshot.isDraggingOver ? 'bg-muted' : ''}`}
+        <div className="flex gap-6 items-start overflow-x-auto pb-4">
+            {columnOrder.map((columnId) => {
+                const column = columns[columnId];
+                if (!column) return null;
+                return (
+                <div
+                    key={columnId}
+                    className={`p-4 rounded-lg bg-muted/50 min-h-[500px] w-[350px] shrink-0 flex flex-col`}
+                >
+                    <div className="flex items-center gap-2 mb-4">
+                        {editingColumn === columnId ? (
+                                <Input
+                                type="text"
+                                value={editingColumnName}
+                                onChange={handleTitleChange}
+                                onBlur={() => handleTitleBlur(columnId)}
+                                onKeyDown={(e) => handleTitleKeyDown(e, columnId)}
+                                autoFocus
+                                className="h-8 text-lg font-semibold p-1 border-primary"
+                            />
+                        ) : (
+                            <h2 
+                                className="font-semibold text-lg cursor-pointer"
+                                onClick={() => handleTitleClick(columnId, column.name)}
                             >
-                                <div className="flex items-center gap-2 mb-4">
-                                    {editingColumn === columnId ? (
-                                         <Input
-                                            type="text"
-                                            value={editingColumnName}
-                                            onChange={handleTitleChange}
-                                            onBlur={() => handleTitleBlur(columnId)}
-                                            onKeyDown={(e) => handleTitleKeyDown(e, columnId)}
-                                            autoFocus
-                                            className="h-8 text-lg font-semibold p-1 border-primary"
-                                        />
-                                    ) : (
-                                        <h2 
-                                            className="font-semibold text-lg cursor-pointer"
-                                            onClick={() => handleTitleClick(columnId, column.name)}
-                                        >
-                                            {column.name}
-                                        </h2>
-                                    )}
-                                    <Badge variant="secondary">{column.items.length}</Badge>
-                                    {column.isDeletable && (
-                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive ml-auto" onClick={() => { setColumnToDelete(columnId); setIsDeleteAlertOpen(true);}}>
-                                            <Trash2 className="h-4 w-4"/>
-                                        </Button>
-                                    )}
+                                {column.name}
+                            </h2>
+                        )}
+                        <Badge variant="secondary">{column.items.length}</Badge>
+                        {column.isDeletable && (
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive ml-auto" onClick={() => { setColumnToDelete(columnId); setIsDeleteAlertOpen(true);}}>
+                                <Trash2 className="h-4 w-4"/>
+                            </Button>
+                        )}
+                    </div>
+                    <div className="space-y-4 overflow-y-auto flex-grow">
+                        {column.items.map((item, index) => (
+                            <div
+                                key={item.id}
+                                className={`p-4 rounded-lg bg-card border shadow-sm`}
+                            >
+                                <div className="flex items-start justify-between">
+                                    <h4 className="font-semibold">{item.name}</h4>
+                                    <GripVertical className="h-5 w-5 text-muted-foreground"/>
                                 </div>
-                                <div className="space-y-4 overflow-y-auto flex-grow">
-                                    {column.items.map((item, index) => (
-                                        <Draggable key={item.id} draggableId={item.id} index={index}>
-                                            {(provided, snapshot) => (
-                                                <div
-                                                    ref={provided.innerRef}
-                                                    {...provided.draggableProps}
-                                                    {...provided.dragHandleProps}
-                                                    className={`p-4 rounded-lg bg-card border shadow-sm ${snapshot.isDragging ? 'shadow-lg' : ''}`}
-                                                    style={{...provided.draggableProps.style}}
-                                                >
-                                                    <div className="flex items-start justify-between">
-                                                        <h4 className="font-semibold">{item.name}</h4>
-                                                        <GripVertical className="h-5 w-5 text-muted-foreground cursor-grab"/>
-                                                    </div>
-                                                    <p className="text-xs text-muted-foreground">{formatDate(item.createdAt)}</p>
-                                                    
-                                                    <div className="text-sm space-y-1 mt-3">
-                                                        <div className="flex items-center gap-1.5"><Mail className="h-3.5 w-3.5 text-muted-foreground" /><span>{item.email}</span></div>
-                                                        <div className="flex items-center gap-1.5"><Phone className="h-3.5 w-3.5 text-muted-foreground" /><span>{item.phone}</span></div>
-                                                    </div>
+                                <p className="text-xs text-muted-foreground">{formatDate(item.createdAt)}</p>
+                                
+                                <div className="text-sm space-y-1 mt-3">
+                                    <div className="flex items-center gap-1.5"><Mail className="h-3.5 w-3.5 text-muted-foreground" /><span>{item.email}</span></div>
+                                    <div className="flex items-center gap-1.5"><Phone className="h-3.5 w-3.5 text-muted-foreground" /><span>{item.phone}</span></div>
+                                </div>
 
-                                                    {item.propertyName && (
-                                                        <div className="mt-3 pt-3 border-t">
-                                                            <p className="text-xs font-medium text-muted-foreground">Imóvel de Interesse:</p>
-                                                            <Button variant="link" asChild className="p-0 h-auto font-normal text-sm">
-                                                                <Link href={`/imoveis/${item.propertySlug || ''}`} target="_blank" className="flex items-center gap-2 text-primary">
-                                                                    <FileText className="h-4 w-4" />
-                                                                    {item.propertyName}
-                                                                </Link>
-                                                            </Button>
-                                                        </div>
-                                                    )}
-                                                    {item.message && (
-                                                        <div className="mt-3 pt-3 border-t">
-                                                            <p className="text-xs font-medium text-muted-foreground">Mensagem:</p>
-                                                            <p className="text-sm italic text-muted-foreground line-clamp-3">"{item.message}"</p>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            )}
-                                        </Draggable>
-                                    ))}
-                                    {provided.placeholder}
-                                </div>
-                                {column.items.length === 0 && !snapshot.isDraggingOver && (
-                                    <div className="flex justify-center items-center h-40 border-2 border-dashed rounded-lg mt-auto">
-                                        <p className="text-sm text-muted-foreground">Arraste os leads para cá</p>
+                                {item.propertyName && (
+                                    <div className="mt-3 pt-3 border-t">
+                                        <p className="text-xs font-medium text-muted-foreground">Imóvel de Interesse:</p>
+                                        <Button variant="link" asChild className="p-0 h-auto font-normal text-sm">
+                                            <Link href={`/imoveis/${item.propertySlug || ''}`} target="_blank" className="flex items-center gap-2 text-primary">
+                                                <FileText className="h-4 w-4" />
+                                                {item.propertyName}
+                                            </Link>
+                                        </Button>
+                                    </div>
+                                )}
+                                {item.message && (
+                                    <div className="mt-3 pt-3 border-t">
+                                        <p className="text-xs font-medium text-muted-foreground">Mensagem:</p>
+                                        <p className="text-sm italic text-muted-foreground line-clamp-3">"{item.message}"</p>
                                     </div>
                                 )}
                             </div>
-                        )}
-                    </Droppable>
-                    )
-                })}
-                <div className="w-[350px] shrink-0 flex items-center justify-center">
-                     <Button variant="outline" onClick={handleAddColumn} className="w-full h-12 border-dashed">
-                        <PlusCircle className="mr-2 h-4 w-4"/>
-                        Adicionar Etapa
-                     </Button>
+                        ))}
+                    </div>
+                    {column.items.length === 0 && (
+                        <div className="flex justify-center items-center h-40 border-2 border-dashed rounded-lg mt-auto">
+                            <p className="text-sm text-muted-foreground">Arraste os leads para cá</p>
+                        </div>
+                    )}
                 </div>
+                )
+            })}
+            <div className="w-[350px] shrink-0 flex items-center justify-center">
+                    <Button variant="outline" onClick={handleAddColumn} className="w-full h-12 border-dashed">
+                    <PlusCircle className="mr-2 h-4 w-4"/>
+                    Adicionar Etapa
+                    </Button>
             </div>
-        </DragDropContext>
+        </div>
 
         <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>
           <AlertDialogContent>
@@ -441,7 +373,3 @@ export default function CorretorLeadsPage() {
       </div>
     )
 }
-
-    
-
-    
