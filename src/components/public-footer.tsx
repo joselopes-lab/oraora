@@ -189,7 +189,7 @@ export default function PublicFooter() {
                     </div>
                     <div className="pt-6 text-center">
                         <p className="text-sm">&copy; {new Date().getFullYear()} Oraora. Todos os direitos reservados.</p>
-                        <p className="text-xs mt-2">Desenvolvido por <a href="https://dotestudio.com.br" target="_blank" rel="noopener noreferrer" className="font-semibold hover:underline">Dot Estúdio</a></p>
+                        <p className="text-xs mt-2">CNPJ: 64.052.552/0001-26</p>
                     </div>
                 </div>
             </div>
