@@ -1,117 +1,23 @@
-'use client';
+import * as React from "react"
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { onAuthStateChanged, type User } from 'firebase/auth';
-import { auth, db } from '@/lib/firebase';
-import { doc, getDoc } from 'firebase/firestore';
-import DashboardHeader from '@/app/dashboard/header';
-import { Loader2 } from 'lucide-react';
+const MOBILE_BREAKPOINT = 768
 
-// Lista completa de todas as permissões disponíveis no sistema.
-const allPermissions = [
-  'Acessar Painel',
-  'Acessar Leads',
-  'Acessar Usuários',
-  'Acessar Funções',
-  'Acessar Log de Atividades',
-  'Acessar Configurações',
-  'Acessar Construtoras',
-  'Criar Usuários',
-  'Editar Usuários',
-  'Deletar Usuários',
-  'Criar Funções',
-  'Editar Funções',
-  'Deletar Funções',
-  'Criar Construtoras',
-  'Editar Construtoras',
-  'Deletar Construtoras',
-  'Acessar Imóveis',
-  'Criar Imóveis',
-  'Editar Imóveis',
-  'Deletar Imóveis',
-];
+export function useIsMobile() {
+  const [isMobile, setIsMobile] = React.useState(false)
 
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const router = useRouter();
-  const [isLoading, setIsLoading] = useState(true);
-  const [userPermissions, setUserPermissions] = useState<string[]>([]);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  React.useEffect(() => {
+    const checkIsMobile = () => {
+      setIsMobile(window.innerWidth < MOBILE_BREAKPOINT);
+    };
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user: User | null) => {
-      if (user) {
-        setIsAuthenticated(true);
-        // Lógica especial para o super administrador
-        if (user.email === 'vinicius@teste.com') {
-          setUserPermissions(allPermissions);
-          setIsLoading(false);
-          return;
-        }
+    checkIsMobile(); // Check on mount
+    
+    window.addEventListener("resize", checkIsMobile);
 
-        try {
-          // Lógica padrão para outros usuários
-          const userDocRef = doc(db, 'users', user.uid);
-          const userDocSnap = await getDoc(userDocRef);
+    return () => {
+      window.removeEventListener("resize", checkIsMobile);
+    };
+  }, []);
 
-          if (userDocSnap.exists()) {
-            const userData = userDocSnap.data();
-            
-            if (userData.roleId && typeof userData.roleId === 'string') {
-              const roleDocRef = doc(db, 'roles', userData.roleId);
-              const roleDocSnap = await getDoc(roleDocRef);
-
-              if(roleDocSnap.exists()) {
-                const roleData = roleDocSnap.data();
-                setUserPermissions(roleData.permissions || []);
-              } else {
-                 setUserPermissions([]);
-              }
-            } else {
-              setUserPermissions([]);
-            }
-          } else {
-             setUserPermissions([]);
-          }
-        } catch (error) {
-          console.error("Erro ao buscar permissões do usuário:", error);
-          setUserPermissions([]); 
-        } finally {
-           setIsLoading(false);
-        }
-      } else {
-        setIsAuthenticated(false);
-        setIsLoading(false);
-        router.push('/login');
-      }
-    });
-    return () => unsubscribe();
-  }, [router]);
-
-  if (isLoading) {
-    return (
-      <div className="flex h-screen w-full items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin" />
-        <p className="ml-2">Verificando autenticação e permissões...</p>
-      </div>
-    );
-  }
-
-  if (!isAuthenticated) {
-    // Render nothing or a redirect message while router pushes
-    return null;
-  }
-
-  return (
-    <div className="flex min-h-screen w-full flex-col">
-        <DashboardHeader permissions={userPermissions} />
-        <main className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
-            {children}
-        </main>
-    </div>
-  );
+  return isMobile;
 }

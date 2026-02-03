@@ -1,0 +1,1078 @@
+
+{
+  "entities": {
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user within the Oraora application.  Abstract type that is subclassed by Broker, Constructor, and Admin.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the User entity."
+        },
+        "userType": {
+          "type": "string",
+          "description": "The type of user (e.g., 'broker', 'constructor', 'admin', 'client').",
+          "format": "string"
+        },
+        "email": {
+          "type": "string",
+          "description": "User's email address.",
+          "format": "email"
+        },
+        "username": {
+          "type": "string",
+          "description": "Username associated with the user account."
+        },
+        "planId": {
+          "type": "string",
+          "description": "Reference to the Plan entity. (Relationship: Plan 1:N User)"
+        },
+        "isActive": {
+          "type": "boolean",
+          "description": "Controls if the user can log in."
+        }
+      },
+      "required": [
+        "id",
+        "userType",
+        "email",
+        "username",
+        "planId",
+        "isActive"
+      ]
+    },
+    "Broker": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Broker",
+      "type": "object",
+      "description": "Represents a broker user and their public site settings.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Broker entity.  Also the foreign key to the User table."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to the User entity. (Relationship: User 1:1 Broker)"
+        },
+        "slug": {
+          "type": "string",
+          "description": "The unique URL slug for the broker's public site. (e.g., 'john-doe-realty')."
+        },
+        "brandName": {
+          "type": "string",
+          "description": "The brand name displayed on the public site."
+        },
+        "logoUrl": {
+          "type": "string",
+          "description": "URL for the broker's logo.",
+          "format": "uri"
+        },
+        "logoUrlWhite": {
+          "type": "string",
+          "description": "URL for the white version of the broker's logo.",
+          "format": "uri"
+        },
+        "primaryColor": {
+          "type": "string",
+          "description": "Primary theme color (HSL format 'H S% L%') for the public site."
+        },
+        "secondaryColor": {
+          "type": "string",
+          "description": "Secondary/accent theme color (HSL format 'H S% L%') for the public site."
+        },
+        "accentColor": {
+            "type": "string",
+            "description": "Accent theme color (HSL format 'H S% L%') for the public site."
+        },
+        "backgroundColor": {
+            "type": "string",
+            "description": "Background theme color (HSL format 'H S% L%') for the public site."
+        },
+        "foregroundColor": {
+            "type": "string",
+            "description": "Foreground (text) theme color (HSL format 'H S% L%') for the public site."
+        },
+        "layoutId": {
+          "type": "string",
+          "description": "The ID of the selected layout for the public site."
+        },
+        "footerSlogan": { "type": "string" },
+        "footerContactEmail": { "type": "string", "format": "email" },
+        "footerContactPhone": { "type": "string" },
+        "footerContactAddress": { "type": "string" },
+        "creci": { "type": "string" },
+        "whatsappUrl": { "type": "string", "format": "uri" },
+        "instagramUrl": { "type": "string", "format": "uri" },
+        "linkedinUrl": { "type": "string", "format": "uri" },
+        "monthlyGoals": {
+          "type": "object",
+          "description": "Stores monthly financial goals for the broker.",
+          "additionalProperties": { "type": "number" }
+        },
+        "homepage": {
+            "type": "object",
+            "description": "Stores editable content for the broker's homepage, shared across all layouts.",
+            "properties": {
+                "heroTagline": {"type": "string"},
+                "heroTitle": {"type": "string"},
+                "heroSubtitle": {"type": "string"},
+                "heroVideoUrl": {"type": "string", "format": "uri"},
+                "heroImageUrl": {"type": "string", "format": "uri"},
+                "statsSold": {"type": "string"},
+                "statsExperience": {"type": "string"},
+                "statsSatisfaction": {"type": "string"},
+                "statsSupport": {"type": "string"},
+                "featuredTagline": {"type": "string"},
+                "featuredTitle": {"type": "string"},
+                "featuredSubtitle": {"type": "string"},
+                "aboutTagline": {"type": "string"},
+                "aboutTitle": {"type": "string"},
+                "aboutText": {"type": "string"},
+                "aboutImageUrl": {"type": "string", "format": "uri"},
+                "aboutQuote": {"type": "string"},
+                "aboutAwardTitle": {"type": "string"},
+                "aboutAwardText": {"type": "string"},
+                "ctaTitle": {"type": "string"},
+                "ctaSubtitle": {"type": "string"},
+                "value1Icon": {"type": "string"},
+                "value1Title": {"type": "string"},
+                "value1Description": {"type": "string"},
+                "value2Icon": {"type": "string"},
+                "value2Title": {"type": "string"},
+                "value2Description": {"type": "string"},
+                "value3Icon": {"type": "string"},
+                "value3Title": {"type": "string"},
+                "value3Description": {"type": "string"},
+                "value4Icon": {"type": "string"},
+                "value4Title": {"type": "string"},
+                "value4Description": {"type": "string"},
+                "hideStats": {"type": "boolean", "description": "If true, hides the statistics section on the public site."},
+                "ctaButtonText": {"type": "string"},
+                "ctaButtonBgColor": {"type": "string"},
+                "ctaButtonTextColor": {"type": "string"},
+                "ctaButtonIcon": {"type": "string"},
+                "searchButtonBgColor": {"type": "string"},
+                "searchButtonTextColor": {"type": "string"},
+                "statsSectionBgColor": {"type": "string"},
+                "statsNumberColor": {"type": "string"},
+                "statsLabelColor": {"type": "string"},
+                "cardIconColor": {"type": "string"},
+                "cardValueColor": {"type": "string"},
+                "cardTitleColor": {"type": "string"},
+                "statusTagBgColor": {"type": "string"},
+                "statusTagTextColor": {"type": "string"}
+            }
+        },
+        "oraoraContato": {
+          "type": "object",
+          "description": "Stores editable content for the Oraora main contact page.",
+          "properties": {
+            "headerTagline": { "type": "string" },
+            "headerTitle": { "type": "string" },
+            "headerSubtitle": { "type": "string" },
+            "phone": { "type": "string" },
+            "email": { "type": "string", "format": "email" },
+            "addressLine1": { "type": "string" },
+            "addressLine2": { "type": "string" },
+            "addressHint": { "type": "string" },
+            "instagramUrl": { "type": "string", "format": "uri" },
+            "linkedinUrl": { "type": "string", "format": "uri" },
+            "twitterUrl": { "type": "string", "format": "uri" }
+          }
+        },
+        "oraoraSobre": {
+            "type": "object",
+            "description": "Stores editable content for the Oraora main about page.",
+            "properties": {
+                "headerTagline": { "type": "string" },
+                "headerTitle": { "type": "string" },
+                "headerSubtitle": { "type": "string" },
+                "videoImageUrl": { "type": "string", "format": "uri" },
+                "statAnunciados": { "type": "string" },
+                "statNegocios": { "type": "string" },
+                "statCidades": { "type": "string" },
+                "statAvaliacao": { "type": "string" },
+                "pilaresTitle": { "type": "string" },
+                "pilaresSubtitle": { "type": "string" },
+                "pilar1Icon": { "type": "string" },
+                "pilar1Title": { "type": "string" },
+                "pilar1Description": { "type": "string" },
+                "pilar2Icon": { "type": "string" },
+                "pilar2Title": { "type": "string" },
+                "pilar2Description": { "type": "string" },
+                "pilar3Icon": { "type": "string" },
+                "pilar3Title": { "type": "string" },
+                "pilar3Description": { "type": "string" },
+                "timeTitle": { "type": "string" },
+                "timeSubtitle": { "type": "string" },
+                "timeMembers": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "name": { "type": "string" },
+                            "title": { "type": "string" },
+                            "description": { "type": "string" },
+                            "imageUrl": { "type": "string", "format": "uri" }
+                        }
+                    }
+                },
+                "ctaTitle": { "type": "string" },
+                "ctaSubtitle": { "type": "string" }
+            }
+        },
+        "urbanPadraoServicos": {
+          "type": "object",
+          "description": "Stores editable content for the Urban Padrão services page.",
+          "properties": {
+            "headerTagline": { "type": "string" },
+            "headerTitle": { "type": "string" },
+            "headerSubtitle": { "type": "string" },
+            "servicesTitle": { "type": "string" },
+            "servicesSubtitle": { "type": "string" },
+            "serviceItems": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "icon": { "type": "string" },
+                  "title": { "type": "string" },
+                  "description": { "type": "string" }
+                },
+                "required": ["icon", "title", "description"]
+              }
+            },
+            "processTagline": { "type": "string" },
+            "processTitle": { "type": "string" },
+            "processSubtitle": { "type": "string" },
+            "processSteps": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "title": { "type": "string" },
+                  "description": { "type": "string" }
+                },
+                "required": ["title", "description"]
+              }
+            },
+            "processImageUrl": { "type": "string", "format": "uri" },
+            "finalCtaTitle": { "type": "string" },
+            "finalCtaSubtitle": { "type": "string" }
+          }
+        },
+        "urbanPadraoSobre": {
+          "type": "object",
+          "description": "Stores editable content for the Urban Padrão about page.",
+          "properties": {
+            "profileImageUrl": { "type": "string", "format": "uri" },
+            "brokerName": { "type": "string" },
+            "brokerTitle": { "type": "string" },
+            "bio": { "type": "string" },
+            "statManagedDeals": { "type": "string" },
+            "statAssistedFamilies": { "type": "string" },
+            "statYearsExperience": { "type": "string" },
+            "videoUrl": { "type": "string", "format": "uri" },
+            "videoTitle": { "type": "string" },
+            "videoDescription": { "type": "string" },
+            "value1Title": { "type": "string" },
+            "value1Description": { "type": "string" },
+            "value2Title": { "type": "string" },
+            "value2Description": { "type": "string" },
+            "value3Title": { "type": "string" },
+            "value3Description": { "type": "string" },
+            "areas": { "type": "array", "items": { "type": "string" } },
+            "differentials": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "title": { "type": "string" },
+                  "description": { "type": "string" }
+                }
+              }
+            },
+            "awards": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "yearOrEntity": { "type": "string" },
+                  "title": { "type": "string" }
+                }
+              }
+            }
+          }
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "slug",
+        "brandName"
+      ]
+    },
+    "Constructor": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Constructor",
+      "type": "object",
+      "description": "Represents a constructor user.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Constructor entity. Also the foreign key to the User table."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to the User entity. (Relationship: User 1:1 Constructor)"
+        },
+        "websiteUrl": {
+          "type": "string",
+          "description": "URL of the constructor's public-facing website.",
+          "format": "uri"
+        },
+        "cnpj": {
+          "type": "string",
+          "description": "CNPJ of the constructor company."
+        }
+      },
+      "required": [
+        "id",
+        "userId"
+      ]
+    },
+    "Admin": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Admin",
+      "type": "object",
+      "description": "Represents an administrator user.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Admin entity. Also the foreign key to the User table."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to the User entity. (Relationship: User 1:1 Admin)"
+        }
+      },
+      "required": [
+        "id",
+        "userId"
+      ]
+    },
+    "Plan": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Plan",
+      "type": "object",
+      "description": "Represents a subscription plan for users.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Plan entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the subscription plan."
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of the plan's features and benefits."
+        },
+        "price": {
+          "type": "number",
+          "description": "Price of the subscription plan."
+        },
+        "propertyLimit": {
+            "type": "number",
+            "description": "The maximum number of properties a user on this plan can create."
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "description",
+        "price"
+      ]
+    },
+    "Property": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Property",
+      "type": "object",
+      "description": "Represents a real estate property listing from a constructor.",
+      "properties": {
+        "builderId": {
+          "type": "string",
+          "description": "The ID of the constructor/builder associated with this property."
+        },
+        "personaIds": {
+            "type": "array",
+            "description": "A list of Persona IDs that this property is suitable for.",
+            "items": { "type": "string" }
+        },
+        "informacoesbasicas": {
+          "type": "object",
+          "properties": {
+            "nome": { "type": "string" },
+            "slogan": { "type": "string" },
+            "descricao": { "type": "string" },
+            "status": { "type": "string" },
+            "valor": { "type": "number" },
+            "previsaoentrega": { "type": "string" }
+          }
+        },
+        "localizacao": {
+          "type": "object",
+          "properties": {
+            "address": { "type": "string" },
+            "estado": { "type": "string" },
+            "cidade": { "type": "string" },
+            "bairro": { "type": "string" },
+            "googleMapsLink": { "type": "string" },
+            "googleStreetViewLink": { "type": "string" },
+            "latitude": { "type": "number" },
+            "longitude": { "type": "number" }
+          }
+        },
+        "caracteristicasimovel": {
+          "type": "object",
+          "properties": {
+            "tipo": { "type": "string" },
+            "tamanho": { "type": "string" },
+            "unidades": {
+              "type": "object",
+              "properties": {
+                "quartos": { "type": "array", "items": { "type": "string" } }
+              }
+            }
+          }
+        },
+        "midia": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "areascomuns": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "seoTitle": { "type": "string" },
+        "seoDescription": { "type": "string" },
+        "isVisibleOnSite": { "type": "boolean" },
+        "slug": { "type": "string" }
+      },
+      "required": ["builderId", "informacoesbasicas", "localizacao"]
+    },
+    "BrokerProperty": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Broker Property",
+      "type": "object",
+      "description": "Represents a one-off real estate property listing created by a broker.",
+      "properties": {
+        "brokerId": {
+          "type": "string",
+          "description": "The ID of the broker who owns and created this property listing."
+        },
+        "clientId": {
+            "type": "string",
+            "description": "The ID of the client who owns this property."
+        },
+        "personaIds": {
+            "type": "array",
+            "description": "A list of Persona IDs that this property is suitable for.",
+            "items": { "type": "string" }
+        },
+        "informacoesbasicas": {
+          "type": "object",
+          "properties": {
+            "nome": { "type": "string" },
+            "slogan": { "type": "string" },
+            "descricao": { "type": "string" },
+            "status": { "type": "string" },
+            "valor": { "type": "number" },
+            "previsaoentrega": { "type": "string" }
+          }
+        },
+        "localizacao": {
+          "type": "object",
+          "properties": {
+            "address": { "type": "string" },
+            "estado": { "type": "string" },
+            "cidade": { "type": "string" },
+            "bairro": { "type": "string" },
+            "googleMapsLink": { "type": "string" },
+            "googleStreetViewLink": { "type": "string" },
+            "latitude": { "type": "number" },
+            "longitude": { "type": "number" }
+          }
+        },
+        "caracteristicasimovel": {
+          "type": "object",
+          "properties": {
+            "tipo": { "type": "string" },
+            "tamanho": { "type": "string" },
+            "unidades": {
+              "type": "object",
+              "properties": {
+                "quartos": { "type": "array", "items": { "type": "string" } }
+              }
+            }
+          }
+        },
+        "midia": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "areascomuns": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "seoTitle": { "type": "string" },
+        "seoDescription": { "type": "string" },
+        "isVisibleOnSite": { "type": "boolean" },
+        "slug": { "type": "string" }
+      },
+      "required": ["brokerId", "informacoesbasicas", "localizacao"]
+    },
+    "Portfolio": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Portfolio",
+      "description": "Represents a broker's portfolio of selected properties.",
+      "type": "object",
+      "properties": {
+        "brokerId": {
+          "type": "string",
+          "description": "The ID of the broker who owns this portfolio."
+        },
+        "propertyIds": {
+          "type": "array",
+          "description": "A list of property IDs that the broker has added to their portfolio.",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": ["brokerId", "propertyIds"]
+    },
+    "Layout": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Layout",
+      "description": "Represents a website template available in the store.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The name of the layout template."
+        },
+        "description": {
+          "type": "string",
+          "description": "A short description of the layout's style and purpose."
+        },
+        "price": {
+          "type": "number",
+          "description": "The price to purchase this layout."
+        },
+        "imageUrl": {
+          "type": "string",
+          "description": "URL for a thumbnail or preview image of the layout.",
+          "format": "uri"
+        }
+      },
+      "required": ["name", "price"]
+    },
+    "Lead": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Lead",
+      "description": "Represents a potential client or lead, which can also be considered a client.",
+      "type": "object",
+      "properties": {
+        "brokerId": {
+          "type": "string",
+          "description": "The ID of the broker this lead belongs to."
+        },
+        "name": {
+          "type": "string",
+          "description": "The full name of the lead."
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "The email address of the lead."
+        },
+        "phone": {
+          "type": "string",
+          "description": "The phone number of the lead."
+        },
+        "status": {
+          "type": "string",
+          "description": "The current stage of the lead in the sales funnel, corresponding to a LeadFunnelColumn ID."
+        },
+        "clientType": {
+          "type": "string",
+          "description": "The type of client, either a buyer or a seller.",
+          "enum": ["comprador", "vendedor"]
+        },
+        "source": {
+          "type": "string",
+          "description": "Where the lead came from (e.g., 'Site', 'WhatsApp', 'Indicação')."
+        },
+        "propertyInterest": {
+          "type": "string",
+          "description": "The property or type of property the lead is interested in."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The timestamp when the lead was created."
+        },
+        "address": {
+            "type": "object",
+            "description": "The address of the lead.",
+            "properties": {
+                "street": { "type": "string", "description": "Street name and number." },
+                "complement": { "type": "string", "description": "Apartment, suite, etc." },
+                "city": { "type": "string", "description": "City name." },
+                "state": { "type": "string", "description": "State abbreviation." }
+            }
+        },
+        "personaIds": {
+            "type": "array",
+            "description": "A list of Persona IDs that this client fits into.",
+            "items": { "type": "string" }
+            }
+        },
+      "required": ["brokerId", "name", "email", "status", "createdAt"]
+    },
+    "LeadFunnelColumn": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "title": "Lead Funnel Column",
+        "description": "Represents a single column/stage in a broker's customizable lead funnel.",
+        "type": "object",
+        "properties": {
+            "id": {
+                "type": "string",
+                "description": "Unique identifier for the column (e.g., 'new', 'qualified')."
+            },
+            "title": {
+                "type": "string",
+                "description": "The display name of the column (e.g., 'Novos Leads')."
+            },
+            "order": {
+                "type": "number",
+                "description": "The display order of the column in the funnel."
+            },
+            "color": {
+                "type": "string",
+                "description": "A Tailwind CSS class for the column's color accent (e.g., 'bg-blue-500')."
+            },
+            "bgColor": {
+                "type": "string",
+                "description": "A Tailwind CSS class for the column's background color (e.g., 'bg-gray-50/50')."
+            }
+        },
+        "required": ["id", "title", "order", "color", "bgColor"]
+    },
+    "Event": {
+      "title": "Event",
+      "description": "Represents a calendar event or task for a broker.",
+      "type": "object",
+      "properties": {
+        "brokerId": {
+          "type": "string",
+          "description": "The ID of the broker this event belongs to."
+        },
+        "title": {
+          "type": "string",
+          "description": "The title of the event."
+        },
+        "date": {
+          "type": "string",
+          "format": "date",
+          "description": "The date of the event in YYYY-MM-DD format."
+        },
+        "time": {
+          "type": "string",
+          "format": "time",
+          "description": "The time of the event."
+        },
+        "type": {
+          "type": "string",
+          "enum": ["reuniao", "visita", "tarefa", "particular", "outro"],
+          "description": "The type of the event."
+        },
+        "description": {
+          "type": "string",
+          "description": "A short description of the event."
+        },
+        "completed": {
+            "type": "boolean",
+            "description": "Indicates if the event has been completed."
+        },
+        "notes": {
+            "type": "array",
+            "description": "A history of notes for the event.",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "text": { "type": "string", "description": "The content of the note." },
+                    "createdAt": { "type": "string", "format": "date-time", "description": "The timestamp when the note was created." },
+                    "author": { "type": "string", "description": "Name of the user who created the note." }
+                },
+                "required": ["text", "createdAt", "author"]
+            }
+        }
+      },
+      "required": ["brokerId", "title", "date", "type"]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "Represents a financial transaction, either a revenue or an expense, for a broker.",
+      "type": "object",
+      "properties": {
+        "brokerId": { "type": "string" },
+        "type": { "type": "string", "enum": ["receita", "despesa"] },
+        "description": { "type": "string" },
+        "value": { "type": "number" },
+        "date": { "type": "string", "format": "date-time" },
+        "category": { "type": "string" },
+        "status": { "type": "string", "enum": ["Pendente", "Pago", "Recebido", "Atrasado", "Agendado"] },
+        "clientOrProvider": { "type": "string" },
+        "notes": { "type": "string" },
+        "isRecurring": { "type": "boolean" },
+        "installments": { "type": "number" },
+        "totalValue": { "type": "number" },
+        "installmentNumber": { "type": "number" },
+        "groupId": { "type": "string" }
+      },
+      "required": ["brokerId", "type", "description", "value", "date", "category", "status"]
+    },
+    "Persona": {
+      "title": "Persona",
+      "description": "Represents a customer persona profile for marketing and sales strategies.",
+      "type": "object",
+      "properties": {
+        "brokerId": { "type": "string" },
+        "name": { "type": "string" },
+        "status": { "type": "string", "enum": ["Ativo", "Inativo"] },
+        "icon": { "type": "string" },
+        "iconBackgroundColor": { "type": "string" },
+        "iconColor": { "type": "string" },
+        "imageUrl": { "type": "string", "format": "uri" },
+        "ticket": { "type": "string" },
+        "description": { "type": "string" },
+        "propertyTypes": { "type": "array", "items": { "type": "string" } },
+        "bedrooms": { "type": "string" },
+        "garageSpaces": { "type": "string" },
+        "minPrice": { "type": "number" },
+        "maxPrice": { "type": "number" },
+        "amenities": { "type": "array", "items": { "type": "string" } },
+        "propertyIds": {
+            "type": "array",
+            "description": "A list of Property IDs that are compatible with this persona.",
+            "items": { "type": "string" }
+        }
+      },
+      "required": ["brokerId", "name"]
+    },
+    "Ticket": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Ticket",
+      "description": "Represents a support ticket.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "clientId": { "type": "string" },
+        "clientName": { "type": "string" },
+        "agentId": { "type": "string" },
+        "agentName": { "type": "string" },
+        "status": { "type": "string", "enum": ["Novo", "Em Andamento", "Aguardando Cliente", "Fechado"] },
+        "priority": { "type": "string", "enum": ["Baixa", "Média", "Alta", "Urgente"] },
+        "category": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "comments": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "author": { "type": "string" },
+              "authorId": { "type": "string" },
+              "content": { "type": "string" },
+              "createdAt": { "type": "string", "format": "date-time" },
+              "type": { "type": "string", "enum": ["public", "internal"] }
+            },
+            "required": ["authorId", "content", "createdAt", "type"]
+          }
+        },
+        "attachments": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "url": { "type": "string", "format": "uri" },
+              "size": { "type": "number" }
+            },
+            "required": ["name", "url", "size"]
+          }
+        }
+      },
+      "required": ["title", "clientId", "status", "priority", "category", "createdAt"]
+    },
+    "RadarList": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Radar List",
+      "description": "Represents a client's list of saved properties on their radar.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "The ID of the client who owns this radar list."
+        },
+        "propertyIds": {
+          "type": "array",
+          "description": "A list of property IDs that the client has added to their radar.",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": ["userId"]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores core user information, including user type and plan ID.  The `planId` is denormalized to enable Authorization Independence.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "Unique identifier for the user."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/brokers/{brokerId}",
+        "definition": {
+          "entityName": "Broker",
+          "schema": {
+            "$ref": "#/backend/entities/Broker"
+          },
+          "description": "Stores broker-specific data, including website URL. Requires user to be authenticated and of type broker.",
+          "params": [
+            {
+              "name": "brokerId",
+              "description": "Unique identifier for the broker.  Matches the corresponding userId."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/brokers/{brokerId}/leadFunnels/{funnelId}/columns/{columnId}",
+        "definition": {
+            "entityName": "LeadFunnelColumn",
+            "schema": { "$ref": "#/backend/entities/LeadFunnelColumn" },
+            "description": "Stores the columns for a specific lead funnel belonging to a broker. Allows for customizable sales pipelines.",
+            "params": [
+                { "name": "brokerId", "description": "The ID of the broker who owns the funnel." },
+                { "name": "funnelId", "description": "The ID of the funnel (e.g., 'default')." },
+                { "name": "columnId", "description": "The unique ID for the column." }
+            ]
+        }
+      },
+      {
+        "path": "/constructors/{constructorId}",
+        "definition": {
+          "entityName": "Constructor",
+          "schema": {
+            "$ref": "#/backend/entities/Constructor"
+          },
+          "description": "Stores constructor-specific data, including website URL. Requires user to be authenticated and of type constructor.",
+          "params": [
+            {
+              "name": "constructorId",
+              "description": "Unique identifier for the constructor. Matches the corresponding userId."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/admins/{adminId}",
+        "definition": {
+          "entityName": "Admin",
+          "schema": {
+            "$ref": "#/backend/entities/Admin"
+          },
+          "description": "Indicates administrator privileges. Document existence grants admin access. Requires user to be authenticated.",
+          "params": [
+            {
+              "name": "adminId",
+              "description": "Unique identifier for the admin. Matches the corresponding userId."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/plans/{planId}",
+        "definition": {
+          "entityName": "Plan",
+          "schema": {
+            "$ref": "#/backend/entities/Plan"
+          },
+          "description": "Stores subscription plan details.",
+          "params": [
+            {
+              "name": "planId",
+              "description": "Unique identifier for the subscription plan."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/properties/{propertyId}",
+        "definition": {
+          "entityName": "Property",
+          "schema": {
+            "$ref": "#/backend/entities/Property"
+          },
+          "description": "Stores all data related to a single real estate property from a constructor.",
+          "params": [
+            {
+              "name": "propertyId",
+              "description": "Unique identifier for the property."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/brokerProperties/{propertyId}",
+        "definition": {
+          "entityName": "BrokerProperty",
+          "schema": {
+            "$ref": "#/backend/entities/BrokerProperty"
+          },
+          "description": "Stores one-off property listings created by individual brokers.",
+          "params": [
+            {
+              "name": "propertyId",
+              "description": "Unique identifier for the broker's property."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/portfolios/{brokerId}",
+        "definition": {
+          "entityName": "Portfolio",
+          "schema": {
+            "$ref": "#/backend/entities/Portfolio"
+          },
+          "description": "Stores a broker's portfolio of selected properties.",
+          "params": [
+            {
+              "name": "brokerId",
+              "description": "The broker's user ID."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/layouts/{layoutId}",
+        "definition": {
+          "entityName": "Layout",
+          "schema": {
+            "$ref": "#/backend/entities/Layout"
+          },
+          "description": "Stores available website layouts for brokers.",
+          "params": [
+            {
+              "name": "layoutId",
+              "description": "The unique identifier for the layout."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/leads/{leadId}",
+        "definition": {
+          "entityName": "Lead",
+          "schema": { "$ref": "#/backend/entities/Lead" },
+          "description": "Stores information about a single lead. Each lead is owned by a broker.",
+          "params": [{ "name": "leadId", "description": "Unique identifier for the lead." }]
+        }
+      },
+       {
+        "path": "/events/{eventId}",
+        "definition": {
+          "entityName": "Event",
+          "schema": { "$ref": "#/backend/entities/Event" },
+          "description": "Stores calendar events for brokers. Each event is owned by a broker.",
+          "params": [{ "name": "eventId", "description": "Unique identifier for the event." }]
+        }
+      },
+      {
+        "path": "/transactions/{transactionId}",
+        "definition": {
+          "entityName": "Transaction",
+          "schema": { "$ref": "#/backend/entities/Transaction" },
+          "description": "Stores financial transactions for brokers.",
+          "params": [{ "name": "transactionId", "description": "Unique ID for the transaction." }]
+        }
+      },
+      {
+        "path": "/personas/{personaId}",
+        "definition": {
+            "entityName": "Persona",
+            "schema": { "$ref": "#/backend/entities/Persona" },
+            "description": "Stores customer persona profiles created by brokers.",
+            "params": [
+                { "name": "personaId", "description": "Unique identifier for the persona." }
+            ]
+        }
+      },
+      {
+        "path": "/tickets/{ticketId}",
+        "definition": {
+          "entityName": "Ticket",
+          "schema": { "$ref": "#/backend/entities/Ticket" },
+          "description": "Stores support tickets from clients.",
+          "params": [
+            { "name": "ticketId", "description": "Unique identifier for the ticket." }
+          ]
+        }
+      },
+      {
+        "path": "/radarLists/{userId}",
+        "definition": {
+          "entityName": "RadarList",
+          "schema": {
+            "$ref": "#/backend/entities/RadarList"
+          },
+          "description": "Stores a client's list of saved properties.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The client's user ID."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore data structure is designed to securely manage users (brokers, constructors, admins) and their associated data, focusing on authorization independence and clear access patterns. User data is separated into collections based on user type to simplify security rules. The Plans collection stores subscription plan details. A new 'properties' collection is added to store all property listings, with each property linked to a constructor via 'builderId'. The structure also facilitates the management of user-specific public websites and dashboards.\n\nKey design choices:\n\n1.  Authorization Independence: The `planId` is stored directly in the `User` document. This denormalization avoids the need for `get()` calls to the `/plans` collection in security rules when creating a user, thus enabling atomic operations.\n\n2.  Structural Segregation: Different user types (brokers, constructors, admins) have their data stored in separate collections (`/brokers`, `/constructors`, `/admins`) to allow for distinct security rules tailored to each user type.\n\n3.  Access Modeling:  User-owned data (e.g., website URLs) is stored within the specific broker or constructor documents, ensuring clear ownership. The admin collection is existence based, indicating admin privileges through document presence. Property data is stored in a top-level 'properties' collection for easy querying and management, linked to constructors.\n\n4.  QAPs: List operations are secured by segregating user types into different collections. Rules can easily specify that only authenticated users of a specific type can list documents in their respective collections.\n\n5.  Invariants:  Timestamps (if added) can be enforced via rules to ensure data integrity. Ownership is structurally enforced through the use of subcollections."
+  }
+}

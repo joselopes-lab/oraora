@@ -1,16 +1,148 @@
+
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Regra geral: permite leitura pública, mas escrita apenas para usuários autenticados.
-    match /{document=**} {
-      allow read: if true;
-      allow write: if request.auth != null;
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
     }
     
-    // As regras de negócio (ex: isVisibleOnSite) são aplicadas nas queries do código da aplicação,
-    // garantindo que apenas os dados corretos sejam exibidos publicamente.
-    // Esta regra garante que as queries em si não sejam bloqueadas por permissões.
+    function isExistingDoc() {
+      return resource != null;
+    }
+
+    function isExistingOwner(userId) {
+      return isOwner(userId) && isExistingDoc();
+    }
+
+    function isUserOfType(userId, userType) {
+      let userDoc = get(/databases/$(database)/documents/users/$(userId));
+      return exists(/databases/$(database)/documents/users/$(userId)) &&
+             userDoc.data.userType == userType;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && isUserOfType(request.auth.uid, 'admin');
+    }
+
+    function isBrokerDocumentOwner(brokerId) {
+        return isSignedIn() && get(/databases/$(database)/documents/brokers/$(brokerId)).data.userId == request.auth.uid;
+    }
+
+    match /users/{userId} {
+      allow get: if true;
+      allow list: if isAdmin();
+      allow create: if isOwner(userId) && request.resource.data.id == userId && request.resource.data.userType in ['broker', 'constructor', 'admin', 'client'];
+      allow update: if (isExistingOwner(userId) || isAdmin()) && request.resource.data.id == resource.data.id && request.resource.data.userType == resource.data.userType;
+      allow delete: if isExistingOwner(userId) || isAdmin();
+    }
+
+    match /brokers/{brokerId} {
+      allow read: if true;
+      allow list: if isSignedIn();
+      allow create: if (isOwner(request.resource.data.userId) && isUserOfType(request.resource.data.userId, 'broker')) || isAdmin();
+      allow update: if (isBrokerDocumentOwner(brokerId) && isUserOfType(get(/databases/$(database)/documents/brokers/$(brokerId)).data.userId, 'broker')) || isAdmin();
+      allow delete: if (isBrokerDocumentOwner(brokerId) && isUserOfType(get(/databases/$(database)/documents/brokers/$(brokerId)).data.userId, 'broker')) || isAdmin();
+      
+      match /leadFunnels/{funnelId}/columns/{columnId} {
+        allow read, write: if (isBrokerDocumentOwner(brokerId) && isUserOfType(get(/databases/$(database)/documents/brokers/$(brokerId)).data.userId, 'broker')) || isAdmin();
+      }
+    }
+
+    match /constructors/{constructorId} {
+      allow read, list: if true;
+      allow create: if isOwner(constructorId) && isUserOfType(constructorId, 'constructor') && request.resource.data.userId == constructorId;
+      allow update: if (isOwner(constructorId) && isUserOfType(constructorId, 'constructor')) || isAdmin();
+      allow delete: if (isOwner(constructorId) && isUserOfType(constructorId, 'constructor')) || isAdmin();
+    }
+
+    match /admins/{adminId} {
+      allow get: if isOwner(adminId);
+      allow list: if isAdmin();
+      allow create: if isAdmin() || (isOwner(adminId) && request.auth.token.email == 'vinicius@oraora.com.br');
+      allow update: if isAdmin() && isExistingDoc();
+      allow delete: if isAdmin() && isExistingDoc();
+    }
+
+    match /plans/{planId} {
+      allow get: if true;
+      allow list: if true;
+      allow create: if isAdmin();
+      allow update: if isAdmin() && isExistingDoc();
+      allow delete: if isAdmin() && isExistingDoc();
+    }
+    
+    match /properties/{propertyId} {
+      allow read: if true;
+      allow list: if isSignedIn();
+      allow create: if isSignedIn() && (isAdmin() || (isUserOfType(request.auth.uid, 'constructor') && request.resource.data.builderId == request.auth.uid));
+      allow update: if isSignedIn() && (
+                      isAdmin() || 
+                      (isUserOfType(request.auth.uid, 'constructor') && resource.data.builderId == request.auth.uid)
+                    );
+      allow delete: if isSignedIn() && (isAdmin() || (isUserOfType(request.auth.uid, 'constructor') && resource.data.builderId == request.auth.uid));
+    }
+
+    match /brokerProperties/{propertyId} {
+      allow read: if (resource.data.isVisibleOnSite == true) || isOwner(resource.data.brokerId) || isAdmin();
+      allow list: if true;
+      allow create: if isOwner(request.resource.data.brokerId);
+      allow update: if isOwner(resource.data.brokerId) || isAdmin();
+      allow delete: if isOwner(resource.data.brokerId) || isAdmin();
+    }
+    
+    match /portfolios/{brokerId} {
+      allow read: if true;
+      allow write: if isOwner(brokerId) && isUserOfType(brokerId, 'broker');
+    }
+    
+    match /layouts/{layoutId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    match /leads/{leadId} {
+      allow create: if request.resource.data.brokerId is string && 
+                       request.resource.data.name is string &&
+                       request.resource.data.email is string &&
+                       request.resource.data.status is string &&
+                       (request.resource.data.personaIds is list || !('personaIds' in request.resource.data));
+      allow read, update, delete: if (isSignedIn() && 
+                                   get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userType == 'broker' &&
+                                   resource.data.brokerId == request.auth.uid) || isAdmin();
+      allow list: if (isSignedIn() && isUserOfType(request.auth.uid, 'broker') && request.query.where.get('brokerId') == request.auth.uid) || isAdmin();
+    }
+
+    match /events/{eventId} {
+      allow read, update, delete: if isOwner(resource.data.brokerId);
+      allow create: if isOwner(request.resource.data.brokerId);
+      allow list: if isSignedIn() && isUserOfType(request.auth.uid, 'broker') && request.query.where.get('brokerId') == request.auth.uid;
+    }
+
+    match /transactions/{transactionId} {
+      allow read, update, delete: if isOwner(resource.data.brokerId);
+      allow create: if isOwner(request.resource.data.brokerId);
+      allow list: if isSignedIn() && isUserOfType(request.auth.uid, 'broker') && request.query.where.get('brokerId') == request.auth.uid;
+    }
+
+    match /personas/{personaId} {
+      allow read: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create, update, delete: if isAdmin();
+    }
+    
+    match /tickets/{ticketId} {
+        allow read, write: if isAdmin();
+    }
+
+     match /radarLists/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow write: if isOwner(userId) && isUserOfType(userId, 'client');
+    }
   }
 }

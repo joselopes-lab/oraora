@@ -1,0 +1,40 @@
+{
+  "placeholderImages": [
+    {
+      "id": "login-background",
+      "description": "Modern high-rise glass building facade reaching into the sky",
+      "imageUrl": "https://lh3.googleusercontent.com/aida-public/AB6AXuBWzh6uISTMq88anhDplYoQR9S-h9IIvtfBbvNce2Kskusv9xuhdgJr2J6r3aO9fB2j_8kt_UlJodvBD9fIZzA0DFKC87gnZp_XcxMbh0f77Ut66PR-MQQvbZbfKAZ8ZteK8HOmS9GbvXri44rEfGR-015SoTGlKQJfxq1boNgqhHDeAzcy3aqE1VcY3JEBOJVGbhT_VYeYZm1-ozBAb7UnlwaUhJetPhk61LXnylxJi9N1uw8G5OYxze0-cO3JSOeLi-HC57e7IuE",
+      "imageHint": "building facade"
+    },
+    {
+      "id": "broker-portrait",
+      "description": "Portrait of a professional man in a suit",
+      "imageUrl": "https://lh3.googleusercontent.com/aida-public/AB6AXuAi4UXbaUgoWVmbSEIToD_AJ_0Gxhmgy2_PyLOZlFt5AEwrZWK74rmzyXuz-9F0V2k9RJwOHCU0Pt8ZSee0fGIyVLpOmpBzw16_JobaP_SzfckPFV1qoRFUZ2Ku9gWnjJiAJ3euWivZWPjW6-GZVyrXAYBqJqvJ57G134lJk_bJpSgWeDZn-RSC2ep3ZEmarJ3n_Mfg_34rLeKf1-VO85iPzsaCFlynl9hj96CBgxtnyPSKNX7Qzrq03DK1-XEYxrYdopDEdAQ1sQM",
+      "imageHint": "professional portrait"
+    },
+    {
+      "id": "dashboard-preview",
+      "description": "Modern dashboard showing sales funnel, lead list, and performance metrics",
+      "imageUrl": "https://lh3.googleusercontent.com/aida-public/AB6AXuCZzw5SYG4G230aAZtTC6dPeO23LCQaZmrdGdyQAjl_1WXhZ-swMGeDriN713pQqfhZ7E2BIwx5V_AbGy-SRaMq_7Ohv-zIguIvbta-tGnQPOkT1J9fVtZQe1xl55oqrxuh_atotM0cbQsw111zPCjW1c3AsDODaX6IJXaVzQ6A0k3N4ARAcTe6UTmo2ZIPNYaAuk8jp70p0HxAn2lQulBI2CiyZAO7jFJrx47ilCBMpNHufFvBTE_1mEvGONsOxdwTEUTzpYSdbu0",
+      "imageHint": "dashboard preview"
+    },
+    {
+      "id": "radar-background",
+      "description": "Modern architecture with technological lines",
+      "imageUrl": "https://lh3.googleusercontent.com/aida-public/AB6AXuBWzh6uISTMq88anhDplYoQR9S-h9IIvtfBbvNce2Kskusv9xuhdgJr2J6r3aO9fB2j_8kt_UlJodvBD9fIZzA0DFKC87gnZp_XcxMbh0f77Ut66PR-MQQvbZbfKAZ8ZteK8HOmS9GbvXri44rEfGR-015SoTGlKQJfxq1boNgqhHDeAzcy3aqE1VcY3JEBOJVGbhT_VYeYZm1-ozBAb7UnlwaUhJetPhk61LXnylxJi9N1uw8G5OYxze0-cO3JSOeLi-HC57e7IuE",
+      "imageHint": "modern architecture"
+    },
+    {
+      "id": "radar-user-avatar",
+      "description": "Avatar of a user for the Radar login page",
+      "imageUrl": "https://lh3.googleusercontent.com/aida-public/AB6AXuAi4UXbaUgoWVmbSEIToD_AJ_0Gxhmgy2_PyLOZlFt5AEwrZWK74rmzyXuz-9F0V2k9RJwOHCU0Pt8ZSee0fGIyVLpOmpBzw16_JobaP_SzfckPFV1qoRFUZ2Ku9gWnjJiAJ3euWivZWPjW6-GZVyrXAYBqJqvJ57G134lJk_bJpSgWeDZn-RSC2ep3ZEmarJ3n_Mfg_34rLeKf1-VO85iPzsaCFlynl9hj96CBgxtnyPSKNX7Qzrq03DK1-XEYxrYdopDEdAQ1sQM",
+      "imageHint": "user avatar"
+    },
+    {
+      "id": "radar-qr-code",
+      "description": "QR code for the Radar page",
+      "imageUrl": "https://lh3.googleusercontent.com/aida-public/AB6AXuCOgpNhYFJffFMUlfz8rLyKaaXEIfZXxfiLZ65GOGgSY73guOuAkJMXGxrRWWSFH5j0b5xuuWthl3kTBi-HJvhNHD5WfkbzYLRwJwV6qb-gpYSPdiBjRczW1gcQBF_rJF_w56gXrbLU5TFW0B1e_KHnDYqSVQsV4wE0Ce3QX9gOHNHsm42inrVtdekjofYGPt4k19NkpCkEOw5XAQohk7xRJYb8VGqwg_j4MEmMVWbGmwcmpQdeKsHJB-e0G43Il5tt671-tcmduLI",
+      "imageHint": "qr code"
+    }
+  ]
+}

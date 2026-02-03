@@ -1,12 +1,7 @@
-import '@/lib/firebase'; // Garante que as variáveis de ambiente sejam carregadas primeiro
 import {genkit} from 'genkit';
-import {googleAI} from '@genkit-ai/googleai';
+import {googleAI} from '@genkit-ai/google-genai';
 
 export const ai = genkit({
-  plugins: [
-    googleAI({
-      apiKey: process.env.GEMINI_API_KEY,
-    }),
-  ],
-  model: 'gemini-2.0-flash',
+  plugins: [googleAI()],
+  model: 'googleai/gemini-2.5-flash',
 });

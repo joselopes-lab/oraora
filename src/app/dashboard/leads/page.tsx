@@ -1,347 +1,574 @@
 
 'use client';
-
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { useCollection, useFirestore, useMemoFirebase, useAuthContext, setDocumentNonBlocking, deleteDocumentNonBlocking, addDocumentNonBlocking } from '@/firebase';
+import { collection, query, where, doc, orderBy, writeBatch } from 'firebase/firestore';
+import { useToast } from '@/hooks/use-toast';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { db } from '@/lib/firebase';
-import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Input } from '@/components/ui/input';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Inbox, User, Phone, Mail, MessageSquare, FileText, UserCheck, MoreHorizontal, CheckCircle, Clock, Archive, ArrowLeft, ArrowRight, Trash2 } from 'lucide-react';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  DropdownMenuSub,
-  DropdownMenuSubTrigger,
-  DropdownMenuSubContent,
-  DropdownMenuPortal,
-  DropdownMenuSeparator,
-  DropdownMenuLabel
-} from '@/components/ui/dropdown-menu';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
-import { Button } from '@/components/ui/button';
-import { useToast } from '@/hooks/use-toast';
-import { updateLeadStatus, assignBrokerToLead, deleteLead } from './actions';
+} from "@/components/ui/dropdown-menu"
 
-interface Lead {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  message: string;
-  propertyId: string;
-  propertyName: string;
-  propertySlug?: string;
-  createdAt: {
-    seconds: number;
-    nanoseconds: number;
-  };
-  status: 'new' | 'contacted' | 'closed';
-  brokerId?: string;
-  brokerName?: string;
-}
 
-interface Broker {
+type LeadStatus = string;
+
+type Lead = {
     id: string;
     name: string;
+    propertyInterest?: string;
+    phone: string;
+    email: string;
+    source: string;
+    createdAt: string;
+    status: LeadStatus;
+};
+
+type LeadFunnelColumn = {
+  id: string;
+  title: string;
+  color: string;
+  bgColor: string;
+  order: number;
 }
 
-const statusOptions: { value: Lead['status']; label: string; icon: React.ReactNode }[] = [
-    { value: 'new', label: 'Novo', icon: <Clock className="h-4 w-4 mr-2" /> },
-    { value: 'contacted', label: 'Contatado', icon: <CheckCircle className="h-4 w-4 mr-2" /> },
-    { value: 'closed', label: 'Fechado', icon: <Archive className="h-4 w-4 mr-2" /> },
-];
 
-const LEADS_PER_PAGE = 10;
+const sourceStyles: { [key: string]: string } = {
+    'WhatsApp': 'bg-green-50 text-green-700 border border-green-100',
+    'Site': 'bg-blue-50 text-blue-700 border border-blue-100',
+    'Ads': 'bg-purple-50 text-purple-700 border border-purple-100',
+    'Indicação': 'bg-orange-50 text-orange-700 border border-orange-100',
+    'Site Público': 'bg-blue-50 text-blue-700 border border-blue-100'
+};
+
+const sourceIcons: { [key: string]: string } = {
+    'WhatsApp': 'chat',
+    'Site': 'public',
+    'Ads': 'campaign',
+    'Indicação': 'person',
+    'Site Público': 'public'
+};
+
+
+const LeadCard = ({ lead, columns, onMove, onDragStart, onDeleteClick }: { lead: Lead, columns: LeadFunnelColumn[], onMove: (leadId: string, direction: 'prev' | 'next') => void, onDragStart: (e: React.DragEvent<HTMLDivElement>, leadId: string) => void, onDeleteClick: (lead: Lead) => void }) => {
+    const columnIndex = columns.findIndex(col => col.id === lead.status);
+    const canMovePrev = columnIndex > 0;
+    const canMoveNext = columnIndex < columns.length - 1;
+
+    return (
+        <div 
+            draggable={true}
+            onDragStart={(e) => onDragStart(e, lead.id)}
+            className={`bg-white p-4 rounded-xl shadow-sm border border-gray-100 group hover:shadow-soft hover:border-primary/50 transition-all cursor-grab active:cursor-grabbing relative ${lead.status === 'converted' ? 'border-l-4 border-l-secondary' : ''}`}>
+            
+            <div className="absolute top-2 right-2 flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                <AlertDialogTrigger asChild>
+                    <button onClick={() => onDeleteClick(lead)} className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors" title="Excluir">
+                        <span className="material-symbols-outlined text-[18px]">delete</span>
+                    </button>
+                </AlertDialogTrigger>
+                <span className="material-symbols-outlined text-gray-300 cursor-grab">drag_indicator</span>
+            </div>
+            <div className="mb-3">
+                <h4 className="font-bold text-text-main">{lead.name}</h4>
+                <p className="text-xs text-text-secondary">{lead.propertyInterest || 'Nenhum interesse específico'}</p>
+            </div>
+            <div className="space-y-2 mb-4">
+                <div className="flex items-center gap-2 text-xs text-text-secondary">
+                    <span className="material-symbols-outlined text-[16px]">call</span>
+                    {lead.phone}
+                </div>
+                <div className="flex items-center gap-2 text-xs text-text-secondary">
+                    <span className="material-symbols-outlined text-[16px]">mail</span>
+                    {lead.email}
+                </div>
+            </div>
+            <div className="flex items-center justify-between border-t border-gray-50 pt-3 mt-3">
+                <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium ${sourceStyles[lead.source] || 'bg-gray-100 text-gray-800'}`}>
+                    <span className="material-symbols-outlined text-[12px]">{sourceIcons[lead.source] || 'help'}</span> {lead.source}
+                </span>
+                <div className="flex items-center gap-1">
+                    {canMovePrev && (
+                        <button onClick={() => onMove(lead.id, 'prev')} className="p-1 rounded hover:bg-gray-100 text-text-secondary hover:text-red-500 transition-colors" title="Voltar">
+                            <span className="material-symbols-outlined text-[18px]">arrow_back</span>
+                        </button>
+                    )}
+                    {canMoveNext && (
+                        <button onClick={() => onMove(lead.id, 'next')} className="p-1 rounded hover:bg-gray-100 text-text-secondary hover:text-primary transition-colors" title="Avançar">
+                            <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
+                        </button>
+                    )}
+                </div>
+            </div>
+             <div className="absolute bottom-2 right-2 text-[10px] text-gray-400">{new Date(lead.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}</div>
+        </div>
+    );
+};
 
 export default function LeadsPage() {
-  const [leads, setLeads] = useState<Lead[]>([]);
-  const [brokers, setBrokers] = useState<Broker[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const { toast } = useToast();
-  const [currentPage, setCurrentPage] = useState(1);
-  const [leadToDelete, setLeadToDelete] = useState<Lead | null>(null);
-  const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
+    const { user, userProfile } = useAuthContext();
+    const firestore = useFirestore();
+    const { toast } = useToast();
+    const [draggedLeadId, setDraggedLeadId] = useState<string | null>(null);
+    const [leadToDelete, setLeadToDelete] = useState<Lead | null>(null);
+    const [editableColumns, setEditableColumns] = useState<LeadFunnelColumn[]>([]);
+    const [columnsToDelete, setColumnsToDelete] = useState<string[]>([]);
+    const [isFunnelEditorOpen, setIsFunnelEditorOpen] = useState(false);
+    const [hasCheckedForDefaultColumns, setHasCheckedForDefaultColumns] = useState(false);
+    const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
 
 
-  useEffect(() => {
-    const q = query(collection(db, 'leads'), orderBy('createdAt', 'desc'));
-    const unsubscribeLeads = onSnapshot(q, (querySnapshot) => {
-      const leadsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Lead));
-      setLeads(leadsData);
-      setIsLoading(false);
-    }, (error) => {
-      console.error("Error fetching leads: ", error);
-      setIsLoading(false);
-    });
+    const leadsQuery = useMemoFirebase(
+      () => {
+        if (!firestore || !user) return null;
+        if (userProfile?.userType === 'admin') {
+          return query(collection(firestore, 'leads'));
+        }
+        return query(collection(firestore, 'leads'), where('brokerId', '==', user.uid));
+      },
+      [firestore, user, userProfile]
+    );
 
-    const unsubscribeBrokers = onSnapshot(collection(db, 'brokers'), (snapshot) => {
-        const data = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name } as Broker));
-        setBrokers(data);
-    });
+    const funnelColumnsQuery = useMemoFirebase(
+        () => (firestore && user ? query(collection(firestore, 'brokers', user.uid, 'leadFunnels', 'default', 'columns'), orderBy('order')) : null),
+        [firestore, user]
+    );
+
+    const { data: leads, isLoading: areLeadsLoading } = useCollection<Lead>(leadsQuery);
+    const { data: columns, isLoading: areColumnsLoading } = useCollection<LeadFunnelColumn>(funnelColumnsQuery);
+
+    const isLoading = areLeadsLoading || areColumnsLoading;
+
+    // Effect to populate editable columns when modal opens or original columns change
+    useEffect(() => {
+        if (columns) {
+            setEditableColumns([...columns]);
+        }
+    }, [columns]);
 
 
-    return () => {
-        unsubscribeLeads();
-        unsubscribeBrokers();
+    // Effect to create default columns if none exist for a user
+    useEffect(() => {
+        if (!areColumnsLoading && user && firestore && !hasCheckedForDefaultColumns && columns?.length === 0) {
+            setHasCheckedForDefaultColumns(true);
+            const defaultColumns: LeadFunnelColumn[] = [
+                { id: 'new', title: 'Novos Leads', color: 'bg-blue-500', bgColor: 'bg-gray-50/50', order: 1 },
+                { id: 'contacted', title: 'Em Contato', color: 'bg-yellow-500', bgColor: 'bg-gray-50/50', order: 2 },
+                { id: 'qualified', title: 'Qualificados', color: 'bg-purple-500', bgColor: 'bg-gray-50/50', order: 3 },
+                { id: 'proposal', title: 'Proposta Enviada', color: 'bg-orange-500', bgColor: 'bg-gray-50/50', order: 4 },
+                { id: 'converted', title: 'Convertidos', color: 'bg-secondary', bgColor: 'bg-green-50/30', order: 5 },
+            ];
+
+            const batch = writeBatch(firestore);
+            defaultColumns.forEach(column => {
+                const columnRef = doc(firestore, 'brokers', user.uid, 'leadFunnels', 'default', 'columns', column.id);
+                batch.set(columnRef, column);
+            });
+            batch.commit().then(() => {
+                toast({
+                    title: 'Funil Criado!',
+                    description: 'Criamos um funil de vendas padrão para você começar.',
+                });
+            });
+        } else if (!areColumnsLoading && (columns?.length ?? 0) > 0) {
+             setHasCheckedForDefaultColumns(true);
+        }
+    }, [areColumnsLoading, columns, user, firestore, toast, hasCheckedForDefaultColumns]);
+
+    const handleMoveLead = (leadId: string, direction: 'prev' | 'next' | LeadStatus) => {
+        const leadToMove = leads?.find(l => l.id === leadId);
+        if (!leadToMove || !firestore || !columns) return;
+
+        let newStatus: LeadStatus;
+
+        if (direction === 'prev' || direction === 'next') {
+            const currentIndex = columns.findIndex(col => col.id === leadToMove.status);
+            const newIndex = direction === 'next' ? currentIndex + 1 : currentIndex - 1;
+            
+            if (newIndex < 0 || newIndex >= columns.length) return;
+            newStatus = columns[newIndex].id;
+        } else {
+            newStatus = direction;
+        }
+
+        const leadDocRef = doc(firestore, 'leads', leadId);
+        setDocumentNonBlocking(leadDocRef, { status: newStatus }, { merge: true });
     };
-  }, []);
+    
+    const handleDrop = (e: React.DragEvent<HTMLDivElement>, newStatus: LeadStatus) => {
+        e.preventDefault();
+        const leadId = e.dataTransfer.getData('leadId');
+        if (!leadId || !firestore) return;
 
-  const handleStatusChange = async (leadId: string, status: Lead['status']) => {
-    const result = await updateLeadStatus(leadId, status);
-    if(result.success) {
-        toast({ title: "Status do Lead Atualizado!" });
-    } else {
-        toast({ variant: 'destructive', title: "Erro", description: result.error });
-    }
-  }
+        const leadDocRef = doc(firestore, 'leads', leadId);
+        setDocumentNonBlocking(leadDocRef, { status: newStatus }, { merge: true });
+        setDraggedLeadId(null);
+    };
 
-  const handleAssignBroker = async (leadId: string, brokerId: string, brokerName: string) => {
-     const result = await assignBrokerToLead(leadId, brokerId, brokerName);
-     if(result.success) {
-        toast({ title: "Corretor Atribuído!" });
-    } else {
-        toast({ variant: 'destructive', title: "Erro", description: result.error });
-    }
-  }
-  
-  const openDeleteAlert = (lead: Lead) => {
-    setLeadToDelete(lead);
-    setIsDeleteAlertOpen(true);
-  };
-  
-  const handleDeleteLead = async () => {
-    if (!leadToDelete) return;
-    const result = await deleteLead(leadToDelete.id);
-    if (result.success) {
-      toast({ title: 'Lead deletado com sucesso!' });
-    } else {
-      toast({ variant: 'destructive', title: 'Erro ao deletar', description: result.error });
-    }
-    setIsDeleteAlertOpen(false);
-  };
+    const handleDragStart = (e: React.DragEvent<HTMLDivElement>, leadId: string) => {
+        setDraggedLeadId(leadId);
+        e.dataTransfer.setData('leadId', leadId);
+    };
 
+    const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+        e.preventDefault();
+    };
+    
+    const handleDeleteLead = () => {
+        if (!leadToDelete || !firestore) return;
 
-  const formatDate = (timestamp: Lead['createdAt']) => {
-    if (!timestamp || !timestamp.seconds) {
-      return 'Data inválida';
-    }
-    const date = new Date(timestamp.seconds * 1000);
-    return format(date, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
-  };
-  
-  const getStatusVariant = (status: Lead['status']) => {
-    switch(status) {
-        case 'new': return 'default';
-        case 'contacted': return 'secondary';
-        case 'closed': return 'outline';
-        default: return 'outline';
-    }
-  }
-  
-   const getStatusText = (status: Lead['status']) => {
-    switch(status) {
-        case 'new': return 'Novo';
-        case 'contacted': return 'Contatado';
-        case 'closed': return 'Fechado';
-        default: return 'Desconhecido';
-    }
-  }
+        const leadDocRef = doc(firestore, 'leads', leadToDelete.id);
+        deleteDocumentNonBlocking(leadDocRef);
 
-  const totalPages = Math.ceil(leads.length / LEADS_PER_PAGE);
-  const paginatedLeads = leads.slice(
-    (currentPage - 1) * LEADS_PER_PAGE,
-    currentPage * LEADS_PER_PAGE
-  );
+        toast({
+            title: "Lead excluído!",
+            description: `O lead "${leadToDelete.name}" foi removido com sucesso.`,
+        });
+
+        setLeadToDelete(null); // Fecha o diálogo
+    };
+    
+    const handleColumnTitleChange = (index: number, newTitle: string) => {
+        const updatedColumns = [...editableColumns];
+        updatedColumns[index].title = newTitle;
+        setEditableColumns(updatedColumns);
+    };
+
+    const handleAddColumn = () => {
+        const newOrder = editableColumns.length > 0 ? Math.max(...editableColumns.map(c => c.order)) + 1 : 1;
+        const newColumn: LeadFunnelColumn = {
+            id: `new-${Date.now()}`, // Temporary ID for new columns
+            title: 'Nova Etapa',
+            color: 'bg-gray-400',
+            bgColor: 'bg-gray-50/50',
+            order: newOrder,
+        };
+        setEditableColumns([...editableColumns, newColumn]);
+    };
+    
+    const handleDeleteColumn = (id: string, index: number) => {
+        setEditableColumns(prev => prev.filter((_, i) => i !== index));
+        // If it's not a newly created column, add its ID to the delete list
+        if (!id.startsWith('new-')) {
+            setColumnsToDelete(prev => [...prev, id]);
+        }
+    };
 
 
-  return (
-    <>
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2"><Inbox /> Leads Recebidos</CardTitle>
-          <CardDescription>Visualize e gerencie os contatos recebidos através do site.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="flex justify-center items-center h-48">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Data de Envio</TableHead>
-                  <TableHead>Cliente</TableHead>
-                  <TableHead>Imóvel de Interesse</TableHead>
-                  <TableHead>Origem</TableHead>
-                  <TableHead>Corretor Atribuído</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {paginatedLeads.length > 0 ? (
-                  paginatedLeads.map((lead) => (
-                    <TableRow key={lead.id}>
-                      <TableCell>{formatDate(lead.createdAt)}</TableCell>
-                      <TableCell className="font-medium">
-                          <p>{lead.name}</p>
-                          <div className="text-xs text-muted-foreground space-y-1 mt-1">
-                              <div className="flex items-center gap-1.5">
-                                  <Mail className="h-3 w-3" />
-                                  <span>{lead.email}</span>
-                              </div>
-                              <div className="flex items-center gap-1.5">
-                                  <Phone className="h-3 w-3" />
-                                  <span>{lead.phone}</span>
-                              </div>
-                          </div>
-                      </TableCell>
-                      <TableCell>
-                        <Link href={`/dashboard/properties/${lead.propertySlug || lead.propertyId}`} className="hover:underline">
-                          {lead.propertyName}
+    const handleSaveChanges = async () => {
+        if (!firestore || !user) return;
+        
+        const batch = writeBatch(firestore);
+        let changesMade = false;
+
+        // Process deletions
+        columnsToDelete.forEach(columnId => {
+            const columnRef = doc(firestore, 'brokers', user.uid, 'leadFunnels', 'default', 'columns', columnId);
+            batch.delete(columnRef);
+            changesMade = true;
+        });
+
+        // Process updates and additions
+        editableColumns.forEach((column, index) => {
+            const originalColumn = columns?.find(c => c.id === column.id);
+            
+            if (column.id.startsWith('new-')) { // It's a new column
+                const newId = column.title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+                const columnRef = doc(firestore, 'brokers', user.uid, 'leadFunnels', 'default', 'columns', newId);
+                const newColumnData = { ...column, id: newId, order: index + 1 };
+                batch.set(columnRef, newColumnData);
+                changesMade = true;
+            } else if (originalColumn && (originalColumn.title !== column.title || originalColumn.order !== index + 1)) { // It's an existing column with changes
+                const columnRef = doc(firestore, 'brokers', user.uid, 'leadFunnels', 'default', 'columns', column.id);
+                batch.update(columnRef, { title: column.title, order: index + 1 });
+                changesMade = true;
+            }
+        });
+
+
+        if (!changesMade && columnsToDelete.length === 0) {
+            toast({ description: "Nenhuma alteração para salvar." });
+            setIsFunnelEditorOpen(false);
+            return;
+        }
+
+        try {
+            await batch.commit();
+            toast({
+                title: "Funil Atualizado!",
+                description: "Suas alterações no funil foram salvas com sucesso.",
+            });
+        } catch (error) {
+            console.error("Erro ao salvar colunas do funil:", error);
+            toast({
+                variant: "destructive",
+                title: "Erro ao Salvar",
+                description: "Não foi possível salvar as alterações no funil.",
+            });
+        } finally {
+            setColumnsToDelete([]); // Reset deletion list
+            setIsFunnelEditorOpen(false);
+        }
+    };
+
+
+    return (
+      <AlertDialog>
+        <Dialog open={isFunnelEditorOpen} onOpenChange={setIsFunnelEditorOpen}>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-6">
+                <div>
+                    <h1 className="text-3xl font-bold text-text-main tracking-tight">Gestão de Leads</h1>
+                    <p className="text-text-secondary mt-1">Acompanhe seu funil de vendas e mova os cards para atualizar o status.</p>
+                </div>
+                <div className="flex gap-3">
+                    <DialogTrigger asChild>
+                      <Button variant="outline" className="bg-white border border-gray-200 hover:bg-gray-50 text-text-main font-medium py-2.5 px-4 rounded-lg transition-all duration-300 flex items-center gap-2">
+                        <span className="material-symbols-outlined text-[18px]">edit</span>
+                        Editar Funil
+                      </Button>
+                    </DialogTrigger>
+                    <Button asChild className="bg-secondary text-white hover:text-black font-bold py-2.5 px-5 rounded-lg shadow-sm hover:shadow-glow transition-all duration-300 flex items-center gap-2 group">
+                        <Link href="/dashboard/clientes/nova">
+                            <span className="material-symbols-outlined text-[20px]">add</span>
+                            <span className='text-white group-hover:text-black'>Novo Lead</span>
                         </Link>
-                      </TableCell>
-                      <TableCell>
-                          {lead.brokerId ? (
-                              <div className="flex items-center gap-2">
-                                  <UserCheck className="h-4 w-4 text-green-600"/>
-                                  <span className="text-xs">Via Corretor</span>
-                              </div>
-                          ) : (
-                              <div className="flex items-center gap-2">
-                                  <FileText className="h-4 w-4 text-blue-600"/>
-                                  <span className="text-xs">Via Formulário</span>
-                              </div>
-                          )}
-                      </TableCell>
-                      <TableCell>
-                          {lead.brokerName ? (
-                            <Link href={`/dashboard/brokers/${lead.brokerId}`} className="flex items-center gap-2 text-sm hover:underline">
-                              <User className="h-4 w-4 text-muted-foreground" />
-                              <span>{lead.brokerName}</span>
-                            </Link>
-                          ) : <span className="text-xs text-muted-foreground italic">Aguardando atribuição</span>}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={getStatusVariant(lead.status)}>{getStatusText(lead.status)}</Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                          <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="icon">
-                                      <MoreHorizontal className="h-4 w-4" />
-                                      <span className="sr-only">Ver Opções</span>
-                                  </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuLabel>Mensagem</DropdownMenuLabel>
-                                <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-muted-foreground focus:bg-transparent focus:text-muted-foreground cursor-default">
-                                    <p className="text-xs max-w-xs whitespace-normal">{lead.message || 'Nenhuma mensagem.'}</p>
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                  <DropdownMenuSub>
-                                      <DropdownMenuSubTrigger>Alterar Status</DropdownMenuSubTrigger>
-                                      <DropdownMenuPortal>
-                                          <DropdownMenuSubContent>
-                                              {statusOptions.map(option => (
-                                                  <DropdownMenuItem key={option.value} onClick={() => handleStatusChange(lead.id, option.value)} disabled={lead.status === option.value}>
-                                                      {option.icon}
-                                                      {option.label}
-                                                  </DropdownMenuItem>
-                                              ))}
-                                          </DropdownMenuSubContent>
-                                      </DropdownMenuPortal>
-                                  </DropdownMenuSub>
-                                  <DropdownMenuSub>
-                                      <DropdownMenuSubTrigger>Atribuir Corretor</DropdownMenuSubTrigger>
-                                      <DropdownMenuPortal>
-                                          <DropdownMenuSubContent>
-                                              {brokers.map(broker => (
-                                                  <DropdownMenuItem key={broker.id} onClick={() => handleAssignBroker(lead.id, broker.id, broker.name)} disabled={lead.brokerId === broker.id}>
-                                                    {broker.name}
-                                                  </DropdownMenuItem>
-                                              ))}
-                                          </DropdownMenuSubContent>
-                                      </DropdownMenuPortal>
-                                  </DropdownMenuSub>
-                                  <DropdownMenuSeparator />
-                                  <DropdownMenuItem onSelect={() => openDeleteAlert(lead)} className="text-destructive">
-                                      <Trash2 className="mr-2 h-4 w-4" />
-                                      Excluir Lead
-                                  </DropdownMenuItem>
-                              </DropdownMenuContent>
-                          </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={7} className="h-24 text-center">
-                      Nenhum lead recebido ainda.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-        {totalPages > 1 && (
-          <CardFooter className="flex justify-center items-center gap-4 pt-6 border-t">
-            <Button
-              variant="outline"
-              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
-            >
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Anterior
-            </Button>
-            <span className="text-sm font-medium">
-              Página {currentPage} de {totalPages}
-            </span>
-            <Button
-              variant="outline"
-              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-              disabled={currentPage === totalPages}
-            >
-              Próxima
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-          </CardFooter>
-        )}
-      </Card>
-      <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta ação não pode ser desfeita e irá excluir o lead de <strong>{leadToDelete?.name}</strong> permanentemente.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setIsDeleteAlertOpen(false)}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteLead} className="bg-destructive hover:bg-destructive/90">
-              Excluir
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
-  );
+                    </Button>
+                </div>
+            </div>
+            <div className="bg-white rounded-xl shadow-soft border border-gray-100 p-4 mb-8">
+                <div className="flex flex-col md:flex-row gap-4 items-end md:items-center">
+                    <div className="w-full md:w-auto md:flex-1 grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label className="block text-xs font-medium text-text-secondary mb-1.5 uppercase tracking-wide">Buscar Lead</label>
+                            <div className="relative">
+                                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[18px]">search</span>
+                                <input className="w-full pl-9 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-text-main focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all placeholder-gray-400" placeholder="Nome, email ou telefone..." type="text"/>
+                            </div>
+                        </div>
+                        <div>
+                            <label className="block text-xs font-medium text-text-secondary mb-1.5 uppercase tracking-wide">Origem</label>
+                            <div className="relative">
+                                <select className="appearance-none w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-text-main focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all cursor-pointer">
+                                    <option value="">Todas</option>
+                                    <option value="site">Site / Formulário</option>
+                                    <option value="whatsapp">WhatsApp</option>
+                                    <option value="indicacao">Indicação</option>
+                                    <option value="campanha">Campanha Ads</option>
+                                </select>
+                                <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-text-secondary text-[20px]">expand_more</span>
+                            </div>
+                        </div>
+                        <div>
+                            <label className="block text-xs font-medium text-text-secondary mb-1.5 uppercase tracking-wide">Corretor Responsável</label>
+                            <div className="relative">
+                                <select className="appearance-none w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-text-main focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all cursor-pointer">
+                                    <option value="">Todos</option>
+                                    <option value="me">Ana Silva (Eu)</option>
+                                    <option value="joao">João Souza</option>
+                                </select>
+                                <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-text-secondary text-[20px]">expand_more</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-2 border-l border-gray-100 pl-4">
+                         <button 
+                            onClick={() => setViewMode('list')}
+                            className={cn(
+                                'p-2 rounded-lg transition-colors',
+                                viewMode === 'list' ? 'text-text-main bg-primary/20 border border-primary/30' : 'text-text-secondary hover:text-primary bg-gray-50 hover:bg-gray-100'
+                            )} 
+                            title="Visualização Lista"
+                        >
+                            <span className="material-symbols-outlined text-[20px]">list</span>
+                        </button>
+                        <button 
+                             onClick={() => setViewMode('kanban')}
+                             className={cn(
+                                'p-2 rounded-lg transition-colors',
+                                viewMode === 'kanban' ? 'text-text-main bg-primary/20 border border-primary/30' : 'text-text-secondary hover:text-primary bg-gray-50 hover:bg-gray-100'
+                            )}
+                            title="Visualização Kanban"
+                        >
+                            <span className="material-symbols-outlined text-[20px]">view_kanban</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+             {viewMode === 'kanban' ? (
+                <div className="flex-grow overflow-x-auto pb-4">
+                    <div className="flex gap-6 min-w-[1200px] h-full">
+                        {columns?.map(column => {
+                            const leadsInColumn = leads?.filter(lead => lead.status === column.id) || [];
+                            return (
+                                <div 
+                                    key={column.id} 
+                                    onDragOver={handleDragOver}
+                                    onDrop={(e) => handleDrop(e, column.id)}
+                                    className="w-1/5 flex-shrink-0 flex flex-col gap-3"
+                                >
+                                    <div className="flex items-center justify-between px-1 mb-1">
+                                        <div className="flex items-center gap-2">
+                                            <div className={`size-2 rounded-full ${column.color}`}></div>
+                                            <h3 className="font-bold text-text-main text-sm uppercase tracking-wide">{column.title}</h3>
+                                        </div>
+                                        <span className="bg-gray-200 text-text-secondary text-xs font-bold px-2 py-0.5 rounded-full">{leadsInColumn.length}</span>
+                                    </div>
+                                    <div className={`kanban-col ${column.bgColor} rounded-xl p-2 flex flex-col gap-3 border border-gray-100/50 transition-colors`}>
+                                        {isLoading && <p className="text-center text-xs text-text-secondary p-4">Carregando...</p>}
+                                        {!isLoading && leadsInColumn.map(lead => (
+                                            <LeadCard key={lead.id} lead={lead} columns={columns} onMove={handleMoveLead} onDragStart={handleDragStart} onDeleteClick={setLeadToDelete}/>
+                                        ))}
+                                        {!isLoading && leadsInColumn.length === 0 && (
+                                            <div className="text-center text-xs text-text-secondary p-4 h-24 flex items-center justify-center">
+                                                Arraste os cards para cá
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            ) : (
+                 <div className="bg-white rounded-xl shadow-soft border border-gray-100 overflow-hidden">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Cliente</TableHead>
+                                <TableHead>Status</TableHead>
+                                <TableHead>Origem</TableHead>
+                                <TableHead>Data Cadastro</TableHead>
+                                <TableHead className="text-right">Ações</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                        {isLoading && (
+                            <TableRow><TableCell colSpan={5} className="text-center">Carregando leads...</TableCell></TableRow>
+                        )}
+                        {!isLoading && leads?.map(lead => {
+                            const column = columns?.find(c => c.id === lead.status);
+                            return (
+                                <TableRow key={lead.id}>
+                                    <TableCell>
+                                        <div className="font-bold">{lead.name}</div>
+                                        <div className="text-xs text-muted-foreground">{lead.email}</div>
+                                    </TableCell>
+                                    <TableCell>
+                                       <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button variant="ghost" className="p-0 h-auto">
+                                                    {column && (
+                                                        <Badge style={{ backgroundColor: column.color }} className="text-black text-[10px] cursor-pointer hover:opacity-80 transition-opacity">{column.title}</Badge>
+                                                    )}
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent>
+                                                {columns?.map(col => (
+                                                    <DropdownMenuItem key={col.id} onClick={() => handleMoveLead(lead.id, col.id)}>
+                                                        Mover para {col.title}
+                                                    </DropdownMenuItem>
+                                                ))}
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    </TableCell>
+                                    <TableCell>
+                                        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium ${sourceStyles[lead.source] || 'bg-gray-100 text-gray-800'}`}>
+                                            <span className="material-symbols-outlined text-[12px]">{sourceIcons[lead.source] || 'help'}</span> {lead.source}
+                                        </span>
+                                    </TableCell>
+                                    <TableCell>
+                                        {new Date(lead.createdAt).toLocaleDateString('pt-BR')}
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                        <div className="flex items-center justify-end gap-0.5">
+                                            <Button asChild variant="ghost" size="icon">
+                                            <Link href={`/dashboard/clientes/editar/${lead.id}`}>
+                                                <span className="material-symbols-outlined text-base">edit</span>
+                                            </Link>
+                                            </Button>
+                                            <AlertDialogTrigger asChild>
+                                                <Button variant="ghost" size="icon" className="text-gray-400 hover:text-red-500" onClick={() => setLeadToDelete(lead)}>
+                                                    <span className="material-symbols-outlined text-base">delete</span>
+                                                </Button>
+                                            </AlertDialogTrigger>
+                                        </div>
+                                    </TableCell>
+                                </TableRow>
+                            )
+                        })}
+                        </TableBody>
+                    </Table>
+                </div>
+            )}
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Esta ação não pode ser desfeita. Isso excluirá permanentemente o lead de <span className="font-bold">{leadToDelete?.name}</span>.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel onClick={() => setLeadToDelete(null)}>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDeleteLead} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                        Sim, excluir
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+             <DialogContent className="sm:max-w-[600px]">
+                <DialogHeader>
+                    <DialogTitle>Editar Funil de Vendas</DialogTitle>
+                    <DialogDescription>
+                        Personalize as colunas do seu funil de vendas. Arraste para reordenar.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="py-4">
+                    {editableColumns?.map((column, index) => (
+                         <div key={column.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50">
+                            <span className="material-symbols-outlined text-gray-400 cursor-grab">drag_indicator</span>
+                            <div className={`w-3 h-6 rounded-sm ${column.color}`}></div>
+                             <Input
+                                value={column.title}
+                                onChange={(e) => handleColumnTitleChange(index, e.target.value)}
+                                className="flex-1"
+                            />
+                             <Button variant="ghost" size="icon" className="text-gray-400 hover:text-red-500" onClick={() => handleDeleteColumn(column.id, index)}>
+                                <span className="material-symbols-outlined text-lg">delete</span>
+                            </Button>
+                        </div>
+                    ))}
+                </div>
+                 <DialogFooter>
+                    <Button type="button" variant="outline" onClick={handleAddColumn}>Adicionar Coluna</Button>
+                     <Button type="button" onClick={handleSaveChanges}>Salvar Alterações</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+        </AlertDialog>
+    );
 }

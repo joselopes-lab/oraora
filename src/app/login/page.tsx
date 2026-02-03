@@ -1,241 +1,259 @@
 
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
-import Link from 'next/link';
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useToast } from '@/hooks/use-toast';
-import { Loader2, ArrowLeft, Eye, EyeOff, LogIn } from 'lucide-react';
-import { Icons } from '@/components/icons';
-import { signInWithEmailAndPassword, setPersistence, browserSessionPersistence, browserLocalPersistence } from 'firebase/auth';
-import { auth, db } from '@/lib/firebase';
-import { doc, getDoc } from 'firebase/firestore';
 import { Checkbox } from '@/components/ui/checkbox';
-import { getAppearanceSettings } from '@/app/dashboard/appearance/actions';
+import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { Card } from '@/components/ui/card';
+import { useAuth, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
+import { useRouter } from 'next/navigation';
+import { useToast } from '@/hooks/use-toast';
+import { signInWithEmailAndPassword, Auth, signOut } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
 
-function GoogleIcon() {
-    return (
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none">
-            <path d="M22.56 12.25C22.56 11.45 22.49 10.68 22.36 9.93H12.22V14.2H18.17C17.92 15.65 17.21 16.91 16.14 17.63L16.13 17.64L19.59 20.21L19.74 20.22C21.58 18.51 22.56 15.63 22.56 12.25Z" fill="#4285F4"></path>
-            <path d="M12.22 23C15.11 23 17.55 22.03 19.74 20.22L16.14 17.64C15.19 18.33 13.86 18.79 12.22 18.79C9.36 18.79 6.94 16.94 6.03 14.28L6.02 14.28L2.43 16.93L2.39 16.94C4.58 20.53 8.14 23 12.22 23Z" fill="#34A853"></path>
-            <path d="M6.03 14.28C5.79 13.59 5.65 12.85 5.65 12.11C5.65 11.37 5.79 10.63 6.02 9.94L6.03 9.93L2.39 7.28L2.43 7.27C1.52 9.09 1 10.97 1 12.99C1 15.01 1.52 16.89 2.43 18.71L6.03 14.28Z" fill="#FBBC05"></path>
-            <path d="M12.22 5.21C14.01 5.21 15.21 6.03 15.82 6.59L18.78 3.63C16.79 1.76 14.59 0.75 12.22 0.75C8.14 0.75 4.58 3.47 2.39 7.06L6.03 9.72C6.94 7.06 9.36 5.21 12.22 5.21Z" fill="#EA4335"></path>
-        </svg>
-    )
-}
 
-function FacebookIcon() {
-    return (
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="#1877F2">
-            <path d="M12 2.04C6.48 2.04 2 6.52 2 12.06C2 17.06 5.66 21.21 10.44 21.96V14.96H7.9V12.06H10.44V9.85C10.44 7.32 11.93 5.96 14.22 5.96C15.31 5.96 16.45 6.15 16.45 6.15V8.62H15.19C13.95 8.62 13.56 9.39 13.56 10.18V12.06H16.34L15.89 14.96H13.56V21.96C18.34 21.21 22 17.06 22 12.06C22 6.52 17.52 2.04 12 2.04Z"/>
-        </svg>
-    )
-}
-
-function LoginPageContent() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const { toast } = useToast();
+export default function LoginPage() {
+  const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [logoUrl, setLogoUrl] = useState<string>('');
-  
-  const redirectUrl = searchParams.get('redirect') || '/';
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [authService, setAuthService] = useState<Auth | null>(null);
+  const auth = useAuth();
+  const firestore = useFirestore();
+  const router = useRouter();
+  const { toast } = useToast();
+
+  const siteContentRef = useMemoFirebase(
+    () => (firestore ? doc(firestore, 'brokers', 'oraora-main-site') : null),
+    [firestore]
+  );
+  const { data: siteData } = useDoc<{ logoUrl?: string }>(siteContentRef);
+
 
   useEffect(() => {
-    async function fetchLogo() {
-      const settings = await getAppearanceSettings();
-      if (settings.logoUrl) {
-        setLogoUrl(settings.logoUrl);
+    if (auth) {
+      setAuthService(auth);
+      // If a user reaches this page already logged in,
+      // sign them out to clear the session.
+      if (auth.currentUser) {
+        signOut(auth);
       }
     }
-    fetchLogo();
-  }, []);
+  }, [auth]);
+  
+  const bgImage = PlaceHolderImages.find(p => p.id === 'login-background');
+  const portraitImage = PlaceHolderImages.find(p => p.id === 'broker-portrait');
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
+    if (!authService || !firestore) {
+      toast({
+        variant: "destructive",
+        title: "Erro de inicialização",
+        description: "Serviços de autenticação não estão prontos. Tente novamente em breve.",
+      });
+      return;
+    }
 
+    setIsSubmitting(true);
+    
     try {
-      const persistenceType = rememberMe ? browserLocalPersistence : browserSessionPersistence;
-      await setPersistence(auth, persistenceType);
-      
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(authService, email, password);
       const user = userCredential.user;
 
-      // Check user role from Firestore
-      const userDocRef = doc(db, 'users', user.uid);
+      const userDocRef = doc(firestore, 'users', user.uid);
       const userDoc = await getDoc(userDocRef);
 
-      toast({
-        title: 'Login bem-sucedido',
-        description: 'Bem-vindo de volta!',
-      });
-
+      let redirectTo = '/dashboard'; // default redirect
       if (userDoc.exists()) {
         const userData = userDoc.data();
-        if (userData.role === 'Corretor') {
-            router.push('/corretor/dashboard');
-            return;
-        }
-        if (userData.role === 'Construtora') {
-            router.push('/dashboard-construtora/dashboard');
-            return;
-        }
-        if (userData.roleId || user.email === 'vinicius@teste.com' || userData.role === 'Admin') {
-            router.push('/dashboard');
-            return;
+        if (userData.userType === 'client') {
+          redirectTo = '/radar/dashboard';
         }
       }
-      
-      router.push('/');
+
+      toast({
+        title: "Login bem-sucedido!",
+        description: "Redirecionando para o seu painel.",
+      });
+      router.push(redirectTo);
 
     } catch (error: any) {
+      setIsSubmitting(false); 
+      
+      console.error("Firebase Login Error Code:", error.code); 
+      
+      let description = "Credenciais inválidas. Verifique seu e-mail e senha.";
+      if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+        description = "Credenciais inválidas. Verifique seu e-mail e senha. Se o erro persistir em produção, assegure-se que o provedor 'E-mail/Senha' está habilitado no Console do Firebase > Authentication > Sign-in method.";
+      }
+      
       toast({
-        variant: 'destructive',
-        title: 'Falha no Login',
-        description: 'E-mail ou senha inválidos. Por favor, tente novamente.',
+        variant: "destructive",
+        title: "Erro de login",
+        description: description,
       });
-    } finally {
-      setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen w-full lg:grid lg:grid-cols-2">
-      <div className="relative hidden items-center justify-center bg-primary p-12 lg:flex">
-         <div className="absolute top-8 left-8 flex items-start gap-2">
-            <Link href={redirectUrl} className="flex items-center gap-1">
-                {logoUrl ? (
-                    <Image src={logoUrl} alt="Oraora Logo" width={200} height={60} className="h-12 w-auto object-contain" />
-                ) : (
-                    <>
-                        <Icons.logo className="h-10 w-10 text-white" />
-                        <span className="font-bold text-4xl text-white tracking-tighter">oraora</span>
-                    </>
-                )}
-            </Link>
-         </div>
-          <Link href={redirectUrl} className="absolute top-8 right-8 flex items-center gap-2 text-primary-foreground hover:opacity-80 transition-opacity">
-            <ArrowLeft className="h-4 w-4" />
-            <span>Voltar para o site</span>
-         </Link>
-         <div className="z-10 text-left w-full max-w-md">
-             <h1 className="text-5xl font-bold tracking-tight text-primary-foreground">Bem-vindo ao maior portal de imóveis do Brasil</h1>
-         </div>
-         <Image 
-            src="https://placehold.co/800x600.png"
-            alt="Abstract 3D graphic"
-            width={800}
-            height={600}
-            className="absolute bottom-0 right-0 opacity-20"
-            data-ai-hint="abstract 3d graphic"
-        />
-      </div>
-      <div className="flex items-center justify-center p-6 sm:p-12">
-        <div className="w-full max-w-md">
-          <div className="absolute top-6 right-6 flex items-center gap-4 text-sm">
-            <span>É novo por aqui? <Link href="#" className="font-bold text-black hover:underline">Crie uma conta</Link></span>
-          </div>
-          <div className="mb-10 text-center lg:text-left">
-            <h1 className="text-3xl font-bold">Acessar</h1>
-          </div>
-          
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-             <Button variant="outline" className="w-full h-12 text-base shadow-sm hover:bg-gray-50">
-                <GoogleIcon />
-                <span className="ml-3">Entrar com Google</span>
-             </Button>
-             <Button variant="outline" className="w-full h-12 text-base shadow-sm hover:bg-gray-50">
-                <FacebookIcon />
-                <span className="ml-3">Entrar com Facebook</span>
-             </Button>
-          </div>
-          
-          <div className="relative mb-6">
-            <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">Ou entre com seu e-mail</span>
-            </div>
-          </div>
+    <div className="relative flex min-h-screen w-full">
+      {/* Left Side - Form Area */}
+      <div className="flex flex-1 flex-col bg-card dark:bg-background relative z-10 w-full lg:w-1/2 lg:max-w-[600px] xl:max-w-[700px] border-r border-border">
+        {/* Header/Logo Area */}
+        <header className="px-8 py-6 md:px-12 lg:px-16 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-3 text-foreground group">
+            <Image src={siteData?.logoUrl || "https://dotestudio.com.br/wp-content/uploads/2025/08/oraora.png"} alt="Oraora Logo" width={160} height={40} className="h-10 w-auto" />
+          </Link>
+          <Link className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors hidden sm:block" href="/ajuda">
+            Precisa de ajuda?
+          </Link>
+        </header>
 
-          <form onSubmit={handleLogin} className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="email">Seu e-mail</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="seu@email.com"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                disabled={isLoading}
-                className="h-12 rounded-lg"
-              />
+        {/* Login Form Container */}
+        <main className="flex flex-1 flex-col justify-center px-8 md:px-12 lg:px-16 py-10">
+          <div className="max-w-[440px] w-full mx-auto flex flex-col">
+            <div className="mb-10">
+              <h1 className="text-3xl md:text-4xl font-bold text-foreground tracking-tight mb-3 font-headline">Bem-vindo de volta</h1>
+              <p className="text-muted-foreground text-base">Insira suas credenciais para acessar seu painel.</p>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Senha</Label>
-              <div className="relative">
-                <Input
-                    id="password"
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder="••••••••"
-                    required
+
+            <form onSubmit={handleLogin} className="space-y-6">
+              {/* Email Input */}
+              <div className="space-y-2">
+                <Label htmlFor="email" className="text-sm font-medium">Endereço de E-mail</Label>
+                <div className="relative">
+                  <Input 
+                    className="w-full h-12 px-4 pr-12 rounded-lg bg-card dark:bg-input border-border text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary transition-all duration-200 shadow-sm hover:border-gray-300 dark:hover:border-gray-600" 
+                    id="email" 
+                    name="email" 
+                    placeholder="corretor@agencia.com.br" 
+                    required 
+                    type="email" 
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                  />
+                  <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" style={{ fontSize: '20px' }}>mail</span>
+                </div>
+              </div>
+
+              {/* Password Input */}
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <Label htmlFor="password" className="text-sm font-medium">Senha</Label>
+                  <Link className="text-sm font-semibold text-muted-foreground hover:text-primary transition-colors" href="/esqueceu-a-senha">Esqueceu a senha?</Link>
+                </div>
+                <div className="relative group">
+                  <Input 
+                    className="w-full h-12 px-4 pr-12 rounded-lg bg-card dark:bg-input border-border text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary transition-all duration-200 shadow-sm hover:border-gray-300 dark:hover:border-gray-600" 
+                    id="password" 
+                    name="password" 
+                    placeholder="••••••••" 
+                    required 
+                    type={showPassword ? 'text' : 'password'} 
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    disabled={isLoading}
-                    className="h-12 rounded-lg pr-10"
-                />
-                <Button 
-                    type="button" 
-                    variant="ghost" 
-                    size="icon" 
-                    className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 text-muted-foreground hover:bg-transparent"
-                    onClick={() => setShowPassword(!showPassword)}
-                >
-                    {showPassword ? <EyeOff className="h-5 w-5"/> : <Eye className="h-5 w-5"/>}
-                </Button>
+                  />
+                  <button onClick={() => setShowPassword(!showPassword)} className="absolute right-0 top-0 h-full w-12 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors focus:outline-none" type="button" aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}>
+                    <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>{showPassword ? 'visibility_off' : 'visibility'}</span>
+                  </button>
+                </div>
+              </div>
+              
+              <div className="flex items-center">
+                <Checkbox id="remember" className="w-4 h-4 text-primary bg-card border-gray-300 rounded focus:ring-primary focus:ring-2 dark:bg-input dark:border-gray-600" />
+                <Label htmlFor="remember" className="ml-2 text-sm text-muted-foreground">Lembrar de mim por 30 dias</Label>
+              </div>
+
+              <Button type="submit" disabled={isSubmitting || !auth} className="w-full h-12 bg-primary hover:bg-[#25d60b] text-primary-foreground font-bold rounded-lg shadow-glow transition-all duration-300 transform active:scale-[0.99] flex items-center justify-center gap-2 group">
+                {isSubmitting ? <span className="material-symbols-outlined animate-spin" style={{ fontSize: '20px' }}>progress_activity</span> : <span>Entrar</span>}
+                {!isSubmitting && <span className="material-symbols-outlined transition-transform group-hover:translate-x-1" style={{ fontSize: '20px' }}>arrow_forward</span>}
+              </Button>
+            </form>
+
+            <div className="relative my-8">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-border"></div>
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-4 bg-card dark:bg-background text-muted-foreground">Não tem uma conta?</span>
               </div>
             </div>
 
-            <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                    <Checkbox id="remember" checked={rememberMe} onCheckedChange={(checked) => setRememberMe(!!checked)} />
-                    <Label htmlFor="remember" className="text-sm font-normal">Lembrar-me</Label>
-                </div>
-                <Link href="#" className="text-sm text-black font-bold hover:underline">Esqueceu a senha?</Link>
-            </div>
-
-            <Button type="submit" className="w-full h-12 text-base font-semibold rounded-lg text-primary-foreground" disabled={isLoading}>
-              {isLoading ? (
-                <Loader2 className="animate-spin" />
-              ) : (
-                <>
-                  <LogIn className="mr-2 h-5 w-5" />
-                  Entrar
-                </>
-              )}
+            <Button asChild variant="outline" className="w-full h-12 px-6 font-semibold text-foreground bg-gray-50 dark:bg-input border-border rounded-lg hover:bg-gray-100 dark:hover:bg-secondary">
+              <Link href="/solicitar-acesso">Solicitar Acesso de Corretor</Link>
             </Button>
-          </form>
+          </div>
+        </main>
+        
+        <footer className="px-8 py-6 md:px-12 lg:px-16 text-center md:text-left">
+          <p className="text-xs text-muted-foreground">
+            2025 Oraora Tecnologia. Todos os direitos reservados. CNPJ: 64.052.552/0001-26
+            <Button asChild variant="link" className="text-xs p-0 h-auto ml-2">
+              <Link href="/radar">É cliente?</Link>
+            </Button>
+          </p>
+        </footer>
+      </div>
+
+      {/* Right Side - Image/Visual Area */}
+      <div className="hidden lg:flex flex-1 relative bg-neutral-dark overflow-hidden group/right-pane">
+        {bgImage && (
+          <Image
+            alt={bgImage.description}
+            src={bgImage.imageUrl}
+            fill
+            className="w-full h-full object-cover opacity-60 grayscale group-hover/right-pane:grayscale-0 transition-all duration-1000 ease-in-out"
+            data-ai-hint={bgImage.imageHint}
+            priority
+          />
+        )}
+        <div className="absolute inset-0 bg-gradient-to-br from-neutral-dark/90 via-neutral-dark/40 to-primary/20 mix-blend-overlay"></div>
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
+        
+        <div className="relative z-10 flex flex-col justify-end p-16 w-full h-full text-white">
+          <div className="max-w-md space-y-6">
+            <div className="w-16 h-1 bg-primary rounded-full"></div>
+            <blockquote className="text-2xl font-medium leading-relaxed font-headline">
+              "A ferramenta mais eficiente que já usamos para gerenciar nosso portfólio de imóveis de luxo. Simples, rápida e incrivelmente poderosa."
+            </blockquote>
+            <div className="flex items-center gap-4 pt-4">
+              {portraitImage && (
+                <div className="size-12 rounded-full overflow-hidden border-2 border-white/20">
+                   <Image
+                      alt={portraitImage.description}
+                      src={portraitImage.imageUrl}
+                      width={48}
+                      height={48}
+                      className="w-full h-full object-cover"
+                      data-ai-hint={portraitImage.imageHint}
+                   />
+                </div>
+              )}
+              <div>
+                <div className="font-bold text-white">Marcus Thorne</div>
+                <div className="text-sm text-gray-300">Corretor Sênior, Zenith Estates</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="absolute top-12 right-12 flex gap-2">
+            <Card className="p-4 rounded-xl bg-white/10 backdrop-blur-md border border-white/10 shadow-xl w-48 animate-pulse text-white" style={{ animationDuration: '4s' }}>
+                <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs text-gray-300 uppercase tracking-wider">Negócios Ativos</span>
+                    <span className="material-symbols-outlined text-primary text-sm">trending_up</span>
+                </div>
+                <div className="text-2xl font-bold">124</div>
+                <div className="text-xs text-primary mt-1">+12% esta semana</div>
+            </Card>
         </div>
       </div>
     </div>
   );
-}
-
-export default function LoginPage() {
-    return (
-        <Suspense fallback={<div>Carregando...</div>}>
-            <LoginPageContent />
-        </Suspense>
-    )
 }

@@ -1,560 +1,308 @@
 
 'use client';
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import { useCollection, useDoc, useFirestore, useMemoFirebase, useUser, deleteDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase";
+import { collection, query, where, doc } from "firebase/firestore";
+import { useToast } from "@/hooks/use-toast";
+import { useState } from "react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "@/components/ui/table";
+import { Switch } from "@/components/ui/switch";
 
-import { useState, useEffect, type FormEvent } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
-import Image from 'next/image';
-import Link from 'next/link';
-import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from '@/components/ui/dialog';
-import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useToast } from '@/hooks/use-toast';
-import { Loader2, PlusCircle, FilePen, Trash2, X, Users, ImageOff, Sparkles } from 'lucide-react';
-import { db } from '@/lib/firebase';
-import { collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, getDoc, query, where, getDocs } from 'firebase/firestore';
-import { getStates, getCitiesByState, type State, type City } from '@/services/location';
 
-export interface Persona {
+type Persona = {
   id: string;
   name: string;
+  status: 'Ativo' | 'Inativo';
+  icon: string;
+  iconBackgroundColor: string;
+  iconColor: string;
   description: string;
-  imageUrl: string;
-  criteria: {
-    priceMax?: number;
-    priceMin?: number;
-    bedrooms?: string[];
-    garageSpots?: string[];
-    propertyTypes?: string[];
-    locations?: { state: string; city: string; }[];
-    commonAreas?: string[];
-  }
-}
+  propertyTypes?: string[];
+  minPrice?: number;
+  maxPrice?: number;
+};
 
-const getInitialState = (): Omit<Persona, 'id'> => ({
-  name: '',
-  description: '',
-  imageUrl: '',
-  criteria: {
-    bedrooms: [],
-    garageSpots: [],
-    propertyTypes: [],
-    locations: [],
-    commonAreas: [],
-  }
-});
-
-const defaultPersonas = [
-  {
-    name: "Investidor Visionário",
-    description: "Busca imóveis de alto padrão com alto potencial de valorização, em regiões promissoras, visando revenda ou aluguel de longo prazo. Foca em empreendimentos bem localizados, com infraestrutura completa e segurança.",
-    imageUrl: 'https://placehold.co/400x225.png',
-    criteria: {
-      priceMin: 900000,
-      priceMax: 2500000,
-      propertyTypes: ["Casa em Condomínio", "Apartamento"],
-      bedrooms: ["3", "4", "5+"],
-      garageSpots: ["2", "3", "4+"],
-      commonAreas: ["Academia", "Piscina", "Salão de Festas", "Espaço Gourmet", "Quadra Esportiva", "Churrasqueira"],
-      locations: [],
-    }
-  },
-  {
-    name: "Família Premium",
-    description: "Casais com filhos que priorizam espaço, segurança e lazer completo. Buscam condomínios fechados com infraestrutura para todas as idades.",
-    imageUrl: 'https://placehold.co/400x225.png',
-    criteria: {
-      priceMin: 1000000,
-      priceMax: 2800000,
-      propertyTypes: ["Casa em Condomínio"],
-      bedrooms: ["4", "5+"],
-      garageSpots: ["2", "3", "4+"],
-      commonAreas: ["Academia", "Piscina", "Playground", "Brinquedoteca", "Quadra Esportiva", "Churrasqueira", "Espaço Gourmet"],
-      locations: [],
-    }
-  },
-  {
-    name: "Casal Jovem Aspiracional",
-    description: "Jovens casados sem filhos que buscam imóveis modernos, com lazer e infraestrutura de qualidade, próximos a centros comerciais e de entretenimento.",
-    imageUrl: 'https://placehold.co/400x225.png',
-    criteria: {
-      priceMin: 500000,
-      priceMax: 1200000,
-      propertyTypes: ["Apartamento", "Casa em Condomínio"],
-      bedrooms: ["2", "3"],
-      garageSpots: ["1", "2"],
-      commonAreas: ["Academia", "Piscina", "Espaço Gourmet", "Salão de Festas"],
-      locations: [],
-    }
-  },
-  {
-    name: "Solteiro Urbano",
-    description: "Profissional solteiro ou divorciado que valoriza praticidade, localização estratégica e áreas comuns para lazer e networking.",
-    imageUrl: 'https://placehold.co/400x225.png',
-    criteria: {
-      priceMin: 350000,
-      priceMax: 900000,
-      propertyTypes: ["Apartamento", "Flat"],
-      bedrooms: ["1", "2"],
-      garageSpots: ["1"],
-      commonAreas: ["Academia", "Piscina", "Salão de Festas", "Espaço Gourmet"],
-      locations: [],
-    }
-  },
-  {
-    name: "Aposentado Conforto",
-    description: "Comprador maduro que busca tranquilidade, segurança e conforto, preferindo locais com fácil acesso a serviços essenciais e lazer próximo.",
-    imageUrl: 'https://placehold.co/400x225.png',
-    criteria: {
-      priceMin: 600000,
-      priceMax: 1500000,
-      propertyTypes: ["Casa", "Apartamento", "Casa em Condomínio"],
-      bedrooms: ["2", "3"],
-      garageSpots: ["2"],
-      commonAreas: ["Academia", "Piscina", "Espaço Gourmet", "Churrasqueira"],
-      locations: [],
-    }
-  },
-  {
-    name: "Comprador de Luxo",
-    description: "Cliente exigente que busca exclusividade, alto padrão de acabamento, segurança máxima e infraestrutura premium.",
-    imageUrl: 'https://placehold.co/400x225.png',
-    criteria: {
-      priceMin: 1500000,
-      priceMax: 5000000,
-      propertyTypes: ["Casa em Condomínio", "Apartamento"],
-      bedrooms: ["4", "5+"],
-      garageSpots: ["3", "4+"],
-      commonAreas: ["Academia", "Piscina", "Salão de Festas", "Espaço Gourmet", "Quadra Esportiva", "Churrasqueira"],
-      locations: [],
-    }
-  },
-  {
-    name: "Investidor Comercial",
-    description: "Focado em imóveis para uso empresarial ou locação comercial, buscando áreas estratégicas com grande fluxo e potencial de valorização.",
-    imageUrl: 'https://placehold.co/400x225.png',
-    criteria: {
-      priceMin: 500000,
-      priceMax: 3000000,
-      propertyTypes: ["Sala Comercial", "Loja", "Terreno"],
-      bedrooms: [],
-      garageSpots: ["1", "2", "3"],
-      commonAreas: [],
-      locations: [],
-    }
-  },
-  {
-    name: "Família Econômica",
-    description: "Família que busca imóvel seguro e confortável, mas com custo acessível, priorizando funcionalidade e boa relação custo-benefício.",
-    imageUrl: 'https://placehold.co/400x225.png',
-    criteria: {
-      priceMin: 300000,
-      priceMax: 800000,
-      propertyTypes: ["Casa", "Apartamento"],
-      bedrooms: ["2", "3"],
-      garageSpots: ["1", "2"],
-      commonAreas: ["Playground", "Salão de Festas", "Churrasqueira"],
-      locations: [],
-    }
-  }
-];
-
-const bedroomOptions = ["1", "2", "3", "4", "5+"];
-const garageOptions = ["1", "2", "3", "4+"];
-const propertyTypes = ["Apartamento", "Casa em Condomínio", "Casa", "Flat", "Terreno", "Sala Comercial", "Loja"];
-const commonAreasOptions = ["Academia", "Piscina", "Salão de Festas", "Espaço Gourmet", "Brinquedoteca", "Playground", "Quadra Esportiva", "Churrasqueira"];
+type User = {
+    userType: 'admin' | 'broker' | 'constructor';
+};
 
 export default function PersonasPage() {
+  const { user, isUserLoading } = useUser();
+  const firestore = useFirestore();
   const { toast } = useToast();
-  const router = useRouter();
-  const searchParams = useSearchParams();
-
-  const [personas, setPersonas] = useState<Persona[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSeeding, setIsSeeding] = useState(false);
-
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const [currentPersona, setCurrentPersona] = useState<Partial<Persona>>(getInitialState());
-  
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
   const [personaToDelete, setPersonaToDelete] = useState<Persona | null>(null);
 
-  // Location states for form
-  const [states, setStates] = useState<State[]>([]);
-  const [cities, setCities] = useState<City[]>([]);
-  const [selectedState, setSelectedState] = useState('');
-  const [selectedCity, setSelectedCity] = useState('');
-  const [isLoadingStates, setIsLoadingStates] = useState(true);
-  const [isLoadingCities, setIsLoadingCities] = useState(false);
 
-  useEffect(() => {
-    async function handleUrlParams() {
-      const editId = searchParams.get('edit');
-      const deleteId = searchParams.get('delete');
-      if (editId === 'new') {
-        openDialog(null);
-      } else if (editId) {
-        const docRef = doc(db, 'personas', editId);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          openDialog({ id: docSnap.id, ...docSnap.data() } as Persona);
-        }
-      } else if (deleteId) {
-        const docRef = doc(db, 'personas', deleteId);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          openDeleteAlert({ id: docSnap.id, ...docSnap.data() } as Persona);
-        }
-      }
-    }
-    handleUrlParams();
-  }, [searchParams]);
+  const userDocRef = useMemoFirebase(
+    () => (firestore && user ? doc(firestore, 'users', user.uid) : null),
+    [firestore, user]
+  );
+  const { data: userProfile, isLoading: isProfileLoading } = useDoc<User>(userDocRef);
 
-  useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, 'personas'), (snapshot) => {
-        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Persona));
-        setPersonas(data);
-        setIsLoading(false);
-    }, (error) => {
-        console.error("Erro ao buscar personas: ", error);
-        toast({ variant: 'destructive', title: 'Falha ao carregar personas' });
-        setIsLoading(false);
+  // Admin and Broker see all personas.
+  const personasQuery = useMemoFirebase(
+    () => (firestore ? query(collection(firestore, 'personas')) : null),
+    [firestore]
+  );
+  
+  const { data: personas, isLoading: arePersonasLoading } = useCollection<Persona>(personasQuery);
+
+  const isLoading = isUserLoading || arePersonasLoading || isProfileLoading;
+  const isAdmin = userProfile?.userType === 'admin';
+  
+  const handleDeletePersona = () => {
+    if (!personaToDelete || !firestore || !isAdmin) return;
+
+    const docRef = doc(firestore, 'personas', personaToDelete.id);
+    deleteDocumentNonBlocking(docRef);
+
+    toast({
+        title: "Persona Excluída!",
+        description: `O perfil de "${personaToDelete.name}" foi removido com sucesso.`,
     });
-    
-    async function loadStates() {
-      setIsLoadingStates(true);
-      const statesData = await getStates();
-      setStates(statesData);
-      setIsLoadingStates(false);
-    }
-    loadStates();
-
-    return () => unsubscribe();
-  }, [toast]);
-  
-  const handleSeedPersonas = async () => {
-    setIsSeeding(true);
-    try {
-        const personasCollection = collection(db, 'personas');
-        const existingPersonasSnapshot = await getDocs(query(personasCollection));
-        const existingNames = new Set(existingPersonasSnapshot.docs.map(doc => doc.data().name));
-        
-        let addedCount = 0;
-        for (const persona of defaultPersonas) {
-            if (!existingNames.has(persona.name)) {
-                await addDoc(personasCollection, persona);
-                addedCount++;
-            }
-        }
-
-        if (addedCount > 0) {
-            toast({ title: "Personas Adicionadas!", description: `${addedCount} novas personas foram cadastradas.` });
-        } else {
-            toast({ title: "Nenhuma persona nova", description: "Todas as personas padrão já estavam cadastradas." });
-        }
-    } catch (error: any) {
-        toast({ variant: 'destructive', title: 'Falha ao popular personas', description: error.message });
-    } finally {
-        setIsSeeding(false);
-    }
+    setPersonaToDelete(null); // Close the dialog
   };
 
-  const handleStateChange = async (stateAcronym: string) => {
-    setSelectedState(stateAcronym);
-    setSelectedCity('');
-    setIsLoadingCities(true);
-    setCities([]);
-    if(stateAcronym){
-      const citiesData = await getCitiesByState(stateAcronym);
-      setCities(citiesData);
+  const handleStatusChange = (persona: Persona, newStatus: boolean) => {
+    if (!firestore || !isAdmin) {
+        toast({
+            variant: "destructive",
+            title: "Acesso Negado",
+            description: "Você não tem permissão para alterar o status.",
+        });
+        return;
     }
-    setIsLoadingCities(false);
-  };
-
-  const handleAddLocation = () => {
-    if (!selectedState || !selectedCity) return;
-    const newLocation = { state: selectedState, city: selectedCity };
-    const currentLocations = currentPersona.criteria?.locations || [];
-    if (!currentLocations.some(loc => loc.state === newLocation.state && loc.city === newLocation.city)) {
-        setCurrentPersona(prev => ({
-            ...prev,
-            criteria: { ...prev.criteria, locations: [...currentLocations, newLocation] }
-        }));
-    }
-  };
-
-  const handleRemoveLocation = (index: number) => {
-    setCurrentPersona(prev => ({
-        ...prev,
-        criteria: { ...prev.criteria, locations: (prev.criteria?.locations || []).filter((_, i) => i !== index) }
-    }));
-  };
-  
-  const handleCheckboxChange = (field: 'bedrooms' | 'garageSpots' | 'propertyTypes' | 'commonAreas', value: string) => {
-    setCurrentPersona(prev => {
-        const currentValues = prev.criteria?.[field] || [];
-        const newValues = currentValues.includes(value)
-            ? currentValues.filter(v => v !== value)
-            : [...currentValues, value];
-        return { ...prev, criteria: { ...prev.criteria, [field]: newValues } };
+    const docRef = doc(firestore, 'personas', persona.id);
+    setDocumentNonBlocking(docRef, { status: newStatus ? 'Ativo' : 'Inativo' }, { merge: true });
+    toast({
+        title: "Status Alterado!",
+        description: `O status da persona "${persona.name}" foi atualizado.`,
     });
   };
 
-  const openDialog = (persona: Persona | null = null) => {
-    if (persona) {
-      setIsEditing(true);
-      setCurrentPersona(persona);
-    } else {
-      setIsEditing(false);
-      setCurrentPersona(getInitialState());
-    }
-    setIsDialogOpen(true);
-  };
-
-  const closeDialog = () => {
-    setIsDialogOpen(false);
-    router.push('/dashboard/personas');
-  };
-
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!currentPersona.name) {
-      toast({ variant: 'destructive', title: 'O nome da persona é obrigatório.' });
-      return;
-    }
-    setIsSubmitting(true);
-    
-    const personaData: Partial<Persona> = { ...currentPersona };
-    delete personaData.id;
-
-    try {
-      if (isEditing && currentPersona.id) {
-        await updateDoc(doc(db, 'personas', currentPersona.id), personaData);
-        toast({ title: 'Persona Atualizada!' });
-      } else {
-        await addDoc(collection(db, 'personas'), personaData);
-        toast({ title: 'Persona Salva!' });
-      }
-      closeDialog();
-    } catch (error: any) {
-      toast({ variant: 'destructive', title: 'Falha ao Salvar', description: error.message });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const openDeleteAlert = (persona: Persona) => {
-    setPersonaToDelete(persona);
-    setIsDeleteAlertOpen(true);
-  };
-
-  const closeDeleteAlert = () => {
-    setPersonaToDelete(null);
-    setIsDeleteAlertOpen(false);
-    router.push('/dashboard/personas');
-  }
-
-  const handleDelete = async () => {
-    if (!personaToDelete) return;
-    try {
-      await deleteDoc(doc(db, 'personas', personaToDelete.id));
-      toast({ title: 'Persona Deletada' });
-      closeDeleteAlert();
-    } catch (error: any) {
-      toast({ variant: 'destructive', title: 'Falha ao Deletar', description: error.message });
-    }
+  const formatPriceRange = (min?: number, max?: number) => {
+    if (!min && !max) return 'N/A';
+    const format = (n?: number) => n ? (n / 1000000 >= 1 ? `${(n / 1000000).toLocaleString('pt-BR')}M` : `${(n / 1000).toLocaleString('pt-BR')}k`) : '';
+    if (min && max) return `R$ ${format(min)} - ${format(max)}`;
+    if (min) return `A partir de R$ ${format(min)}`;
+    if (max) return `Até R$ ${format(max)}`;
+    return 'N/A';
   };
 
   return (
     <>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle className="flex items-center gap-2"><Users /> Personas</CardTitle>
-            <CardDescription>Crie e gerencie perfis de compradores para filtrar imóveis.</CardDescription>
+      <AlertDialog>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
+        <div>
+          <nav className="flex items-center gap-2 text-xs text-text-secondary mb-2 font-medium">
+            <Link className="hover:text-primary transition-colors" href="/dashboard">Dashboard</Link>
+            <span className="material-symbols-outlined text-[10px]">chevron_right</span>
+            <span className="text-text-main">Personas</span>
+          </nav>
+          <div className="flex items-center gap-4">
+            <h1 className="text-3xl font-bold text-text-main tracking-tight">Gestão de Personas</h1>
           </div>
-          <div className="flex gap-2">
-            <Button size="sm" variant="outline" className="gap-1" onClick={handleSeedPersonas} disabled={isSeeding}>
-                {isSeeding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                Popular com Dados Iniciais
-            </Button>
-            <Button size="sm" className="gap-1" onClick={() => openDialog()}>
-                <PlusCircle className="h-4 w-4" /> Cadastrar Persona
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="flex justify-center items-center h-48"><Loader2 className="h-8 w-8 animate-spin" /></div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {personas.map((persona) => (
-                <Card key={persona.id} className="overflow-hidden flex flex-col group">
-                    <Link href={`/dashboard/personas/${persona.id}`} className="block">
-                      <div className="relative aspect-video bg-muted flex items-center justify-center">
-                          {persona.imageUrl ? (
-                              <Image src={persona.imageUrl} alt={persona.name} fill sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" className="object-cover group-hover:scale-105 transition-transform" />
-                          ): (
-                              <ImageOff className="h-10 w-10 text-muted-foreground"/>
-                          )}
-                      </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-4">
+            {isAdmin && (
+                <Button asChild className="flex items-center gap-2 bg-secondary hover:bg-[#74d12e] text-white font-bold py-2.5 px-6 rounded-lg shadow-glow transition-all duration-300">
+                    <Link href="/dashboard/personas/nova">
+                        <span className="material-symbols-outlined text-[20px]">add_circle</span>
+                        Nova Persona
                     </Link>
-                  <CardHeader>
-                    <CardTitle>
-                        <Link href={`/dashboard/personas/${persona.id}`} className="hover:text-primary">
-                            {persona.name}
-                        </Link>
-                    </CardTitle>
-                    <CardDescription className="line-clamp-2 h-10">{persona.description}</CardDescription>
-                  </CardHeader>
-                  <CardContent className="flex gap-2 mt-auto">
-                     <Button variant="outline" size="sm" className="w-full" onClick={() => openDialog(persona)}><FilePen className="mr-2 h-4 w-4"/> Editar</Button>
-                     <Button variant="destructive" size="sm" className="w-full" onClick={() => openDeleteAlert(persona)}><Trash2 className="mr-2 h-4 w-4"/> Excluir</Button>
-                  </CardContent>
-                </Card>
-              ))}
+                </Button>
+            )}
+        </div>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-soft flex flex-col gap-1 relative overflow-hidden group">
+            <div className="absolute right-0 top-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                <span className="material-symbols-outlined text-6xl text-primary">groups</span>
             </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <Dialog open={isDialogOpen} onOpenChange={(isOpen) => { if (!isOpen) closeDialog(); }}>
-        <DialogContent className="max-w-4xl h-[90vh]">
-          <form onSubmit={handleSubmit} className="flex flex-col h-full overflow-hidden">
-             <DialogHeader>
-                <DialogTitle>{isEditing ? 'Editar Persona' : 'Nova Persona'}</DialogTitle>
-                <DialogDescription>Preencha os dados e critérios para a persona.</DialogDescription>
-            </DialogHeader>
-            <div className="flex-grow overflow-y-auto pr-6 space-y-6 py-4">
-                <div className="grid md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                        <Label>Nome da Persona</Label>
-                        <Input value={currentPersona.name || ''} onChange={e => setCurrentPersona(p => ({ ...p, name: e.target.value }))} required />
-                    </div>
-                    <div className="space-y-2">
-                        <Label>URL da Imagem</Label>
-                        <Input value={currentPersona.imageUrl || ''} onChange={e => setCurrentPersona(p => ({ ...p, imageUrl: e.target.value }))} />
-                    </div>
-                </div>
-                <div className="space-y-2">
-                    <Label>Descrição</Label>
-                    <Textarea value={currentPersona.description || ''} onChange={e => setCurrentPersona(p => ({ ...p, description: e.target.value }))} />
-                </div>
-
-                <h3 className="text-lg font-semibold border-t pt-4">Critérios de Busca</h3>
-                
-                <div className="grid md:grid-cols-2 gap-4">
-                     <div className="space-y-2">
-                        <Label>Preço Mínimo (R$)</Label>
-                        <Input type="number" value={currentPersona.criteria?.priceMin || ''} onChange={e => setCurrentPersona(p => ({ ...p, criteria: { ...p.criteria, priceMin: Number(e.target.value) }}))} />
-                    </div>
-                    <div className="space-y-2">
-                        <Label>Preço Máximo (R$)</Label>
-                        <Input type="number" value={currentPersona.criteria?.priceMax || ''} onChange={e => setCurrentPersona(p => ({ ...p, criteria: { ...p.criteria, priceMax: Number(e.target.value) }}))} />
-                    </div>
-                </div>
-
-                <div className="space-y-2">
-                    <Label>Tipos de Imóvel</Label>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                    {propertyTypes.map(type => (
-                        <div key={type} className="flex items-center space-x-2"><Checkbox id={`type-${type}`} checked={currentPersona.criteria?.propertyTypes?.includes(type)} onCheckedChange={() => handleCheckboxChange('propertyTypes', type)} /><Label htmlFor={`type-${type}`} className="font-normal">{type}</Label></div>
-                    ))}
-                    </div>
-                </div>
-
-                 <div className="grid md:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                        <Label>Quartos</Label>
-                        <div className="grid grid-cols-3 gap-2">
-                            {bedroomOptions.map(opt => (
-                                <div key={`bed-${opt}`} className="flex items-center space-x-2"><Checkbox id={`bed-${opt}`} checked={currentPersona.criteria?.bedrooms?.includes(opt)} onCheckedChange={() => handleCheckboxChange('bedrooms', opt)} /><Label htmlFor={`bed-${opt}`} className="font-normal">{opt}</Label></div>
-                            ))}
-                        </div>
-                    </div>
-                     <div className="space-y-2">
-                        <Label>Vagas de Garagem</Label>
-                        <div className="grid grid-cols-2 gap-2">
-                            {garageOptions.map(opt => (
-                                <div key={`grg-${opt}`} className="flex items-center space-x-2"><Checkbox id={`grg-${opt}`} checked={currentPersona.criteria?.garageSpots?.includes(opt)} onCheckedChange={() => handleCheckboxChange('garageSpots', opt)} /><Label htmlFor={`grg-${opt}`} className="font-normal">{opt}</Label></div>
-                            ))}
-                        </div>
-                    </div>
-                 </div>
-
-                 <div className="space-y-4 rounded-lg border p-4">
-                    <Label>Localizações</Label>
-                    <div className="flex items-end gap-2">
-                        <div className="flex-1 space-y-1.5"><Label className="text-xs">Estado</Label><Select onValueChange={handleStateChange} value={selectedState}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent>{states.map(s => <SelectItem key={s.id} value={s.sigla}>{s.nome}</SelectItem>)}</SelectContent></Select></div>
-                        <div className="flex-1 space-y-1.5"><Label className="text-xs">Cidade</Label><Select onValueChange={setSelectedCity} value={selectedCity} disabled={!selectedState}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent>{cities.map(c => <SelectItem key={c.id} value={c.nome}>{c.nome}</SelectItem>)}</SelectContent></Select></div>
-                        <Button type="button" size="sm" onClick={handleAddLocation}>Adicionar</Button>
-                    </div>
-                    <div className="space-y-2">
-                        {currentPersona.criteria?.locations?.map((loc, index) => (
-                            <div key={index} className="flex items-center justify-between text-sm bg-muted p-2 rounded-md"><span>{loc.city} - {loc.state}</span><Button type="button" size="icon" variant="ghost" onClick={() => handleRemoveLocation(index)}><X className="h-4 w-4" /></Button></div>
-                        ))}
-                    </div>
-                </div>
-
-                <div className="space-y-2">
-                    <Label>Áreas Comuns</Label>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                    {commonAreasOptions.map(area => (
-                        <div key={area} className="flex items-center space-x-2"><Checkbox id={`area-${area}`} checked={currentPersona.criteria?.commonAreas?.includes(area)} onCheckedChange={() => handleCheckboxChange('commonAreas', area)} /><Label htmlFor={`area-${area}`} className="font-normal">{area}</Label></div>
-                    ))}
-                    </div>
-                </div>
-
+            <span className="text-sm font-medium text-text-secondary">Total de Personas</span>
+            <div className="flex items-baseline gap-2">
+                <h3 className="text-2xl font-bold text-text-main">{personas?.length || 0}</h3>
+                <span className="text-xs font-bold text-status-success-text bg-status-success px-1.5 py-0.5 rounded">+2 este mês</span>
             </div>
-            <DialogFooter className="pt-4 border-t mt-auto">
-              <Button type="button" variant="outline" onClick={closeDialog}>Cancelar</Button>
-              <Button type="submit" disabled={isSubmitting}>{isSubmitting ? <Loader2 className="animate-spin" /> : 'Salvar'}</Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-      
-      <AlertDialog open={isDeleteAlertOpen} onOpenChange={(isOpen) => { if (!isOpen) closeDeleteAlert()}}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
+            <p className="text-xs text-text-secondary mt-1">Ativas no sistema</p>
+        </div>
+        <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-soft flex flex-col gap-1 relative overflow-hidden group">
+            <div className="absolute right-0 top-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                <span className="material-symbols-outlined text-6xl text-status-success-text">trending_up</span>
+            </div>
+            <span className="text-sm font-medium text-text-secondary">Persona mais Ativa</span>
+            <h3 className="text-2xl font-bold text-text-main">Investidor Visionário</h3>
+            <p className="text-xs text-text-secondary mt-1">45% das buscas recentes</p>
+        </div>
+        <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-soft flex flex-col gap-1 relative overflow-hidden group">
+            <div className="absolute right-0 top-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                <span className="material-symbols-outlined text-6xl text-primary">real_estate_agent</span>
+            </div>
+            <span className="text-sm font-medium text-text-secondary">Imóveis Recomendados</span>
+            <h3 className="text-2xl font-bold text-text-main">148</h3>
+            <p className="text-xs text-text-secondary mt-1">Matches automatizados hoje</p>
+        </div>
+      </div>
+      <div className="bg-white rounded-xl shadow-soft border border-gray-100 flex flex-col h-full">
+        <div className="p-5 border-b border-gray-100 flex flex-col md:flex-row gap-4 justify-between items-center">
+            <div className="relative w-full md:w-96">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <span className="material-symbols-outlined text-gray-400">search</span>
+                </div>
+                <input className="block w-full pl-10 pr-3 py-2 border border-gray-200 rounded-lg leading-5 bg-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary sm:text-sm transition duration-150 ease-in-out" placeholder="Buscar por nome ou descrição..." type="text"/>
+            </div>
+            <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                <div className="relative group">
+                    <select className="appearance-none bg-gray-50 border border-gray-200 text-text-main py-2 pl-4 pr-10 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-sm font-medium cursor-pointer hover:bg-gray-100 transition-colors">
+                        <option value="">Tipo de Imóvel: Todos</option>
+                        <option value="casa">Casa em Condomínio</option>
+                        <option value="apartamento">Apartamento</option>
+                        <option value="lote">Lote/Terreno</option>
+                        <option value="cobertura">Cobertura</option>
+                    </select>
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500">
+                        <span className="material-symbols-outlined text-[18px]">expand_more</span>
+                    </div>
+                </div>
+                <div className="relative group">
+                    <select className="appearance-none bg-gray-50 border border-gray-200 text-text-main py-2 pl-4 pr-10 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-sm font-medium cursor-pointer hover:bg-gray-100 transition-colors">
+                        <option value="">Status: Todos</option>
+                        <option value="ativo">Ativo</option>
+                        <option value="inativo">Inativo</option>
+                    </select>
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500">
+                        <span className="material-symbols-outlined text-[18px]">expand_more</span>
+                    </div>
+                </div>
+                <button className="flex items-center justify-center p-2 border border-gray-200 rounded-lg text-gray-500 hover:text-primary hover:border-primary bg-white transition-all">
+                    <span className="material-symbols-outlined text-[20px]">filter_list</span>
+                </button>
+            </div>
+        </div>
+        <div className="overflow-x-auto">
+            <Table>
+                <TableHeader>
+                    <TableRow className="bg-gray-50/50">
+                        <TableHead className="px-6 py-4 text-left text-xs font-bold text-text-secondary uppercase tracking-wider">Foto/Ícone</TableHead>
+                        <TableHead className="px-6 py-4 text-left text-xs font-bold text-text-secondary uppercase tracking-wider">Nome da Persona</TableHead>
+                        <TableHead className="px-6 py-4 text-left text-xs font-bold text-text-secondary uppercase tracking-wider">Descrição</TableHead>
+                        <TableHead className="px-6 py-4 text-left text-xs font-bold text-text-secondary uppercase tracking-wider">Tipos de Imóvel</TableHead>
+                        <TableHead className="px-6 py-4 text-left text-xs font-bold text-text-secondary uppercase tracking-wider">Faixa de Preço</TableHead>
+                        <TableHead className="px-6 py-4 text-center text-xs font-bold text-text-secondary uppercase tracking-wider">Status</TableHead>
+                        <TableHead className="px-6 py-4 text-right text-xs font-bold text-text-secondary uppercase tracking-wider">Ações</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody className="bg-white divide-y divide-gray-50">
+                    {isLoading && <TableRow><TableCell colSpan={7} className="text-center p-10">Carregando personas...</TableCell></TableRow>}
+                    {!isLoading && personas?.map(persona => (
+                        <TableRow key={persona.id} className="hover:bg-gray-50/80 transition-colors group">
+                            <TableCell className="px-6 py-4 whitespace-nowrap">
+                                <div style={{ backgroundColor: persona.iconBackgroundColor }} className="size-10 rounded-lg flex items-center justify-center">
+                                    <span className="material-symbols-outlined text-primary text-[24px]" style={{ color: persona.iconColor }}>{persona.icon}</span>
+                                </div>
+                            </TableCell>
+                            <TableCell className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm font-bold text-text-main">{persona.name}</div>
+                            </TableCell>
+                            <TableCell className="px-6 py-4">
+                                <div className="text-xs text-text-secondary line-clamp-1 max-w-[200px]">{persona.description}</div>
+                            </TableCell>
+                            <TableCell className="px-6 py-4 whitespace-nowrap">
+                                <div className="flex flex-wrap gap-1">
+                                    {persona.propertyTypes?.map(type => (
+                                        <span key={type} className="px-2 py-0.5 bg-gray-100 text-[10px] font-bold text-gray-600 rounded">{type}</span>
+                                    ))}
+                                </div>
+                            </TableCell>
+                            <TableCell className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm font-bold text-text-main">{formatPriceRange(persona.minPrice, persona.maxPrice)}</div>
+                            </TableCell>
+                            <TableCell className="px-6 py-4 whitespace-nowrap text-center">
+                                <label className="inline-flex items-center cursor-pointer">
+                                <Switch
+                                    checked={persona.status === 'Ativo'}
+                                    onCheckedChange={(checked) => handleStatusChange(persona, checked)}
+                                    disabled={!isAdmin}
+                                />
+                                </label>
+                            </TableCell>
+                            <td className="px-6 py-4 whitespace-nowrap text-right">
+                                <div className="flex justify-end gap-2">
+                                <Button asChild variant="ghost" size="icon" className="p-1.5 text-text-secondary hover:text-primary transition-colors" title="Ver Detalhes">
+                                    <Link href={`/dashboard/personas/${persona.id}`}>
+                                        <span className="material-symbols-outlined text-[20px]">visibility</span>
+                                    </Link>
+                                </Button>
+                                {isAdmin && (
+                                    <>
+                                        <Button asChild variant="ghost" size="icon" className="p-1.5 text-text-secondary hover:text-blue-500 transition-colors" title="Editar">
+                                            <Link href={`/dashboard/personas/editar/${persona.id}`}>
+                                                <span className="material-symbols-outlined text-[20px]">edit</span>
+                                            </Link>
+                                        </Button>
+                                        <AlertDialogTrigger asChild>
+                                            <Button variant="ghost" size="icon" className="p-1.5 text-text-secondary hover:text-status-error-text transition-colors" title="Excluir" onClick={() => setPersonaToDelete(persona)}>
+                                                <span className="material-symbols-outlined text-[20px]">delete</span>
+                                            </Button>
+                                        </AlertDialogTrigger>
+                                    </>
+                                )}
+                                </div>
+                            </td>
+                        </TableRow>
+                    ))}
+                </TableBody>
+            </Table>
+        </div>
+        <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
+            <div className="text-sm text-text-secondary">
+                Mostrando <span className="font-bold text-text-main">1-{personas?.length || 0}</span> de <span className="font-bold text-text-main">{personas?.length || 0}</span> resultados
+            </div>
+            <div className="flex gap-2">
+                <button className="px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-500 bg-white hover:bg-gray-50 disabled:opacity-50">
+                    Anterior
+                </button>
+                <button className="px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-text-main bg-white hover:bg-gray-50 hover:border-primary transition-colors">
+                    Próxima
+                </button>
+            </div>
+        </div>
+      </div>
+      <AlertDialogContent>
+        <AlertDialogHeader>
             <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
-            <AlertDialogDescription>Esta ação não pode ser desfeita e irá deletar a persona permanentemente.</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={closeDeleteAlert}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">Deletar</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
+            <AlertDialogDescription>
+            Esta ação não pode ser desfeita. Isso excluirá permanentemente a persona <span className="font-bold">{personaToDelete?.name}</span>.
+            </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setPersonaToDelete(null)}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeletePersona} className="bg-destructive hover:bg-destructive/90">
+                Sim, excluir
+            </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
       </AlertDialog>
     </>
   );
 }
+

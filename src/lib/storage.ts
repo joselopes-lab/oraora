@@ -1,17 +1,32 @@
+'use client';
+import { ref, uploadBytesResumable, getDownloadURL, FirebaseStorage } from 'firebase/storage';
+import { v4 as uuidv4 } from 'uuid';
 
-'use client'; // Mark this as a client component
+export const uploadFile = (
+  storage: FirebaseStorage,
+  path: string,
+  file: File,
+  onProgress: (progress: number) => void
+): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const fileId = uuidv4();
+    const storageRef = ref(storage, `${path}/${fileId}-${file.name}`);
+    const uploadTask = uploadBytesResumable(storageRef, file);
 
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { storage } from './firebase';
-
-export async function uploadFile(file: File, path: string): Promise<string> {
-  const storageRef = ref(storage, path);
-  
-  const snapshot = await uploadBytes(storageRef, file, {
-    contentType: file.type,
+    uploadTask.on(
+      'state_changed',
+      (snapshot) => {
+        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+        onProgress(progress);
+      },
+      (error) => {
+        console.error('Upload error:', error);
+        reject(error);
+      },
+      async () => {
+        const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+        resolve(downloadURL);
+      }
+    );
   });
-
-  const downloadURL = await getDownloadURL(snapshot.ref);
-  
-  return downloadURL;
-}
+};
