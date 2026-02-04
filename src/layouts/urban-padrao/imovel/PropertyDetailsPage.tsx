@@ -1,4 +1,3 @@
-
 'use client';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -8,9 +7,9 @@ import { useState, useMemo, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { createLead } from '../../../sites/actions';
+import { createLead } from '@/app/sites/actions';
 import { useToast } from '@/hooks/use-toast';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
@@ -459,7 +458,7 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
                            {isSubmitting ? 'Enviando...' : 'Quero saber mais'}
                         </button>
                         <DialogTrigger asChild>
-                            <Button variant="outline" className="w-full h-12 rounded-lg border-[#25D366] text-[#25D366] font-bold hover:bg-[#25D366]/10 transition-colors flex items-center justify-center gap-2">
+                            <Button variant="outline" className="w-full h-12 rounded-lg border-[#25D366] text-[#25D366] font-bold hover:bg-[#25D366] hover:text-white transition-colors flex items-center justify-center gap-2">
                                 <span className="material-symbols-outlined">chat</span>
                                 Falar no WhatsApp
                             </Button>
@@ -505,13 +504,11 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
           </div>
         </div>
         <section className="w-full max-w-[1280px] px-6 mt-20 mb-[35px]">
-          <div className="flex items-center justify-between mb-8">
-            <h2 className="text-2xl font-bold text-text-main">Imóveis Semelhantes</h2>
-            <Link className="text-sm font-bold text-white bg-black px-5 py-2.5 rounded-lg hover:bg-gray-800 transition-colors shrink-0" href={`/sites/${broker.slug}/search`}>
-                Ver Todos os Imóveis
-            </Link>
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-text-main">Imóveis Semelhantes</h2>
+            <p className="text-text-muted mt-2">Explore outras opções que também podem te agradar.</p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {similarProperties.map(similarProperty => {
                 const isSaved = savedPropertyIds.includes(similarProperty.id);
                 const quartos = similarProperty.caracteristicasimovel.quartos;
@@ -533,7 +530,7 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
                     </div>
                     <div className="flex flex-col p-5 gap-3">
                         <div>
-                            <h3 className="text-lg font-bold text-[#111418] group-hover:text-primary transition-colors line-clamp-1">{similarProperty.informacoesbasicas.nome}</h3>
+                            <h3 className="text-lg font-semibold uppercase text-[#111418] group-hover:text-primary transition-colors line-clamp-1">{similarProperty.informacoesbasicas.nome}</h3>
                             <p className="text-sm text-[#617589] mt-1 flex items-center gap-1">
                                 <span className="material-symbols-outlined text-[16px]">location_on</span>
                                 {similarProperty.localizacao.bairro}, {similarProperty.localizacao.cidade}
@@ -609,3 +606,5 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
     </div>
   );
 }
+
+    
