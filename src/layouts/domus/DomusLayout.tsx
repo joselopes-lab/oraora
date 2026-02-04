@@ -265,13 +265,13 @@ export default function DomusLayout({ broker, properties }: DomusLayoutProps) {
 </div>
 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {featuredProperties.map((property) => (
-              <Link href={`/sites/${broker.slug}/imovel/${property.informacoesbasicas.slug || property.id}`} key={property.id} className="flex flex-col gap-4 group cursor-pointer">
+              <div key={property.id} className="flex flex-col gap-4 group cursor-pointer">
                 <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden shadow-lg">
                   <div className="absolute inset-0 bg-center bg-no-repeat bg-cover group-hover:scale-110 transition-transform duration-700" style={{ backgroundImage: 'url(' + (property.midia?.[0] || 'https://picsum.photos/400/300') + ')' }}></div>
                   <div className="absolute top-4 left-4 bg-white/90 dark:bg-background-dark/90 backdrop-blur px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-widest">{property.informacoesbasicas.status}</div>
                 </div>
                 <div className="flex flex-col gap-2">
-                  <p className="text-[#161811] dark:text-white text-xl font-bold leading-normal">{property.informacoesbasicas.nome}</p>
+                  <h4 className="text-[#161811] dark:text-white text-xl font-semibold leading-normal uppercase">{property.informacoesbasicas.nome}</h4>
                   <div className="flex items-center gap-1 text-primary">
 <span className="material-symbols-outlined text-sm">location_on</span>
 <span className="text-sm font-semibold uppercase tracking-wide">{property.localizacao.bairro}, {property.localizacao.cidade}</span>
@@ -289,7 +289,7 @@ export default function DomusLayout({ broker, properties }: DomusLayoutProps) {
 </div>
 <p className="text-[#161811] dark:text-white text-2xl font-bold mt-2">{property.informacoesbasicas.valor?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) || 'Consulte'}</p>
 </div>
-</Link>
+</div>
             ))}
 </div>
 </section>

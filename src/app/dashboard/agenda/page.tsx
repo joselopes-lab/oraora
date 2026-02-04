@@ -98,11 +98,16 @@ export default function AgendaPage() {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [viewMode, setViewMode] = useState<'month' | 'week' | 'day'>('month');
     const [visibleEventTypes, setVisibleEventTypes] = useState<string[]>(['reuniao', 'visita', 'tarefa', 'particular', 'outro']);
+    const [isClient, setIsClient] = useState(false);
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const { toast } = useToast();
     const [hasCreatedDefaultEvents, setHasCreatedDefaultEvents] = useState(false);
     
+    useEffect(() => {
+        setIsClient(true);
+    }, []);
+
     const eventsQuery = useMemoFirebase(
       () => {
         if (user && firestore) {
@@ -148,7 +153,7 @@ export default function AgendaPage() {
         }
     }, [areEventsLoading, events, user, firestore, toast, hasCreatedDefaultEvents]);
 
-    const isLoading = isUserLoading || areEventsLoading || areClientsLoading;
+    const isLoading = isUserLoading || areEventsLoading || areClientsLoading || !isClient;
 
     const firstDayOfMonth = startOfMonth(currentDate);
     const lastDayOfMonth = endOfMonth(currentDate);
@@ -295,7 +300,7 @@ export default function AgendaPage() {
                     <div className="p-6 border-b border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-4">
                         <div className="flex items-center gap-4">
                             <h2 className="text-2xl font-bold text-text-main capitalize w-full text-center sm:text-left sm:w-auto">
-                                {renderHeaderDate()}
+                                {isLoading ? 'Carregando...' : renderHeaderDate()}
                             </h2>
                             <div className="flex items-center bg-gray-50 rounded-lg border border-gray-200 p-0.5">
                                 <button onClick={handlePrev} className="p-1.5 hover:bg-white hover:shadow-sm rounded text-text-secondary hover:text-text-main transition-all">
@@ -312,24 +317,30 @@ export default function AgendaPage() {
                            <button onClick={() => setViewMode('day')} className={cn("px-3 py-1.5 text-xs", viewMode === 'day' ? 'font-bold bg-white shadow-sm rounded text-text-main' : 'font-medium text-text-secondary hover:text-text-main transition-colors')}>Dia</button>
                         </div>
                     </div>
-                    {viewMode === 'month' && (
-                        <div className="p-6">
-                            <div className="grid grid-cols-7 mb-4">
-                                {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(day => (
-                                    <div key={day} className="text-center text-xs font-semibold text-text-secondary uppercase tracking-wider">{day}</div>
-                                ))}
+                    {isLoading ? (
+                      <div className="flex-1 flex items-center justify-center p-10 text-text-secondary">Carregando agenda...</div>
+                    ) : (
+                      <>
+                        {viewMode === 'month' && (
+                            <div className="p-6">
+                                <div className="grid grid-cols-7 mb-4">
+                                    {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(day => (
+                                        <div key={day} className="text-center text-xs font-semibold text-text-secondary uppercase tracking-wider">{day}</div>
+                                    ))}
+                                </div>
+                                <div className="grid grid-cols-7 border-t border-l border-gray-100 bg-gray-100 gap-px">
+                                    {daysForMonthView.map(day => {
+                                        const dayKey = format(day, 'yyyy-MM-dd');
+                                        const dayEvents = eventsByDate[dayKey] || [];
+                                        return <Day key={day.toISOString()} day={day} dayEvents={dayEvents} currentMonth={currentDate} />;
+                                    })}
+                                </div>
                             </div>
-                            <div className="grid grid-cols-7 border-t border-l border-gray-100 bg-gray-100 gap-px">
-                                {daysForMonthView.map(day => {
-                                    const dayKey = format(day, 'yyyy-MM-dd');
-                                    const dayEvents = eventsByDate[dayKey] || [];
-                                    return <Day key={day.toISOString()} day={day} dayEvents={dayEvents} currentMonth={currentDate} />;
-                                })}
-                            </div>
-                        </div>
+                        )}
+                        {viewMode === 'week' && <WeekView currentDate={currentDate} events={weekEvents} />}
+                        {viewMode === 'day' && <DayView currentDate={currentDate} events={dayEvents} />}
+                      </>
                     )}
-                     {viewMode === 'week' && <WeekView currentDate={currentDate} events={weekEvents} />}
-                     {viewMode === 'day' && <DayView currentDate={currentDate} events={dayEvents} />}
                 </div>
                 
                 <div className="space-y-6">

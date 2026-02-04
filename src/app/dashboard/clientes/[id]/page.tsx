@@ -8,6 +8,17 @@ import Link from 'next/link';
 import ClientDetailView from '../components/client-detail-view';
 import { useEffect, useState } from 'react';
 
+const ClientSideDate = ({ dateString }: { dateString: string }) => {
+    const [formattedDate, setFormattedDate] = useState<string | null>(null);
+
+    useEffect(() => {
+        setFormattedDate(new Date(dateString).toLocaleDateString('pt-BR'));
+    }, [dateString]);
+
+    return <>{formattedDate || '...'}</>;
+}
+
+
 type Lead = {
     id: string;
     name: string;
@@ -141,7 +152,7 @@ export default function ClientDetailPage() {
                         <span className="material-symbols-outlined text-[18px]">fingerprint</span>
                         <span>ID: #{client.id.substring(0, 6)}</span>
                         <span className="mx-1">•</span>
-                        <span>Cadastrado em {new Date(client.createdAt).toLocaleDateString('pt-BR')}</span>
+                        <span>Cadastrado em <ClientSideDate dateString={client.createdAt} /></span>
                     </div>
                 </div>
                 <div className="flex gap-3">

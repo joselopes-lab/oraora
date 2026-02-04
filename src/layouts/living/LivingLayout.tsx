@@ -96,25 +96,10 @@ export default function LivingLayout({ broker, properties }: LivingLayoutProps) 
 
   const formatQuartos = (quartosData: any): string => {
     if (!quartosData) return 'N/A';
-
-    const dataAsString = Array.isArray(quartosData)
-        ? quartosData.join(' ')
-        : String(quartosData);
-
-    const numbers = dataAsString.match(/\d+/g);
-    
-    if (!numbers || numbers.length === 0) {
-        const trimmedString = dataAsString.trim();
-        return trimmedString ? trimmedString : 'N/A';
+    if (Array.isArray(quartosData)) {
+      return quartosData.join(', ');
     }
-
-    const uniqueNumbers = [...new Set(numbers.map(n => parseInt(n, 10)))].filter(n => !isNaN(n)).sort((a, b) => a - b);
-    
-    if (uniqueNumbers.length === 0) return 'N/A';
-    if (uniqueNumbers.length === 1) return uniqueNumbers[0].toString();
-    
-    const last = uniqueNumbers.pop();
-    return `${uniqueNumbers.join(', ')} e ${last}`;
+    return String(quartosData);
   };
 
 
@@ -188,7 +173,7 @@ export default function LivingLayout({ broker, properties }: LivingLayoutProps) 
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 {featuredProperties.map(property => (
-                <Link href={`/sites/${broker.slug}/imovel/${property.informacoesbasicas.slug || property.id}`} className="group" key={property.id}>
+                <div className="group" key={property.id}>
                     <div className="relative overflow-hidden rounded-[2rem] mb-8 aspect-[10/11] property-card">
                         <Image alt={property.informacoesbasicas.nome} className="w-full h-full object-cover property-image transition-transform duration-700" width={400} height={440} src={property.midia?.[0] || 'https://picsum.photos/400/440'} />
                         <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-transparent to-transparent opacity-60"></div>
@@ -201,7 +186,7 @@ export default function LivingLayout({ broker, properties }: LivingLayoutProps) 
                           </button>
                         </div>
                         <div className="absolute bottom-6 left-6 right-6">
-                            <h4 className="text-white text-xl font-bold mb-1">{property.informacoesbasicas.nome}</h4>
+                            <h4 className="text-white text-xl font-semibold mb-1 uppercase">{property.informacoesbasicas.nome}</h4>
                             <p className="text-slate-300 text-sm flex items-center gap-1">
                                 <span className="material-symbols-outlined text-sm">location_on</span> {property.localizacao.bairro}, {property.localizacao.cidade}
                             </p>
@@ -212,7 +197,7 @@ export default function LivingLayout({ broker, properties }: LivingLayoutProps) 
                             </span>
                         </div>
                     </div>
-                </Link>
+                </div>
                 ))}
             </div>
             </div>

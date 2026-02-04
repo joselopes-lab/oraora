@@ -1,3 +1,4 @@
+
 'use client';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import PropertyForm, { PropertyFormData } from '../../components/property-form';
@@ -84,12 +85,29 @@ export default function EditPropertyPage() {
         )
     }
     
+    // Data Normalization
+    const normalizedPropertyData = { ...propertyData };
+    if (normalizedPropertyData.caracteristicasimovel) {
+        let quartos = normalizedPropertyData.caracteristicasimovel.quartos;
+        
+        if (typeof quartos === 'string') {
+            quartos = quartos.split(',').map(s => s.trim()).filter(Boolean);
+        } else if (typeof quartos === 'number') {
+            quartos = [String(quartos)];
+        } else if (!Array.isArray(quartos)) {
+            quartos = [];
+        }
+        
+        normalizedPropertyData.caracteristicasimovel.quartos = quartos;
+    }
+
+
     return (
         <main className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 py-8 pb-32">
             <PropertyForm 
                 onSave={handleSave} 
                 isEditing={true} 
-                propertyData={propertyData}
+                propertyData={normalizedPropertyData}
                 isSubmitting={isSubmitting} 
             />
         </main>

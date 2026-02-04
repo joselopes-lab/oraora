@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { createLead } from '@/app/sites/actions';
+import { createLead } from '../../../app/sites/actions';
 import { useToast } from '@/hooks/use-toast';
 
 const leadSchema = z.object({
@@ -123,7 +123,7 @@ export function WhatsAppWidget({ brokerId }: WhatsAppWidgetProps) {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full h-11 rounded-lg bg-[#25D366] text-white font-bold text-sm flex items-center justify-center gap-2 hover:bg-green-600 transition-colors"
+                className="w-full h-11 rounded-lg bg-[#25D366] text-white font-bold text-sm flex items-center justify-center gap-2 hover:bg-white hover:text-black border border-transparent hover:border-gray-200 transition-colors"
               >
                 {isSubmitting ? 'Enviando...' : 'Iniciar Conversa'}
                 {!isSubmitting && <span className="material-symbols-outlined text-lg">send</span>}

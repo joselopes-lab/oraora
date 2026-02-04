@@ -7,9 +7,21 @@ import { useParams, useRouter } from "next/navigation";
 import { useDoc, useFirestore, useMemoFirebase, setDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase";
 import { doc } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+
+const ClientSideDate = ({ dateString, options }: { dateString: string, options?: Intl.DateTimeFormatOptions }) => {
+  const [formattedDate, setFormattedDate] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Ensure this runs only on the client
+    setFormattedDate(new Date(dateString).toLocaleString('pt-BR', options));
+  }, [dateString, options]);
+
+  // Return a placeholder or the formatted date
+  return <>{formattedDate || '...'}</>;
+};
 
 type Comment = {
   author: string;
@@ -144,7 +156,7 @@ export default function TicketDetailPage() {
                                     <div className="flex-grow">
                                         <div className="flex items-center justify-between mb-1">
                                             <p className="text-sm font-bold text-text-main">{comment.author}</p>
-                                            <span className="text-xs text-text-secondary">{new Date(comment.createdAt).toLocaleString()}</span>
+                                            <span className="text-xs text-text-secondary"><ClientSideDate dateString={comment.createdAt} /></span>
                                         </div>
                                         <div className={`p-4 rounded-lg rounded-tl-none border text-sm text-text-main ${comment.type === 'internal' ? 'bg-yellow-50/50 border-yellow-100 italic' : 'bg-background-light border-gray-100'}`}>
                                             <p>{comment.content}</p>
@@ -191,11 +203,11 @@ export default function TicketDetailPage() {
                             </div>
                             <div>
                                 <span className="text-xs text-text-secondary block mb-1.5">Data de Abertura</span>
-                                <p className="text-sm font-medium text-text-main">{new Date(ticket.createdAt).toLocaleString()}</p>
+                                <p className="text-sm font-medium text-text-main"><ClientSideDate dateString={ticket.createdAt} /></p>
                             </div>
                             <div>
                                 <span className="text-xs text-text-secondary block mb-1.5">Última Atualização</span>
-                                <p className="text-sm font-medium text-text-main">{new Date(ticket.updatedAt).toLocaleString()}</p>
+                                <p className="text-sm font-medium text-text-main"><ClientSideDate dateString={ticket.updatedAt} /></p>
                             </div>
                         </div>
                     </div>
@@ -259,4 +271,3 @@ export default function TicketDetailPage() {
     );
 }
 
-    

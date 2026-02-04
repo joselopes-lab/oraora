@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useAuth, useDoc, useFirebase, useMemoFirebase } from "@/firebase";
@@ -87,18 +88,18 @@ export function UserMenu() {
             <div className="h-8 w-px bg-gray-200"></div>
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                    <div className="flex items-center gap-3 cursor-pointer group">
-                        <div className="text-right hidden sm:block">
-                            <p className="text-sm font-bold text-text-main">{user?.displayName || 'Usuário'}</p>
-                            <p className="text-xs text-text-secondary">{userProfile?.userType === 'admin' ? 'Admin Master' : userProfile?.userType === 'broker' ? 'Corretor' : 'Construtora'}</p>
-                        </div>
-                        <div className="size-9 rounded-full bg-gray-200 overflow-hidden border border-gray-100">
+                    <button type="button" className="flex items-center gap-3 cursor-pointer group">
+                        <span className="text-right hidden sm:block">
+                            <span className="block text-sm font-bold text-text-main">{user?.displayName || 'Usuário'}</span>
+                            <span className="block text-xs text-text-secondary">{userProfile?.userType === 'admin' ? 'Admin Master' : userProfile?.userType === 'broker' ? 'Corretor' : 'Construtora'}</span>
+                        </span>
+                        <span className="block size-9 rounded-full bg-gray-200 overflow-hidden border border-gray-100">
                             <Avatar>
                                 <AvatarImage src={user?.photoURL || "https://i.pravatar.cc/150?u=a042581f4e29026704d"} alt="Avatar"/>
                                 <AvatarFallback>{user?.displayName?.charAt(0) || 'U'}</AvatarFallback>
                             </Avatar>
-                        </div>
-                    </div>
+                        </span>
+                    </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-56" align="end" forceMount>
                     <DropdownMenuLabel className="font-normal">

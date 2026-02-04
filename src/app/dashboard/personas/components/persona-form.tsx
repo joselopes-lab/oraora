@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Button } from "@/components/ui/button";
@@ -16,9 +17,14 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Checkbox } from "@/components/ui/checkbox";
-import { useCollection, useFirestore, useMemoFirebase, useUser } from "@/firebase";
+import { useCollection, useFirestore, useMemoFirebase, useUser, useFirebase } from "@/firebase";
 import { collection, query, where } from "firebase/firestore";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import Image from "next/image";
+import { Progress } from "@/components/ui/progress";
+import { uploadFile } from "@/lib/storage";
+import { useToast } from "@/hooks/use-toast";
+
 
 const personaSchema = z.object({
     name: z.string().min(1, { message: 'O nome é obrigatório.' }),
@@ -41,6 +47,19 @@ type PersonaFormProps = {
     isSubmitting?: boolean;
 };
 
+type Persona = {
+  id: string;
+  name: string;
+  icon: string;
+  iconBackgroundColor: string;
+};
+
+type UploadState = {
+  progress: number;
+  isUploading: boolean;
+  error: string | null;
+};
+
 const propertyTypeOptions = ['Casa em Condomínio', 'Apartamento', 'Lote Terreno', 'Cobertura'];
 const bedroomOptions = ['1', '2', '3', '4', '5+'];
 const garageOptions = ['Vaga Rotativa', '1', '2', '3', '4+'];
@@ -54,6 +73,16 @@ const amenityOptions = [
 ]
 
 export default function PersonaForm({ onSave, isEditing, personaData, isSubmitting }: PersonaFormProps) {
+  const { firestore, user, storage } = useFirebase();
+  const { toast } = useToast();
+  const [uploadState, setUploadState] = useState<UploadState>({ progress: 0, isUploading: false, error: null });
+    
+    const personasQuery = useMemoFirebase(
+      () => (firestore ? query(collection(firestore, 'personas'), where('status', '==', 'Ativo')) : null),
+      [firestore]
+    );
+    const { data: personas, isLoading: arePersonasLoading } = useCollection<Persona>(personasQuery);
+
   const form = useForm<PersonaFormData>({
     resolver: zodResolver(personaSchema),
     defaultValues: personaData || { 
@@ -90,6 +119,41 @@ export default function PersonaForm({ onSave, isEditing, personaData, isSubmitti
       form.reset(dataToReset);
     }
   }, [isEditing, personaData, form]);
+
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !user || !storage) {
+        toast({
+            variant: "destructive",
+            title: "Erro de Upload",
+            description: "Não foi possível iniciar o upload. Tente novamente."
+        });
+        return;
+    }
+
+    setUploadState({ progress: 0, isUploading: true, error: null });
+
+    try {
+        const path = `personas/${user.uid}/${file.name}`;
+        const onProgress = (progress: number) => {
+            setUploadState(prev => ({ ...prev, progress }));
+        };
+
+        const downloadURL = await uploadFile(storage, path, file, onProgress);
+        
+        form.setValue('imageUrl', downloadURL, { shouldDirty: true });
+        
+        toast({ title: 'Upload Concluído!', description: 'A imagem foi enviada. Salve as alterações para publicar.' });
+
+    } catch (error) {
+        console.error('Upload error:', error);
+        setUploadState({ progress: 0, isUploading: false, error: 'Falha no upload.' });
+        toast({ variant: "destructive", title: "Erro no Upload", description: "Não foi possível enviar a imagem." });
+    } finally {
+        setUploadState(prev => ({ ...prev, isUploading: false }));
+    }
+  };
+  
   
   return (
     <main className="flex-grow flex flex-col">
@@ -114,12 +178,28 @@ export default function PersonaForm({ onSave, isEditing, personaData, isSubmitti
                 <h3 className="text-lg font-bold text-text-main">1. Perfil da Persona</h3>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
-                <div className="md:col-span-4 flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-xl p-6 bg-gray-50/50 hover:bg-gray-50 transition-colors cursor-pointer group">
-                    <div className="size-20 bg-white rounded-full flex items-center justify-center shadow-sm mb-4 group-hover:scale-105 transition-transform">
-                        <span className="material-symbols-outlined text-3xl text-gray-300">add_a_photo</span>
-                    </div>
-                    <span className="text-sm font-bold text-text-main">Upload de Imagem</span>
-                    <span className="text-xs text-text-secondary mt-1">PNG, JPG até 5MB</span>
+                 <div className="md:col-span-4 flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-xl p-6 bg-gray-50/50">
+                    <label htmlFor="persona-image-upload" className="cursor-pointer group text-center">
+                        <div className="relative w-40 h-40 bg-white rounded-full flex items-center justify-center shadow-sm mb-4 group-hover:scale-105 transition-transform border">
+                            {form.watch('imageUrl') ? (
+                                <Image src={form.watch('imageUrl')!} alt="Pré-visualização da Persona" fill className="object-cover rounded-full" />
+                            ) : (
+                                <span className="material-symbols-outlined text-4xl text-gray-300">add_a_photo</span>
+                            )}
+                            <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                <span className="material-symbols-outlined text-white text-3xl">upload</span>
+                            </div>
+                        </div>
+                        <span className="text-sm font-bold text-text-main">Upload de Imagem</span>
+                        <span className="text-xs text-text-secondary mt-1 block">PNG, JPG até 5MB</span>
+                        <Input id="persona-image-upload" type="file" className="sr-only" onChange={handleImageUpload} disabled={uploadState.isUploading} />
+                    </label>
+                    {uploadState.isUploading && (
+                        <div className="w-full mt-4">
+                            <Progress value={uploadState.progress} className="h-2" />
+                        </div>
+                    )}
+                    {uploadState.error && <p className="text-xs text-red-500 mt-2">{uploadState.error}</p>}
                 </div>
                 <div className="md:col-span-8 space-y-4">
                     <FormField control={form.control} name="name" render={({field}) => (

@@ -430,7 +430,7 @@ export default function UrbanPadraoLayout({ broker, properties }: UrbanPadraoPag
                   </div>
                   <div className="flex flex-col p-5 gap-3">
                     <div className="flex justify-between items-start">
-                      <h3 className="text-lg font-bold text-text-main leading-snug group-hover:text-primary transition-colors line-clamp-1" style={{color: cardTitleColor}}>{property.informacoesbasicas.nome}</h3>
+                      <h3 className="text-lg font-semibold uppercase text-text-main leading-snug group-hover:text-primary transition-colors line-clamp-1" style={{color: cardTitleColor}}>{property.informacoesbasicas.nome}</h3>
                       {property.informacoesbasicas.valor && (
                         <span className="font-black text-lg" style={{ color: cardValueColor }}>
                           {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2 }).format(property.informacoesbasicas.valor)}

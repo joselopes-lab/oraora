@@ -136,48 +136,57 @@ export default function PropertyDetailsPage() {
                     <Image src={siteData?.logoUrl || "https://dotestudio.com.br/wp-content/uploads/2025/08/oraora.png"} alt="Oraora Logo" width={120} height={30} className="h-[30px] w-auto" />
                 </Link>
             </div>
-            <nav className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 hidden items-center gap-8 text-sm font-semibold lg:flex">
-                <Link className="text-text-main transition hover:text-primary" href="/imoveis">Imóveis</Link>
-                <Link className="text-text-main transition hover:text-primary" href="/corretor">Para Corretores</Link>
-                <Link className="text-text-main transition hover:text-primary" href="/sobre">Sobre</Link>
-                <Link className="text-text-main transition hover:text-primary" href="/contato">Contato</Link>
-                <Link className="text-text-main transition hover:text-primary" href="/ajuda">Ajuda</Link>
-            </nav>
-            <div className="flex items-center justify-end gap-2 md:gap-4">
-               {!isReady ? (
-                    <div className="flex items-center gap-4">
-                        <Skeleton className="h-10 w-24 rounded-full" />
-                        <Skeleton className="h-10 w-28 rounded-full" />
-                    </div>
-                ) : user && userProfile ? (
-                    <div className="hidden lg:flex items-center gap-4">
-                        <Button asChild>
-                            <Link href={dashboardUrl} className='flex items-center gap-2'>
-                                <span className="material-symbols-outlined text-base">grid_view</span>
-                                Acessar Painel
-                            </Link>
-                        </Button>
-                        <Button variant="outline" onClick={handleLogout} className='flex items-center gap-2'>
-                            <span className="material-symbols-outlined text-base">logout</span>
-                            Sair
-                        </Button>
-                    </div>
-                ) : (
-                    <div className="hidden lg:flex items-center gap-4">
-                        <Button asChild variant="ghost" className="text-sm font-medium text-gray-600 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 h-10 rounded-full px-6 transition">
-                            <Link href="/login" className="flex items-center gap-2">
-                                <span className="material-symbols-outlined text-base">manage_accounts</span>
-                                Corretor
-                            </Link>
-                        </Button>
-                        <Button asChild className="h-10 rounded-full px-6 text-sm font-bold transition">
-                            <Link href="/radar">
-                                <span className="material-symbols-outlined text-base mr-2">radar</span>
-                                Meu Radar
-                            </Link>
-                        </Button>
-                    </div>
-                )}
+            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+                {/* Mobile Logo */}
+                <Link className="flex items-center gap-3 lg:hidden" href="/">
+                    <Image src={siteData?.logoUrl || "https://dotestudio.com.br/wp-content/uploads/2025/08/oraora.png"} alt="Oraora Logo" width={120} height={30} className="h-[30px] w-auto" />
+                </Link>
+                {/* Desktop Nav */}
+                <nav className="hidden lg:flex items-center gap-8 text-sm font-semibold">
+                    <Link className="text-text-main transition hover:text-primary" href="/imoveis">Imóveis</Link>
+                    <Link className="text-text-main transition hover:text-primary" href="/corretor">Para Corretores</Link>
+                    <Link className="text-text-main transition hover:text-primary" href="/sobre">Sobre</Link>
+                    <Link className="text-text-main transition hover:text-primary" href="/contato">Contato</Link>
+                    <Link className="text-text-main transition hover:text-primary" href="/ajuda">Ajuda</Link>
+                </nav>
+            </div>
+            <div className="flex items-center justify-end">
+               <div className="hidden lg:flex items-center gap-2 md:gap-4">
+                    {!isReady ? (
+                        <div className="flex items-center gap-4">
+                            <Skeleton className="h-10 w-24 rounded-full" />
+                            <Skeleton className="h-10 w-28 rounded-full" />
+                        </div>
+                    ) : user && userProfile ? (
+                        <div className="flex items-center gap-4">
+                            <Button asChild>
+                                <Link href={dashboardUrl} className='flex items-center gap-2'>
+                                    <span className="material-symbols-outlined text-base">grid_view</span>
+                                    Acessar Painel
+                                </Link>
+                            </Button>
+                            <Button variant="outline" onClick={handleLogout} className='flex items-center gap-2'>
+                                <span className="material-symbols-outlined text-base">logout</span>
+                                Sair
+                            </Button>
+                        </div>
+                    ) : (
+                        <div className="flex items-center gap-4">
+                            <Button asChild variant="ghost" className="text-sm font-medium text-gray-600 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 h-10 rounded-full px-6 transition">
+                                <Link href="/login" className="flex items-center gap-2">
+                                    <span className="material-symbols-outlined text-base">manage_accounts</span>
+                                    Corretor
+                                </Link>
+                            </Button>
+                            <Button asChild className="h-10 rounded-full px-6 text-sm font-bold transition">
+                                <Link href="/radar">
+                                    <span className="material-symbols-outlined text-base mr-2">radar</span>
+                                    Meu Radar
+                                </Link>
+                            </Button>
+                        </div>
+                    )}
+                </div>
                  {/* Mobile Icons */}
                 <div className="flex items-center gap-2 lg:hidden">
                     <Dialog open={isSearchModalOpen} onOpenChange={setIsSearchModalOpen}>

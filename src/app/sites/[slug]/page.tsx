@@ -77,6 +77,7 @@ type Portfolio = {
 
 type Property = {
   id: string;
+  isVisibleOnSite?: boolean;
   informacoesbasicas: {
     nome: string;
     status: string;
@@ -135,7 +136,10 @@ async function getPortfolioProperties(brokerId: string): Promise<Property[]> {
         const q = query(propertiesRef, where('__name__', 'in', batch));
         const propertiesSnap = await getDocs(q);
         propertiesSnap.forEach(doc => {
-            propertiesData.push({ id: doc.id, ...doc.data() } as Property);
+            const propertyData = { id: doc.id, ...doc.data() } as Property;
+            if (propertyData.isVisibleOnSite !== false) {
+                propertiesData.push(propertyData);
+            }
         });
     }
   }

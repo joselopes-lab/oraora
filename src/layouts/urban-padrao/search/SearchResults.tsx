@@ -4,7 +4,6 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { UrbanPadraoHeader } from '../components/UrbanPadraoHeader';
 import { UrbanPadraoFooter } from '../components/UrbanPadraoFooter';
-import { cn } from '@/lib/utils';
 
 type Broker = {
   id: string;
@@ -225,11 +224,9 @@ export default function SearchResults({ broker, properties }: SearchResultsPageP
                                {properties.map((property) => {
                                 const quartos = property.caracteristicasimovel.quartos;
                                 return (
-                                <Link key={property.id} href={`/sites/${broker.slug}/imovel/${property.informacoesbasicas.slug || property.id}`} className="group relative flex flex-col rounded-2xl bg-white border border-transparent shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-[0_12px_24px_rgba(0,0,0,0.08)] hover:border-neon-green/50 transition-all duration-300 overflow-hidden">
+                                <Link key={property.id} href={`/sites/${broker.slug}/imovel/${property.id}`} className="group relative flex flex-col rounded-2xl bg-white border border-transparent shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-[0_12px_24px_rgba(0,0,0,0.08)] hover:border-neon-green/50 transition-all duration-300 overflow-hidden">
                                     <div className="relative aspect-[4/3] w-full overflow-hidden bg-gray-100">
-                                        <div className={cn("absolute top-3 left-3 z-10 rounded-md px-2 py-1 text-xs font-bold uppercase tracking-wide shadow-sm", !statusTagBgColor && 'bg-primary text-primary-foreground')} style={{ backgroundColor: statusTagBgColor, color: statusTagTextColor }}>
-                                          {property.informacoesbasicas.status}
-                                        </div>
+                                        <div className="absolute top-3 left-3 z-10 rounded-md px-2 py-1 text-xs font-bold uppercase tracking-wide shadow-sm" style={{ backgroundColor: statusTagBgColor, color: statusTagTextColor }}>{property.informacoesbasicas.status}</div>
                                         <button className="absolute top-3 right-3 z-10 flex size-8 items-center justify-center rounded-full bg-white/80 backdrop-blur-sm text-gray-500 hover:text-red-500 hover:bg-white transition-colors">
                                             <span className="material-symbols-outlined text-[20px]">favorite</span>
                                         </button>
@@ -244,7 +241,7 @@ export default function SearchResults({ broker, properties }: SearchResultsPageP
                                     </div>
                                     <div className="flex flex-col p-5 gap-3">
                                         <div>
-                                            <h3 className="text-lg font-bold text-[#111418] group-hover:text-primary transition-colors line-clamp-1">{property.informacoesbasicas.nome}</h3>
+                                            <h3 className="text-lg font-semibold uppercase text-[#111418] group-hover:text-primary transition-colors line-clamp-1">{property.informacoesbasicas.nome}</h3>
                                             <p className="text-sm text-[#617589] mt-1 flex items-center gap-1">
                                                 <span className="material-symbols-outlined text-[16px]">location_on</span>
                                                 {property.localizacao.bairro}, {property.localizacao.cidade}

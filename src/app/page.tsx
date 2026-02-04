@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { collection, getDocs, query, doc, arrayRemove, arrayUnion } from 'firebase/firestore';
+import { collection, getDocs, query, doc, arrayRemove, arrayUnion, where } from 'firebase/firestore';
 import { useFirestore, useUser, useDoc, useMemoFirebase, setDocumentNonBlocking, useAuthContext, useAuth } from '@/firebase';
 import { useEffect, useState, useMemo, useRef } from 'react';
 import { cn } from '@/lib/utils';
@@ -196,7 +196,7 @@ export default function BrokerHomePage() {
       if (!firestore) return;
       try {
         const propertiesRef = collection(firestore, 'properties');
-        const q = query(propertiesRef);
+        const q = query(propertiesRef, where('isVisibleOnSite', '==', true));
         const propertiesSnap = await getDocs(q);
         const props = propertiesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Property));
         setProperties(props);
@@ -620,7 +620,7 @@ export default function BrokerHomePage() {
                             <div onClick={() => setIsNeighborhoodDropdownOpen(true)} className="w-full pl-4 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl h-12 flex items-center cursor-pointer overflow-hidden text-sm font-medium">
                             {selectedNeighborhoods.length > 0 ? (
                                 <div className="flex flex-wrap gap-1.5">
-                                {selectedNeighborhoods.slice(0, 2).map(n => (
+                                {selectedNeighborhoods.slice(0, 3).map(n => (
                                     <div key={n} className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
                                     <span>{n}</span>
                                     <button type="button" onClick={(e) => { e.stopPropagation(); handleNeighborhoodRemove(n)}} className="text-blue-400 hover:text-blue-700">
@@ -655,7 +655,7 @@ export default function BrokerHomePage() {
                         </div>
                       </div>
                       <div className="space-y-1.5">
-                          <label className="text-xs font-bold text-gray-500 uppercase tracking-wide ml-1">Quartos</label>
+                          <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Quartos</label>
                           <div className="flex items-center h-12 w-full bg-gray-50 border border-gray-200 rounded-xl p-1 gap-1">
                              {["1", "2", "3", "4+"].map(room => (
                                 <button key={room} type="button" onClick={() => handleRoomToggle(room)} className={cn("flex-1 h-full rounded-lg text-sm font-bold transition-colors", rooms.includes(room) ? 'bg-black text-primary shadow-sm' : 'text-gray-500 hover:bg-gray-200')}>
@@ -777,7 +777,7 @@ export default function BrokerHomePage() {
                             </div>
                         </div>
                         <div className="p-4">
-                            <h3 className="font-bold text-lg text-dark-text group-hover:text-primary transition-colors">{property.informacoesbasicas.nome}</h3>
+                            <h3 className="font-semibold text-lg uppercase text-dark-text group-hover:text-primary transition-colors">{property.informacoesbasicas.nome}</h3>
                             <p className="text-sm text-gray-500 mt-1">{property.localizacao.bairro}, {property.localizacao.cidade}</p>
                             <div className="mt-3 pt-3 border-t border-gray-100 flex items-center gap-4 text-sm text-gray-600">
                                 <span className="flex items-center gap-1.5"><span className="material-symbols-outlined text-base">bed</span> {formatQuartos(quartos)}</span>
@@ -819,9 +819,9 @@ export default function BrokerHomePage() {
                     <span className="text-gray-200">{finalContent.featuresItem3}</span>
                   </li>
                 </ul>
-                <button className="bg-primary text-black font-bold py-3 px-8 rounded-lg border border-primary hover:bg-transparent hover:text-white transition-colors">
-                    {finalContent.featuresButtonText}
-                </button>
+                <Button asChild className="bg-primary text-black font-bold py-3 px-8 rounded-lg border border-primary hover:bg-transparent hover:text-white transition-colors">
+                    <Link href="/radar/nova">{finalContent.featuresButtonText}</Link>
+                </Button>
               </div>
               <div className="relative">
                 <div className="grid grid-cols-2 gap-4">
@@ -957,3 +957,4 @@ export default function BrokerHomePage() {
     </div>
   );
 }
+

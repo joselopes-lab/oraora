@@ -1,4 +1,5 @@
 
+
 import { collection, query, where, getDocs, doc, getDoc, limit } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase/index.server';
 import { notFound } from 'next/navigation';
@@ -24,6 +25,7 @@ type Broker = {
 type Property = {
   id: string;
   builderId: string;
+  isVisibleOnSite?: boolean;
   informacoesbasicas: {
     nome: string;
     status: string;
@@ -93,16 +95,20 @@ async function getPropertyData(propertySlug: string): Promise<Property | null> {
     
     // Fallback to checking by ID if slug search fails (for old URLs)
     if (!propData) {
-        let propertyRef = doc(firestore, 'properties', propertySlug);
-        let docSnap = await getDoc(propertyRef);
-        if (docSnap.exists()) {
-            propData = { id: docSnap.id, ...docSnap.data() } as Property;
-        } else {
-            propertyRef = doc(firestore, 'brokerProperties', propertySlug);
-            docSnap = await getDoc(propertyRef);
+        try {
+            let propertyRef = doc(firestore, 'properties', propertySlug);
+            let docSnap = await getDoc(propertyRef);
             if (docSnap.exists()) {
                 propData = { id: docSnap.id, ...docSnap.data() } as Property;
+            } else {
+                propertyRef = doc(firestore, 'brokerProperties', propertySlug);
+                docSnap = await getDoc(propertyRef);
+                if (docSnap.exists()) {
+                    propData = { id: docSnap.id, ...docSnap.data() } as Property;
+                }
             }
+        } catch(e) {
+            console.error("Error fetching document by ID, could be invalid slug format for ID", e);
         }
     }
 
@@ -117,7 +123,7 @@ async function getSimilarProperties(property: Property): Promise<Property[]> {
     propertiesRef, 
     where('isVisibleOnSite', '==', true),
     where('localizacao.cidade', '==', property.localizacao.cidade),
-    limit(4)
+    limit(5)
   );
   
   const querySnapshot = await getDocs(q);
@@ -126,7 +132,7 @@ async function getSimilarProperties(property: Property): Promise<Property[]> {
     .map(doc => ({ id: doc.id, ...doc.data() } as Property))
     .filter(p => p.id !== property.id);
 
-  return similar.slice(0, 3);
+  return similar.slice(0, 4);
 }
 
 
@@ -135,7 +141,7 @@ export default async function BrokerPropertyDetailsPage({ params: { slug, id: pr
   const broker = await getBrokerData(slug);
   const property = await getPropertyData(propertyIdentifier);
 
-  if (!broker || !property) {
+  if (!broker || !property || property.isVisibleOnSite === false) {
     notFound();
   }
 

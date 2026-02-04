@@ -1,13 +1,16 @@
+
 'use client';
-import { UrbanPadraoHeader } from '@/layouts/urban-padrao/components/UrbanPadraoHeader';
-import { UrbanPadraoFooter } from '@/layouts/urban-padrao/components/UrbanPadraoFooter';
+import { UrbanPadraoHeader } from '@/app/layouts/urban-padrao/components/UrbanPadraoHeader';
+import { UrbanPadraoFooter } from '@/app/layouts/urban-padrao/components/UrbanPadraoFooter';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { createLead } from '@/app/sites/actions';
+import { createLead } from '../../../sites/actions';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
-import { WhatsAppWidget } from '@/layouts/urban-padrao/components/WhatsAppWidget';
+import { WhatsAppWidget } from '@/app/layouts/urban-padrao/components/WhatsAppWidget';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger, DialogClose } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 
 type Broker = {
   id: string;
@@ -120,7 +123,7 @@ export default function FaleConoscoClientPage({ broker }: FaleConoscoPageProps) 
                     <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">WhatsApp</p>
                     <p className="text-lg font-black text-text-main">(11) 99999-9999</p>
                   </div>
-                  <button className="w-full sm:w-auto text-sm font-bold text-white bg-[#25D366] px-5 py-2.5 rounded-lg hover:bg-green-600 transition-colors shadow-sm">
+                  <button className="w-full sm:w-auto text-sm font-bold text-white bg-[#25D366] px-5 py-2.5 rounded-lg hover:bg-white hover:text-black border border-transparent hover:border-gray-200 transition-colors shadow-sm">
                     Iniciar
                   </button>
                 </div>
@@ -215,10 +218,97 @@ export default function FaleConoscoClientPage({ broker }: FaleConoscoPageProps) 
                   <input {...form.register('terms')} className="h-5 w-5 rounded border-gray-300 text-primary focus:ring-primary mt-0.5" id="terms" type="checkbox" />
                   <div>
                     <label className="text-xs text-text-muted leading-relaxed" htmlFor="terms">
-                        Concordo com a <a className="underline hover:text-primary font-medium" href="#">Política de Privacidade</a> e autorizo o contato via WhatsApp ou e-mail.
-                    </label>
-                    {form.formState.errors.terms && <p className="text-xs text-red-500 mt-1">{form.formState.errors.terms.message}</p>}
-                  </div>
+                        Concordo com a <a className="underline hover:text-primary font-medium" href="#">Política de Privacidade</a> e os{' '}
+                             <Dialog>
+                                <DialogTrigger asChild>
+                                <button type="button" className="underline hover:text-primary font-medium">Termos de Uso</button>
+                                </DialogTrigger>
+                                <DialogContent className="sm:max-w-[800px]">
+                                    <DialogHeader>
+                                        <DialogTitle>Termos de Uso</DialogTitle>
+                                        <DialogDescription>
+                                            Última atualização: 26 de Julho de 2024
+                                        </DialogDescription>
+                                    </DialogHeader>
+                                    <div className="prose max-h-[60vh] overflow-y-auto pr-4 text-sm text-muted-foreground">
+                                        <h2>1. IDENTIFICAÇÃO</h2>
+                                        <p>Este site e a plataforma OraOra são operados por ORAORA SOLUÇÕES DIGITAIS INOVA SIMPLES (I.S.), pessoa jurídica inscrita no CNPJ nº 64.052.552/0001-26, com sede na Rua Rui Barbosa, nº 1486, Centro, Foz do Iguaçu/PR, e e-mail de contato contato@oraora.com.br, doravante denominada “OraOra”.</p>
+                                        <h2>2. ACEITAÇÃO DOS TERMOS</h2>
+                                        <p>Ao acessar, navegar, cadastrar-se ou utilizar qualquer funcionalidade do site OraOra, o usuário declara ter lido, compreendido e aceitado integralmente estes Termos de Uso e a Política de Privacidade.</p>
+                                        <p>Caso não concorde, o usuário deve se abster de utilizar a plataforma.</p>
+                                        <h2>3. O QUE É O ORAORA</h2>
+                                        <p>O OraOra é um ecossistema digital imobiliário, que atua como:</p>
+                                        <ul>
+                                            <li>Plataforma tecnológica (SaaS);</li>
+                                            <li>Canal de distribuição de informações imobiliárias;</li>
+                                            <li>Hub de visibilidade, curadoria e conexão entre corretores, construtoras e o público final.</li>
+                                        </ul>
+                                        <p>O OraOra não é imobiliária, não intermedeia negócios imobiliários, não participa de negociações, não recebe comissões e não firma contratos de compra, venda, locação ou promessa de imóveis.</p>
+                                        <p>Toda e qualquer relação comercial ocorre diretamente entre usuários (corretores, construtoras e público final).</p>
+                                        <h2>4. USUÁRIOS DA PLATAFORMA</h2>
+                                        <p>A plataforma pode ser utilizada por:</p>
+                                        <h3>4.1 Público Final</h3>
+                                        <p>Pode navegar livremente sem cadastro.</p>
+                                        <p>Algumas funcionalidades exigem criação de conta.</p>
+                                        <h3>4.2 Corretores de Imóveis</h3>
+                                        <p>Devem criar conta própria e comprovar registro ativo no CRECI.</p>
+                                        <p>São responsáveis pelas informações, conteúdos e imóveis divulgados.</p>
+                                        <h3>4.3 Construtoras</h3>
+                                        <p>Possuem conta própria e são responsáveis pelas informações de seus empreendimentos.</p>
+                                        <h2>5. RESPONSABILIDADE SOBRE IMÓVEIS E CONTEÚDOS</h2>
+                                        <p>As informações dos imóveis são de responsabilidade exclusiva dos corretores e/ou construtoras.</p>
+                                        <p>O OraOra atua apenas como plataforma de exibição, organização, curadoria e distribuição de conteúdo.</p>
+                                        <p>O OraOra não garante veracidade, disponibilidade, valores, condições ou atualização dos imóveis anunciados.</p>
+                                        <h2>6. MODERAÇÃO, SUSPENSÃO E EXCLUSÃO</h2>
+                                        <p>O OraOra se reserva o direito de, a qualquer momento, sem aviso prévio:</p>
+                                        <ul>
+                                            <li>Remover anúncios;</li>
+                                            <li>Excluir conteúdos;</li>
+                                            <li>Suspender ou encerrar contas;</li>
+                                        </ul>
+                                        <p>Sempre que houver:</p>
+                                        <ul>
+                                            <li>Violação destes Termos;</li>
+                                            <li>Uso indevido da plataforma;</li>
+                                            <li>Informações falsas ou ilegais;</li>
+                                            <li>Descumprimento de normas legais ou éticas.</li>
+                                        </ul>
+                                        <h2>7. LEADS E CONTATOS</h2>
+                                        <p>Os contatos enviados pelo público final são direcionados diretamente ao corretor ou construtora responsável.</p>
+                                        <p>O OraOra mantém cópia dos dados para fins operacionais, legais e de melhoria da plataforma.</p>
+                                        <p>O corretor/construtora atua como <strong>Controlador</strong> dos dados dos leads.</p>
+                                        <p>O OraOra atua como <strong>Operador</strong> desses dados, nos termos da LGPD.</p>
+                                        <h2>8. PLANOS, PAGAMENTOS E CANCELAMENTO</h2>
+                                        <p>O OraOra opera em modelo SaaS com planos mensais e renovação automática.</p>
+                                        <p>O cancelamento pode ser solicitado a qualquer momento, produzindo efeitos ao final do ciclo vigente.</p>
+                                        <p>Não há reembolso de valores já pagos.</p>
+                                        <p>O OraOra pode alterar preços, planos e funcionalidades mediante aviso prévio.</p>
+                                        <p>Novos planos, produtos ou serviços pagos podem ser criados a qualquer tempo.</p>
+                                        <h2>9. PROPRIEDADE INTELECTUAL</h2>
+                                        <p>Todo o conteúdo da plataforma (marca, layout, sistema, textos, códigos, funcionalidades) pertence ao OraOra ou a seus licenciantes, sendo vedada qualquer reprodução sem autorização.</p>
+                                        <h2>10. LIMITAÇÃO DE RESPONSABILIDADE</h2>
+                                        <p>O OraOra não se responsabiliza por:</p>
+                                        <ul>
+                                            <li>Negociações imobiliárias;</li>
+                                            <li>Atos praticados por usuários;</li>
+                                            <li>Perdas financeiras decorrentes de contratos entre terceiros;</li>
+                                            <li>Indisponibilidade temporária da plataforma.</li>
+                                        </ul>
+                                        <h2>11. ALTERAÇÕES DOS TERMOS</h2>
+                                        <p>Estes Termos podem ser alterados a qualquer momento. O uso contínuo da plataforma implica aceitação das novas versões.</p>
+                                        <h2>12. FORO</h2>
+                                        <p>Fica eleito o foro da Comarca de João Pessoa/PB, com renúncia a qualquer outro, por mais privilegiado que seja.</p>
+                                    </div>
+                                    <DialogFooter>
+                                        <DialogClose asChild>
+                                            <Button type="button">Fechar</Button>
+                                        </DialogClose>
+                                    </DialogFooter>
+                                </DialogContent>
+                              </Dialog>
+                        </label>
+                        {form.formState.errors.terms && <p className="text-xs text-red-500 mt-1">{form.formState.errors.terms.message}</p>}
+                    </div>
                 </div>
                 <button disabled={isSubmitting} className="mt-2 w-full h-14 rounded-xl bg-black text-primary font-bold text-base hover:bg-gray-900 shadow-xl shadow-black/10 transition-all transform active:scale-95 flex items-center justify-center gap-3 group" type="submit">
                   {isSubmitting ? 'Enviando...' : 'Enviar Mensagem Agora'}

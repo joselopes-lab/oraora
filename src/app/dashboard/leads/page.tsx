@@ -36,6 +36,16 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 
+const ClientSideDate = ({ dateString, options }: { dateString: string, options?: Intl.DateTimeFormatOptions }) => {
+  const [formattedDate, setFormattedDate] = useState<string | null>(null);
+
+  useEffect(() => {
+    setFormattedDate(new Date(dateString).toLocaleDateString('pt-BR', options));
+  }, [dateString, options]);
+
+  return <>{formattedDate || '...'}</>;
+};
+
 
 type LeadStatus = string;
 
@@ -126,7 +136,7 @@ const LeadCard = ({ lead, columns, onMove, onDragStart, onDeleteClick }: { lead:
                     )}
                 </div>
             </div>
-             <div className="absolute bottom-2 right-2 text-[10px] text-gray-400">{new Date(lead.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}</div>
+             <div className="absolute bottom-2 right-2 text-[10px] text-gray-400"><ClientSideDate dateString={lead.createdAt} options={{ day: '2-digit', month: 'short' }} /></div>
         </div>
     );
 };
@@ -234,10 +244,6 @@ export default function LeadsPage() {
     const handleDragStart = (e: React.DragEvent<HTMLDivElement>, leadId: string) => {
         setDraggedLeadId(leadId);
         e.dataTransfer.setData('leadId', leadId);
-    };
-
-    const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-        e.preventDefault();
     };
     
     const handleDeleteLead = () => {
@@ -503,7 +509,7 @@ export default function LeadsPage() {
                                         </span>
                                     </TableCell>
                                     <TableCell>
-                                        {new Date(lead.createdAt).toLocaleDateString('pt-BR')}
+                                        <ClientSideDate dateString={lead.createdAt} />
                                     </TableCell>
                                     <TableCell className="text-right">
                                         <div className="flex items-center justify-end gap-0.5">

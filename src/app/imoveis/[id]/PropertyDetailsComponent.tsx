@@ -13,7 +13,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { createLead } from '@/app/sites/actions';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -133,7 +133,8 @@ export default function PropertyDetailsComponent() {
       const q = query(
         propertiesRef,
         where('isVisibleOnSite', '==', true),
-        limit(10)
+        where('localizacao.cidade', '==', currentProperty.localizacao.cidade),
+        limit(5)
       );
   
       const querySnapshot = await getDocs(q);
@@ -211,9 +212,17 @@ export default function PropertyDetailsComponent() {
       name: '',
       email: '',
       phone: '',
-      message: `Olá, gostaria de mais informações sobre ${informacoesbasicas?.nome}...`,
+      message: '',
     },
   });
+
+  useEffect(() => {
+    if (property) {
+        form.reset({
+            message: `Olá, gostaria de mais informações sobre ${property.informacoesbasicas.nome}...`
+        })
+    }
+  }, [property, form]);
   
   const whatsappForm = useForm<WhatsappLeadFormData>({
     resolver: zodResolver(whatsappLeadSchema),
@@ -233,7 +242,7 @@ export default function PropertyDetailsComponent() {
       email: data.email,
       phone: data.phone,
       propertyInterest: informacoesbasicas?.nome,
-      message: data.message,
+      source: 'Formulário de Contato do Imóvel'
     });
 
     if (result.success) {
@@ -390,7 +399,7 @@ export default function PropertyDetailsComponent() {
             <div onClick={() => openGallery(4)} className="hidden md:block relative rounded-2xl overflow-hidden group cursor-pointer shadow-soft">
               <div className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110" style={{ backgroundImage: `url("${midia?.[4] || ''}")` }}></div>
               <div className="absolute inset-0 bg-black/40 flex items-center justify-center group-hover:bg-black/50 transition-colors">
-                <span className="text-white font-bold text-lg border border-white/50 px-4 py-2 rounded-lg backdrop-blur-sm hover:bg-white/20 transition-colors">+{midia.length - 5} Fotos</span>
+                <span className="text-white font-bold text-lg border border-white/50 px-4 py-2 rounded-lg backdrop-blur-sm hover:bg-white/20 transition-colors">+{midia.length > 5 ? midia.length - 5 : 0} Fotos</span>
               </div>
             </div>
           </div>
@@ -401,7 +410,7 @@ export default function PropertyDetailsComponent() {
               <div className="border-b border-gray-100 pb-8">
                 <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-4">
                   <div>
-                    <h1 className="font-display text-3xl md:text-4xl font-bold text-dark-text mb-2">{informacoesbasicas?.nome}</h1>
+                    <h1 className="font-display text-3xl md:text-4xl font-semibold text-dark-text mb-2 uppercase">{informacoesbasicas?.nome}</h1>
                     <p className="text-gray-500 flex items-center gap-1 text-sm md:text-base">
                       <span className="material-symbols-outlined text-[18px]">location_on</span>
                       {localizacao?.bairro}, {localizacao?.cidade} - {localizacao?.estado}
@@ -521,151 +530,216 @@ export default function PropertyDetailsComponent() {
             <div className="lg:col-span-1">
               <div className="sticky top-24 space-y-6">
                 <div className="bg-white rounded-2xl shadow-float p-6 border border-gray-100">
-                  <div className="flex items-center gap-4 mb-6">
-                    <div className="size-16 rounded-full bg-gray-200 overflow-hidden border-2 border-primary">
-                      <Image alt="Corretor" className="w-full h-full object-cover" width={64} height={64} src="https://lh3.googleusercontent.com/aida-public/AB6AXuBnnSrwSkNX4VEMzf8v2AibJQp1RcHvNb3_q0wuoHZwhVlAJKqmwIhebGEXD_ehHxVeLXegQhl11I3AK8d7sHOjyX2Ru2QsxLQ7CNKGhMFL1kuVczfW4JlWO-MgFaOLLDGfDt2hXsZyS7t5vdOo90YwN1Cwqcoemknmi74RiulnUXgpEBnQguZIsUxNueG01P_uPnYKeZbzSmXBrfvlrkH_y3PAJxi8hET-_dNaHXrJavIJPjRaZDjfN1aQrROrA0lpueLFt6_FA6I" />
-                    </div>
-                    <div>
-                      <p className="text-xs text-text-muted font-bold uppercase">Corretor Responsável</p>
-                      <h3 className="text-lg font-bold text-text-main">Carlos Silva</h3>
-                      <div className="flex items-center gap-1 text-primary text-sm font-semibold">
-                        <span className="material-symbols-outlined text-[16px]">star</span>
-                        4.9 (128 avaliações)
-                      </div>
-                    </div>
-                  </div>
+                  <h3 className="text-xl font-bold text-text-main mb-4">Quero mais informações</h3>
                   <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-4">
-                    <div>
+                      <div>
                       <label className="sr-only" htmlFor="name-contact">Nome</label>
-                      <input {...form.register('name')} className="w-full h-12 rounded-lg border-gray-200 text-sm focus:border-primary focus:ring-primary placeholder-gray-400 bg-gray-50" id="name-contact" placeholder="Seu nome completo" type="text" />
+                      <input {...form.register('name')} className="w-full h-12 px-4 rounded-lg border-gray-200 text-sm focus:border-primary focus:ring-primary placeholder-gray-400 bg-gray-50" id="name-contact" placeholder="Seu nome completo" type="text" />
                       {form.formState.errors.name && <p className="text-xs text-red-500 mt-1">{form.formState.errors.name.message}</p>}
-                    </div>
-                    <div>
+                      </div>
+                      <div>
                       <label className="sr-only" htmlFor="email-contact">E-mail</label>
-                      <input {...form.register('email')} className="w-full h-12 rounded-lg border-gray-200 text-sm focus:border-primary focus:ring-primary placeholder-gray-400 bg-gray-50" id="email-contact" placeholder="Seu melhor e-mail" type="email" />
+                      <input {...form.register('email')} className="w-full h-12 px-4 rounded-lg border-gray-200 text-sm focus:border-primary focus:ring-primary placeholder-gray-400 bg-gray-50" id="email-contact" placeholder="Seu melhor e-mail" type="email" />
                       {form.formState.errors.email && <p className="text-xs text-red-500 mt-1">{form.formState.errors.email.message}</p>}
-                    </div>
-                    <div>
+                      </div>
+                      <div>
                       <label className="sr-only" htmlFor="phone-contact">Telefone</label>
-                      <input {...form.register('phone')} className="w-full h-12 rounded-lg border-gray-200 text-sm focus:border-primary focus:ring-primary placeholder-gray-400 bg-gray-50" id="phone-contact" placeholder="(DDD) Telefone / WhatsApp" type="tel" />
+                      <input {...form.register('phone')} className="w-full h-12 px-4 rounded-lg border-gray-200 text-sm focus:border-primary focus:ring-primary placeholder-gray-400 bg-gray-50" id="phone-contact" placeholder="(DDD) Telefone / WhatsApp" type="tel" />
                        {form.formState.errors.phone && <p className="text-xs text-red-500 mt-1">{form.formState.errors.phone.message}</p>}
-                    </div>
-                    <div>
+                      </div>
+                      <div>
                       <label className="sr-only" htmlFor="message-contact">Mensagem</label>
                       <textarea {...form.register('message')} className="w-full rounded-lg border-gray-200 text-sm focus:border-primary focus:ring-primary placeholder-gray-400 bg-gray-50 resize-none h-32 p-3" id="message-contact"></textarea>
-                    </div>
-                    <div className="flex flex-col gap-3">
-                        <button disabled={isSubmitting} className="w-full h-12 rounded-lg bg-black text-primary font-bold hover:bg-gray-900 transition-all shadow-lg flex items-center justify-center gap-2 group" type="submit">
-                           <span className="material-symbols-outlined">send</span>
-                           {isSubmitting ? 'Enviando...' : 'Quero saber mais'}
-                        </button>
-                    </div>
+                      </div>
+                       <Dialog open={isWhatsappModalOpen} onOpenChange={setIsWhatsappModalOpen}>
+                        <div className="flex flex-col gap-3">
+                            <button disabled={isSubmitting} className="w-full h-12 rounded-lg bg-black text-primary font-bold hover:bg-gray-900 transition-all shadow-lg flex items-center justify-center gap-2 group" type="submit">
+                               <span className="material-symbols-outlined">send</span>
+                               {isSubmitting ? 'Enviando...' : 'Quero saber mais'}
+                            </button>
+                            <DialogTrigger asChild>
+                                <Button className="w-full h-12 rounded-lg bg-[#25D366] text-white font-bold hover:bg-white hover:text-black border border-transparent hover:border-gray-200 transition-colors flex items-center justify-center gap-2">
+                                    <span className="material-symbols-outlined">chat</span>
+                                    Falar no WhatsApp
+                                </Button>
+                            </DialogTrigger>
+                        </div>
+                        <DialogContent className="sm:max-w-[425px]">
+                            <DialogHeader>
+                              <DialogTitle>Contato via WhatsApp</DialogTitle>
+                              <DialogDescription>
+                                Preencha seus dados para iniciar a conversa. Um de nossos corretores retornará o contato em breve.
+                              </DialogDescription>
+                            </DialogHeader>
+                            <form onSubmit={whatsappForm.handleSubmit(onWhatsappSubmit)} className="grid gap-4 py-4">
+                              <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="whatsappName" className="text-right">
+                                  Nome
+                                </Label>
+                                <Input {...whatsappForm.register('whatsappName')} id="whatsappName" className="col-span-3" />
+                                {whatsappForm.formState.errors.whatsappName && <p className="col-span-4 text-right text-xs text-red-500">{whatsappForm.formState.errors.whatsappName.message}</p>}
+                              </div>
+                              <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="whatsappPhone" className="text-right">
+                                  Telefone
+                                </Label>
+                                <Input {...whatsappForm.register('whatsappPhone')} id="whatsappPhone" className="col-span-3" />
+                                {whatsappForm.formState.errors.whatsappPhone && <p className="col-span-4 text-right text-xs text-red-500">{whatsappForm.formState.errors.whatsappPhone.message}</p>}
+                              </div>
+                               <DialogFooter>
+                                <Button type="submit" variant="secondary" className="bg-[#25D366] hover:bg-green-600 text-white">
+                                    <span className="material-symbols-outlined mr-2">send</span>
+                                    Iniciar Conversa
+                                </Button>
+                            </DialogFooter>
+                            </form>
+                          </DialogContent>
+                      </Dialog>
                   </form>
-                  <Dialog open={isWhatsappModalOpen} onOpenChange={setIsWhatsappModalOpen}>
-                    <DialogTrigger asChild>
-                        <Button variant="outline" className="w-full h-12 rounded-lg border-[#25D366] text-[#25D366] font-bold hover:bg-[#25D366]/10 transition-colors flex items-center justify-center gap-2 mt-3">
-                            <span className="material-symbols-outlined">chat</span>
-                            Falar no WhatsApp
-                        </Button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-[425px]">
-                        <DialogHeader>
-                          <DialogTitle>Contato via WhatsApp</DialogTitle>
-                          <DialogDescription>
-                            Preencha seus dados para iniciar a conversa. Um de nossos corretores retornará o contato em breve.
-                          </DialogDescription>
-                        </DialogHeader>
-                        <form onSubmit={whatsappForm.handleSubmit(onWhatsappSubmit)} className="grid gap-4 py-4">
-                          <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="whatsappName" className="text-right">
-                              Nome
-                            </Label>
-                            <Input {...whatsappForm.register('whatsappName')} id="whatsappName" className="col-span-3" />
-                            {whatsappForm.formState.errors.whatsappName && <p className="col-span-4 text-right text-xs text-red-500">{whatsappForm.formState.errors.whatsappName.message}</p>}
-                          </div>
-                          <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="whatsappPhone" className="text-right">
-                              Telefone
-                            </Label>
-                            <Input {...whatsappForm.register('whatsappPhone')} id="whatsappPhone" className="col-span-3" />
-                            {whatsappForm.formState.errors.whatsappPhone && <p className="col-span-4 text-right text-xs text-red-500">{whatsappForm.formState.errors.whatsappPhone.message}</p>}
-                          </div>
-                           <DialogFooter>
-                            <Button type="submit" variant="secondary" className="bg-[#25D366] hover:bg-green-600 text-white">
-                                <span className="material-symbols-outlined mr-2">send</span>
-                                Iniciar Conversa
-                            </Button>
-                        </DialogFooter>
-                        </form>
-                      </DialogContent>
-                  </Dialog>
-                  <p className="text-xs text-center text-text-muted mt-4">
-                    Ao enviar, você concorda com nossos <a className="underline hover:text-primary" href="#">Termos de Uso</a>.
+                   <p className="text-xs text-center text-text-muted mt-4">
+                    Ao enviar, você concorda com nossos{' '}
+                    <Dialog>
+                        <DialogTrigger asChild>
+                        <button type="button" className="underline hover:text-primary">Termos de Uso</button>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-[800px]">
+                            <DialogHeader>
+                                <DialogTitle>Termos de Uso</DialogTitle>
+                                <DialogDescription>
+                                    Última atualização: 26 de Julho de 2024
+                                </DialogDescription>
+                            </DialogHeader>
+                            <div className="prose max-h-[60vh] overflow-y-auto pr-4 text-sm text-muted-foreground">
+                                <h2>1. IDENTIFICAÇÃO</h2>
+                                <p>Este site e a plataforma OraOra são operados por ORAORA SOLUÇÕES DIGITAIS INOVA SIMPLES (I.S.), pessoa jurídica inscrita no CNPJ nº 64.052.552/0001-26, com sede na Rua Rui Barbosa, nº 1486, Centro, Foz do Iguaçu/PR, e e-mail de contato contato@oraora.com.br, doravante denominada “OraOra”.</p>
+                                <h2>2. ACEITAÇÃO DOS TERMOS</h2>
+                                <p>Ao acessar, navegar, cadastrar-se ou utilizar qualquer funcionalidade do site OraOra, o usuário declara ter lido, compreendido e aceitado integralmente estes Termos de Uso e a Política de Privacidade.</p>
+                                <p>Caso não concorde, o usuário deve se abster de utilizar a plataforma.</p>
+                                <h2>3. O QUE É O ORAORA</h2>
+                                <p>O OraOra é um ecossistema digital imobiliário, que atua como:</p>
+                                <ul>
+                                    <li>Plataforma tecnológica (SaaS);</li>
+                                    <li>Canal de distribuição de informações imobiliárias;</li>
+                                    <li>Hub de visibilidade, curadoria e conexão entre corretores, construtoras e o público final.</li>
+                                </ul>
+                                <p>O OraOra não é imobiliária, não intermedeia negócios imobiliários, não participa de negociações, não recebe comissões e não firma contratos de compra, venda, locação ou promessa de imóveis.</p>
+                                <p>Toda e qualquer relação comercial ocorre diretamente entre usuários (corretores, construtoras e público final).</p>
+                                <h2>4. USUÁRIOS DA PLATAFORMA</h2>
+                                <p>A plataforma pode ser utilizada por:</p>
+                                <h3>4.1 Público Final</h3>
+                                <p>Pode navegar livremente sem cadastro.</p>
+                                <p>Algumas funcionalidades exigem criação de conta.</p>
+                                <h3>4.2 Corretores de Imóveis</h3>
+                                <p>Devem criar conta própria e comprovar registro ativo no CRECI.</p>
+                                <p>São responsáveis pelas informações, conteúdos e imóveis divulgados.</p>
+                                <h3>4.3 Construtoras</h3>
+                                <p>Possuem conta própria e são responsáveis pelas informações de seus empreendimentos.</p>
+                                <h2>5. RESPONSABILIDADE SOBRE IMÓVEIS E CONTEÚDOS</h2>
+                                <p>As informações dos imóveis são de responsabilidade exclusiva dos corretores e/ou construtoras.</p>
+                                <p>O OraOra atua apenas como plataforma de exibição, organização, curadoria e distribuição de conteúdo.</p>
+                                <p>O OraOra não garante veracidade, disponibilidade, valores, condições ou atualização dos imóveis anunciados.</p>
+                                <h2>6. MODERAÇÃO, SUSPENSÃO E EXCLUSÃO</h2>
+                                <p>O OraOra se reserva o direito de, a qualquer momento, sem aviso prévio:</p>
+                                <ul>
+                                    <li>Remover anúncios;</li>
+                                    <li>Excluir conteúdos;</li>
+                                    <li>Suspender ou encerrar contas;</li>
+                                </ul>
+                                <p>Sempre que houver:</p>
+                                <ul>
+                                    <li>Violação destes Termos;</li>
+                                    <li>Uso indevido da plataforma;</li>
+                                    <li>Informações falsas ou ilegais;</li>
+                                    <li>Descumprimento de normas legais ou éticas.</li>
+                                </ul>
+                                <h2>7. LEADS E CONTATOS</h2>
+                                <p>Os contatos enviados pelo público final são direcionados diretamente ao corretor ou construtora responsável.</p>
+                                <p>O OraOra mantém cópia dos dados para fins operacionais, legais e de melhoria da plataforma.</p>
+                                <p>O corretor/construtora atua como <strong>Controlador</strong> dos dados dos leads.</p>
+                                <p>O OraOra atua como <strong>Operador</strong> desses dados, nos termos da LGPD.</p>
+                                <h2>8. PLANOS, PAGAMENTOS E CANCELAMENTO</h2>
+                                <p>O OraOra opera em modelo SaaS com planos mensais e renovação automática.</p>
+                                <p>O cancelamento pode ser solicitado a qualquer momento, produzindo efeitos ao final do ciclo vigente.</p>
+                                <p>Não há reembolso de valores já pagos.</p>
+                                <p>O OraOra pode alterar preços, planos e funcionalidades mediante aviso prévio.</p>
+                                <p>Novos planos, produtos ou serviços pagos podem ser criados a qualquer tempo.</p>
+                                <h2>9. PROPRIEDADE INTELECTUAL</h2>
+                                <p>Todo o conteúdo da plataforma (marca, layout, sistema, textos, códigos, funcionalidades) pertence ao OraOra ou a seus licenciantes, sendo vedada qualquer reprodução sem autorização.</p>
+                                <h2>10. LIMITAÇÃO DE RESPONSABILIDADE</h2>
+                                <p>O OraOra não se responsabiliza por:</p>
+                                <ul>
+                                    <li>Negociações imobiliárias;</li>
+                                    <li>Atos praticados por usuários;</li>
+                                    <li>Perdas financeiras decorrentes de contratos entre terceiros;</li>
+                                    <li>Indisponibilidade temporária da plataforma.</li>
+                                </ul>
+                                <h2>11. ALTERAÇÕES DOS TERMOS</h2>
+                                <p>Estes Termos podem ser alterados a qualquer momento. O uso contínuo da plataforma implica aceitação das novas versões.</p>
+                                <h2>12. FORO</h2>
+                                <p>Fica eleito o foro da Comarca de João Pessoa/PB, com renúncia a qualquer outro, por mais privilegiado que seja.</p>
+                            </div>
+                            <DialogFooter>
+                                <DialogClose asChild>
+                                    <Button type="button">Fechar</Button>
+                                </DialogClose>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
                   </p>
-                </div>
-                <div className="bg-gray-50 rounded-2xl p-6 border border-gray-200">
-                  <div className="flex items-start gap-3">
-                    <span className="material-symbols-outlined text-primary text-3xl">account_balance</span>
-                    <div>
-                      <h4 className="font-bold text-text-main text-sm">Simulação de Financiamento</h4>
-                      <p className="text-xs text-text-muted mt-1">Entrada sugerida: R$ 1.100.000</p>
-                      <p className="text-xs text-text-muted">Parcelas a partir de: R$ 38.500</p>
-                      <a className="text-xs font-bold text-primary bg-black inline-block mt-3 px-3 py-1.5 rounded-full hover:bg-gray-800 transition-colors" href="#">
-                        Simular Agora
-                      </a>
-                    </div>
-                  </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
-        <section className="w-full max-w-[1280px] px-6 mt-20">
-          <div className="flex items-center justify-between mb-8">
-            <h2 className="text-2xl font-bold text-text-main">Imóveis Semelhantes</h2>
-            <Link className="text-sm font-bold text-white bg-black px-5 py-2.5 rounded-lg hover:bg-gray-800 transition-colors shrink-0" href="/imoveis">
-                Ver Todos os Imóveis
-              </Link>
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-20 mb-[35px]">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-text-main">Imóveis Semelhantes</h2>
+            <p className="text-text-muted mt-2">Explore outras opções que também podem te agradar.</p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {similarProperties.map(property => {
-              const isSaved = savedPropertyIds.includes(property.id);
-              const quartos = property.caracteristicasimovel.quartos;
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {similarProperties.map((similarProperty) => {
+              const isSaved = savedPropertyIds.includes(similarProperty.id);
+              const quartos = similarProperty.caracteristicasimovel.quartos;
               return (
-                 <Link key={property.id} href={`/imoveis/${property.informacoesbasicas.slug || property.id}`} className="group relative flex flex-col rounded-2xl bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg cursor-pointer">
-                    <div className="relative aspect-[4/3] w-full overflow-hidden">
-                        <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
-                            <div className="rounded-full bg-white/90 px-3 py-1 text-xs font-bold text-black backdrop-blur-sm shadow-sm">
-                                {property.informacoesbasicas.status}
-                            </div>
-                            <button onClick={(e) => handleRadarClick(e, property.id)} className={cn("flex size-8 items-center justify-center rounded-full bg-white/90 backdrop-blur-sm text-black hover:bg-white transition-colors group/radar", isSaved ? "text-primary" : "hover:text-primary")}>
-                                <span className="material-symbols-outlined text-[20px]">radar</span>
-                            </button>
-                        </div>
-                        <Image alt={property.informacoesbasicas.nome} className="h-full w-full object-cover transition duration-700 group-hover:scale-110" src={property.midia[0] || "https://picsum.photos/400/300"} width={400} height={300} />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent"></div>
-                        <div className="absolute bottom-3 left-3 text-white">
-                            {property.informacoesbasicas.valor && (
-                                <p className="font-bold text-xl">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(property.informacoesbasicas.valor)}</p>
-                            )}
-                        </div>
+                <Link href={`/imoveis/${similarProperty.informacoesbasicas.slug || similarProperty.id}`} key={similarProperty.id} className="group relative break-inside-avoid overflow-hidden rounded-xl bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg cursor-pointer">
+                  <div className="relative aspect-[4/3] w-full overflow-hidden">
+                    <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
+                      <div className="rounded-full bg-white/90 px-3 py-1 text-xs font-bold text-black backdrop-blur-sm">
+                        {similarProperty.informacoesbasicas.status}
+                      </div>
+                      <button onClick={(e) => handleRadarClick(e, similarProperty.id)} className={cn("flex size-8 items-center justify-center rounded-full bg-white/90 backdrop-blur-sm text-black hover:bg-white transition-colors group/radar", isSaved ? "text-primary" : "hover:text-primary")}>
+                        <span className="material-symbols-outlined text-[20px]">radar</span>
+                      </button>
                     </div>
-                    <div className="p-4">
-                        <h3 className="font-bold text-lg text-dark-text group-hover:text-primary transition-colors">{property.informacoesbasicas.nome}</h3>
-                        <p className="text-sm text-gray-500 mt-1">{property.localizacao.bairro}, {property.localizacao.cidade}</p>
-                        <div className="mt-3 pt-3 border-t border-gray-100 flex items-center gap-4 text-sm text-gray-600">
-                            {quartos && <span className="flex items-center gap-1.5"><span className="material-symbols-outlined text-base">bed</span> {formatQuartos(quartos)}</span>}
-                            {property.caracteristicasimovel.vagas && <span className="flex items-center gap-1.5"><span className="material-symbols-outlined text-base">directions_car</span> {property.caracteristicasimovel.vagas} Vaga(s)</span>}
-                            {property.caracteristicasimovel.tamanho && <span className="flex items-center gap-1.5"><span className="material-symbols-outlined text-base">square_foot</span> {property.caracteristicasimovel.tamanho}</span>}
-                        </div>
+                    {similarProperty.informacoesbasicas.status === 'Lançamento' && (
+                      <div className="absolute left-4 top-4 rounded-full bg-primary px-3 py-1 text-xs font-bold text-black shadow-[0_0_15px_rgba(195,231,56,0.4)]">
+                        Novo
+                      </div>
+                    )}
+                    <Image alt={similarProperty.informacoesbasicas.nome} className="h-full w-full object-cover transition duration-700 group-hover:scale-110" src={similarProperty.midia[0] || "https://picsum.photos/400/300"} width={400} height={300} />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent"></div>
+                    <div className="absolute bottom-3 left-3 text-white">
+                      {similarProperty.informacoesbasicas.valor && (
+                        <p className="font-bold text-xl">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(similarProperty.informacoesbasicas.valor)}</p>
+                      )}
                     </div>
+                  </div>
+                  <div className="p-4">
+                    <h3 className="font-semibold text-lg uppercase text-dark-text group-hover:text-primary transition-colors">{similarProperty.informacoesbasicas.nome}</h3>
+                    <p className="text-sm text-gray-500 mt-1">{similarProperty.localizacao.bairro}, {similarProperty.localizacao.cidade}</p>
+                    <div className="mt-3 pt-3 border-t border-gray-100 flex items-center gap-4 text-sm text-gray-600">
+                      <span className="flex items-center gap-1.5"><span className="material-symbols-outlined text-base">bed</span> {formatQuartos(quartos)}</span>
+                      <span className="flex items-center gap-1.5"><span className="material-symbols-outlined text-base">shower</span> {similarProperty.caracteristicasimovel.vagas}</span>
+                      <span className="flex items-center gap-1.5"><span className="material-symbols-outlined text-base">square_foot</span> {similarProperty.caracteristicasimovel.tamanho}</span>
+                    </div>
+                  </div>
                 </Link>
-            )})}
+              );
+            })}
           </div>
         </section>
       </main>
-
-      {isGalleryOpen && (
+      {isGalleryOpen && midia && (
         <div className="fixed inset-0 z-[100] flex flex-col bg-white/95 backdrop-blur-md animate-in fade-in duration-300">
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100/50 bg-white/80 backdrop-blur-sm">
             <div className="flex items-center gap-4">

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useCollection, useFirestore, useMemoFirebase, deleteDocumentNonBlocking } from "@/firebase";
 import { collection, query, orderBy, doc, Timestamp } from "firebase/firestore";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import {
   AlertDialog,
@@ -43,6 +43,16 @@ type User = {
     id: string;
     username: string;
 }
+
+const ClientSideDate = ({ date, options }: { date: Date, options?: Intl.DateTimeFormatOptions }) => {
+  const [formattedDate, setFormattedDate] = useState<string | null>(null);
+
+  useEffect(() => {
+    setFormattedDate(date.toLocaleDateString('pt-BR', options));
+  }, [date, options]);
+
+  return <>{formattedDate || '...'}</>;
+};
 
 const LeadsTable = ({ leads, isLoading, error, brokerNameMap, onLeadDelete }: {
     leads: Lead[] | null;
@@ -105,7 +115,9 @@ const LeadsTable = ({ leads, isLoading, error, brokerNameMap, onLeadDelete }: {
                         </div>
                     </TableCell>
                     <TableCell className="px-6 py-4 text-center">
-                        <span className="text-text-secondary font-medium text-xs">{lead.createdAt.toDate().toLocaleDateString('pt-BR')}</span>
+                        <span className="text-text-secondary font-medium text-xs">
+                           <ClientSideDate date={lead.createdAt.toDate()} />
+                        </span>
                     </TableCell>
                     <TableCell className="px-6 py-4 text-center">
                         <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${lead.status === 'new' ? 'bg-green-100 text-green-800 border-green-200' : 'bg-gray-100 text-gray-800 border-gray-200'} border`}>

@@ -30,6 +30,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { v4 as uuidv4 } from 'uuid';
 import { AlertDialog } from "@radix-ui/react-alert-dialog";
 import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type UserProfile = {
     userType: 'admin' | 'broker' | 'constructor';
@@ -67,6 +68,11 @@ export default function FinancialPage() {
   const { firestore, user } = useFirebase();
   const { toast } = useToast();
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const transactionsQuery = useMemoFirebase(
     () => (user && firestore ? query(collection(firestore, 'transactions'), where('brokerId', '==', user.uid)) : null),
@@ -211,7 +217,7 @@ export default function FinancialPage() {
   );
   const { data: brokerProfile, isLoading: isBrokerLoading } = useDoc<BrokerProfile>(brokerDocRef);
 
-  const isPageLoading = isLoading || isAuthLoading || isUserLoading || isBrokerLoading;
+  const isPageLoading = isLoading || isAuthLoading || isUserLoading || isBrokerLoading || !isClient;
   const isBroker = userProfile?.userType === 'broker';
   
   const [displayDate, setDisplayDate] = useState('');
@@ -336,6 +342,42 @@ export default function FinancialPage() {
       .reduce((acc, curr) => acc + curr.value, 0), [currentMonthTransactions]);
   const goalProgress = monthlyGoal > 0 ? (totalReceived / monthlyGoal) * 100 : 0;
 
+  if (isPageLoading) {
+    return (
+        <div className="w-full max-w-7xl mx-auto">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
+                <div>
+                    <Skeleton className="h-9 w-48 mb-2" />
+                    <Skeleton className="h-5 w-72" />
+                </div>
+                <div className="flex gap-3">
+                    <Skeleton className="h-11 w-28" />
+                    <Skeleton className="h-11 w-40" />
+                </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <Skeleton className="h-36 rounded-xl" />
+                <Skeleton className="h-36 rounded-xl" />
+                <Skeleton className="h-36 rounded-xl" />
+                <Skeleton className="h-36 rounded-xl" />
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 h-full">
+                <div className="lg:col-span-8 xl:col-span-9 flex flex-col gap-8">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <Skeleton className="h-40 rounded-xl" />
+                        <Skeleton className="h-40 rounded-xl" />
+                        <Skeleton className="h-40 rounded-xl" />
+                    </div>
+                    <Skeleton className="h-96 rounded-xl" />
+                </div>
+                <div className="lg:col-span-4 xl:col-span-3 space-y-6">
+                     <Skeleton className="h-48 rounded-xl" />
+                     <Skeleton className="h-64 rounded-xl" />
+                </div>
+            </div>
+        </div>
+    )
+  }
 
   return (
     <AlertDialog>
@@ -400,7 +442,7 @@ export default function FinancialPage() {
                     <span className="text-sm font-medium text-text-secondary">Receitas (Mês)</span>
                 </div>
                 <p className="text-2xl font-bold text-text-main">
-                    {isLoading ? 'R$ 0,00' : totalRevenue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                    {totalRevenue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                 </p>
                  <p className={`text-xs mt-1 flex items-center gap-1 font-medium ${revenuePercentageChange >= 0 ? 'text-status-success-text' : 'text-status-error-text'}`}>
                     {revenuePercentageChange >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
@@ -418,7 +460,7 @@ export default function FinancialPage() {
                     <span className="text-sm font-medium text-text-secondary">Despesas (Mês)</span>
                 </div>
                 <p className="text-2xl font-bold text-text-main">
-                    {isLoading ? 'R$ 0,00' : totalExpenses.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                    {totalExpenses.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                 </p>
                  <p className={`text-xs mt-1 flex items-center gap-1 font-medium ${expensePercentageChange <= 0 ? 'text-status-success-text' : 'text-status-error-text'}`}>
                     {expensePercentageChange <= 0 ? <TrendingDown className="h-3 w-3" /> : <TrendingUp className="h-3 w-3" />}
@@ -434,7 +476,7 @@ export default function FinancialPage() {
                 <span className="text-sm font-medium text-text-secondary">Saldo Atual</span>
               </div>
               <p className="text-2xl font-bold text-text-main">
-                {isLoading ? 'R$ 0,00' : netBalance.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                {netBalance.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
               </p>
               <p className="text-xs text-text-secondary mt-1 flex items-center gap-1">
                 Disponível para saque

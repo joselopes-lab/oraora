@@ -5,6 +5,18 @@ import { Button } from "@/components/ui/button";
 import { useCollection, useFirestore, useMemoFirebase, useAuthContext } from "@/firebase";
 import { collection, query, where } from "firebase/firestore";
 import Link from "next/link";
+import { useState, useEffect, useMemo } from "react";
+
+const ClientSideDate = ({ dateString }: { dateString: string }) => {
+    const [formattedDate, setFormattedDate] = useState<string | null>(null);
+
+    useEffect(() => {
+        setFormattedDate(new Date(dateString).toLocaleDateString('pt-BR'));
+    }, [dateString]);
+
+    return <>{formattedDate || '...'}</>;
+}
+
 
 type Lead = {
   id: string;
@@ -153,7 +165,7 @@ export default function ClientListPage() {
                   </div>
                 </td>
                 <td className="px-6 py-4 text-center">
-                  <span className="text-text-secondary font-medium text-xs">{new Date(client.createdAt).toLocaleDateString('pt-BR')}</span>
+                  <span className="text-text-secondary font-medium text-xs"><ClientSideDate dateString={client.createdAt} /></span>
                 </td>
                 <td className="px-6 py-4 text-center">
                   <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${client.status === 'new' ? 'bg-green-100 text-green-800 border-green-200' : 'bg-gray-100 text-gray-800 border-gray-200'} border`}>

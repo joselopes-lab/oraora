@@ -4,11 +4,11 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { UrbanPadraoHeader } from '../components/UrbanPadraoHeader';
 import { UrbanPadraoFooter } from '../components/UrbanPadraoFooter';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { createLead } from '@/app/sites/actions';
+import { createLead } from '../../../sites/actions';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -54,6 +54,7 @@ type Property = {
     vagas?: string;
   };
   areascomuns?: string[];
+  youtubeVideoUrl?: string;
 };
 
 type PropertyDetailsPageProps = {
@@ -87,7 +88,7 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
   if (!property) {
     notFound();
   }
-  const { informacoesbasicas, midia, caracteristicasimovel, localizacao, areascomuns } = property;
+  const { informacoesbasicas, midia, caracteristicasimovel, localizacao, areascomuns, youtubeVideoUrl } = property;
   const [isGalleryOpen, setIsGalleryOpen] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [isWhatsappModalOpen, setIsWhatsappModalOpen] = useState(false);
@@ -136,9 +137,17 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
       name: '',
       email: '',
       phone: '',
-      message: `Olá, gostaria de mais informações sobre ${informacoesbasicas.nome}...`,
+      message: '',
     },
   });
+
+  useEffect(() => {
+    if (informacoesbasicas?.nome) {
+      form.reset({
+        message: `Olá, gostaria de mais informações sobre ${informacoesbasicas.nome}...`
+      })
+    }
+  }, [informacoesbasicas?.nome, form]);
   
   const whatsappForm = useForm<WhatsappLeadFormData>({
     resolver: zodResolver(whatsappLeadSchema),
@@ -222,11 +231,11 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
 
   const formatQuartos = (quartosData: any): string => {
     if (!quartosData) return 'N/A';
-
+  
     const dataAsString = Array.isArray(quartosData)
         ? quartosData.join(' ')
         : String(quartosData);
-
+  
     const numbers = dataAsString.match(/\d+/g);
     
     if (!numbers || numbers.length === 0) {
@@ -283,7 +292,7 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
             </nav>
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
               <div>
-                <h1 className="text-3xl font-black text-text-main leading-tight">{informacoesbasicas.nome}</h1>
+                <h1 className="text-3xl font-semibold uppercase text-text-main leading-tight">{informacoesbasicas.nome}</h1>
                 <p className="text-text-muted flex items-center gap-1 mt-1">
                   <span className="material-symbols-outlined text-lg">location_on</span>
                   {localizacao.bairro}, {localizacao.cidade} - {localizacao.estado}
@@ -323,7 +332,7 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
             <div onClick={() => openGallery(4)} className="relative rounded-2xl overflow-hidden group cursor-pointer shadow-soft">
               <div className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110" style={{ backgroundImage: `url("${midia?.[4] || ''}")` }}></div>
               <div className="absolute inset-0 bg-black/40 flex items-center justify-center group-hover:bg-black/50 transition-colors">
-                <span className="text-white font-bold text-lg border border-white/50 px-4 py-2 rounded-lg backdrop-blur-sm hover:bg-white/20 transition-colors">+{midia.length - 5} Fotos</span>
+                <span className="text-white font-bold text-lg border border-white/50 px-4 py-2 rounded-lg backdrop-blur-sm hover:bg-white/20 transition-colors">+{midia.length > 5 ? midia.length - 5 : 0} Fotos</span>
               </div>
             </div>
           </div>
@@ -422,19 +431,7 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
           <div className="lg:col-span-1">
             <div className="sticky top-24 space-y-6">
               <div className="bg-white rounded-2xl shadow-float p-6 border border-gray-100">
-                <div className="flex items-center gap-4 mb-6">
-                  <div className="size-16 rounded-full bg-gray-200 overflow-hidden border-2 border-primary">
-                    <Image alt="Corretor" className="w-full h-full object-cover" width={64} height={64} src="https://lh3.googleusercontent.com/aida-public/AB6AXuBnnSrwSkNX4VEMzf8v2AibJQp1RcHvNb3_q0wuoHZwhVlAJKqmwIhebGEXD_ehHxVeLXegQhl11I3AK8d7sHOjyX2Ru2QsxLQ7CNKGhMFL1kuVczfW4JlWO-MgFaOLLDGfDt2hXsZyS7t5vdOo90YwN1Cwqcoemknmi74RiulnUXgpEBnQguZIsUxNueG01P_uPnYKeZbzSmXBrfvlrkH_y3PAJxi8hET-_dNaHXrJavIJPjRaZDjfN1aQrROrA0lpueLFt6_FA6I" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-text-muted font-bold uppercase">Corretor Responsável</p>
-                    <h3 className="text-lg font-bold text-text-main">Carlos Silva</h3>
-                    <div className="flex items-center gap-1 text-primary text-sm font-semibold">
-                      <span className="material-symbols-outlined text-[16px]">star</span>
-                      4.9 (128 avaliações)
-                    </div>
-                  </div>
-                </div>
+                <h3 className="text-xl font-bold text-text-main mb-4">Quero mais informações</h3>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-4">
                   <div>
                     <label className="sr-only" htmlFor="name-contact">Nome</label>
@@ -504,69 +501,76 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
                   Ao enviar, você concorda com nossos <a className="underline hover:text-primary" href="#">Termos de Uso</a>.
                 </p>
               </div>
-              <div className="bg-gray-50 rounded-2xl p-6 border border-gray-200">
-                <div className="flex items-start gap-3">
-                  <span className="material-symbols-outlined text-primary text-3xl">account_balance</span>
-                  <div>
-                    <h4 className="font-bold text-text-main text-sm">Simulação de Financiamento</h4>
-                    <p className="text-xs text-text-muted mt-1">Entrada sugerida: R$ 1.100.000</p>
-                    <p className="text-xs text-text-muted">Parcelas a partir de: R$ 38.500</p>
-                    <a className="text-xs font-bold text-primary bg-black inline-block mt-3 px-3 py-1.5 rounded-full hover:bg-gray-800 transition-colors" href="#">
-                      Simular Agora
-                    </a>
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
         </div>
-        <section className="w-full max-w-[1280px] px-6 mt-20">
+        <section className="w-full max-w-[1280px] px-6 mt-20 mb-[35px]">
           <div className="flex items-center justify-between mb-8">
             <h2 className="text-2xl font-bold text-text-main">Imóveis Semelhantes</h2>
-            <Link className="text-sm font-bold text-white bg-black px-5 py-2.5 rounded-lg hover:bg-gray-800 transition-colors shrink-0" href="/imoveis">
+            <Link className="text-sm font-bold text-white bg-black px-5 py-2.5 rounded-lg hover:bg-gray-800 transition-colors shrink-0" href={`/sites/${broker.slug}/search`}>
                 Ver Todos os Imóveis
-              </Link>
+            </Link>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {similarProperties.map(property => {
-              const isSaved = savedPropertyIds.includes(property.id);
-              const quartos = property.caracteristicasimovel.quartos;
-              return (
-                 <Link key={property.id} href={`/sites/${broker.slug}/imovel/${property.id}`} className="group relative flex flex-col rounded-2xl bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg cursor-pointer">
-                    <div className="relative aspect-[4/3] w-full overflow-hidden">
-                        <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
-                            <div className="rounded-full bg-white/90 px-3 py-1 text-xs font-bold text-black backdrop-blur-sm shadow-sm">
-                                {property.informacoesbasicas.status}
-                            </div>
-                            <button onClick={(e) => handleRadarClick(e, property.id)} className={cn("flex size-8 items-center justify-center rounded-full bg-white/90 backdrop-blur-sm text-black hover:bg-white transition-colors group/radar", isSaved ? "text-primary" : "hover:text-primary")}>
-                                <span className="material-symbols-outlined text-[20px]">radar</span>
-                            </button>
-                        </div>
-                        <Image alt={property.informacoesbasicas.nome} className="h-full w-full object-cover transition duration-700 group-hover:scale-110" src={property.midia[0] || "https://picsum.photos/400/300"} width={400} height={300} />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent"></div>
-                        <div className="absolute bottom-3 left-3 text-white">
-                            {property.informacoesbasicas.valor && (
-                                <p className="font-bold text-xl">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(property.informacoesbasicas.valor)}</p>
+            {similarProperties.map(similarProperty => {
+                const isSaved = savedPropertyIds.includes(similarProperty.id);
+                const quartos = similarProperty.caracteristicasimovel.quartos;
+                return (
+                  <Link href={`/sites/${broker.slug}/imovel/${similarProperty.informacoesbasicas.slug || similarProperty.id}`} key={similarProperty.id} className="group relative flex flex-col rounded-2xl bg-white border border-transparent shadow-soft hover:shadow-card transition-all duration-300 overflow-hidden">
+                    <div className="relative aspect-[4/3] w-full overflow-hidden bg-gray-100">
+                        <div className="absolute top-3 left-3 z-10 rounded-md bg-primary px-2 py-1 text-xs font-bold text-black uppercase tracking-wide shadow-sm">{similarProperty.informacoesbasicas.status}</div>
+                        <button onClick={(e) => handleRadarClick(e, similarProperty.id)} className={cn("absolute top-3 right-3 z-10 flex size-8 items-center justify-center rounded-full bg-white/80 backdrop-blur-sm text-gray-500 hover:text-red-500 hover:bg-white transition-colors", isSaved && "text-red-500 bg-white")}>
+                            <span className="material-symbols-outlined text-[20px]">favorite</span>
+                        </button>
+                        <Image alt={similarProperty.informacoesbasicas.nome} width={400} height={300} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" src={similarProperty.midia?.[0] || 'https://picsum.photos/seed/prop/400/300'}/>
+                        <div className="absolute bottom-0 left-0 w-full bg-gradient-to-t from-black/60 to-transparent p-4 pt-12">
+                            {similarProperty.informacoesbasicas.valor && (
+                            <p className="text-white font-bold text-2xl tracking-tight">
+                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2 }).format(similarProperty.informacoesbasicas.valor)}
+                            </p>
                             )}
                         </div>
                     </div>
-                    <div className="p-4">
-                        <h3 className="font-bold text-lg text-text-main group-hover:text-primary transition-colors">{property.informacoesbasicas.nome}</h3>
-                        <p className="text-sm text-gray-500 mt-1">{property.localizacao.bairro}, {property.localizacao.cidade}</p>
-                        <div className="mt-3 pt-3 border-t border-gray-100 flex items-center gap-4 text-sm text-gray-600">
-                            {quartos && <span className="flex items-center gap-1.5"><span className="material-symbols-outlined text-base">bed</span> {formatQuartos(quartos)}</span>}
-                            {property.caracteristicasimovel.vagas && <span className="flex items-center gap-1.5"><span className="material-symbols-outlined text-base">directions_car</span> {property.caracteristicasimovel.vagas} Vaga(s)</span>}
-                            {property.caracteristicasimovel.tamanho && <span className="flex items-center gap-1.5"><span className="material-symbols-outlined text-base">square_foot</span> {property.caracteristicasimovel.tamanho}</span>}
+                    <div className="flex flex-col p-5 gap-3">
+                        <div>
+                            <h3 className="text-lg font-bold text-[#111418] group-hover:text-primary transition-colors line-clamp-1">{similarProperty.informacoesbasicas.nome}</h3>
+                            <p className="text-sm text-[#617589] mt-1 flex items-center gap-1">
+                                <span className="material-symbols-outlined text-[16px]">location_on</span>
+                                {similarProperty.localizacao.bairro}, {similarProperty.localizacao.cidade}
+                            </p>
+                        </div>
+                        <div className="flex items-center justify-between border-y border-gray-100 py-3 mt-1">
+                            {similarProperty.caracteristicasimovel.quartos && (
+                                <div className="flex items-center gap-1.5">
+                                    <span className="material-symbols-outlined text-primary text-[20px]">bed</span>
+                                    <span className="text-sm font-semibold text-[#111418]">{formatQuartos(quartos)}</span>
+                                </div>
+                            )}
+                            <div className="w-px h-4 bg-gray-200"></div>
+                             {similarProperty.caracteristicasimovel.vagas && (
+                                <div className="flex items-center gap-1.5">
+                                    <span className="material-symbols-outlined text-primary text-[20px]">shower</span>
+                                    <span className="text-sm font-semibold text-[#111418]">{similarProperty.caracteristicasimovel.vagas}</span>
+                                </div>
+                             )}
+                             <div className="w-px h-4 bg-gray-200"></div>
+                            {similarProperty.caracteristicasimovel.tamanho && (
+                                <div className="flex items-center gap-1.5">
+                                    <span className="material-symbols-outlined text-primary text-[20px]">square_foot</span>
+                                    <span className="text-sm font-semibold text-[#111418]">{similarProperty.caracteristicasimovel.tamanho}</span>
+                                </div>
+                            )}
                         </div>
                     </div>
-                </Link>
-            )})}
+                  </Link>
+                )
+            })}
           </div>
         </section>
       </main>
       <UrbanPadraoFooter broker={broker} />
 
-      {isGalleryOpen && (
+      {isGalleryOpen && midia && (
         <div className="fixed inset-0 z-[100] flex flex-col bg-white/95 backdrop-blur-md animate-in fade-in duration-300">
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100/50 bg-white/80 backdrop-blur-sm">
             <div className="flex items-center gap-4">

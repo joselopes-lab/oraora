@@ -282,7 +282,7 @@ export default function SearchResultsComponent({ properties }: SearchResultsComp
                       </div>
                     </div>
                     <div className="p-4">
-                      <h3 className="font-bold text-lg text-dark-text group-hover:text-primary transition-colors">{property.informacoesbasicas.nome}</h3>
+                      <h3 className="font-semibold text-lg uppercase text-dark-text group-hover:text-primary transition-colors">{property.informacoesbasicas.nome}</h3>
                       <p className="text-sm text-gray-500 mt-1">{property.localizacao.bairro}, {property.localizacao.cidade}</p>
                       <div className="mt-3 pt-3 border-t border-gray-100 flex items-center gap-4 text-sm text-gray-600">
                         <span className="flex items-center gap-1.5"><span className="material-symbols-outlined text-base">bed</span> {formatQuartos(quartos)}</span>

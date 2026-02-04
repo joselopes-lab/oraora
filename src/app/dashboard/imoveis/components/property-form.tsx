@@ -5,7 +5,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import Image from "next/image";
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Slider } from "@/components/ui/slider";
 import {
   Dialog,
@@ -192,7 +192,6 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
         }
     }, [watchName, form]);
 
-
     // Populate cities when state changes
     useEffect(() => {
         if (watchState) {
@@ -212,6 +211,22 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
             setNeighborhoods([]);
         }
     }, [watchCity, cities]);
+
+    const citiesWithOptions = useMemo(() => {
+        const currentCity = form.getValues('localizacao.cidade');
+        if (currentCity && !cities.some(c => c.name === currentCity)) {
+            return [{ name: currentCity, neighborhoods: [] }, ...cities];
+        }
+        return cities;
+    }, [cities, form.getValues('localizacao.cidade')]);
+
+    const neighborhoodsWithOptions = useMemo(() => {
+        const currentBairro = form.getValues('localizacao.bairro');
+        if (currentBairro && !neighborhoods.includes(currentBairro)) {
+            return [currentBairro, ...neighborhoods];
+        }
+        return neighborhoods;
+    }, [neighborhoods, form.getValues('localizacao.bairro')]);
 
     // Handle initial form population for editing
     useEffect(() => {
@@ -644,7 +659,7 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
                         <FormControl>
                           <select {...field} onChange={(e) => { field.onChange(e); form.setValue('localizacao.bairro', ''); }} disabled={!watchState} className="w-full rounded-lg border-card-border bg-[#f7f8f5] focus:border-primary focus:ring-primary h-11 disabled:bg-gray-200">
                             <option value="">Selecione uma cidade</option>
-                            {cities.map(city => <option key={city.name} value={city.name}>{city.name}</option>)}
+                            {citiesWithOptions.map(city => <option key={city.name} value={city.name}>{city.name}</option>)}
                           </select>
                         </FormControl>
                         <FormMessage />
@@ -659,7 +674,7 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
                         <FormControl>
                           <select {...field} disabled={!watchCity} className="w-full rounded-lg border-card-border bg-[#f7f8f5] focus:border-primary focus:ring-primary h-11 disabled:bg-gray-200">
                              <option value="">Selecione um bairro</option>
-                             {neighborhoods.map(neighborhood => <option key={neighborhood} value={neighborhood}>{neighborhood}</option>)}
+                             {neighborhoodsWithOptions.map(neighborhood => <option key={neighborhood} value={neighborhood}>{neighborhood}</option>)}
                           </select>
                         </FormControl>
                         <FormMessage />

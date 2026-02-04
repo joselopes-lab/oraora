@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useDoc, useFirebase, useMemoFirebase, setDocumentNonBlocking } from '@/firebase';
@@ -15,18 +16,24 @@ import Image from 'next/image';
 import { Progress } from '@/components/ui/progress';
 import { uploadFile } from '@/lib/storage';
 
-// Schema for the logo settings
-const logoSettingsSchema = z.object({
+// Schema for the settings page
+const siteSettingsSchema = z.object({
   logoUrl: z.string().url("URL da imagem inválida").optional().or(z.literal('')),
   logoUrlWhite: z.string().url("URL da imagem inválida").optional().or(z.literal('')),
+  faviconUrl: z.string().url("URL do favicon inválida").optional().or(z.literal('')),
+  googleAnalyticsId: z.string().optional(),
+  facebookPixelId: z.string().optional(),
 });
 
-type LogoSettingsFormData = z.infer<typeof logoSettingsSchema>;
+type SiteSettingsFormData = z.infer<typeof siteSettingsSchema>;
 
 // Type matching the structure in Firestore
 type BrokerData = {
     logoUrl?: string;
     logoUrlWhite?: string;
+    faviconUrl?: string;
+    googleAnalyticsId?: string;
+    facebookPixelId?: string;
 };
 
 type UploadState = {
@@ -41,6 +48,7 @@ export default function EditPortalSettingsPage() {
   const [uploads, setUploads] = useState<Record<string, UploadState>>({
     mainLogo: { progress: 0, isUploading: false, error: null },
     whiteLogo: { progress: 0, isUploading: false, error: null },
+    favicon: { progress: 0, isUploading: false, error: null },
   });
 
   const siteContentDocRef = useMemoFirebase(
@@ -50,13 +58,16 @@ export default function EditPortalSettingsPage() {
   
   const { data: siteData, isLoading } = useDoc<BrokerData>(siteContentDocRef);
 
-  const defaultValues: LogoSettingsFormData = {
+  const defaultValues: SiteSettingsFormData = {
     logoUrl: '',
     logoUrlWhite: '',
+    faviconUrl: '',
+    googleAnalyticsId: '',
+    facebookPixelId: '',
   };
   
-  const form = useForm<LogoSettingsFormData>({
-    resolver: zodResolver(logoSettingsSchema),
+  const form = useForm<SiteSettingsFormData>({
+    resolver: zodResolver(siteSettingsSchema),
     defaultValues,
   });
 
@@ -66,7 +77,7 @@ export default function EditPortalSettingsPage() {
     }
   }, [siteData, form]);
   
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>, fieldName: keyof LogoSettingsFormData, uploadKey: string) => {
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>, fieldName: keyof SiteSettingsFormData, uploadKey: string) => {
     const file = event.target.files?.[0];
     if (!file || !user || !storage) return;
 
@@ -91,7 +102,7 @@ export default function EditPortalSettingsPage() {
     }
   };
 
-  const onSubmit = (data: LogoSettingsFormData) => {
+  const onSubmit = (data: SiteSettingsFormData) => {
     if (!siteContentDocRef) return;
     
     const sanitizedData = JSON.parse(JSON.stringify(data));
@@ -100,7 +111,7 @@ export default function EditPortalSettingsPage() {
 
     toast({
       title: 'Configurações Salvas!',
-      description: 'As logos do site foram atualizadas com sucesso.',
+      description: 'As logos e códigos de rastreamento do site foram atualizados.',
     });
   };
 
@@ -239,7 +250,98 @@ export default function EditPortalSettingsPage() {
                         </FormItem>
                     )}
                 />
-
+                 <FormField
+                    key="faviconUrl"
+                    control={form.control}
+                    name="faviconUrl"
+                    render={({ field }) => (
+                        <FormItem className="md:col-span-2">
+                            <FormLabel>Favicon do Portal</FormLabel>
+                            <p className="text-xs text-muted-foreground mb-2">Ícone que aparece na aba do navegador (use .ico, .png, .svg).</p>
+                            <div className="flex items-center gap-4 mt-2">
+                                 <div className="relative w-16 h-16 bg-gray-100 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden p-2">
+                                    {field.value ? (
+                                        <Image src={field.value} alt="Favicon Preview" layout="fill" className="object-contain"/>
+                                    ) : (
+                                        <span className="material-symbols-outlined text-gray-400">favorite</span>
+                                    )}
+                                </div>
+                                <div className="flex-1 space-y-2">
+                                    <label htmlFor="favicon-upload" className="w-full">
+                                        <div className="w-full px-3 h-9 flex items-center justify-center gap-1 rounded-md bg-gray-100 border border-gray-200 text-xs font-medium text-gray-700 cursor-pointer hover:bg-gray-200 transition-colors">
+                                            <span className="material-symbols-outlined text-sm">upload</span>
+                                            Carregar
+                                        </div>
+                                        <Input
+                                            id="favicon-upload"
+                                            type="file"
+                                            accept="image/png, image/jpeg, image/svg+xml, image/x-icon"
+                                            className="sr-only"
+                                            onChange={(e) => handleFileChange(e, "faviconUrl", "favicon")}
+                                            disabled={uploads.favicon?.isUploading}
+                                        />
+                                    </label>
+                                    <Input
+                                        className="w-full h-9 text-xs"
+                                        placeholder="Ou cole a URL"
+                                        {...field}
+                                        value={field.value ?? ""}
+                                    />
+                                </div>
+                            </div>
+                            {uploads.favicon?.isUploading && (
+                                <div className="space-y-1 mt-2">
+                                    <Progress value={uploads.favicon.progress} className="h-1.5" />
+                                </div>
+                            )}
+                            {uploads.favicon?.error && (
+                                <p className="text-xs text-red-500 mt-1">{uploads.favicon.error}</p>
+                            )}
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+            </div>
+          </section>
+          
+          <section className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+              <h2 className="text-lg font-bold flex items-center gap-2 text-gray-800">
+                <span className="material-symbols-outlined text-primary-hover">analytics</span>
+                Marketing & Analytics
+              </h2>
+            </div>
+            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-8">
+                <FormField
+                    key="googleAnalyticsId"
+                    control={form.control}
+                    name="googleAnalyticsId"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Google Analytics ID</FormLabel>
+                            <p className="text-xs text-muted-foreground mb-2">Insira seu ID de métricas (Ex: G-XXXXXXXXXX).</p>
+                            <FormControl>
+                                <Input placeholder="G-XXXXXXXXXX" {...field} value={field.value ?? ""} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+                <FormField
+                    key="facebookPixelId"
+                    control={form.control}
+                    name="facebookPixelId"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Facebook Pixel ID</FormLabel>
+                            <p className="text-xs text-muted-foreground mb-2">Insira o ID do seu Pixel do Facebook.</p>
+                             <FormControl>
+                                <Input placeholder="0123456789012345" {...field} value={field.value ?? ""} />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
             </div>
           </section>
         </form>
@@ -247,3 +349,5 @@ export default function EditPortalSettingsPage() {
     </div>
   );
 }
+
+    
