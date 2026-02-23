@@ -1,13 +1,13 @@
 'use client';
-import { UrbanPadraoHeader } from '@/layouts/urban-padrao/components/UrbanPadraoHeader';
-import { UrbanPadraoFooter } from '@/layouts/urban-padrao/components/UrbanPadraoFooter';
+import { UrbanPadraoHeader } from '../components/UrbanPadraoHeader';
+import { UrbanPadraoFooter } from '../components/UrbanPadraoFooter';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { createLead } from '@/app/sites/actions';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
-import { WhatsAppWidget } from '@/layouts/urban-padrao/components/WhatsAppWidget';
+import { WhatsAppWidget } from '../components/WhatsAppWidget';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 
@@ -122,7 +122,7 @@ export default function FaleConoscoClientPage({ broker }: FaleConoscoPageProps) 
                     <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">WhatsApp</p>
                     <p className="text-lg font-black text-text-main">(11) 99999-9999</p>
                   </div>
-                  <button className="w-full sm:w-auto text-sm font-bold text-white bg-[#25D366] px-5 py-2.5 rounded-lg hover:bg-white hover:text-black border border-transparent hover:border-gray-200 transition-colors shadow-sm">
+                  <button className="w-full sm:w-auto text-sm font-bold text-white bg-[#25D366] px-5 py-2.5 rounded-lg hover:bg-green-600 transition-colors shadow-sm">
                     Iniciar
                   </button>
                 </div>
@@ -305,9 +305,10 @@ export default function FaleConoscoClientPage({ broker }: FaleConoscoPageProps) 
                                     </DialogFooter>
                                 </DialogContent>
                               </Dialog>
-                        </label>
-                        {form.formState.errors.terms && <p className="text-xs text-red-500 mt-1">{form.formState.errors.terms.message}</p>}
-                    </div>
+                        .
+                    </label>
+                    {form.formState.errors.terms && <p className="text-xs text-red-500 mt-1">{form.formState.errors.terms.message}</p>}
+                  </div>
                 </div>
                 <button disabled={isSubmitting} className="mt-2 w-full h-14 rounded-xl bg-black text-primary font-bold text-base hover:bg-gray-900 shadow-xl shadow-black/10 transition-all transform active:scale-95 flex items-center justify-center gap-3 group" type="submit">
                   {isSubmitting ? 'Enviando...' : 'Enviar Mensagem Agora'}
@@ -323,4 +324,3 @@ export default function FaleConoscoClientPage({ broker }: FaleConoscoPageProps) 
     </div>
   );
 }
-    

@@ -5,10 +5,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
+type User = {
+    id: string;
+    username: string;
+};
+
 export type TicketFormData = {
     title: string;
-    clientId: string;
-    clientName: string;
+    clientId: string; // Will be UID
+    // clientName is removed, it will be derived from the user object in the parent
     category: string;
     priority: 'Baixa' | 'Média' | 'Alta' | 'Urgente';
     description: string;
@@ -17,23 +22,20 @@ export type TicketFormData = {
 type TicketFormProps = {
     onSave: (data: TicketFormData) => void;
     onCancel: () => void;
+    users: User[];
+    isLoadingUsers: boolean;
 };
 
-export default function TicketForm({ onSave, onCancel }: TicketFormProps) {
+export default function TicketForm({ onSave, onCancel, users, isLoadingUsers }: TicketFormProps) {
     
     const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         const formData = new FormData(e.currentTarget);
         const data = Object.fromEntries(formData.entries()) as any;
-        
-        // This is a simplification. In a real app, you'd get the client ID from a search.
-        const clientName = data.client;
-        const clientId = clientName.toLowerCase().replace(/\s/g, ''); 
 
         onSave({
             title: data.subject,
-            clientId: clientId,
-            clientName: clientName,
+            clientId: data.clientId,
             category: data.category,
             priority: data.priority,
             description: data.description,
@@ -56,11 +58,19 @@ export default function TicketForm({ onSave, onCancel }: TicketFormProps) {
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
                         <div className="md:col-span-6">
-                            <Label className="block text-sm font-bold text-text-main mb-2" htmlFor="client">Cliente Associado</Label>
-                            <div className="relative group">
-                                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-secondary transition-colors">search</span>
-                                <Input className="w-full pl-10 pr-4 py-3 bg-background-light border border-gray-200 focus:bg-white focus:border-secondary rounded-lg text-sm text-text-main placeholder-gray-400 focus:ring-0 transition-all" id="client" name="client" placeholder="Buscar por nome, e-mail ou ID do cliente..." type="text" />
-                            </div>
+                             <Label className="block text-sm font-bold text-text-main mb-2" htmlFor="clientId">Cliente Associado</Label>
+                             <select
+                                id="clientId"
+                                name="clientId"
+                                required
+                                disabled={isLoadingUsers}
+                                className="w-full bg-background-light border border-gray-200 focus:bg-white focus:border-secondary rounded-lg text-sm text-text-main focus:ring-0 transition-all p-3 cursor-pointer"
+                            >
+                                <option value="">{isLoadingUsers ? 'Carregando usuários...' : 'Selecione um cliente'}</option>
+                                {users.map(user => (
+                                    <option key={user.id} value={user.id}>{user.username}</option>
+                                ))}
+                            </select>
                         </div>
                         <div className="md:col-span-3">
                             <Label className="block text-sm font-bold text-text-main mb-2" htmlFor="category">Categoria</Label>
@@ -121,5 +131,3 @@ export default function TicketForm({ onSave, onCancel }: TicketFormProps) {
         </form>
     )
 }
-
-    

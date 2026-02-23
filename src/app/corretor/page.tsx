@@ -25,7 +25,6 @@ export default function CorretorPage() {
             --background-gray: #f5f5f5;
             --background-dark: #000000;
         }
-        body { font-family: 'Inter', sans-serif; scroll-behavior: smooth; }
         .gradient-text {
             background: linear-gradient(90deg, #86ea3c 0%, #b7e43c 100%);
             -webkit-background-clip: text;

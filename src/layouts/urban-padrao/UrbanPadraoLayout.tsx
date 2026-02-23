@@ -13,7 +13,8 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import SearchFilters from '@/components/SearchFilters';
 
 
 // NOTE: This is now a regular component, not a default page export.
@@ -170,18 +171,18 @@ export default function UrbanPadraoLayout({ broker, properties }: UrbanPadraoPag
     }
   };
   
-  const handleSearchSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    router.push(`/sites/${broker.slug}/search`);
+  const handleSearch = (queryString: string) => {
+    router.push(`/sites/${broker.slug}/search?${queryString}`);
   };
+
 
   const formatQuartos = (quartosData: any): string => {
     if (!quartosData) return 'N/A';
-
+  
     const dataAsString = Array.isArray(quartosData)
         ? quartosData.join(' ')
         : String(quartosData);
-
+  
     const numbers = dataAsString.match(/\d+/g);
     
     if (!numbers || numbers.length === 0) {
@@ -251,7 +252,7 @@ export default function UrbanPadraoLayout({ broker, properties }: UrbanPadraoPag
       {/* Main Content */}
       <main className="flex-1 w-full flex flex-col items-center">
         {/* Hero Section */}
-        <section className="w-full relative px-4 pt-6 pb-20 md:px-10 lg:px-20 max-w-[1440px]">
+        <section className="w-full relative z-10 px-4 pt-6 pb-20 md:px-10 lg:px-20 max-w-[1440px]">
           <div className="relative w-full rounded-2xl overflow-hidden min-h-[500px] lg:min-h-[600px] flex items-center justify-center bg-black group cursor-pointer">
             {/* Background Image acting as Video Thumbnail */}
             <div
@@ -308,54 +309,7 @@ export default function UrbanPadraoLayout({ broker, properties }: UrbanPadraoPag
           </div>
           {/* Floating Search Bar */}
           <div className="relative z-20 -mt-16 w-full max-w-5xl mx-auto px-4">
-            <div className="bg-white p-4 rounded-xl shadow-card border border-gray-100">
-              <form onSubmit={handleSearchSubmit} className="flex flex-col lg:flex-row gap-4">
-                <div className="flex-1 flex flex-col gap-1">
-                  <label className="text-xs font-semibold text-text-muted uppercase tracking-wider ml-1">Localização</label>
-                  <div className="flex items-center h-12 bg-[#f8f9fa] rounded-lg px-3 border border-transparent focus-within:border-primary/50 focus-within:bg-white transition-all">
-                    <span className="material-symbols-outlined text-text-muted">location_on</span>
-                    <input className="w-full bg-transparent border-none focus:ring-0 text-text-main text-sm font-medium placeholder-gray-400" placeholder="Bairro, Cidade ou Condomínio" type="text" />
-                  </div>
-                </div>
-                <div className="flex-1 flex flex-col gap-1">
-                  <label className="text-xs font-semibold text-text-muted uppercase tracking-wider ml-1">Tipo</label>
-                  <div className="flex items-center h-12 bg-[#f8f9fa] rounded-lg px-3 border border-transparent focus-within:border-primary/50 focus-within:bg-white transition-all">
-                    <span className="material-symbols-outlined text-text-muted">home_work</span>
-                    <select className="w-full bg-transparent border-none focus:ring-0 text-text-main text-sm font-medium cursor-pointer">
-                      <option>Apartamento</option>
-                      <option>Casa de Condomínio</option>
-                      <option>Cobertura</option>
-                      <option>Terreno</option>
-                    </select>
-                  </div>
-                </div>
-                <div className="flex-1 flex flex-col gap-1">
-                  <label className="text-xs font-semibold text-text-muted uppercase tracking-wider ml-1">Faixa de Preço</label>
-                  <div className="flex items-center h-12 bg-[#f8f9fa] rounded-lg px-3 border border-transparent focus-within:border-primary/50 focus-within:bg-white transition-all">
-                    <span className="material-symbols-outlined text-text-muted">attach_money</span>
-                    <select className="w-full bg-transparent border-none focus:ring-0 text-text-main text-sm font-medium cursor-pointer">
-                      <option>Qualquer valor</option>
-                      <option>R$ 500k - R$ 1M</option>
-                      <option>R$ 1M - R$ 3M</option>
-                      <option>Acima de R$ 3M</option>
-                    </select>
-                  </div>
-                </div>
-                <div className="flex flex-col justify-end">
-                  <button
-                    className="h-12 px-8 rounded-lg font-bold shadow-lg flex items-center justify-center gap-2 transition-colors"
-                    type="submit"
-                    style={{
-                        backgroundColor: searchButtonBgColor,
-                        color: searchButtonTextColor,
-                    }}
-                  >
-                    <span className="material-symbols-outlined">search</span>
-                    Buscar
-                  </button>
-                </div>
-              </form>
-            </div>
+             <SearchFilters onSearch={handleSearch} />
           </div>
         </section>
         {/* Stats Bar */}
@@ -384,7 +338,7 @@ export default function UrbanPadraoLayout({ broker, properties }: UrbanPadraoPag
         </section>
         )}
         {/* Featured Properties */}
-        <section className="w-full py-16 lg:py-24 bg-background-light">
+        <section className="w-full py-16 lg:py-24 bg-background-light relative z-10">
           <div className="layout-container max-w-[1280px] mx-auto px-6 flex flex-col gap-12">
             <div className="flex flex-col md:flex-row items-end justify-between gap-6">
               <div className="max-w-2xl">
@@ -418,7 +372,7 @@ export default function UrbanPadraoLayout({ broker, properties }: UrbanPadraoPag
                     >
                       {property.informacoesbasicas.status}
                     </div>
-                    <button onClick={(e) => handleRadarClick(e, property.id)} className={cn("flex size-8 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm text-white hover:bg-white transition-colors group/radar", isSaved ? "text-primary" : "hover:text-primary")}>
+                    <button onClick={(e) => handleRadarClick(e, property.id)} className={cn("absolute top-3 right-3 z-10 flex size-8 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm text-white hover:bg-white transition-colors group/radar", isSaved ? "text-primary" : "hover:text-primary")}>
                         <span className="material-symbols-outlined text-[20px]">radar</span>
                     </button>
                     <div
@@ -432,9 +386,12 @@ export default function UrbanPadraoLayout({ broker, properties }: UrbanPadraoPag
                     <div className="flex justify-between items-start">
                       <h3 className="text-lg font-semibold uppercase text-text-main leading-snug group-hover:text-primary transition-colors line-clamp-1" style={{color: cardTitleColor}}>{property.informacoesbasicas.nome}</h3>
                       {property.informacoesbasicas.valor && (
-                        <span className="font-black text-lg" style={{ color: cardValueColor }}>
-                          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2 }).format(property.informacoesbasicas.valor)}
-                        </span>
+                        <div className="text-right flex-shrink-0 ml-4">
+                          <span className="text-xs text-text-muted block">A partir de</span>
+                          <span className="font-black text-lg block" style={{ color: cardValueColor }}>
+                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0 }).format(property.informacoesbasicas.valor)}
+                          </span>
+                        </div>
                       )}
                     </div>
                     <p className="text-text-muted text-sm flex items-center gap-1">
@@ -471,7 +428,7 @@ export default function UrbanPadraoLayout({ broker, properties }: UrbanPadraoPag
         <section className="w-full py-16 lg:py-24 bg-white relative overflow-hidden">
           {/* Decorative Elements */}
           <div className="absolute top-0 right-0 w-1/3 h-full bg-[#f8f9fa] skew-x-12 translate-x-20 hidden lg:block"></div>
-          <div className="absolute bottom-20 left-10 size-32 rounded-full border-4 border-primary/20 hidden lg:block"></div>
+          
           <div className="layout-container max-w-[1280px] mx-auto px-6 relative z-10">
             <div className="grid lg:grid-cols-2 gap-12 items-center">
               <div className="order-2 lg:order-1 relative">
@@ -499,11 +456,11 @@ export default function UrbanPadraoLayout({ broker, properties }: UrbanPadraoPag
               </div>
               <div className="order-1 lg:order-2 flex flex-col gap-6">
                 <div>
-                  <h3 className="font-bold tracking-wider uppercase mb-2" style={{color: aboutTaglineColor}}>{content.aboutTagline || 'Sobre Mim'}</h3>
-                  <h2 className="text-4xl md:text-5xl font-black text-text-main leading-tight mb-4" style={{color: aboutTitleColor}}>
+                  <h3 className="font-bold tracking-wider uppercase mb-2" style={{ color: aboutTaglineColor }}>{content.aboutTagline || 'Sobre Mim'}</h3>
+                  <h2 className="text-4xl md:text-5xl font-black text-text-main leading-tight mb-4" style={{ color: aboutTitleColor }}>
                     {content.aboutTitle || 'Mais que um corretor, seu parceiro de negócios.'}
                   </h2>
-                  <p className="text-lg text-text-muted leading-relaxed" style={{color: aboutTextColor}}>
+                  <p className="text-lg text-text-muted leading-relaxed" style={{ color: aboutTextColor }}>
                     {content.aboutText || 'Com mais de uma década de experiência no mercado de alto padrão, ofereço uma consultoria completa e personalizada. Meu objetivo é transformar a busca pelo imóvel ideal em uma jornada tranquila e segura.'}
                   </p>
                 </div>
@@ -535,7 +492,7 @@ export default function UrbanPadraoLayout({ broker, properties }: UrbanPadraoPag
           </div>
         </section>
         {/* Map / Location Section */}
-        <section className="w-full py-16" style={{ backgroundColor: mapSectionBgColor }}>
+        <section className="w-full py-16 hidden lg:block" style={{ backgroundColor: mapSectionBgColor }}>
           <div className="layout-container max-w-[1280px] mx-auto px-6">
             <div className="bg-black rounded-3xl overflow-hidden shadow-2xl text-white relative">
               <div className="grid md:grid-cols-2 min-h-[400px]">
@@ -547,7 +504,7 @@ export default function UrbanPadraoLayout({ broker, properties }: UrbanPadraoPag
                     Explorar no Mapa
                   </Link>
                 </div>
-                <div className="relative h-full w-full min-h-[300px]">
+                <div className="relative hidden h-full w-full min-h-[300px] md:block">
                   <div
                     className="absolute inset-0 bg-cover bg-center"
                     data-alt="Stylized dark map of Sao Paulo city streets"

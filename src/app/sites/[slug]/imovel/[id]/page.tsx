@@ -4,6 +4,7 @@ import { collection, query, where, getDocs, doc, getDoc, limit } from 'firebase/
 import { initializeFirebase } from '@/firebase/index.server';
 import { notFound } from 'next/navigation';
 import PropertyDetailsPage from '@/layouts/urban-padrao/imovel/PropertyDetailsPage';
+import type { Metadata } from 'next';
 
 // Force dynamic rendering to ensure data is fresh on every request
 export const dynamic = 'force-dynamic';
@@ -52,6 +53,9 @@ type Property = {
     vagas?: string;
   };
   areascomuns?: string[];
+  seoTitle?: string;
+  seoDescription?: string;
+  seoKeywords?: string;
 };
 
 // Funções de busca de dados no servidor
@@ -102,7 +106,7 @@ async function getPropertyData(propertySlug: string): Promise<Property | null> {
                 propData = { id: docSnap.id, ...docSnap.data() } as Property;
             } else {
                 propertyRef = doc(firestore, 'brokerProperties', propertySlug);
-                docSnap = await getDoc(propertyRef);
+                docSnap = await getDoc(docSnap);
                 if (docSnap.exists()) {
                     propData = { id: docSnap.id, ...docSnap.data() } as Property;
                 }
@@ -133,6 +137,34 @@ async function getSimilarProperties(property: Property): Promise<Property[]> {
     .filter(p => p.id !== property.id);
 
   return similar.slice(0, 4);
+}
+
+// Generate Metadata for SEO
+export async function generateMetadata({ params: { id: propertyIdentifier } }: { params: { id: string } }): Promise<Metadata> {
+  const property = await getPropertyData(propertyIdentifier);
+
+  if (!property) {
+    return {
+      title: 'Imóvel não encontrado',
+      description: 'A página que você está procurando não existe ou foi movida.',
+    };
+  }
+
+  const title = property.seoTitle || property.informacoesbasicas.nome;
+  const description = property.seoDescription || property.informacoesbasicas.descricao?.substring(0, 155) || 'Veja mais detalhes sobre este imóvel.';
+  const keywords = property.seoKeywords || `${property.informacoesbasicas.nome}, ${property.localizacao.bairro}, ${property.localizacao.cidade}`;
+  const imageUrl = property.midia?.[0] || '';
+
+  return {
+    title: `${title} | Oraora`,
+    description,
+    keywords,
+    openGraph: {
+      title: `${title} | Oraora`,
+      description,
+      images: imageUrl ? [{ url: imageUrl }] : [],
+    },
+  };
 }
 
 

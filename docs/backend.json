@@ -75,6 +75,11 @@
           "description": "URL for the white version of the broker's logo.",
           "format": "uri"
         },
+        "footerLogoUrl": {
+            "type": "string",
+            "description": "URL for the broker's footer logo.",
+            "format": "uri"
+        },
         "faviconUrl": {
           "type": "string",
           "description": "URL for the site's favicon.",
@@ -654,8 +659,43 @@
             "type": "array",
             "description": "A list of Persona IDs that this client fits into.",
             "items": { "type": "string" }
+        },
+        "notes": {
+            "type": "array",
+            "description": "A history of notes for this lead/client.",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "id": { "type": "string", "description": "Unique identifier for the note." },
+                    "text": { "type": "string", "description": "The content of the note." },
+                    "createdAt": { "type": "string", "format": "date-time", "description": "The timestamp when the note was created." },
+                    "authorId": { "type": "string", "description": "ID of the user who created the note." },
+                    "authorName": { "type": "string", "description": "Name of the user who created the note." }
+                },
+                "required": ["id", "text", "createdAt", "authorId", "authorName"]
             }
         },
+        "tempoPorEtapa": {
+            "type": "object",
+            "description": "Armazena o tempo acumulado (em horas) que o lead passou em cada etapa do funil.",
+            "additionalProperties": {
+                "type": "number"
+            }
+        },
+        "tempoTotalFechamentoEmDias": {
+            "type": "number",
+            "description": "Tempo total, em dias, desde a criação do lead até ser movido para um status final (convertido ou perdido)."
+        },
+        "leadScore": {
+            "type": "number",
+            "description": "A score from 0 to 100 indicating lead quality."
+        },
+        "leadQualification": {
+            "type": "string",
+            "description": "Classification of the lead based on its score.",
+            "enum": ["Frio", "Morno", "Quente"]
+        }
+      },
       "required": ["brokerId", "name", "email", "status", "createdAt"]
     },
     "LeadFunnelColumn": {
@@ -695,6 +735,10 @@
         "brokerId": {
           "type": "string",
           "description": "The ID of the broker this event belongs to."
+        },
+        "clientId": {
+          "type": "string",
+          "description": "The ID of the client this event is associated with."
         },
         "title": {
           "type": "string",
@@ -854,6 +898,51 @@
         }
       },
       "required": ["userId"]
+    },
+    "CustomRequest": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "title": "Custom Request",
+        "description": "Represents a custom property request from a client.",
+        "type": "object",
+        "properties": {
+            "userId": { "type": "string", "description": "The ID of the user who made the request." },
+            "brokerId": { "type": "string", "description": "The ID of the broker the request is for." },
+            "createdAt": { "type": "string", "format": "date-time" },
+            "propertyType": { "type": "string" },
+            "objective": { "type": "string" },
+            "urgency": { "type": "string" },
+            "minPrice": { "type": "number" },
+            "maxPrice": { "type": "number" },
+            "neighborhoods": { "type": "string" },
+            "bedrooms": { "type": "string" },
+            "extraInfo": { "type": "string" }
+        },
+        "required": ["userId", "brokerId", "createdAt", "propertyType", "objective", "urgency"]
+    },
+    "StatusHistory": {
+      "title": "Lead Status History",
+      "description": "Records the history of status changes for a lead.",
+      "type": "object",
+      "properties": {
+        "fromStatus": { "type": "string", "description": "The status the lead was in before the change." },
+        "toStatus": { "type": "string", "description": "The new status of the lead." },
+        "changedAt": { "type": "string", "format": "date-time", "description": "The timestamp of when the status was changed." },
+        "brokerId": { "type": "string", "description": "The ID of the broker who made the change." }
+      },
+      "required": ["fromStatus", "toStatus", "changedAt", "brokerId"]
+    },
+    "BrokerMetrics": {
+      "title": "Broker Metrics",
+      "description": "Stores aggregated performance metrics for a broker.",
+      "type": "object",
+      "properties": {
+        "brokerId": { "type": "string" },
+        "totalLeads": { "type": "number" },
+        "totalClosed": { "type": "number" },
+        "conversionRate": { "type": "number" },
+        "avgClosingTimeDays": { "type": "number" }
+      },
+      "required": ["brokerId"]
     }
   },
   "auth": {
@@ -1083,6 +1172,38 @@
               "description": "The client's user ID."
             }
           ]
+        }
+      },
+      {
+        "path": "/customRequests/{requestId}",
+        "definition": {
+            "entityName": "CustomRequest",
+            "schema": { "$ref": "#/backend/entities/CustomRequest" },
+            "description": "Stores custom property search requests made by clients.",
+            "params": [{ "name": "requestId", "description": "Unique ID for the custom request." }]
+        }
+      },
+      {
+        "path": "/leads/{leadId}/statusHistory/{historyId}",
+        "definition": {
+            "entityName": "StatusHistory",
+            "schema": { "$ref": "#/backend/entities/StatusHistory" },
+            "description": "Stores the history of status changes for a lead. Each entry is immutable.",
+            "params": [
+                { "name": "leadId", "description": "The ID of the lead." },
+                { "name": "historyId", "description": "The unique ID for the history entry." }
+            ]
+        }
+      },
+      {
+        "path": "/corretorMetrics/{brokerId}",
+        "definition": {
+            "entityName": "BrokerMetrics",
+            "schema": { "$ref": "#/backend/entities/BrokerMetrics" },
+            "description": "Stores aggregated performance metrics for a broker. Updated by a Cloud Function.",
+            "params": [
+                { "name": "brokerId", "description": "The ID of the broker." }
+            ]
         }
       }
     ],

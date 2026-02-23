@@ -4,8 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useDoc, useFirestore, useMemoFirebase, setDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase";
-import { doc } from "firebase/firestore";
+import { useDoc, useFirestore, useMemoFirebase, setDocumentNonBlocking, deleteDocumentNonBlocking, useAuthContext } from "@/firebase";
+import { doc, arrayUnion } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -60,6 +60,9 @@ export default function TicketDetailPage() {
     const firestore = useFirestore();
     const router = useRouter();
     const { toast } = useToast();
+    const { user } = useAuthContext();
+    const [newComment, setNewComment] = useState('');
+    const [commentType, setCommentType] = useState<'public' | 'internal'>('public');
 
     const ticketDocRef = useMemoFirebase(
         () => (firestore && id ? doc(firestore, 'tickets', id as string) : null),
@@ -80,6 +83,31 @@ export default function TicketDetailPage() {
         setDocumentNonBlocking(ticketDocRef, { status: newStatus, updatedAt: new Date().toISOString() }, { merge: true });
         toast({ title: 'Status atualizado!', description: `O ticket agora está: ${newStatus}` });
     };
+    
+    const handleAddComment = async () => {
+        if (!newComment.trim() || !user || !ticketDocRef || !ticket) return;
+
+        const commentData: Comment = {
+            author: user.displayName || 'Admin',
+            authorId: user.uid,
+            content: newComment,
+            createdAt: new Date().toISOString(),
+            type: commentType,
+        };
+
+        try {
+            await setDocumentNonBlocking(ticketDocRef, { 
+                comments: arrayUnion(commentData),
+                updatedAt: new Date().toISOString()
+            }, { merge: true });
+            setNewComment('');
+            toast({ title: "Resposta Enviada!", description: "Sua mensagem foi adicionada ao ticket." });
+        } catch (error) {
+            console.error("Erro ao adicionar comentário:", error);
+            toast({ variant: 'destructive', title: "Erro", description: "Não foi possível enviar sua resposta." });
+        }
+    };
+
 
     if (isLoading) {
         return <div>Carregando ticket...</div>;
@@ -119,9 +147,9 @@ export default function TicketDetailPage() {
                         </DropdownMenuContent>
                     </DropdownMenu>
                     <AlertDialogTrigger asChild>
-                         <Button onClick={() => handleStatusChange('Fechado')} className="bg-secondary hover:bg-primary-hover text-secondary-foreground font-bold py-2.5 px-6 rounded-lg shadow-glow hover:shadow-lg transition-all duration-300 flex items-center gap-2 text-sm">
-                            <span className="material-symbols-outlined text-[20px]">check_circle</span>
-                            Fechar Ticket
+                         <Button variant="destructive" className="flex items-center gap-2 text-sm">
+                            <span className="material-symbols-outlined text-[20px]">delete</span>
+                            Excluir Ticket
                         </Button>
                     </AlertDialogTrigger>
                 </div>
@@ -166,15 +194,18 @@ export default function TicketDetailPage() {
                             ))}
                         </div>
                         <div className="bg-background-light p-1 rounded-xl border border-gray-200 focus-within:ring-2 focus-within:ring-secondary focus-within:border-transparent transition-all">
-                            <Textarea className="w-full bg-white rounded-lg p-4 text-sm text-text-main placeholder-gray-400 border-none focus:ring-0 resize-y min-h-[100px]" placeholder="Escreva um comentário público ou nota interna..."></Textarea>
+                            <Textarea value={newComment} onChange={(e) => setNewComment(e.target.value)} className="w-full bg-white rounded-lg p-4 text-sm text-text-main placeholder-gray-400 border-none focus:ring-0 resize-y min-h-[100px]" placeholder="Escreva um comentário público ou nota interna..."></Textarea>
                             <div className="flex items-center justify-between px-3 py-2 bg-background-light rounded-b-lg">
                                 <div className="flex items-center gap-2">
                                     <button className="p-2 text-text-secondary hover:text-text-main hover:bg-gray-200 rounded-full transition-colors" title="Anexar arquivo"><span className="material-symbols-outlined text-[20px]">attach_file</span></button>
                                     <button className="p-2 text-text-secondary hover:text-text-main hover:bg-gray-200 rounded-full transition-colors" title="Formatação"><span className="material-symbols-outlined text-[20px]">format_bold</span></button>
                                 </div>
                                 <div className="flex items-center gap-3">
-                                    <label className="flex items-center gap-2 cursor-pointer"><input className="form-checkbox h-4 w-4 text-yellow-500 rounded border-gray-300 focus:ring-yellow-500" type="checkbox"/><span className="text-xs font-medium text-text-secondary">Nota Interna</span></label>
-                                    <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 shadow-lg">Enviar Resposta</Button>
+                                    <label className="flex items-center gap-2 cursor-pointer">
+                                        <input onChange={(e) => setCommentType(e.target.checked ? 'internal' : 'public')} className="form-checkbox h-4 w-4 text-yellow-500 rounded border-gray-300 focus:ring-yellow-500" type="checkbox"/>
+                                        <span className="text-xs font-medium text-text-secondary">Nota Interna</span>
+                                    </label>
+                                    <Button onClick={handleAddComment} size="sm" className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 shadow-lg">Enviar Resposta</Button>
                                 </div>
                             </div>
                         </div>
@@ -270,4 +301,3 @@ export default function TicketDetailPage() {
         </AlertDialog>
     );
 }
-

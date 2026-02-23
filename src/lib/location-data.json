@@ -44,7 +44,18 @@
                 {
                     "name": "Cabedelo",
                     "neighborhoods": [
-                        "Areia Dourada", "Camboinha", "Centro", "Formosa", "Intermares", "Jardim América", "Jardim Manguinhos", "Poço", "Ponta de Matos", "Recanto do Poço", "Santa Catarina"
+                        "Areia Dourada",
+                        "Camboinha",
+                        "Centro",
+                        "Formosa",
+                        "Intermares",
+                        "Jardim América",
+                        "Jardim Manguinhos",
+                        "Poço",
+                        "Ponta de Campina",
+                        "Ponta de Matos",
+                        "Recanto do Poço",
+                        "Santa Catarina"
                     ]
                 },
                 { "name": "Cachoeira dos Índios", "neighborhoods": [] },

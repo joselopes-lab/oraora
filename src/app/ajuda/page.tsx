@@ -9,7 +9,7 @@ import { useAuthContext, useAuth, useDoc, useFirestore, useMemoFirebase } from '
 import { useRouter } from 'next/navigation';
 import { Skeleton } from "@/components/ui/skeleton";
 import { signOut } from 'firebase/auth';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
@@ -26,6 +26,12 @@ export default function HelpPage() {
   const dashboardUrl = userProfile?.userType === 'client' ? '/radar/dashboard' : '/dashboard';
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
 
   const siteContentRef = useMemoFirebase(
     () => (firestore ? doc(firestore, 'brokers', 'oraora-main-site') : null),
@@ -54,6 +60,7 @@ export default function HelpPage() {
             <div className="flex items-center">
                  {/* Mobile Menu */}
                 <div className="lg:hidden">
+                  {isClient && (
                     <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
                         <SheetTrigger asChild>
                             <button className="flex size-10 items-center justify-center text-text-main">
@@ -125,6 +132,7 @@ export default function HelpPage() {
                             </div>
                         </SheetContent>
                     </Sheet>
+                  )}
                 </div>
                  {/* Desktop Logo */}
                 <Link className="hidden lg:flex items-center gap-3" href="/">
@@ -188,6 +196,7 @@ export default function HelpPage() {
                 </div>
                 {/* Mobile Icons */}
                 <div className="flex items-center gap-2 lg:hidden">
+                  {isClient && (
                     <Dialog open={isSearchModalOpen} onOpenChange={setIsSearchModalOpen}>
                         <DialogTrigger asChild>
                             <button className="flex size-10 items-center justify-center text-text-main">
@@ -206,6 +215,7 @@ export default function HelpPage() {
                             </div>
                         </DialogContent>
                     </Dialog>
+                  )}
                     <Link href="/radar" className="flex size-10 items-center justify-center text-text-main">
                         <span className="material-symbols-outlined">radar</span>
                     </Link>

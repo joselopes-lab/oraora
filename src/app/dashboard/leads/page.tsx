@@ -2,7 +2,7 @@
 'use client';
 import { useState, useEffect, useMemo } from 'react';
 import { useCollection, useFirestore, useMemoFirebase, useAuthContext, setDocumentNonBlocking, deleteDocumentNonBlocking, addDocumentNonBlocking } from '@/firebase';
-import { collection, query, where, doc, orderBy, writeBatch } from 'firebase/firestore';
+import { collection, query, where, doc, orderBy, writeBatch, serverTimestamp, getDocs, getDoc, Timestamp, limit } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import {
     AlertDialog,
@@ -28,7 +28,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from '@/lib/utils';
-import { Badge } from '@/components/ui/badge';
+import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,12 +36,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 
-const ClientSideDate = ({ dateString, options }: { dateString: string, options?: Intl.DateTimeFormatOptions }) => {
+const ClientSideDate = ({ date, options }: { date: Date, options?: Intl.DateTimeFormatOptions }) => {
   const [formattedDate, setFormattedDate] = useState<string | null>(null);
 
   useEffect(() => {
-    setFormattedDate(new Date(dateString).toLocaleDateString('pt-BR', options));
-  }, [dateString, options]);
+    setFormattedDate(date.toLocaleDateString('pt-BR', options));
+  }, [date, options]);
 
   return <>{formattedDate || '...'}</>;
 };
@@ -56,8 +56,12 @@ type Lead = {
     phone: string;
     email: string;
     source: string;
-    createdAt: string;
+    createdAt: Timestamp;
     status: LeadStatus;
+    tempoPorEtapa?: { [key: string]: number };
+    tempoTotalFechamentoEmDias?: number;
+    leadScore?: number;
+    leadQualification?: 'Quente' | 'Morno' | 'Frio';
 };
 
 type LeadFunnelColumn = {
@@ -83,6 +87,18 @@ const sourceIcons: { [key: string]: string } = {
     'Ads': 'campaign',
     'Indicação': 'person',
     'Site Público': 'public'
+};
+
+const qualificationStyles: { [key: string]: string } = {
+    'Quente': 'bg-red-100 text-red-700 border border-red-200',
+    'Morno': 'bg-yellow-100 text-yellow-700 border border-yellow-200',
+    'Frio': 'bg-blue-100 text-blue-700 border border-blue-200',
+};
+
+const qualificationIcons: { [key: string]: string } = {
+    'Quente': 'local_fire_department',
+    'Morno': 'thermostat',
+    'Frio': 'ac_unit',
 };
 
 
@@ -120,9 +136,16 @@ const LeadCard = ({ lead, columns, onMove, onDragStart, onDeleteClick }: { lead:
                 </div>
             </div>
             <div className="flex items-center justify-between border-t border-gray-50 pt-3 mt-3">
-                <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium ${sourceStyles[lead.source] || 'bg-gray-100 text-gray-800'}`}>
-                    <span className="material-symbols-outlined text-[12px]">{sourceIcons[lead.source] || 'help'}</span> {lead.source}
-                </span>
+                <div className="flex items-center gap-2">
+                    <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium ${sourceStyles[lead.source] || 'bg-gray-100 text-gray-800'}`}>
+                        <span className="material-symbols-outlined text-[12px]">{sourceIcons[lead.source] || 'help'}</span> {lead.source}
+                    </span>
+                    {lead.leadQualification && (
+                        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium ${qualificationStyles[lead.leadQualification]}`}>
+                            <span className="material-symbols-outlined text-[12px]">{qualificationIcons[lead.leadQualification]}</span> {lead.leadQualification}
+                        </span>
+                    )}
+                </div>
                 <div className="flex items-center gap-1">
                     {canMovePrev && (
                         <button onClick={() => onMove(lead.id, 'prev')} className="p-1 rounded hover:bg-gray-100 text-text-secondary hover:text-red-500 transition-colors" title="Voltar">
@@ -136,7 +159,9 @@ const LeadCard = ({ lead, columns, onMove, onDragStart, onDeleteClick }: { lead:
                     )}
                 </div>
             </div>
-             <div className="absolute bottom-2 right-2 text-[10px] text-gray-400"><ClientSideDate dateString={lead.createdAt} options={{ day: '2-digit', month: 'short' }} /></div>
+             <div className="absolute bottom-2 right-2 text-[10px] text-gray-400">
+                {lead.createdAt && <ClientSideDate date={lead.createdAt.toDate()} options={{ day: '2-digit', month: 'short' }} />}
+            </div>
         </div>
     );
 };
@@ -211,33 +236,92 @@ export default function LeadsPage() {
         }
     }, [areColumnsLoading, columns, user, firestore, toast, hasCheckedForDefaultColumns]);
 
-    const handleMoveLead = (leadId: string, direction: 'prev' | 'next' | LeadStatus) => {
+    const handleMoveLead = async (leadId: string, direction: 'prev' | 'next' | LeadStatus) => {
         const leadToMove = leads?.find(l => l.id === leadId);
-        if (!leadToMove || !firestore || !columns) return;
-
-        let newStatus: LeadStatus;
-
+        if (!leadToMove || !firestore || !user || !columns) return;
+    
+        const fromStatus = leadToMove.status;
+        let toStatus: LeadStatus;
+    
         if (direction === 'prev' || direction === 'next') {
-            const currentIndex = columns.findIndex(col => col.id === leadToMove.status);
+            const currentIndex = columns.findIndex(col => col.id === fromStatus);
             const newIndex = direction === 'next' ? currentIndex + 1 : currentIndex - 1;
-            
             if (newIndex < 0 || newIndex >= columns.length) return;
-            newStatus = columns[newIndex].id;
+            toStatus = columns[newIndex].id;
         } else {
-            newStatus = direction;
+            toStatus = direction;
         }
-
-        const leadDocRef = doc(firestore, 'leads', leadId);
-        setDocumentNonBlocking(leadDocRef, { status: newStatus }, { merge: true });
+    
+        if (fromStatus === toStatus) return;
+    
+        const leadRef = doc(firestore, 'leads', leadId);
+        const historyRef = collection(leadRef, 'statusHistory');
+        
+        try {
+            const now = new Date();
+    
+            const leadDoc = await getDoc(leadRef);
+            if (!leadDoc.exists()) throw new Error("Lead document not found");
+            const leadData = leadDoc.data();
+            const createdAt = leadData.createdAt.toDate();
+            const tempoPorEtapa = leadData.tempoPorEtapa || {};
+    
+            const historyQuery = query(historyRef, orderBy('changedAt', 'desc'), limit(1));
+            const lastHistorySnap = await getDocs(historyQuery);
+            
+            const stageStartDate = lastHistorySnap.empty 
+                ? createdAt 
+                : lastHistorySnap.docs[0].data().changedAt.toDate();
+    
+            const durationInHours = (now.getTime() - stageStartDate.getTime()) / (1000 * 60 * 60);
+            const newTimeInStage = (tempoPorEtapa[fromStatus] || 0) + durationInHours;
+            
+            const batch = writeBatch(firestore);
+    
+            const leadUpdateData: { [key: string]: any } = {
+                status: toStatus,
+                tempoPorEtapa: { ...tempoPorEtapa, [fromStatus]: newTimeInStage },
+            };
+    
+            const finalStates = ['converted', 'lost'];
+            if (finalStates.includes(toStatus)) {
+                const closingTimeInDays = (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24);
+                leadUpdateData.tempoTotalFechamentoEmDias = closingTimeInDays;
+            }
+            
+            batch.update(leadRef, leadUpdateData);
+    
+            const newHistoryRef = doc(historyRef);
+            const historyData = { fromStatus, toStatus, changedAt: serverTimestamp(), brokerId: user.uid };
+            batch.set(newHistoryRef, historyData);
+    
+            await batch.commit();
+    
+            toast({
+                title: 'Lead Atualizado!',
+                description: `Lead movido de "${columns.find(c => c.id === fromStatus)?.title}" para "${columns.find(c => c.id === toStatus)?.title}".`
+            });
+    
+        } catch (error) {
+            console.error("Erro ao mover lead e registrar histórico:", error);
+            toast({
+                variant: "destructive",
+                title: "Erro ao atualizar lead",
+                description: "Não foi possível registrar a mudança de status.",
+            });
+        }
     };
     
-    const handleDrop = (e: React.DragEvent<HTMLDivElement>, newStatus: LeadStatus) => {
+    const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+        e.preventDefault();
+    };
+    
+    const handleDrop = (e: React.DragEvent<HTMLDivElement>, toStatus: LeadStatus) => {
         e.preventDefault();
         const leadId = e.dataTransfer.getData('leadId');
-        if (!leadId || !firestore) return;
+        if (!leadId) return;
 
-        const leadDocRef = doc(firestore, 'leads', leadId);
-        setDocumentNonBlocking(leadDocRef, { status: newStatus }, { merge: true });
+        handleMoveLead(leadId, toStatus);
         setDraggedLeadId(null);
     };
 
@@ -353,6 +437,12 @@ export default function LeadsPage() {
                     <p className="text-text-secondary mt-1">Acompanhe seu funil de vendas e mova os cards para atualizar o status.</p>
                 </div>
                 <div className="flex gap-3">
+                    <Button asChild variant="outline" className="bg-white border border-gray-200 hover:bg-gray-50 text-text-main font-medium py-2.5 px-4 rounded-lg transition-all duration-300 flex items-center gap-2">
+                        <Link href="/dashboard/leads/analytics">
+                            <span className="material-symbols-outlined text-[18px]">bar_chart</span>
+                            Análise
+                        </Link>
+                    </Button>
                     <DialogTrigger asChild>
                       <Button variant="outline" className="bg-white border border-gray-200 hover:bg-gray-50 text-text-main font-medium py-2.5 px-4 rounded-lg transition-all duration-300 flex items-center gap-2">
                         <span className="material-symbols-outlined text-[18px]">edit</span>
@@ -509,7 +599,7 @@ export default function LeadsPage() {
                                         </span>
                                     </TableCell>
                                     <TableCell>
-                                        <ClientSideDate dateString={lead.createdAt} />
+                                        {lead.createdAt && <ClientSideDate date={lead.createdAt.toDate()} />}
                                     </TableCell>
                                     <TableCell className="text-right">
                                         <div className="flex items-center justify-end gap-0.5">

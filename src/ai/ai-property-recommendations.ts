@@ -9,21 +9,13 @@
  */
 
 import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import { 
+  PropertyRecommendationsInputSchema, 
+  PropertyRecommendationsOutputSchema, 
+  type PropertyRecommendationsInput, 
+  type PropertyRecommendationsOutput 
+} from '@/ai/genkit';
 
-const PropertyRecommendationsInputSchema = z.object({
-  clientPreferences: z
-    .string()
-    .describe('Uma descrição detalhada das preferências de imóvel do cliente, incluindo localização, faixa de preço, tipo de imóvel, tamanho e comodidades desejadas.'),
-});
-export type PropertyRecommendationsInput = z.infer<typeof PropertyRecommendationsInputSchema>;
-
-const PropertyRecommendationsOutputSchema = z.object({
-  recommendations: z
-    .string()
-    .describe('Uma lista de imóveis recomendados, incluindo endereço, preço e uma breve descrição destacando por que eles correspondem às preferências do cliente.'),
-});
-export type PropertyRecommendationsOutput = z.infer<typeof PropertyRecommendationsOutputSchema>;
 
 export async function getPropertyRecommendations(input: PropertyRecommendationsInput): Promise<PropertyRecommendationsOutput> {
   return propertyRecommendationsFlow(input);

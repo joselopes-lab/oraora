@@ -153,7 +153,7 @@ export default function ConstructorForm({ constructorData, onSave, isEditing, is
                                                     <FormItem>
                                                         <FormLabel>Nome da Construtora</FormLabel>
                                                         <FormControl>
-                                                            <Input placeholder="Ex: Nome da Construtora" {...field} />
+                                                            <Input placeholder="Ex: Nome da Construtora" {...field} value={field.value ?? ''} />
                                                         </FormControl>
                                                         <FormMessage />
                                                     </FormItem>
@@ -163,14 +163,14 @@ export default function ConstructorForm({ constructorData, onSave, isEditing, is
                                         <FormField control={form.control} name="cnpj" render={({ field }) => (
                                             <FormItem>
                                                 <FormLabel>CNPJ</FormLabel>
-                                                <FormControl><Input placeholder="00.000.000/0001-00" {...field} /></FormControl>
+                                                <FormControl><Input placeholder="00.000.000/0001-00" {...field} value={field.value ?? ''} /></FormControl>
                                                 <FormMessage />
                                             </FormItem>
                                         )} />
                                         <FormField control={form.control} name="stateRegistration" render={({ field }) => (
                                             <FormItem>
                                                 <FormLabel>Inscrição Estadual</FormLabel>
-                                                <FormControl><Input placeholder="Isento ou número" {...field} /></FormControl>
+                                                <FormControl><Input placeholder="Isento ou número" {...field} value={field.value ?? ''} /></FormControl>
                                                 <FormMessage />
                                             </FormItem>
                                         )} />
@@ -183,7 +183,7 @@ export default function ConstructorForm({ constructorData, onSave, isEditing, is
                                      <FormField control={form.control} name="address" render={({ field }) => (
                                         <FormItem>
                                             <FormLabel>Endereço Completo</FormLabel>
-                                            <FormControl><Input placeholder="Rua, Número, Bairro, Complemento" {...field} /></FormControl>
+                                            <FormControl><Input placeholder="Rua, Número, Bairro, Complemento" {...field} value={field.value ?? ''} /></FormControl>
                                             <FormMessage />
                                         </FormItem>
                                     )} />
@@ -224,7 +224,7 @@ export default function ConstructorForm({ constructorData, onSave, isEditing, is
                                  <FormField control={form.control} name="zip" render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>CEP</FormLabel>
-                                        <FormControl><Input placeholder="00000-000" {...field} /></FormControl>
+                                        <FormControl><Input placeholder="00000-000" {...field} value={field.value ?? ''} /></FormControl>
                                         <FormMessage />
                                     </FormItem>
                                 )}/>
@@ -255,7 +255,7 @@ export default function ConstructorForm({ constructorData, onSave, isEditing, is
                                         <FormControl>
                                             <div className="relative">
                                                 <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">key</span>
-                                                <Input type="password" placeholder="********" className="pl-10" {...field} />
+                                                <Input type="password" placeholder="********" className="pl-10" {...field} value={field.value ?? ''} />
                                             </div>
                                         </FormControl>
                                         {isEditing && <p className="text-xs text-text-secondary mt-1">Preencha apenas para alterar.</p>}
@@ -268,7 +268,7 @@ export default function ConstructorForm({ constructorData, onSave, isEditing, is
                                         <FormControl>
                                             <div className="relative">
                                                 <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">lock_reset</span>
-                                                <Input type="password" placeholder="********" className="pl-10" {...field} />
+                                                <Input type="password" placeholder="********" className="pl-10" {...field} value={field.value ?? ''} />
                                             </div>
                                         </FormControl>
                                         <FormMessage />
@@ -287,7 +287,7 @@ export default function ConstructorForm({ constructorData, onSave, isEditing, is
                                         <FormControl>
                                             <div className="relative">
                                                 <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[20px]">call</span>
-                                                <Input type="tel" className="pl-10" {...field} />
+                                                <Input type="tel" className="pl-10" {...field} value={field.value ?? ''} />
                                             </div>
                                         </FormControl>
                                         <FormMessage />
@@ -299,7 +299,7 @@ export default function ConstructorForm({ constructorData, onSave, isEditing, is
                                         <FormControl>
                                             <div className="relative">
                                                 <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-green-600 text-[20px]">chat</span>
-                                                <Input type="tel" className="pl-10" {...field} />
+                                                <Input type="tel" className="pl-10" {...field} value={field.value ?? ''} />
                                             </div>
                                         </FormControl>
                                         <FormMessage />
@@ -311,7 +311,7 @@ export default function ConstructorForm({ constructorData, onSave, isEditing, is
                                         <FormControl>
                                             <div className="relative">
                                                 <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-pink-600 text-[20px]">photo_camera</span>
-                                                <Input className="pl-10" {...field} />
+                                                <Input className="pl-10" {...field} value={field.value ?? ''} />
                                             </div>
                                         </FormControl>
                                         <FormMessage />
@@ -323,7 +323,7 @@ export default function ConstructorForm({ constructorData, onSave, isEditing, is
                                         <FormControl>
                                             <div className="relative">
                                                 <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[20px]">language</span>
-                                                <Input type="url" className="pl-10" {...field} />
+                                                <Input type="url" className="pl-10" {...field} value={field.value ?? ''} />
                                             </div>
                                         </FormControl>
                                         <FormMessage />
@@ -335,7 +335,7 @@ export default function ConstructorForm({ constructorData, onSave, isEditing, is
                                         <FormControl>
                                             <div className="relative">
                                                 <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[20px]">alternate_email</span>
-                                                <Input type="email" className="pl-10" {...field} />
+                                                <Input type="email" className="pl-10" {...field} value={field.value ?? ''} />
                                             </div>
                                         </FormControl>
                                         <p className="text-xs text-text-secondary mt-1">Visível para corretores.</p>

@@ -278,4 +278,8 @@ input[type=range]::-webkit-slider-runnable-track {
     .nav-link:hover::after {
         @apply w-full;
     }
+    .blur-phone {
+      filter: blur(4.5px);
+      user-select: none;
+    }
 }

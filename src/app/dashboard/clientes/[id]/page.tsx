@@ -2,22 +2,29 @@
 'use client';
 import { useRouter, useParams } from 'next/navigation';
 import { useDoc, useFirestore, useMemoFirebase, useCollection, useUser } from '@/firebase';
-import { collection, doc, query, where, getDocs } from 'firebase/firestore';
+import { collection, doc, query, where, getDocs, Timestamp } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import ClientDetailView from '../components/client-detail-view';
 import { useEffect, useState } from 'react';
 
-const ClientSideDate = ({ dateString }: { dateString: string }) => {
+const ClientSideDate = ({ date }: { date: Date }) => {
     const [formattedDate, setFormattedDate] = useState<string | null>(null);
 
     useEffect(() => {
-        setFormattedDate(new Date(dateString).toLocaleDateString('pt-BR'));
-    }, [dateString]);
+        setFormattedDate(date.toLocaleDateString('pt-BR'));
+    }, [date]);
 
     return <>{formattedDate || '...'}</>;
 }
 
+type Note = {
+    id: string;
+    text: string;
+    createdAt: string;
+    authorId: string;
+    authorName: string;
+};
 
 type Lead = {
     id: string;
@@ -28,13 +35,14 @@ type Lead = {
     propertyInterest?: string;
     source?: string;
     status: string;
-    createdAt: string;
+    createdAt: Timestamp;
     address?: {
         street?: string;
         city?: string;
         state?: string;
     };
     personaIds?: string[];
+    notes?: Note[];
 };
 
 type Persona = {
@@ -52,8 +60,8 @@ type Property = {
     valor?: number;
   };
   localizacao: {
-    cidade: string;
     bairro: string;
+    cidade: string;
   };
   midia: string[];
 };
@@ -152,7 +160,7 @@ export default function ClientDetailPage() {
                         <span className="material-symbols-outlined text-[18px]">fingerprint</span>
                         <span>ID: #{client.id.substring(0, 6)}</span>
                         <span className="mx-1">•</span>
-                        <span>Cadastrado em <ClientSideDate dateString={client.createdAt} /></span>
+                        <span>Cadastrado em <ClientSideDate date={client.createdAt.toDate()} /></span>
                     </div>
                 </div>
                 <div className="flex gap-3">

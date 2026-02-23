@@ -1,3 +1,4 @@
+
 'use client';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -17,6 +18,7 @@ import { useUser, useDoc, useFirestore, useMemoFirebase, setDocumentNonBlocking 
 import { arrayRemove, arrayUnion, doc } from 'firebase/firestore';
 import { useRouter, notFound } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 
 type Broker = {
@@ -45,6 +47,7 @@ type Property = {
     cidade: string;
     estado: string;
     googleMapsLink?: string;
+    googleStreetViewLink?: string;
   };
   midia: string[];
   caracteristicasimovel: {
@@ -268,6 +271,24 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
     return null;
   };
   const mapSrc = extractMapSrc(localizacao.googleMapsLink);
+  const streetViewSrc = extractMapSrc(localizacao.googleStreetViewLink);
+  
+  const getYoutubeEmbedUrl = (url: string | undefined): string | null => {
+    if (!url) return null;
+    let videoId;
+    if (url.includes('youtube.com/watch?v=')) {
+      videoId = url.split('v=')[1]?.split('&')[0];
+    } else if (url.includes('youtu.be/')) {
+      videoId = url.split('/').pop()?.split('?')[0];
+    } else if (url.includes('vimeo.com/')) {
+      videoId = url.split('/').pop()?.split('?')[0];
+    }
+    if (videoId) {
+      return `https://www.youtube.com/embed/${videoId}`;
+    }
+    return null;
+  };
+  const videoEmbedUrl = getYoutubeEmbedUrl(youtubeVideoUrl);
 
   const dynamicStyles = {
     '--background': broker.backgroundColor,
@@ -299,9 +320,12 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
               </div>
               <div className="flex flex-col items-end">
                 {informacoesbasicas.valor && (
-                  <span className="text-3xl font-black text-primary drop-shadow-sm">
-                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2 }).format(informacoesbasicas.valor)}
-                  </span>
+                  <div>
+                    <span className="text-base font-medium text-gray-500 block">A partir de:</span>
+                    <span className="text-3xl font-black text-primary drop-shadow-sm">
+                      {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2 }).format(informacoesbasicas.valor)}
+                    </span>
+                  </div>
                 )}
                 <span className="text-sm text-text-muted font-medium">Condomínio: R$ 2.500/mês</span>
               </div>
@@ -309,31 +333,22 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
           </div>
         </div>
         <section className="w-full max-w-[1280px] px-6 mt-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 h-[500px]">
-            <div onClick={() => openGallery(0)} className="md:col-span-2 md:row-span-2 relative rounded-2xl overflow-hidden group cursor-pointer shadow-soft">
-              <div className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105" style={{ backgroundImage: `url("${midia?.[0] || ''}")` }}></div>
-              <div className="absolute bottom-4 left-4 bg-black/60 text-white px-3 py-1.5 rounded-lg backdrop-blur-md text-sm font-bold flex items-center gap-2">
-                <span className="material-symbols-outlined text-base">photo_camera</span> Ver todas as fotos
+           <div onClick={() => openGallery(0)} className="relative w-full h-[60vh] max-h-[700px] rounded-2xl overflow-hidden group cursor-pointer shadow-lg border border-gray-100">
+              <Image
+                  alt={informacoesbasicas?.nome || 'Imagem principal do imóvel'}
+                  src={midia?.[0] || 'https://picsum.photos/seed/main-prop/1200/700'}
+                  fill
+                  className="object-cover transition-transform duration-700 group-hover:scale-105"
+                  priority
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+              <div className="absolute bottom-6 left-6 bg-black/60 text-white px-4 py-2 rounded-lg backdrop-blur-md text-base font-bold flex items-center gap-2 hover:bg-black/80 transition-colors">
+                  <span className="material-symbols-outlined">photo_library</span>
+                  Ver Galeria ({midia?.length || 0} fotos)
               </div>
               <div className="absolute top-4 left-4 bg-primary text-black px-3 py-1 rounded-md text-xs font-bold uppercase tracking-wider">
-                Destaque
+                  Destaque
               </div>
-            </div>
-            <div onClick={() => openGallery(1)} className="relative rounded-2xl overflow-hidden group cursor-pointer shadow-soft">
-              <div className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110" style={{ backgroundImage: `url("${midia?.[1] || ''}")` }}></div>
-            </div>
-            <div onClick={() => openGallery(2)} className="relative rounded-2xl overflow-hidden group cursor-pointer shadow-soft">
-              <div className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110" style={{ backgroundImage: `url("${midia?.[2] || ''}")` }}></div>
-            </div>
-            <div onClick={() => openGallery(3)} className="relative rounded-2xl overflow-hidden group cursor-pointer shadow-soft">
-              <div className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110" style={{ backgroundImage: `url("${midia?.[3] || ''}")` }}></div>
-            </div>
-            <div onClick={() => openGallery(4)} className="relative rounded-2xl overflow-hidden group cursor-pointer shadow-soft">
-              <div className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110" style={{ backgroundImage: `url("${midia?.[4] || ''}")` }}></div>
-              <div className="absolute inset-0 bg-black/40 flex items-center justify-center group-hover:bg-black/50 transition-colors">
-                <span className="text-white font-bold text-lg border border-white/50 px-4 py-2 rounded-lg backdrop-blur-sm hover:bg-white/20 transition-colors">+{midia.length > 5 ? midia.length - 5 : 0} Fotos</span>
-              </div>
-            </div>
           </div>
         </section>
         <div className="w-full max-w-[1280px] px-6 mt-10 grid grid-cols-1 lg:grid-cols-3 gap-10">
@@ -366,12 +381,20 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
                 <p className="mb-4">{informacoesbasicas.descricao}</p>
               </div>
             </div>
+            {videoEmbedUrl && (
+              <div>
+                <h2 className="text-2xl font-bold text-text-main mb-4">Vídeo Tour</h2>
+                <div className="aspect-video w-full rounded-2xl overflow-hidden shadow-soft">
+                  <iframe src={videoEmbedUrl} title="Video Tour" className="w-full h-full" allowFullScreen></iframe>
+                </div>
+              </div>
+            )}
             <div>
               <h2 className="text-2xl font-bold text-text-main mb-6">Características e Comodidades</h2>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-y-4 gap-x-2">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-y-4 gap-x-8">
                 {areascomuns?.map((item) => (
                   <div key={item} className="flex items-center gap-3 text-text-muted">
-                    <span className="material-symbols-outlined text-secondary">check_circle</span>
+                    <span className="material-symbols-outlined text-primary">check_circle</span>
                     <span className="font-medium">{item}</span>
                   </div>
                 ))}
@@ -379,52 +402,48 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
             </div>
             <div>
               <h2 className="text-2xl font-bold text-text-main mb-4">Localização</h2>
-              <div className="rounded-2xl overflow-hidden h-80 w-full bg-gray-200 relative shadow-soft">
-                {mapSrc ? (
-                    <iframe
-                        src={mapSrc}
-                        width="100%"
-                        height="100%"
-                        style={{ border: 0 }}
-                        allowFullScreen={false}
-                        loading="lazy"
-                        referrerPolicy="no-referrer-when-downgrade"
-                    ></iframe>
-                ) : <div className="flex items-center justify-center h-full text-text-secondary">Mapa não disponível</div>}
-              </div>
-              <div className="mt-6">
-                <h3 className="font-bold text-lg mb-3">O que há por perto?</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-100">
-                    <span className="material-symbols-outlined text-green-600 bg-green-100 p-2 rounded-full">park</span>
-                    <div>
-                      <p className="font-bold text-sm text-text-main">Parque Ibirapuera</p>
-                      <p className="text-xs text-text-muted">1.2 km de distância</p>
+              <Tabs defaultValue="map" className="w-full">
+                  <TabsList className="grid w-full grid-cols-2 h-14 p-1.5 bg-gray-100 rounded-xl">
+                      <TabsTrigger value="map" className="data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-md rounded-lg text-gray-500 font-bold flex items-center gap-2 transition-all">
+                          <span className="material-symbols-outlined">map</span>
+                          Mapa
+                      </TabsTrigger>
+                      <TabsTrigger value="streetview" className="data-[state=active]:bg-white data-[state=active]:text-primary data-[state=active]:shadow-md rounded-lg text-gray-500 font-bold flex items-center gap-2 transition-all">
+                          <span className="material-symbols-outlined">streetview</span>
+                          Street View
+                      </TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="map">
+                    <div className="bg-gray-100 rounded-xl h-[400px] w-full overflow-hidden relative mt-4">
+                      {mapSrc ? (
+                          <iframe
+                              src={mapSrc}
+                              width="100%"
+                              height="100%"
+                              style={{ border: 0 }}
+                              allowFullScreen={false}
+                              loading="lazy"
+                              referrerPolicy="no-referrer-when-downgrade"
+                          ></iframe>
+                      ) : <div className="flex items-center justify-center h-full text-text-secondary">Mapa não disponível</div>}
                     </div>
-                  </div>
-                  <div className="flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-100">
-                    <span className="material-symbols-outlined text-blue-600 bg-blue-100 p-2 rounded-full">school</span>
-                    <div>
-                      <p className="font-bold text-sm text-text-main">Colégio Dante Alighieri</p>
-                      <p className="text-xs text-text-muted">800 m de distância</p>
+                  </TabsContent>
+                  <TabsContent value="streetview">
+                    <div className="bg-gray-100 rounded-xl h-[400px] w-full overflow-hidden relative mt-4">
+                      {streetViewSrc ? (
+                          <iframe
+                              src={streetViewSrc}
+                              width="100%"
+                              height="100%"
+                              style={{ border: 0 }}
+                              allowFullScreen={false}
+                              loading="lazy"
+                              referrerPolicy="no-referrer-when-downgrade"
+                          ></iframe>
+                      ) : <div className="flex items-center justify-center h-full text-text-secondary">Street View não disponível</div>}
                     </div>
-                  </div>
-                  <div className="flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-100">
-                    <span className="material-symbols-outlined text-orange-600 bg-orange-100 p-2 rounded-full">restaurant</span>
-                    <div>
-                      <p className="font-bold text-sm text-text-main">Restaurante Fasano</p>
-                      <p className="text-xs text-text-muted">500 m de distância</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-100">
-                    <span className="material-symbols-outlined text-purple-600 bg-purple-100 p-2 rounded-full">shopping_bag</span>
-                    <div>
-                      <p className="font-bold text-sm text-text-main">Shopping Iguatemi</p>
-                      <p className="text-xs text-text-muted">2.5 km de distância</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
+                  </TabsContent>
+                </Tabs>
             </div>
           </div>
           <div className="lg:col-span-1">
@@ -458,7 +477,10 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
                            {isSubmitting ? 'Enviando...' : 'Quero saber mais'}
                         </button>
                         <DialogTrigger asChild>
-                            <Button variant="outline" className="w-full h-12 rounded-lg border-[#25D366] text-[#25D366] font-bold hover:bg-[#25D366] hover:text-white transition-colors flex items-center justify-center gap-2">
+                            <Button 
+                              className="w-full h-12 rounded-lg text-white font-bold hover:opacity-90 transition-all flex items-center justify-center gap-2"
+                              style={{ backgroundColor: broker.primaryColor ? `hsl(${broker.primaryColor})` : '#25D366' }}
+                            >
                                 <span className="material-symbols-outlined">chat</span>
                                 Falar no WhatsApp
                             </Button>
@@ -487,7 +509,12 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
                             {whatsappForm.formState.errors.whatsappPhone && <p className="col-span-4 text-right text-xs text-red-500">{whatsappForm.formState.errors.whatsappPhone.message}</p>}
                           </div>
                            <DialogFooter>
-                            <Button type="submit" variant="secondary" className="bg-[#25D366] hover:bg-green-600 text-white">
+                            <Button
+                                type="submit"
+                                variant="secondary"
+                                className="text-white hover:opacity-90"
+                                style={{ backgroundColor: broker.primaryColor ? `hsl(${broker.primaryColor})` : '#25D366' }}
+                            >
                                 <span className="material-symbols-outlined mr-2">send</span>
                                 Iniciar Conversa
                             </Button>
@@ -513,7 +540,7 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
                 const isSaved = savedPropertyIds.includes(similarProperty.id);
                 const quartos = similarProperty.caracteristicasimovel.quartos;
                 return (
-                  <Link href={`/sites/${broker.slug}/imovel/${similarProperty.informacoesbasicas.slug || similarProperty.id}`} key={similarProperty.id} className="group relative flex flex-col rounded-2xl bg-white border border-transparent shadow-soft hover:shadow-card transition-all duration-300 overflow-hidden">
+                  <Link href={`/sites/${broker.slug}/imovel/${similarProperty.id}`} key={similarProperty.id} className="group relative flex flex-col rounded-2xl bg-white border border-transparent shadow-soft hover:shadow-card transition-all duration-300 overflow-hidden">
                     <div className="relative aspect-[4/3] w-full overflow-hidden bg-gray-100">
                         <div className="absolute top-3 left-3 z-10 rounded-md bg-primary px-2 py-1 text-xs font-bold text-black uppercase tracking-wide shadow-sm">{similarProperty.informacoesbasicas.status}</div>
                         <button onClick={(e) => handleRadarClick(e, similarProperty.id)} className={cn("absolute top-3 right-3 z-10 flex size-8 items-center justify-center rounded-full bg-white/80 backdrop-blur-sm text-gray-500 hover:text-red-500 hover:bg-white transition-colors", isSaved && "text-red-500 bg-white")}>
@@ -595,7 +622,7 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
           <div className="h-28 bg-white border-t border-gray-100/80 p-4 flex items-center justify-center gap-3 overflow-x-auto relative z-20">
             <div className="flex gap-3 px-4 min-w-min mx-auto">
               {midia.map((img, index) => (
-                <div key={img} onClick={() => setSelectedImageIndex(index)} className={`relative w-24 h-16 rounded-lg overflow-hidden cursor-pointer flex-shrink-0 transition-all hover:opacity-100 ${selectedImageIndex === index ? 'ring-2 ring-primary ring-offset-2' : 'opacity-60'}`}>
+                <div key={`${img}-${index}`} onClick={() => setSelectedImageIndex(index)} className={`relative w-24 h-16 rounded-lg overflow-hidden cursor-pointer flex-shrink-0 transition-all hover:opacity-100 ${selectedImageIndex === index ? 'ring-2 ring-primary ring-offset-2' : 'opacity-60'}`}>
                   <img alt={`Thumbnail ${index + 1}`} className="w-full h-full object-cover" src={img} />
                 </div>
               ))}
@@ -606,5 +633,4 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
     </div>
   );
 }
-
     

@@ -1,409 +1,440 @@
 
 'use client';
-
-import { useUser, useDoc, useFirestore, useMemoFirebase, useCollection, useAuthContext, setDocumentNonBlocking } from '@/firebase';
-import Image from 'next/image';
+import { useAuthContext, useFirebase, useDoc, useCollection, useMemoFirebase, setDocumentNonBlocking } from '@/firebase';
+import { arrayRemove, arrayUnion, collection, doc, query, where, Timestamp, orderBy, limit, getDocs } from 'firebase/firestore';
 import Link from 'next/link';
-import { arrayRemove, arrayUnion, doc, collection, query, where, getDocs } from 'firebase/firestore';
+import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import Image from 'next/image';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useMemo, useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogClose, DialogFooter } from '@/components/ui/dialog';
+import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious, } from "@/components/ui/carousel";
 import { useRouter } from 'next/navigation';
-import { Skeleton } from '@/components/ui/skeleton';
-import { useEffect, useState, useMemo } from 'react';
-import { format, parseISO } from 'date-fns';
+import EventForm, { EventFormData } from '@/app/dashboard/agenda/components/event-form';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { format, subMonths, startOfMonth, endOfMonth, parseISO, isBefore, isEqual } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Progress } from "@/components/ui/progress";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Button } from '@/components/ui/button';
-
+import { Bar, BarChart, CartesianGrid, XAxis } from "recharts"
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from "@/components/ui/chart"
 
 type UserProfile = {
-    userType: 'admin' | 'broker' | 'constructor';
+    userType: 'admin' | 'broker' | 'constructor' | 'client';
     planId?: string;
     personaIds?: string[];
 };
 
 type BrokerProfile = {
     slug: string;
+    monthlyGoals?: { [key: string]: number };
 };
 
 type Property = {
     id: string;
     informacoesbasicas: {
-      nome: string;
-      status: string;
-      valor?: number;
-      descricao?: string;
-      slug?: string;
+        nome: string;
+        status: string;
+        valor?: number;
+        descricao?: string;
+        slug?: string;
     };
     localizacao: {
-      bairro: string;
-      cidade: string;
-      estado: string;
+        bairro: string;
+        cidade: string;
     };
     midia: string[];
     caracteristicasimovel: {
-      tipo: string;
-      quartos?: string[] | string;
-      tamanho?: string;
-      vagas?: string;
+        quartos?: string[] | string;
+        tamanho?: string;
+        vagas?: string;
     };
-    personaIds?: string[];
 };
 
-type RadarList = {
+
+type Portfolio = {
   propertyIds: string[];
+}
+
+type Transaction = {
+    id: string;
+    description: string;
+    date: string;
+    status: string;
+    value: number;
+    categoryIcon: string;
+    category: string;
+    type: 'receita' | 'despesa';
+    clientOrProvider?: string;
+    notes?: string;
+    brokerId: string;
+    isRecurring?: boolean;
+    installments?: number;
+    totalValue?: number;
+    installmentNumber?: number;
+    groupId?: string;
 };
 
+type Lead = {
+  id: string;
+  name: string;
+  createdAt: Timestamp;
+  status: string;
+  propertyInterest?: string;
+};
+
+type Event = {
+  id: string;
+  title: string;
+  date: string;
+  time?: string;
+  type: 'reuniao' | 'visita' | 'tarefa' | 'particular' | 'outro';
+  completed?: boolean;
+  clientId?: string;
+  description?: string;
+};
+
+type BrokerMetrics = {
+    totalLeads?: number;
+    totalClosed?: number;
+    conversionRate?: number;
+    avgClosingTimeDays?: number;
+};
+
+type Persona = {
+  id: string;
+  name: string;
+}
+
+const eventTypeDetails: { [key: string]: { label: string, color: string, icon: string } } = {
+  reuniao: { label: 'Reunião', color: 'bg-purple-500', icon: 'groups' },
+  visita: { label: 'Visita', color: 'bg-blue-500', icon: 'key' },
+  tarefa: { label: 'Tarefa', color: 'bg-green-500', icon: 'check_box' },
+  particular: { label: 'Particular', color: 'bg-amber-500', icon: 'person' },
+  outro: { label: 'Outro', color: 'bg-gray-500', icon: 'more_horiz' },
+};
+
+const ClientSideDate = ({ date, options }: { date: Date, options?: Intl.DateTimeFormatOptions }) => {
+  const [formattedDate, setFormattedDate] = useState<string | null>(null);
+
+  useEffect(() => {
+    setFormattedDate(date.toLocaleDateString('pt-BR', options));
+  }, [date, options]);
+
+  return <>{formattedDate || '...'}</>;
+};
+
+const getStatusBadgeClass = (status: string) => {
+    switch (status) {
+        case 'new': return 'bg-blue-100 text-blue-800 border-blue-200';
+        case 'contacted': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+        case 'qualified': return 'bg-purple-100 text-purple-800 border-purple-200';
+        case 'proposal': return 'bg-orange-100 text-orange-800 border-orange-200';
+        case 'converted': return 'bg-green-100 text-green-800 border-green-200';
+        case 'lost': return 'bg-red-100 text-red-800 border-red-200';
+        default: return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
+}
+
+
+// This is the main dashboard page, rendered within the layout.
 export default function RadarDashboardPage() {
-    const { user, userProfile, isReady } = useAuthContext();
-    const router = useRouter();
-    const firestore = useFirestore();
-    const { toast } = useToast();
-
-    const [sortBy, setSortBy] = useState('match_desc');
-    const [currentDate, setCurrentDate] = useState('');
-    const [currentPage, setCurrentPage] = useState(1);
-    const itemsPerPage = 10;
-
-    const selectedPersonaId = userProfile?.personaIds?.[0];
-
-    const personaDocRef = useMemoFirebase(
-      () => (firestore && selectedPersonaId ? doc(firestore, 'personas', selectedPersonaId) : null),
-      [firestore, selectedPersonaId]
-    );
-    const { data: selectedPersona, isLoading: isPersonaLoading } = useDoc<{ name: string }>(personaDocRef);
-
-    // Query for properties that match the user's selected persona, or all properties if no persona is selected
-    const opportunitiesQuery = useMemoFirebase(
-      () => {
-        if (!firestore) return null;
-        const propertiesRef = collection(firestore, 'properties');
-        if (selectedPersonaId) {
-            return query(propertiesRef, where('personaIds', 'array-contains', selectedPersonaId), where('isVisibleOnSite', '==', true));
-        }
-        // If no persona, show all visible properties.
-        return query(propertiesRef, where('isVisibleOnSite', '==', true));
-      },
-      [firestore, selectedPersonaId]
-    );
-    const { data: opportunities, isLoading: areOpportunitiesLoading } = useCollection<Property>(opportunitiesQuery);
-    
-    const radarListDocRef = useMemoFirebase(
-        () => (user ? doc(firestore, 'radarLists', user.uid) : null),
-        [user, firestore]
-    );
-
-    const { data: radarList } = useDoc<RadarList>(radarListDocRef);
-    const savedPropertyIds = radarList?.propertyIds || [];
-
-    const sortedOpportunities = useMemo(() => {
-      if (!opportunities) return [];
-
-      const sorted = [...opportunities];
-
-      switch (sortBy) {
-          case 'price_asc':
-              sorted.sort((a, b) => (a.informacoesbasicas.valor || Infinity) - (b.informacoesbasicas.valor || Infinity));
-              break;
-          case 'price_desc':
-              sorted.sort((a, b) => (b.informacoesbasicas.valor || 0) - (a.informacoesbasicas.valor || 0));
-              break;
-          case 'recent':
-              // This is a placeholder as there's no timestamp. We can reverse the array as an approximation.
-              sorted.reverse();
-              break;
-          case 'match_desc':
-          default:
-              // The default order from Firestore is assumed to be by match.
-              break;
-      }
-      return sorted;
-  }, [opportunities, sortBy]);
-
-    const totalPages = useMemo(() => {
-        if (!sortedOpportunities) return 1;
-        return Math.ceil(sortedOpportunities.length / itemsPerPage);
-    }, [sortedOpportunities, itemsPerPage]);
-
-    const paginatedOpportunities = useMemo(() => {
-        if (!sortedOpportunities) return [];
-        return sortedOpportunities.slice(
-            (currentPage - 1) * itemsPerPage,
-            currentPage * itemsPerPage
-        );
-    }, [sortedOpportunities, currentPage, itemsPerPage]);
-
-    const handlePageChange = (page: number) => {
-        if (page >= 1 && page <= totalPages) {
-            setCurrentPage(page);
-        }
-    };
-
-    const handleRadarClick = (e: React.MouseEvent, propertyId: string) => {
-        e.preventDefault();
-        e.stopPropagation();
-
-        if (!user) {
-            router.push('/radar');
-            return;
-        }
-
-        if (!firestore) return;
-
-        const docRef = doc(firestore, 'radarLists', user.uid);
-        
-        if (savedPropertyIds.includes(propertyId)) {
-            setDocumentNonBlocking(docRef, { propertyIds: arrayRemove(propertyId) }, { merge: true });
-            toast({ title: "Removido do Radar!", description: "O imóvel foi removido da sua lista." });
-        } else {
-            setDocumentNonBlocking(docRef, { userId: user.uid, propertyIds: arrayUnion(propertyId) }, { merge: true });
-            toast({ title: "Adicionado ao Radar!", description: "O imóvel foi salvo na sua lista de oportunidades." });
-        }
-    };
-    
-    const handleDisablePersona = async () => {
-      if (!user || !firestore) return;
+  const { user, userProfile, isReady } = useAuthContext();
+  const [currentDate, setCurrentDate] = useState('');
+  const [greeting, setGreeting] = useState('Bom dia');
   
-      const userDocRef = doc(firestore, 'users', user.uid);
-      try {
-        await setDocumentNonBlocking(userDocRef, { personaIds: [] }, { merge: true });
-        toast({
-          title: "Persona Desativada!",
-          description: "Você agora verá todos os imóveis recomendados.",
-        });
-      } catch (error) {
-        console.error("Error disabling persona:", error);
-        toast({
-          variant: "destructive",
-          title: "Erro",
-          description: "Não foi possível desativar a persona.",
-        });
+  const { firestore } = useFirebase();
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const { toast } = useToast();
+  const router = useRouter();
+
+  const personaId = userProfile?.personaIds?.[0];
+
+  const personaDocRef = useMemoFirebase(
+    () => (firestore && personaId ? doc(firestore, 'personas', personaId) : null),
+    [firestore, personaId]
+  );
+  const { data: persona, isLoading: isPersonaLoading } = useDoc<Persona>(personaDocRef);
+
+  const recommendedPropertiesQuery = useMemoFirebase(
+    () => (firestore && personaId ? query(collection(firestore, 'properties'), where('personaIds', 'array-contains', personaId)) : null),
+    [firestore, personaId]
+  );
+  const { data: recommendedProperties, isLoading: arePropertiesLoading } = useCollection<Property>(recommendedPropertiesQuery);
+  
+  const brokerPropertiesQuery = useMemoFirebase(
+    () => (firestore && personaId ? query(collection(firestore, 'brokerProperties'), where('personaIds', 'array-contains', personaId)) : null),
+    [firestore, personaId]
+  );
+  const { data: recommendedBrokerProperties, isLoading: areBrokerPropertiesLoading } = useCollection<Property>(brokerPropertiesQuery);
+
+  const allRecommendedProperties = useMemo(() => {
+    const all = [...(recommendedProperties || []), ...(recommendedBrokerProperties || [])];
+    const unique = new Map();
+    all.forEach(p => unique.set(p.id, p));
+    return Array.from(unique.values());
+  }, [recommendedProperties, recommendedBrokerProperties]);
+
+  const newOpportunities = useMemo(() => allRecommendedProperties.slice(0, 4), [allRecommendedProperties]);
+  
+  const radarListDocRef = useMemoFirebase(
+      () => (user ? doc(firestore, 'radarLists', user.uid) : null),
+      [user, firestore]
+  );
+  const { data: radarList } = useDoc<RadarList>(radarListDocRef);
+  const savedPropertyIds = radarList?.propertyIds || [];
+  
+  const [recommendedCurrentPage, setRecommendedCurrentPage] = useState(1);
+  const recommendedItemsPerPage = 8;
+
+  const recommendedTotalPages = useMemo(() => {
+      return Math.ceil(allRecommendedProperties.length / recommendedItemsPerPage);
+  }, [allRecommendedProperties.length, recommendedItemsPerPage]);
+
+  const paginatedRecommendedProperties = useMemo(() => {
+      return allRecommendedProperties.slice(
+          (recommendedCurrentPage - 1) * recommendedItemsPerPage,
+          recommendedCurrentPage * recommendedItemsPerPage
+      );
+  }, [allRecommendedProperties, recommendedCurrentPage, recommendedItemsPerPage]);
+
+  const handleRecommendedPageChange = (page: number) => {
+      if (page >= 1 && page <= recommendedTotalPages) {
+          setRecommendedCurrentPage(page);
+          const element = document.getElementById('recommended-section');
+          if (element) {
+              element.scrollIntoView({ behavior: 'smooth' });
+          }
       }
-    };
+  };
 
-    const isLoading = !isReady || areOpportunitiesLoading || isPersonaLoading;
 
-    const formatQuartos = (quartosData: any): string => {
-        if (!quartosData) return 'N/A';
+  const handleRadarClick = (e: React.MouseEvent, propertyId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!user) {
+        router.push('/radar');
+        return;
+    }
+
+    if (!firestore) return;
+
+    const docRef = doc(firestore, 'radarLists', user.uid);
     
-        const dataAsString = Array.isArray(quartosData)
-            ? quartosData.join(' ')
-            : String(quartosData);
-    
-        const numbers = dataAsString.match(/\d+/g);
-        
-        if (!numbers || numbers.length === 0) {
-            const trimmedString = dataAsString.trim();
-            return trimmedString ? trimmedString : 'N/A';
-        }
-    
-        const uniqueNumbers = [...new Set(numbers.map(n => parseInt(n, 10)))].filter(n => !isNaN(n)).sort((a, b) => a - b);
-        
-        if (uniqueNumbers.length === 0) return 'N/A';
-        if (uniqueNumbers.length === 1) return uniqueNumbers[0].toString();
-        
-        const last = uniqueNumbers.pop();
-        return `${uniqueNumbers.join(', ')} e ${last}`;
-    };
+    if (savedPropertyIds.includes(propertyId)) {
+        setDocumentNonBlocking(docRef, { propertyIds: arrayRemove(propertyId) }, { merge: true });
+        toast({ title: "Removido do Radar!", description: "O imóvel foi removido da sua lista." });
+    } else {
+        setDocumentNonBlocking(docRef, { userId: user.uid, propertyIds: arrayUnion(propertyId) }, { merge: true });
+        toast({ title: "Adicionado ao Radar!", description: "O imóvel foi salvo na sua lista de oportunidades." });
+    }
+  };
 
-    useEffect(() => {
-      setCurrentDate(format(new Date(), "dd 'de' MMM, yyyy", { locale: ptBR }));
-    }, []);
+  const isLoading = !isReady || isPersonaLoading || arePropertiesLoading || areBrokerPropertiesLoading;
 
-    return (
-        <>
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight mb-2 text-neutral-dark">Olá, {user?.displayName?.split(' ')[0]}! 👋</h1>
-                    <p className="text-gray-500">Encontramos novas oportunidades baseadas no seu perfil hoje.</p>
-                </div>
-                <div className="bg-neutral-light p-4 pr-6 rounded-2xl flex items-center gap-4 border border-gray-100">
-                    <div className="size-12 bg-white rounded-xl flex items-center justify-center text-primary shadow-sm">
-                        <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>psychology</span>
-                    </div>
-                    <div>
-                        <div className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Seu Perfil Atual</div>
-                        <div className="flex items-center gap-3">
-                            {isLoading ? (
-                                <Skeleton className="h-6 w-32" />
-                            ) : (
-                                <span className="font-bold text-neutral-dark">{selectedPersona?.name || 'Geral (Todos os Imóveis)'}</span>
-                            )}
-                            <Link className="text-xs font-bold text-primary bg-neutral-dark px-2 py-0.5 rounded hover:bg-black transition-colors" href="/radar/dashboard/personas">
-                                {selectedPersonaId ? 'EDITAR' : 'DEFINIR'}
-                            </Link>
-                            {selectedPersonaId && (
-                                <button onClick={handleDisablePersona} className="p-1 rounded-full text-gray-400 hover:bg-red-100 hover:text-red-600 transition-colors" title="Desativar Persona">
-                                    <span className="material-symbols-outlined text-base">close</span>
-                                </button>
-                            )}
-                        </div>
-                    </div>
+  useEffect(() => {
+    setCurrentDate(format(new Date(), "dd 'de' MMM, yyyy", { locale: ptBR }));
+    
+    const hour = new Date().getHours();
+    if (hour < 12) {
+      setGreeting('Bom dia');
+    } else if (hour < 18) {
+      setGreeting('Boa tarde');
+    } else {
+      setGreeting('Boa noite');
+    }
+
+  }, []);
+  
+  const formatQuartos = (quartosData: any): string => {
+    if (!quartosData) return 'N/A';
+  
+    const dataAsString = Array.isArray(quartosData)
+        ? quartosData.join(' ')
+        : String(quartosData);
+  
+    const numbers = dataAsString.match(/\d+/g);
+    
+    if (!numbers || numbers.length === 0) {
+        const trimmedString = dataAsString.trim();
+        return trimmedString ? trimmedString : 'N/A';
+    }
+
+    const uniqueNumbers = [...new Set(numbers.map(n => parseInt(n, 10)))].filter(n => !isNaN(n)).sort((a, b) => a - b);
+    
+    if (uniqueNumbers.length === 0) return 'N/A';
+    if (uniqueNumbers.length === 1) return uniqueNumbers[0].toString();
+    
+    const last = uniqueNumbers.pop();
+    return `${uniqueNumbers.join(', ')} e ${last}`;
+  };
+
+  return (
+    <>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight mb-2 text-neutral-dark">{greeting}, {user?.displayName?.split(' ')[0]}! 👋</h1>
+          <p className="text-gray-500">Encontramos novas oportunidades baseadas no seu perfil hoje.</p>
+        </div>
+        <div className="bg-neutral-light p-4 pr-6 rounded-2xl flex items-center gap-4 border border-gray-100">
+          <div className="size-12 bg-white rounded-xl flex items-center justify-center text-primary shadow-sm">
+            <span className="material-symbols-outlined" style={{fontVariationSettings: "'FILL' 1"}}>psychology</span>
+          </div>
+          <div>
+            <div className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Seu Perfil Atual</div>
+            <div className="flex items-center gap-3">
+              <span className="font-bold text-neutral-dark">{isLoading ? 'Carregando...' : (persona?.name || 'Não definido')}</span>
+              <Link className="text-xs font-bold text-primary bg-neutral-dark px-2 py-0.5 rounded hover:bg-black transition-colors" href="/radar/dashboard/personas">EDITAR</Link>
+            </div>
+          </div>
+        </div>
+      </div>
+      <section className="mb-12">
+        <Carousel>
+            <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold flex items-center gap-2">
+                    <span className="material-symbols-outlined text-primary">auto_awesome</span>
+                    Novas Oportunidades
+                </h2>
+                <div className="flex gap-2">
+                    <CarouselPrevious className="static -translate-y-0 size-8 border-gray-200" />
+                    <CarouselNext className="static -translate-y-0 size-8 border-gray-200" />
                 </div>
             </div>
-
-            <section className="mb-12">
-                <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-xl font-bold flex items-center gap-2">
-                        <span className="material-symbols-outlined text-primary">auto_awesome</span>
-                        Novas Oportunidades para Você
-                    </h2>
-                    <div className="flex gap-2">
-                        <button className="size-8 rounded-full border border-gray-200 flex items-center justify-center hover:bg-neutral-light transition-colors">
-                            <span className="material-symbols-outlined text-sm">chevron_left</span>
-                        </button>
-                        <button className="size-8 rounded-full border border-gray-200 flex items-center justify-center hover:bg-neutral-light transition-colors">
-                            <span className="material-symbols-outlined text-sm">chevron_right</span>
-                        </button>
-                    </div>
-                </div>
-                <div className="flex gap-6 overflow-x-auto no-scrollbar pb-4 -mx-2 px-2">
-                   {isLoading ? (
-                     Array.from({ length: 3 }).map((_, i) => (
-                        <Skeleton key={i} className="min-w-[340px] h-[212px] rounded-3xl" />
-                     ))
-                   ) : sortedOpportunities && sortedOpportunities.length > 0 ? (
-                        sortedOpportunities.map(opp => (
-                        <Link href={`/imoveis/${opp.informacoesbasicas.slug || opp.id}`} key={opp.id} className="min-w-[340px] group relative bg-neutral-dark rounded-3xl overflow-hidden aspect-[16/10]">
-                            <Image alt={opp.informacoesbasicas.nome} className="absolute inset-0 w-full h-full object-cover opacity-70 group-hover:scale-105 transition-transform duration-500" src={opp.midia?.[0] || `https://picsum.photos/seed/${opp.id}/400/250`} width={400} height={250} />
-                            <div className="absolute inset-0 bg-gradient-to-t from-neutral-dark via-transparent to-transparent"></div>
-                            <div className="absolute top-4 left-4">
-                                <span className="bg-primary text-neutral-dark text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest">98% Match</span>
+            <CarouselContent className="-ml-4">
+            {isLoading ? Array.from({length: 3}).map((_, i) => (
+                <CarouselItem key={i} className="pl-4 basis-full sm:basis-1/2 lg:basis-1/3">
+                    <Skeleton className="min-w-[340px] aspect-[16/10] rounded-3xl" />
+                </CarouselItem>
+            )) : newOpportunities.map((property: Property) => (
+                <CarouselItem key={property.id} className="pl-4 basis-full sm:basis-1/2 lg:basis-1/3">
+                    <Link href={`/imoveis/${property.informacoesbasicas.slug || property.id}`} target="_blank" className="block min-w-[340px] group relative bg-neutral-dark rounded-3xl overflow-hidden aspect-[16/10]">
+                        <Image alt={property.informacoesbasicas.nome} className="absolute inset-0 w-full h-full object-cover opacity-70 group-hover:scale-105 transition-transform duration-500" src={property.midia?.[0] || `https://picsum.photos/seed/${property.id}/340/212`} fill/>
+                        <div className="absolute inset-0 bg-gradient-to-t from-neutral-dark via-transparent to-transparent"></div>
+                        <div className="absolute top-4 left-4">
+                            <span className="bg-primary text-neutral-dark text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest">Compatibilidade: 98%</span>
+                        </div>
+                        <div className="absolute bottom-6 left-6 right-6">
+                            <div className="text-white font-bold text-lg mb-1">{property.informacoesbasicas.nome}</div>
+                            <div className="text-gray-300 text-sm flex items-center gap-1">
+                                <span className="material-symbols-outlined text-xs">location_on</span>
+                                {property.localizacao.bairro}, {property.localizacao.cidade}
                             </div>
-                            <div className="absolute bottom-6 left-6 right-6">
-                                <div className="text-white font-bold text-lg mb-1">{opp.informacoesbasicas.nome}</div>
-                                <div className="text-gray-300 text-sm flex items-center gap-1">
-                                    <span className="material-symbols-outlined text-xs">location_on</span>
-                                    {opp.localizacao.bairro}, {opp.localizacao.cidade}
-                                </div>
-                            </div>
-                            <button className="absolute bottom-6 right-6 size-10 bg-primary rounded-full flex items-center justify-center shadow-glow">
-                                <span className="material-symbols-outlined text-neutral-dark">arrow_forward</span>
+                        </div>
+                        <div className="absolute bottom-6 right-6 size-10 bg-primary rounded-full flex items-center justify-center shadow-glow">
+                            <span className="material-symbols-outlined text-neutral-dark">arrow_forward</span>
+                        </div>
+                    </Link>
+                </CarouselItem>
+            ))}
+            </CarouselContent>
+        </Carousel>
+      </section>
+      <section id="recommended-section">
+        <div className="flex items-center justify-between mb-8">
+            <h2 className="text-xl font-bold">
+                Imóveis Recomendados {persona?.name && <span className="text-primary">para {persona.name}</span>}
+            </h2>
+            <div className="flex items-center gap-4">
+                <span className="text-sm text-gray-500">Filtrar por:</span>
+                <select className="text-sm font-semibold border-none bg-neutral-light rounded-lg focus:ring-primary focus:ring-1 py-1 pr-8 pl-3">
+                    <option>Maior Match</option>
+                    <option>Menor Preço</option>
+                    <option>Recentes</option>
+                </select>
+            </div>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+          {isLoading ? (
+             Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="bg-white rounded-3xl border border-gray-100"><Skeleton className="h-[450px] w-full"/></div>
+             ))
+          ) : paginatedRecommendedProperties.length > 0 ? (
+            paginatedRecommendedProperties.map((property: Property) => {
+             const isSaved = savedPropertyIds.includes(property.id);
+             return (
+                <Link href={`/imoveis/${property.informacoesbasicas.slug || property.id}`} target="_blank" key={property.id} className="group block bg-white border border-gray-100 rounded-3xl overflow-hidden hover:shadow-soft transition-all duration-300">
+                    <div className="relative aspect-square">
+                        <Image alt={property.informacoesbasicas.nome} className="w-full h-full object-cover" src={property.midia?.[0] || `https://picsum.photos/seed/grid/400/400`} width={400} height={400}/>
+                        <div className="absolute top-4 right-4 flex flex-col gap-2">
+                           <button onClick={(e) => handleRadarClick(e, property.id)} className={cn("size-9 bg-white/90 backdrop-blur rounded-full flex items-center justify-center shadow-sm transition-colors", isSaved ? "text-primary" : "text-gray-400 hover:text-primary")}>
+                                <span className="material-symbols-outlined" style={{ fontSize: '20px', fontVariationSettings: isSaved ? "'FILL' 1" : ""}}>radar</span>
                             </button>
-                        </Link>
-                    ))
-                   ) : (
-                    <div className="w-full text-center py-10 text-gray-500">
-                        <p>Nenhuma oportunidade encontrada para seu perfil. <Link href="/radar/dashboard/personas" className="text-primary font-bold underline">Altere sua persona.</Link></p>
-                    </div>
-                   )}
-                </div>
-            </section>
-            <section>
-                <div className="flex items-center justify-between mb-8">
-                    <h2 className="text-xl font-bold">Imóveis Recomendados para sua persona</h2>
-                    <div className="flex items-center gap-4">
-                        <span className="text-sm text-gray-500">Filtrar por:</span>
-                        <Select value={sortBy} onValueChange={setSortBy}>
-                            <SelectTrigger className="w-[180px] text-sm font-semibold border-gray-200 bg-neutral-light rounded-lg focus:ring-primary focus:ring-1">
-                                <SelectValue placeholder="Ordenar por..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="match_desc">Maior Match</SelectItem>
-                                <SelectItem value="price_asc">Menor Preço</SelectItem>
-                                <SelectItem value="price_desc">Maior Preço</SelectItem>
-                                <SelectItem value="recent">Mais Recentes</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                </div>
-                 {isLoading ? (
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        {Array.from({ length: 4 }).map((_, i) => (
-                           <div key={i} className="flex bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-soft">
-                                <Skeleton className="w-1/3 min-w-[200px] aspect-[4/3]" />
-                                <div className="p-5 flex-1 space-y-3">
-                                    <Skeleton className="h-5 w-3/4" />
-                                    <Skeleton className="h-4 w-1/2" />
-                                    <div className="pt-4 border-t mt-4 space-y-3">
-                                        <Skeleton className="h-4 w-full" />
-                                        <div className="flex justify-between">
-                                            <Skeleton className="h-8 w-24" />
-                                            <Skeleton className="size-9 rounded-full" />
-                                        </div>
-                                    </div>
-                                </div>
+                        </div>
+                        <div className="absolute bottom-4 left-4">
+                            <div className="bg-primary/90 backdrop-blur text-neutral-dark text-[11px] font-bold px-3 py-1.5 rounded-lg flex items-center gap-2">
+                                <span className="material-symbols-outlined text-[14px]">bolt</span>
+                                98% MATCH
                             </div>
-                        ))}
-                    </div>
-                ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                   {paginatedOpportunities?.map(rec => {
-                     const isSaved = savedPropertyIds.includes(rec.id);
-                     return (
-                        <Link href={`/imoveis/${rec.informacoesbasicas.slug || rec.id}`} key={rec.id} className="group bg-white border border-gray-100 rounded-2xl overflow-hidden hover:shadow-soft transition-all duration-300 flex">
-                            <div className="relative w-1/3 min-w-[200px] aspect-[4/3] overflow-hidden">
-                                <Image alt={rec.informacoesbasicas.nome} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" src={rec.midia?.[0] || 'https://picsum.photos/seed/placeholder/400/300'} fill />
-                            </div>
-                            <div className="p-5 flex-1 flex flex-col justify-between">
-                                <div>
-                                    <div className="flex justify-between items-start mb-2">
-                                        <h3 className="font-bold text-neutral-dark group-hover:text-primary transition-colors truncate pr-8">{rec.informacoesbasicas.nome}</h3>
-                                        {rec.informacoesbasicas.valor && <span className="font-bold text-neutral-dark whitespace-nowrap">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(rec.informacoesbasicas.valor)}</span>}
-                                    </div>
-                                    <p className="text-xs text-gray-400 mb-3 flex items-center gap-1">
-                                        <span className="material-symbols-outlined text-[14px]">location_on</span>
-                                        {rec.localizacao.bairro}, {rec.localizacao.cidade}
-                                    </p>
-                                </div>
-                                <div className="pt-3 border-t border-gray-100 space-y-3">
-                                    <div className="flex items-center gap-4 text-xs text-gray-500 font-medium">
-                                        <span className="flex items-center gap-1.5"><span className="material-symbols-outlined text-base">bed</span> {formatQuartos(rec.caracteristicasimovel.quartos)} Dorms</span>
-                                        <span className="flex items-center gap-1.5"><span className="material-symbols-outlined text-base">straighten</span> {rec.caracteristicasimovel.tamanho}</span>
-                                        <span className="flex items-center gap-1.5"><span className="material-symbols-outlined text-base">directions_car</span> {rec.caracteristicasimovel.vagas} Vagas</span>
-                                    </div>
-                                    <div className="flex justify-between items-center">
-                                        <div className="bg-primary/20 text-neutral-dark text-[11px] font-bold px-3 py-1.5 rounded-lg flex items-center gap-2">
-                                            <span className="material-symbols-outlined text-[14px]">bolt</span>
-                                            90% MATCH
-                                        </div>
-                                        <button onClick={(e) => handleRadarClick(e, rec.id)} className={cn("size-9 bg-gray-100 rounded-full flex items-center justify-center text-gray-400 hover:text-primary transition-colors shadow-sm", isSaved && "text-primary bg-primary/20")}>
-                                            <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>radar</span>
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </Link>
-                   )})}
-                </div>
-                )}
-                 {totalPages > 1 && (
-                    <div className="mt-12 flex justify-center">
-                        <div className="flex items-center gap-2">
-                            <Button
-                                onClick={() => handlePageChange(currentPage - 1)}
-                                disabled={currentPage === 1}
-                                variant="outline"
-                            >
-                                Anterior
-                            </Button>
-                            <span className="text-sm font-medium text-gray-500">
-                                Página {currentPage} de {totalPages}
-                            </span>
-                            <Button
-                                onClick={() => handlePageChange(currentPage + 1)}
-                                disabled={currentPage === totalPages}
-                                variant="outline"
-                            >
-                                Próxima
-                            </Button>
                         </div>
                     </div>
-                )}
-                 <div className="bg-white rounded-2xl p-6 text-center my-8 border border-gray-100 shadow-soft mt-12">
-                    <h3 className="text-xl font-bold text-neutral-dark mb-2">Quer falar com um especialista que entende exatamente seu perfil?</h3>
-                    <p className="text-gray-500 mb-6 max-w-lg mx-auto">Nossos corretores parceiros estão prontos para encontrar o imóvel ideal para você, baseado na sua persona.</p>
-                    <Button>
-                        <span className="material-symbols-outlined mr-2">support_agent</span>
-                        Falar com um Especialista
-                    </Button>
-                </div>
-            </section>
-        </>
-    )
-
-    
+                    <div className="p-5">
+                        <div className="flex justify-between items-start mb-2">
+                            <h3 className="font-bold text-neutral-dark group-hover:text-primary transition-colors truncate">{property.informacoesbasicas.nome}</h3>
+                            <span className="font-bold text-neutral-dark">{property.informacoesbasicas.valor?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                        </div>
+                        <p className="text-xs text-gray-400 mb-4 flex items-center gap-1">
+                            <span className="material-symbols-outlined text-[14px]">location_on</span>
+                            {property.localizacao.bairro}, {property.localizacao.cidade}
+                        </p>
+                        <div className="flex items-center gap-4 border-t border-gray-50 pt-4">
+                            <div className="flex items-center gap-1.5 text-gray-500">
+                                <span className="material-symbols-outlined text-[18px]">bed</span>
+                                <span className="text-xs font-medium">{formatQuartos(property.caracteristicasimovel?.quartos)} Dorms</span>
+                            </div>
+                            <div className="flex items-center gap-1.5 text-gray-500">
+                                <span className="material-symbols-outlined text-[18px]">straighten</span>
+                                <span className="text-xs font-medium">{property.caracteristicasimovel?.tamanho}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5 text-gray-500">
+                                <span className="material-symbols-outlined text-[18px]">directions_car</span>
+                                <span className="text-xs font-medium">{property.caracteristicasimovel?.vagas} Vagas</span>
+                            </div>
+                        </div>
+                    </div>
+                </Link>
+            )
+            })
+          ) : (
+             <div className="col-span-full text-center py-20">
+                <p>Nenhum imóvel recomendado encontrado para sua persona.</p>
+             </div>
+          )}
+        </div>
+        {recommendedTotalPages > 1 && (
+            <div className="mt-12 flex justify-center">
+                <nav className="flex items-center gap-2">
+                    <button onClick={() => handleRecommendedPageChange(recommendedCurrentPage - 1)} disabled={recommendedCurrentPage === 1} className="flex items-center justify-center size-10 rounded-lg border border-gray-200 bg-white text-gray-400 cursor-pointer hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                        <span className="material-symbols-outlined">chevron_left</span>
+                    </button>
+                     {Array.from({ length: recommendedTotalPages }, (_, i) => i + 1).map(page => (
+                        <button
+                            key={page}
+                            onClick={() => handleRecommendedPageChange(page)}
+                            className={`flex items-center justify-center size-10 rounded-full border border-gray-200 font-medium transition-all ${recommendedCurrentPage === page ? 'bg-primary text-black font-bold shadow-md' : 'bg-white text-text-muted hover:bg-gray-100 hover:border-gray-300'}`}
+                        >
+                            {page}
+                        </button>
+                    ))}
+                    <button onClick={() => handleRecommendedPageChange(recommendedCurrentPage + 1)} disabled={recommendedCurrentPage === recommendedTotalPages} className="flex items-center justify-center size-10 rounded-lg border border-gray-200 bg-white text-text-main hover:bg-black hover:text-white hover:border-black transition-all">
+                        <span className="material-symbols-outlined">chevron_right</span>
+                    </button>
+                </nav>
+            </div>
+        )}
+      </section>
+    </>
+  );
 }
 
     

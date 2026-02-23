@@ -3,7 +3,7 @@
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase/index.server';
 import { notFound } from 'next/navigation';
-import ServicosPage from '@/layouts/urban-padrao/servicos/ServicosPage';
+import ServicosClientPage from '@/layouts/urban-padrao/servicos/ServicosClientPage';
 
 // Force dynamic rendering to ensure data is fresh on every request
 export const dynamic = 'force-dynamic';
@@ -40,5 +40,5 @@ export default async function BrokerServicesPage({ params }: { params: { slug: s
     notFound();
   }
   
-  return <ServicosPage broker={broker} />;
+  return <ServicosClientPage broker={broker} />;
 }

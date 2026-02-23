@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { Button } from '@/components/ui/button';
@@ -769,10 +770,9 @@ export default function BrokerHomePage() {
                             </div>
                             <Image alt={property.informacoesbasicas.nome} className="h-full w-full object-cover transition duration-700 group-hover:scale-110" src={property.midia[0] || "https://picsum.photos/400/300"} width={400} height={300} />
                             <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent"></div>
-                            
                             <div className="absolute bottom-3 left-3 text-white">
                                 {property.informacoesbasicas.valor && (
-                                <p className="font-bold text-xl">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(property.informacoesbasicas.valor)}</p>
+                                <p className="font-bold text-xl"><span className="text-xs font-normal text-gray-300 block">A partir de:</span>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(property.informacoesbasicas.valor)}</p>
                                 )}
                             </div>
                         </div>
@@ -957,4 +957,3 @@ export default function BrokerHomePage() {
     </div>
   );
 }
-

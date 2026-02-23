@@ -5,12 +5,17 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import { useState, useEffect } from 'react';
+import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
+import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
+import { Button } from '@/components/ui/button';
 
 type Broker = {
   id: string;
   brandName: string;
   logoUrl?: string;
   slug: string;
+  primaryColor?: string;
   homepage?: {
     ctaButtonText?: string;
     ctaButtonBgColor?: string;
@@ -43,6 +48,12 @@ function hslToHex(hslStr: string): string {
 
 export function UrbanPadraoHeader({ broker }: { broker: Broker }) {
   const pathname = usePathname();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const navLinkClasses = (path: string) =>
     cn(
@@ -56,6 +67,11 @@ export function UrbanPadraoHeader({ broker }: { broker: Broker }) {
   const ctaBgColor = broker.homepage?.ctaButtonBgColor ? hslToHex(broker.homepage.ctaButtonBgColor) : 'hsl(var(--primary))';
   const ctaTextColor = broker.homepage?.ctaButtonTextColor ? hslToHex(broker.homepage.ctaButtonTextColor) : '#000000';
   const ctaIcon = broker.homepage?.ctaButtonIcon || 'chat_bubble';
+  
+  const dynamicSheetStyles: React.CSSProperties = {
+    '--primary': broker.primaryColor,
+    '--ring': broker.primaryColor,
+  } as any;
 
 
   return (
@@ -78,13 +94,11 @@ export function UrbanPadraoHeader({ broker }: { broker: Broker }) {
             <Link className={navLinkClasses(`/sites/${broker.slug}/servicos`)} href={`/sites/${broker.slug}/servicos`}>Serviços</Link>
             <Link className={navLinkClasses(`/sites/${broker.slug}/sobre`)} href={`/sites/${broker.slug}/sobre`}>Sobre Mim</Link>
           </nav>
-          <div className="flex items-center gap-4">
-            <button className="hidden md:flex items-center justify-center h-10 px-6 rounded-full border border-[#e5e7eb] hover:bg-gray-50 transition-colors text-sm font-semibold">
-              Login
-            </button>
+          <div className="flex items-center gap-2">
+            {/* Desktop CTA */}
             <Link 
                 href={`/sites/${broker.slug}/fale-conosco`} 
-                className="flex items-center justify-center h-10 px-6 rounded-full text-sm font-bold shadow-lg transition-all transform hover:scale-105"
+                className="hidden lg:flex items-center justify-center h-10 px-6 rounded-full text-sm font-bold shadow-lg transition-all transform hover:scale-105"
                 style={{ 
                     backgroundColor: ctaBgColor, 
                     color: ctaTextColor,
@@ -94,6 +108,69 @@ export function UrbanPadraoHeader({ broker }: { broker: Broker }) {
               <span className="mr-2">{ctaText}</span>
               <span className="material-symbols-outlined text-[18px]">{ctaIcon}</span>
             </Link>
+
+            {/* Mobile Icons */}
+            <div className="lg:hidden flex items-center gap-2">
+              <Link 
+                  href={`/sites/${broker.slug}/fale-conosco`} 
+                  className="flex items-center justify-center h-10 w-10 rounded-full text-sm font-bold shadow-lg transition-all"
+                  style={{ 
+                      backgroundColor: ctaBgColor, 
+                      color: ctaTextColor,
+                      boxShadow: `0 4px 15px -5px ${ctaBgColor}BF`
+                  }}
+              >
+                <span className="material-symbols-outlined text-[20px]">{ctaIcon}</span>
+              </Link>
+              {isClient && (
+               <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
+                  <SheetTrigger asChild>
+                    <button className="flex items-center justify-center h-10 w-10 rounded-full bg-gray-100 text-text-main">
+                      <span className="material-symbols-outlined">menu</span>
+                    </button>
+                  </SheetTrigger>
+                  <SheetContent style={dynamicSheetStyles} side="right" className="p-0 flex flex-col bg-white">
+                      <SheetHeader className="p-6 border-b">
+                        <VisuallyHidden>
+                            <SheetTitle>Menu Principal</SheetTitle>
+                            <SheetDescription>Navegue pelas seções do site.</SheetDescription>
+                        </VisuallyHidden>
+                        <Link href={`/sites/${broker.slug}`} onClick={() => setIsMobileMenuOpen(false)}>
+                            <Image src={broker.logoUrl || "https://dotestudio.com.br/wp-content/uploads/2025/08/oraora.png"} alt="Logo" width={120} height={30} className="h-[30px] w-auto" />
+                        </Link>
+                      </SheetHeader>
+                      <nav className="flex flex-col gap-2 p-4 text-lg font-semibold">
+                          <Link href={`/sites/${broker.slug}`} onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-3 rounded-lg py-3 px-4 hover:bg-gray-100 transition-colors">
+                              <span className="material-symbols-outlined">home</span>Início
+                          </Link>
+                           <Link href={`/sites/${broker.slug}/search`} onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-3 rounded-lg py-3 px-4 hover:bg-gray-100 transition-colors">
+                              <span className="material-symbols-outlined">real_estate_agent</span>Imóveis
+                          </Link>
+                          <Link href={`/sites/${broker.slug}/servicos`} onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-3 rounded-lg py-3 px-4 hover:bg-gray-100 transition-colors">
+                              <span className="material-symbols-outlined">concierge</span>Serviços
+                          </Link>
+                          <Link href={`/sites/${broker.slug}/sobre`} onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-3 rounded-lg py-3 px-4 hover:bg-gray-100 transition-colors">
+                              <span className="material-symbols-outlined">badge</span>Sobre Mim
+                          </Link>
+                      </nav>
+                      <div className="mt-auto p-6 space-y-4 border-t">
+                          <Button
+                            asChild
+                            className="w-full h-12 text-base font-bold"
+                            style={{
+                              backgroundColor: ctaBgColor,
+                              color: ctaTextColor
+                            }}
+                          >
+                            <Link href={`/sites/${broker.slug}/fale-conosco`}>
+                              {ctaText}
+                            </Link>
+                          </Button>
+                      </div>
+                  </SheetContent>
+              </Sheet>
+              )}
+            </div>
           </div>
         </div>
       </div>

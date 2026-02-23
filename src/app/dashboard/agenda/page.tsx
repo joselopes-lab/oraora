@@ -25,6 +25,7 @@ type Event = {
     type: 'reuniao' | 'visita' | 'tarefa' | 'particular' | 'outro';
     description?: string;
     completed?: boolean;
+    clientId?: string;
 };
 
 type Lead = {
@@ -406,3 +407,5 @@ export default function AgendaPage() {
         </>
     );
 }
+
+  

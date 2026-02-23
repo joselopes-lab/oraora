@@ -68,51 +68,52 @@ export default function RadarDashboardLayout({ children }: { children: ReactNode
 
     const navLinkClasses = (path: string) =>
     cn(
-      "text-sm font-medium transition-colors",
+      "text-sm transition-colors",
       pathname === path
         ? "text-neutral-dark font-semibold border-b-2 border-primary pb-1"
-        : "text-gray-500 hover:text-neutral-dark"
+        : "text-gray-500 font-medium hover:text-neutral-dark"
     );
     
     return (
-        <div className="antialiased min-h-screen font-body bg-neutral-light/50 text-neutral-dark">
+        <div className="antialiased min-h-screen font-body bg-white text-neutral-dark">
             <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
-                <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
-                    <div className="flex items-center gap-12">
-                        <div className="flex items-center gap-3">
-                            <Link href="/radar/dashboard">
-                                <Image src={siteData?.logoUrl || "https://dotestudio.com.br/wp-content/uploads/2025/08/oraora.png"} alt="Oraora Logo" width={128} height={32} className="h-8 w-auto" />
-                            </Link>
-                        </div>
+                <div className="relative max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+                    <div className="flex items-center">
+                        <Link href="/radar/dashboard" className="flex items-center gap-2 group cursor-pointer">
+                            <Image src={siteData?.logoUrl || "https://dotestudio.com.br/wp-content/uploads/2025/08/oraora.png"} alt="Oraora Logo" width={160} height={40} className="h-6 w-auto" />
+                        </Link>
+                    </div>
+                    
+                    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
                         <div className="hidden md:flex items-center gap-8">
-                            <Link className={navLinkClasses('/radar/dashboard')} href="/radar/dashboard">Painel</Link>
+                            <Link className={navLinkClasses('/radar/dashboard')} href="/radar/dashboard">Radar</Link>
                             <Link className={navLinkClasses('/radar/dashboard/comparar')} href="/radar/dashboard/comparar">Comparar Imóveis</Link>
                             <Link className={navLinkClasses('/radar/dashboard/imoveis-salvos')} href="/radar/dashboard/imoveis-salvos">Imóveis Salvos</Link>
                             <Link className={navLinkClasses('/radar/dashboard/personas')} href="/radar/dashboard/personas">Minha Persona</Link>
                         </div>
                     </div>
+                    
                     <div className="flex items-center gap-4">
-                        <Button asChild variant="outline" className="bg-white rounded-full font-bold text-sm h-10 px-6 hover:bg-gray-100 transition-colors flex items-center gap-2">
-                            <Link href="/">
-                                <span className="material-symbols-outlined text-base">public</span>
-                                <span>Ver Site</span>
+                        <Button asChild variant="outline" className="hidden md:flex">
+                           <Link href="/" target="_blank">
+                                <span className="material-symbols-outlined text-base mr-2">home</span>
+                                Visualizar Site
                             </Link>
                         </Button>
-                        <button className="p-2 text-gray-400 hover:text-neutral-dark transition-colors">
-                            <span className="material-symbols-outlined">search</span>
-                        </button>
-                        <div className="h-8 w-[1px] bg-gray-100 mx-2"></div>
-                         <DropdownMenu>
+                        <div className="h-8 w-[1px] bg-gray-100"></div>
+                        <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                 <button type="button" className="flex items-center gap-3 group">
-                                    <span className="text-right hidden sm:block">
-                                        <span className="block text-sm font-bold leading-none">{user?.displayName}</span>
-                                        <span className="block text-[10px] text-gray-400 font-medium uppercase tracking-wider">Investidor Urbano</span>
-                                    </span>
-                                    <Avatar className="size-10 border-2 border-primary/50 group-hover:border-primary transition-colors">
-                                        <AvatarFallback>{user?.displayName?.charAt(0).toUpperCase()}</AvatarFallback>
-                                    </Avatar>
-                                </button>
+                                <div className="flex items-center gap-3 cursor-pointer group">
+                                    <div className="text-right hidden sm:block">
+                                        <div className="text-sm font-bold leading-none">{user?.displayName}</div>
+                                    </div>
+                                    <div className="size-10 rounded-full border-2 border-primary/20 p-0.5 group-hover:border-primary transition-colors">
+                                        <Avatar className="h-full w-full">
+                                            <AvatarImage src={user?.photoURL || ''} alt={user?.displayName || 'Avatar'}/>
+                                            <AvatarFallback>{user?.displayName?.charAt(0).toUpperCase()}</AvatarFallback>
+                                        </Avatar>
+                                    </div>
+                                </div>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent className="w-56" align="end" forceMount>
                                 <DropdownMenuLabel className="font-normal">
@@ -147,13 +148,13 @@ export default function RadarDashboardLayout({ children }: { children: ReactNode
             </RadarAuthGuard>
             <footer className="mt-20 border-t border-gray-100 py-10">
                 <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
-                    <Link href="/radar/dashboard" className="flex items-center gap-2 opacity-80 hover:opacity-100 transition-opacity">
-                        <Image src={siteData?.logoUrl || "https://dotestudio.com.br/wp-content/uploads/2025/08/oraora.png"} alt="Oraora Logo" width={128} height={32} className="h-8 w-auto" />
+                   <Link href="/" className="flex items-center gap-3 group cursor-pointer">
+                        <Image src={siteData?.logoUrl || "https://dotestudio.com.br/wp-content/uploads/2025/08/oraora.png"} alt="Oraora Logo" width={120} height={30} className="h-8 w-auto opacity-50" />
                     </Link>
-                    <p className="text-xs text-gray-400">© 2024 Oraora. Todos os direitos reservados.</p>
+                    <p className="text-xs text-gray-400">© 2025 Oraora Tecnologia. Todos os direitos reservados. CNPJ: 64.052.552/0001-26</p>
                     <div className="flex gap-6 text-xs font-bold text-gray-400 uppercase tracking-widest">
-                        <a className="hover:text-primary transition-colors" href="#">Termos</a>
-                        <a className="hover:text-primary transition-colors" href="#">Privacidade</a>
+                        <a className="hover:text-primary transition-colors" href="/termos-de-uso">Termos</a>
+                        <a className="hover:text-primary transition-colors" href="/politica-de-privacidade">Privacidade</a>
                     </div>
                 </div>
             </footer>

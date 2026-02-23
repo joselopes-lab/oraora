@@ -1,11 +1,22 @@
+
 'use client';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase, setDocumentNonBlocking } from '@/firebase';
-import { collection, doc, query, where, arrayRemove } from 'firebase/firestore';
+import { collection, doc, query, where, arrayRemove, arrayUnion, getDocs } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogTrigger,
+  DialogClose,
+} from "@/components/ui/dialog";
 
 // Updated types to include necessary fields from Firestore
 type Property = {
@@ -17,11 +28,17 @@ type Property = {
     };
     localizacao: {
         bairro: string;
+        cidade: string;
+        estado: string;
+        address?: string;
+        latitude?: number;
+        longitude?: number;
     };
     midia: string[];
     caracteristicasimovel: {
+        tipo: string;
+        quartos?: string[] | string;
         tamanho?: string;
-        quartos?: string[];
         vagas?: string;
     };
 };
@@ -35,6 +52,14 @@ export default function ComparePage() {
     const { user } = useUser();
     const firestore = useFirestore();
     const { toast } = useToast();
+    const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+
+    const siteContentRef = useMemoFirebase(
+      () => (firestore ? doc(firestore, 'brokers', 'oraora-main-site') : null),
+      [firestore]
+    );
+    const { data: siteData } = useDoc<{ logoUrl?: string }>(siteContentRef);
+
 
     const radarListDocRef = useMemoFirebase(
         () => (user ? doc(firestore, 'radarLists', user.uid) : null),
@@ -66,7 +91,6 @@ export default function ComparePage() {
     const attributes = [
         { icon: 'straighten', label: 'Área Privativa' },
         { icon: 'bed', label: 'Dormitórios' },
-        { icon: 'bathtub', label: 'Banheiros' },
         { icon: 'directions_car', label: 'Vagas' },
         { icon: 'location_on', label: 'Bairro' },
         { icon: 'bolt', label: 'Compatibilidade' }
@@ -75,8 +99,90 @@ export default function ComparePage() {
     // We can only compare up to 3 properties + 1 empty slot.
     const propertiesToCompare = properties ? properties.slice(0, 3) : [];
 
+    const handlePrint = () => {
+        window.print();
+    };
+
     return (
         <>
+            <style jsx global>{`
+              @media print {
+                @page {
+                    size: A4 landscape;
+                    margin: 0.5cm;
+                }
+                
+                body > *, .no-print {
+                    display: none !important;
+                }
+
+                .printable-area {
+                    display: block !important;
+                    visibility: visible !important;
+                    position: absolute !important;
+                    top: 0 !important;
+                    left: 0 !important;
+                    margin: 0 !important;
+                    padding: 0 !important;
+                    width: 100% !important;
+                    height: auto !important;
+                    max-width: 100% !important;
+                    max-height: none !important;
+                    transform: none !important;
+                    border: none !important;
+                    box-shadow: none !important;
+                    background: white !important;
+                    overflow: visible !important;
+                    -webkit-print-color-adjust: exact;
+                    print-color-adjust: exact;
+                }
+                
+                .printable-area *, .printable-area::before, .printable-area::after {
+                    visibility: visible !important;
+                }
+
+                .printable-area > .flex-1.overflow-y-auto {
+                    overflow: visible !important;
+                    height: auto !important;
+                    display: block !important;
+                }
+
+                .printable-area h2 {
+                    font-size: 12pt !important;
+                    margin-bottom: 0.2rem !important;
+                    padding: 0.2rem 0.5rem !important;
+                }
+                .printable-area .h-48, .printable-area .h-16, .printable-area .comparison-row {
+                    height: auto !important;
+                    min-height: 0 !important;
+                    padding: 0.2rem 0.5rem !important;
+                }
+                .printable-area .aspect-\\[4\\/3\\] {
+                    height: 3.5rem !important;
+                    margin-bottom: 0 !important;
+                }
+                .printable-area h3 {
+                    font-size: 7pt !important;
+                    line-height: 1 !important;
+                    margin-bottom: 0.1rem;
+                }
+                .printable-area .text-lg,
+                .printable-area .text-base,
+                .printable-area .text-sm {
+                    font-size: 7pt !important;
+                    line-height: 1 !important;
+                }
+                .printable-area .font-black {
+                    font-weight: 600 !important;
+                }
+                .printable-area .grid {
+                  display: grid !important;
+                }
+                .printable-area .flex {
+                  display: flex !important;
+                }
+              }
+            `}</style>
             <div className="flex flex-col md:flex-row justify-between items-end mb-10 gap-6">
                 <div>
                     <nav className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">
@@ -86,10 +192,80 @@ export default function ComparePage() {
                     </nav>
                     <h1 className="text-4xl font-bold tracking-tight text-neutral-dark">Comparar Imóveis</h1>
                 </div>
-                <Button className="px-6 py-3 bg-primary text-neutral-dark font-bold rounded-2xl hover:shadow-glow transition-all flex items-center gap-2">
-                    <span className="material-symbols-outlined">print</span>
-                    Imprimir Comparativo
-                </Button>
+                <Dialog open={isPrintModalOpen} onOpenChange={setIsPrintModalOpen}>
+                    <DialogTrigger asChild>
+                        <Button className="px-6 py-3 bg-primary text-neutral-dark font-bold rounded-2xl hover:shadow-glow transition-all flex items-center gap-2 no-print">
+                            <span className="material-symbols-outlined">print</span>
+                            Imprimir Comparativo
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-5xl h-[90vh] flex flex-col p-0 printable-area">
+                        <DialogHeader className="p-8 border-b no-print">
+                            <DialogTitle>Comparativo de Imóveis</DialogTitle>
+                            <DialogDescription>
+                                Visualize e imprima a comparação lado a lado.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="flex-1 overflow-y-auto p-8">
+                            <div className="mb-8 flex justify-between items-center">
+                                {siteData?.logoUrl ? (
+                                    <Image src={siteData.logoUrl} alt="Oraora Logo" width={120} height={30} />
+                                ) : (
+                                    <h2 className="text-2xl font-bold">Oraora</h2>
+                                )}
+                                <h2 className="text-2xl font-bold text-neutral-dark">Comparativo de Imóveis</h2>
+                            </div>
+                            <div className="grid grid-cols-4 border-t border-gray-100">
+                                <div className="col-span-1 border-r border-gray-100 flex flex-col">
+                                    <div className="h-48 p-4">
+                                        <h3 className="text-lg font-bold text-neutral-dark mt-auto">Atributos</h3>
+                                    </div>
+                                    {attributes.map(attr => (
+                                        <div key={attr.label} className="comparison-row h-16 flex items-center px-4 border-t border-gray-100">
+                                            <div className={`flex items-center gap-3 text-sm font-semibold text-gray-600 ${attr.icon === 'bolt' ? 'text-primary' : ''}`}>
+                                                <span className="material-symbols-outlined text-lg">{attr.icon}</span>
+                                                <span>{attr.label}</span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                                {propertiesToCompare.map(property => (
+                                    <div key={property.id} className="col-span-1 border-r border-gray-100">
+                                        <div className="p-4 h-48 flex flex-col">
+                                            <div className="relative w-full aspect-[4/3] rounded-lg overflow-hidden mb-4">
+                                                <Image alt={property.informacoesbasicas.nome} src={property.midia?.[0] || 'https://placehold.co/400x300'} fill className="object-cover" />
+                                            </div>
+                                            <h3 className="font-bold text-neutral-dark text-sm">{property.informacoesbasicas.nome}</h3>
+                                            <div className="text-base font-black text-neutral-dark">{property.informacoesbasicas.valor ? property.informacoesbasicas.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'Consulte'}</div>
+                                        </div>
+                                        <div className="comparison-row h-16 flex items-center justify-center border-t border-gray-100 font-bold text-sm">{property.caracteristicasimovel.tamanho || 'N/A'}</div>
+                                        <div className="comparison-row h-16 flex items-center justify-center border-t border-gray-100 font-bold text-sm">{Array.isArray(property.caracteristicasimovel.quartos) ? property.caracteristicasimovel.quartos.join(', ') : property.caracteristicasimovel.quartos || 'N/A'}</div>
+                                        <div className="comparison-row h-16 flex items-center justify-center border-t border-gray-100 font-bold text-sm">{property.caracteristicasimovel.vagas || 'N/A'}</div>
+                                        <div className="comparison-row h-16 flex items-center justify-center border-t border-gray-100 font-bold text-sm">{property.localizacao.bairro}</div>
+                                        <div className="comparison-row h-16 flex items-center justify-center border-t border-gray-100 font-bold text-sm">98%</div>
+                                    </div>
+                                ))}
+                                {Array.from({ length: Math.max(0, 3 - propertiesToCompare.length) }).map((_, index) => (
+                                    <div key={`empty-print-${index}`} className="col-span-1 border-r border-gray-100">
+                                      <div className="p-4 h-48"></div>
+                                      {attributes.map(attr => (
+                                          <div key={attr.label} className="h-16 border-t border-gray-100"></div>
+                                      ))}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                        <DialogFooter className="p-8 border-t no-print">
+                            <DialogClose asChild>
+                                <Button type="button" variant="ghost">Fechar</Button>
+                            </DialogClose>
+                            <Button onClick={handlePrint}>
+                                <span className="material-symbols-outlined mr-2">print</span>
+                                Imprimir
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
             </div>
             <div className="bg-white rounded-3xl border border-gray-100 shadow-soft overflow-x-auto">
                 {isLoading ? (
@@ -105,7 +281,7 @@ export default function ComparePage() {
                         </div>
                         <div className="flex flex-col">
                             {attributes.map(attr => (
-                                <div key={attr.label} className="comparison-row h-16 flex items-center px-8 border-t border-gray-50">
+                                <div key={attr.label} className="h-16 flex items-center px-8 border-t border-gray-50">
                                     <div className={`flex items-center gap-3 text-gray-500 ${attr.icon === 'bolt' ? 'text-primary' : ''}`}>
                                         <span className="material-symbols-outlined text-lg">{attr.icon}</span>
                                         <span className={`text-sm font-semibold uppercase tracking-wider ${attr.icon === 'bolt' ? 'text-neutral-dark' : ''}`}>{attr.label}</span>
@@ -134,11 +310,10 @@ export default function ComparePage() {
                                 </div>
                             </div>
                             <div className="flex flex-col">
-                                <div className="comparison-row h-16 flex items-center justify-center border-t border-gray-50 font-bold">{property.caracteristicasimovel.tamanho || 'N/A'}</div>
-                                <div className="comparison-row h-16 flex items-center justify-center border-t border-gray-50 font-bold">{property.caracteristicasimovel.quartos?.join(', ') || 'N/A'}</div>
-                                <div className="comparison-row h-16 flex items-center justify-center border-t border-gray-50 font-bold">{property.caracteristicasimovel.vagas || 'N/A'}</div>
-                                <div className="comparison-row h-16 flex items-center justify-center border-t border-gray-50 font-bold">{property.caracteristicasimovel.vagas || 'N/A'}</div> {/* Placeholder for Banheiros */}
-                                <div className="comparison-row h-16 flex items-center justify-center border-t border-gray-50 font-bold">{property.localizacao.bairro}</div>
+                                <div className="comparison-row h-16 flex items-center justify-center border-t border-gray-50 font-bold text-sm">{property.caracteristicasimovel.tamanho || 'N/A'}</div>
+                                <div className="comparison-row h-16 flex items-center justify-center border-t border-gray-50 font-bold text-sm">{Array.isArray(property.caracteristicasimovel.quartos) ? property.caracteristicasimovel.quartos.join(', ') : property.caracteristicasimovel.quartos || 'N/A'}</div>
+                                <div className="comparison-row h-16 flex items-center justify-center border-t border-gray-50 font-bold text-sm">{property.caracteristicasimovel.vagas || 'N/A'}</div>
+                                <div className="comparison-row h-16 flex items-center justify-center border-t border-gray-50 font-bold text-sm">{property.localizacao.bairro}</div>
                                 <div className="comparison-row h-16 flex items-center justify-center border-t border-gray-50">
                                     <span className="bg-primary/20 text-neutral-dark text-xs font-black px-3 py-1 rounded-full">98% MATCH</span>
                                 </div>
@@ -166,4 +341,3 @@ export default function ComparePage() {
         </>
     );
 }
-    

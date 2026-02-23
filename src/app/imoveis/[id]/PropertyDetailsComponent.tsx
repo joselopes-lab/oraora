@@ -1,4 +1,5 @@
 
+
 'use client';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -328,6 +329,8 @@ export default function PropertyDetailsComponent() {
       videoId = url.split('v=')[1]?.split('&')[0];
     } else if (url.includes('youtu.be/')) {
       videoId = url.split('/').pop()?.split('?')[0];
+    } else if (url.includes('vimeo.com/')) {
+      videoId = url.split('/').pop()?.split('?')[0];
     }
     if (videoId) {
       return `https://www.youtube.com/embed/${videoId}`;
@@ -419,9 +422,12 @@ export default function PropertyDetailsComponent() {
                   <div className="flex items-center gap-4">
                     <div className="text-left md:text-right">
                       {informacoesbasicas?.valor && (
-                          <p className="text-3xl font-bold text-dark-text tracking-tight">
-                          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(informacoesbasicas.valor)}
-                          </p>
+                          <div>
+                            <p className="text-base font-medium text-gray-500">A partir de:</p>
+                            <p className="text-3xl font-bold text-dark-text tracking-tight">
+                              {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(informacoesbasicas.valor)}
+                            </p>
+                          </div>
                       )}
                     </div>
                      <Button onClick={(e) => handleRadarClick(e, property.id)} variant="outline" size="icon" className={cn("size-12 rounded-xl border-2", isSaved ? "border-primary bg-primary/10 text-primary" : "text-gray-400")}>
@@ -720,7 +726,7 @@ export default function PropertyDetailsComponent() {
                     <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent"></div>
                     <div className="absolute bottom-3 left-3 text-white">
                       {similarProperty.informacoesbasicas.valor && (
-                        <p className="font-bold text-xl">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(similarProperty.informacoesbasicas.valor)}</p>
+                        <p className="font-bold text-xl"><span className="text-xs font-normal text-gray-300 block">A partir de:</span>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(similarProperty.informacoesbasicas.valor)}</p>
                       )}
                     </div>
                   </div>

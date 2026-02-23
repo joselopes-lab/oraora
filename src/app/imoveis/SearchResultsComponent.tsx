@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import Image from 'next/image';
@@ -204,7 +205,7 @@ export default function SearchResultsComponent({ properties }: SearchResultsComp
             <SearchFilters />
           </aside>
         )}
-        <div className="flex-1 flex flex-col min-w-0 h-full">
+        <div className="flex-1 flex flex-col min-w-0">
           <div className="sticky top-20 z-40 flex flex-col gap-4 border-b border-[#f0f2f4] bg-white/95 px-6 py-4 backdrop-blur md:flex-row md:items-center md:justify-between lg:px-8">
             <div>
               <h1 className="text-xl font-bold text-text-main">
@@ -277,7 +278,7 @@ export default function SearchResultsComponent({ properties }: SearchResultsComp
                       <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent"></div>
                       <div className="absolute bottom-3 left-3 text-white">
                         {property.informacoesbasicas.valor && (
-                        <p className="font-bold text-xl">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(property.informacoesbasicas.valor)}</p>
+                        <p className="font-bold text-xl"><span className="text-xs font-normal text-gray-300 block">A partir de:</span>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(property.informacoesbasicas.valor)}</p>
                         )}
                       </div>
                     </div>
@@ -310,7 +311,7 @@ export default function SearchResultsComponent({ properties }: SearchResultsComp
               )}
               </div>
           ) : (
-             <div className='flex-1 relative'>
+             <div className="relative" style={{ height: 'calc(100vh - 80px - 88px)'}}>
                 <MapResultsComponent properties={sortedProperties} searchControls={<SearchFilters />} />
             </div>
           )}
@@ -318,3 +319,6 @@ export default function SearchResultsComponent({ properties }: SearchResultsComp
         </main>
     )
 }
+      
+    
+    

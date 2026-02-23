@@ -58,6 +58,20 @@ type Broker = {
     statsSectionBgColor?: string;
     statsNumberColor?: string;
     statsLabelColor?: string;
+    cardIconColor?: string;
+    cardValueColor?: string;
+    cardTitleColor?: string;
+    statusTagBgColor?: string;
+    statusTagTextColor?: string;
+    aboutSectionBgColor?: string;
+    aboutTaglineColor?: string;
+    aboutTitleColor?: string;
+    aboutTextColor?: string;
+    mapSectionBgColor?: string;
+    mapTitleColor?: string;
+    mapTextColor?: string;
+    mapButtonBgColor?: string;
+    mapButtonTextColor?: string;
   }
 };
 
@@ -68,6 +82,7 @@ type Property = {
     status: string;
     valor?: number;
     descricao?: string;
+    slug?: string;
   };
   localizacao: {
     bairro: string;
@@ -77,6 +92,7 @@ type Property = {
   caracteristicasimovel: {
     quartos?: string[] | string;
     tamanho?: string;
+    vagas?: string;
   };
 };
 
@@ -160,11 +176,26 @@ export default function UrbanPadraoLayout({ broker, properties }: UrbanPadraoPag
   };
 
   const formatQuartos = (quartosData: any): string => {
-    if (!quartosData) return '';
-    if (Array.isArray(quartosData)) {
-      return quartosData.join(', ');
+    if (!quartosData) return 'N/A';
+  
+    const dataAsString = Array.isArray(quartosData)
+        ? quartosData.join(' ')
+        : String(quartosData);
+  
+    const numbers = dataAsString.match(/\d+/g);
+    
+    if (!numbers || numbers.length === 0) {
+        const trimmedString = dataAsString.trim();
+        return trimmedString ? trimmedString : 'N/A';
     }
-    return String(quartosData);
+
+    const uniqueNumbers = [...new Set(numbers.map(n => parseInt(n, 10)))].filter(n => !isNaN(n)).sort((a, b) => a - b);
+    
+    if (uniqueNumbers.length === 0) return 'N/A';
+    if (uniqueNumbers.length === 1) return uniqueNumbers[0].toString();
+    
+    const last = uniqueNumbers.pop();
+    return `${uniqueNumbers.join(', ')} e ${last}`;
   };
   
   const getEmbedUrl = (url: string | undefined): string | null => {
@@ -197,6 +228,21 @@ export default function UrbanPadraoLayout({ broker, properties }: UrbanPadraoPag
   const statsSectionBgColor = broker.homepage?.statsSectionBgColor ? hslToHex(broker.homepage.statsSectionBgColor) : '#ffffff';
   const statsNumberColor = broker.homepage?.statsNumberColor ? hslToHex(broker.homepage.statsNumberColor) : 'hsl(var(--primary))';
   const statsLabelColor = broker.homepage?.statsLabelColor ? hslToHex(broker.homepage.statsLabelColor) : 'hsl(var(--muted-foreground))';
+  const cardIconColor = broker.homepage?.cardIconColor ? hslToHex(broker.homepage.cardIconColor) : undefined;
+  const cardValueColor = broker.homepage?.cardValueColor ? hslToHex(broker.homepage.cardValueColor) : undefined;
+  const cardTitleColor = broker.homepage?.cardTitleColor ? hslToHex(broker.homepage.cardTitleColor) : undefined;
+  const statusTagBgColor = broker.homepage?.statusTagBgColor ? hslToHex(broker.homepage.statusTagBgColor) : undefined;
+  const statusTagTextColor = broker.homepage?.statusTagTextColor ? hslToHex(broker.homepage.statusTagTextColor) : undefined;
+  const aboutSectionBgColor = broker.homepage?.aboutSectionBgColor ? hslToHex(broker.homepage.aboutSectionBgColor) : '#ffffff';
+  const aboutTaglineColor = broker.homepage?.aboutTaglineColor ? hslToHex(broker.homepage.aboutTaglineColor) : 'hsl(var(--primary))';
+  const aboutTitleColor = broker.homepage?.aboutTitleColor ? hslToHex(broker.homepage.aboutTitleColor) : undefined;
+  const aboutTextColor = broker.homepage?.aboutTextColor ? hslToHex(broker.homepage.aboutTextColor) : undefined;
+  const mapSectionBgColor = broker.homepage?.mapSectionBgColor ? hslToHex(broker.homepage.mapSectionBgColor) : '#f8f9fa';
+  const mapTitleColor = broker.homepage?.mapTitleColor ? hslToHex(broker.homepage.mapTitleColor) : undefined;
+  const mapTextColor = broker.homepage?.mapTextColor ? hslToHex(broker.homepage.mapTextColor) : undefined;
+  const mapButtonBgColor = broker.homepage?.mapButtonBgColor ? hslToHex(broker.homepage.mapButtonBgColor) : undefined;
+  const mapButtonTextColor = broker.homepage?.mapButtonTextColor ? hslToHex(broker.homepage.mapButtonTextColor) : undefined;
+
 
 
   return (
@@ -205,7 +251,7 @@ export default function UrbanPadraoLayout({ broker, properties }: UrbanPadraoPag
       {/* Main Content */}
       <main className="flex-1 w-full flex flex-col items-center">
         {/* Hero Section */}
-        <section className="w-full relative px-4 pt-6 pb-20 md:px-10 lg:px-20 max-w-[1440px]">
+        <section className="w-full relative z-10 px-4 pt-6 pb-20 md:px-10 lg:px-20 max-w-[1440px]">
           <div className="relative w-full rounded-2xl overflow-hidden min-h-[500px] lg:min-h-[600px] flex items-center justify-center bg-black group cursor-pointer">
             {/* Background Image acting as Video Thumbnail */}
             <div
@@ -358,16 +404,23 @@ export default function UrbanPadraoLayout({ broker, properties }: UrbanPadraoPag
                 const isSaved = savedPropertyIds.includes(property.id);
                 const quartos = property.caracteristicasimovel.quartos;
                 return (
-                <Link href={`/sites/${broker.slug}/imovel/${property.id}`} key={property.id} className="flex flex-col bg-white rounded-2xl overflow-hidden shadow-soft hover:shadow-card transition-all duration-300 group">
+                <Link href={`/sites/${broker.slug}/imovel/${property.informacoesbasicas.slug || property.id}`} key={property.id} className="flex flex-col bg-white rounded-2xl overflow-hidden shadow-soft hover:shadow-card transition-all duration-300 group">
                   <div className="relative h-60 w-full overflow-hidden">
-                    <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
-                        <div className="bg-black/70 backdrop-blur-sm px-3 py-1 rounded-md">
-                            <span className="text-white text-xs font-bold">{property.informacoesbasicas.status}</span>
-                        </div>
-                        <button onClick={(e) => handleRadarClick(e, property.id)} className={cn("flex size-8 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm text-white hover:bg-white transition-colors group/radar", isSaved ? "text-primary" : "hover:text-primary")}>
-                            <span className="material-symbols-outlined text-[20px]">radar</span>
-                        </button>
+                    <div
+                      className={cn(
+                        "absolute top-3 left-3 z-10 rounded-md px-2 py-1 text-xs font-bold uppercase tracking-wide shadow-sm",
+                        !statusTagBgColor && 'bg-primary text-primary-foreground'
+                      )}
+                      style={{
+                          backgroundColor: statusTagBgColor,
+                          color: statusTagTextColor
+                      }}
+                    >
+                      {property.informacoesbasicas.status}
                     </div>
+                    <button onClick={(e) => handleRadarClick(e, property.id)} className={cn("flex size-8 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm text-white hover:bg-white transition-colors group/radar", isSaved ? "text-primary" : "hover:text-primary")}>
+                        <span className="material-symbols-outlined text-[20px]">radar</span>
+                    </button>
                     <div
                       className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"
                       style={{
@@ -377,11 +430,14 @@ export default function UrbanPadraoLayout({ broker, properties }: UrbanPadraoPag
                   </div>
                   <div className="flex flex-col p-5 gap-3">
                     <div className="flex justify-between items-start">
-                      <h3 className="text-lg font-bold text-text-main leading-snug">{property.informacoesbasicas.nome}</h3>
+                      <h3 className="text-lg font-semibold uppercase text-text-main leading-snug group-hover:text-primary transition-colors line-clamp-1" style={{color: cardTitleColor}}>{property.informacoesbasicas.nome}</h3>
                       {property.informacoesbasicas.valor && (
-                        <span className="text-primary font-black text-lg">
-                          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2 }).format(property.informacoesbasicas.valor)}
-                        </span>
+                        <div className="text-right">
+                          <span className="text-xs text-text-muted">A partir de</span>
+                          <span className="font-black text-lg block" style={{ color: cardValueColor }}>
+                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2 }).format(property.informacoesbasicas.valor)}
+                          </span>
+                        </div>
                       )}
                     </div>
                     <p className="text-text-muted text-sm flex items-center gap-1">
@@ -391,10 +447,13 @@ export default function UrbanPadraoLayout({ broker, properties }: UrbanPadraoPag
                     <div className="h-px w-full bg-gray-100 my-1"></div>
                     <div className="flex justify-between text-sm text-text-muted font-medium">
                       {quartos && (
-                        <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[18px]">bed</span> {formatQuartos(quartos)} Quartos</span>
+                        <span className="flex items-center gap-1.5"><span className="material-symbols-outlined text-[18px]" style={{color: cardIconColor}}>bed</span> {formatQuartos(quartos)} Quartos</span>
                       )}
                       {property.caracteristicasimovel.tamanho && (
-                        <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[18px]">square_foot</span> {property.caracteristicasimovel.tamanho}</span>
+                        <span className="flex items-center gap-1.5"><span className="material-symbols-outlined text-[18px]" style={{color: cardIconColor}}>square_foot</span> {property.caracteristicasimovel.tamanho}</span>
+                      )}
+                      {property.caracteristicasimovel.vagas && (
+                        <span className="flex items-center gap-1.5"><span className="material-symbols-outlined text-[18px]" style={{color: cardIconColor}}>directions_car</span> {property.caracteristicasimovel.vagas} Vaga(s)</span>
                       )}
                     </div>
                   </div>
@@ -412,10 +471,10 @@ export default function UrbanPadraoLayout({ broker, properties }: UrbanPadraoPag
           </div>
         </section>
         {/* Broker & Presentation Section */}
-        <section className="w-full py-16 lg:py-24 bg-white relative overflow-hidden">
+        <section className="w-full py-16 lg:py-24" style={{ backgroundColor: aboutSectionBgColor }}>
           {/* Decorative Elements */}
           <div className="absolute top-0 right-0 w-1/3 h-full bg-[#f8f9fa] skew-x-12 translate-x-20 hidden lg:block"></div>
-          <div className="absolute bottom-20 left-10 size-32 rounded-full border-4 border-primary/20 hidden lg:block"></div>
+          
           <div className="layout-container max-w-[1280px] mx-auto px-6 relative z-10">
             <div className="grid lg:grid-cols-2 gap-12 items-center">
               <div className="order-2 lg:order-1 relative">
@@ -443,11 +502,11 @@ export default function UrbanPadraoLayout({ broker, properties }: UrbanPadraoPag
               </div>
               <div className="order-1 lg:order-2 flex flex-col gap-6">
                 <div>
-                  <h3 className="text-primary font-bold tracking-wider uppercase mb-2">{content.aboutTagline || 'Sobre Mim'}</h3>
-                  <h2 className="text-4xl md:text-5xl font-black text-text-main leading-tight mb-4">
+                  <h3 className="font-bold tracking-wider uppercase mb-2" style={{ color: aboutTaglineColor }}>{content.aboutTagline || 'Sobre Mim'}</h3>
+                  <h2 className="text-4xl md:text-5xl font-black text-text-main leading-tight mb-4" style={{ color: aboutTitleColor }}>
                     {content.aboutTitle || 'Mais que um corretor, seu parceiro de negócios.'}
                   </h2>
-                  <p className="text-lg text-text-muted leading-relaxed">
+                  <p className="text-lg text-text-muted leading-relaxed" style={{ color: aboutTextColor }}>
                     {content.aboutText || 'Com mais de uma década de experiência no mercado de alto padrão, ofereço uma consultoria completa e personalizada. Meu objetivo é transformar a busca pelo imóvel ideal em uma jornada tranquila e segura.'}
                   </p>
                 </div>
@@ -479,14 +538,14 @@ export default function UrbanPadraoLayout({ broker, properties }: UrbanPadraoPag
           </div>
         </section>
         {/* Map / Location Section */}
-        <section className="w-full py-16 bg-background-light">
+        <section className="w-full py-16" style={{ backgroundColor: mapSectionBgColor }}>
           <div className="layout-container max-w-[1280px] mx-auto px-6">
             <div className="bg-black rounded-3xl overflow-hidden shadow-2xl text-white relative">
               <div className="grid md:grid-cols-2 min-h-[400px]">
                 <div className="p-10 flex flex-col justify-center gap-6 relative z-10">
-                  <h2 className="text-3xl font-bold">Encontre imóveis perto de você</h2>
-                  <p className="text-gray-400">Utilize nosso mapa interativo para explorar as melhores oportunidades nas regiões mais valorizadas da cidade.</p>
-                  <Link href={`/sites/${broker.slug}/explorar-no-mapa`} className="w-fit flex items-center gap-2 bg-primary text-black px-6 py-3 rounded-lg font-bold hover:bg-primary-hover transition-colors">
+                  <h2 className="text-3xl font-bold" style={{ color: mapTitleColor }}>Encontre imóveis perto de você</h2>
+                  <p className="text-gray-400" style={{ color: mapTextColor }}>Utilize nosso mapa interativo para explorar as melhores oportunidades nas regiões mais valorizadas da cidade.</p>
+                  <Link href={`/sites/${broker.slug}/explorar-no-mapa`} className="w-fit flex items-center gap-2 px-6 py-3 rounded-lg font-bold transition-colors" style={{ backgroundColor: mapButtonBgColor, color: mapButtonTextColor }}>
                     <span className="material-symbols-outlined">map</span>
                     Explorar no Mapa
                   </Link>

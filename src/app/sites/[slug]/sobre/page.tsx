@@ -3,7 +3,7 @@
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase/index.server';
 import { notFound } from 'next/navigation';
-import SobrePage from '@/layouts/urban-padrao/sobre/SobrePage';
+import SobreClientPage from '@/layouts/urban-padrao/sobre/SobreClientPage';
 
 // Force dynamic rendering to ensure data is fresh on every request
 export const dynamic = 'force-dynamic';
@@ -40,5 +40,5 @@ export default async function BrokerAboutPage({ params }: { params: { slug: stri
     notFound();
   }
   
-  return <SobrePage broker={broker} />;
+  return <SobreClientPage broker={broker} />;
 }

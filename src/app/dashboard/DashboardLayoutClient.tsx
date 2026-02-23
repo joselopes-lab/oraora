@@ -7,21 +7,23 @@ import Loading from './loading';
 import { useRouter } from 'next/navigation';
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
-  const { userProfile, isReady } = useAuthContext();
+  const { user, userProfile, isReady } = useAuthContext();
   const router = useRouter();
 
   React.useEffect(() => {
-    if (isReady && userProfile?.userType === 'client') {
+    if (isReady) {
+      if (!user) {
+        router.replace('/login');
+      } else if (userProfile?.userType === 'client') {
         router.replace('/radar/dashboard');
+      }
     }
-  }, [isReady, userProfile, router]);
+  }, [isReady, user, userProfile, router]);
 
-
-  if (!isReady || userProfile?.userType === 'client') {
+  if (!isReady || !user || userProfile?.userType === 'client') {
     return <Loading />;
   }
-
-  // O perfil pode ser null se o documento do usuário não for encontrado no Firestore
+  
   if (!userProfile) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center min-h-screen gap-4 bg-background-light">

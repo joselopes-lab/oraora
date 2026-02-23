@@ -1,4 +1,5 @@
 
+
 'use client';
 import { Button } from "@/components/ui/button";
 import {
@@ -33,10 +34,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
-import { addDoc } from 'firebase/firestore'; // Using addDoc for the import
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import locationData from '@/lib/location-data.json';
 import { Badge } from "@/components/ui/badge";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 
 type Property = {
@@ -50,6 +56,7 @@ type Property = {
   localizacao: {
     cidade: string;
     estado: string;
+    address?: string;
   };
   midia: string[];
   isVisibleOnSite: boolean;
@@ -429,7 +436,7 @@ export default function ImoveisPage() {
     };
     
     const handleFixQuartosData = async () => {
-        if (!firestore || !properties) {
+      if (!firestore || !properties) {
           toast({
             title: 'Erro',
             description: 'Não foi possível carregar os dados para a correção.',
@@ -589,7 +596,7 @@ export default function ImoveisPage() {
                       }
                   }
 
-                  const propertyBedrooms = parseQuartos(item.caracteristicasimovel?.unidades?.quartos);
+                  const propertyBedrooms = parseQuartos(item.caracteristicasimovel.unidades?.quartos);
                   if (isMatch && persona.bedrooms && persona.bedrooms.length > 0) {
                       const hasMatchingBedrooms = propertyBedrooms.some(pBed => persona.bedrooms?.includes(pBed));
                       if (!hasMatchingBedrooms) {
@@ -989,7 +996,7 @@ export default function ImoveisPage() {
                 <div className="overflow-x-auto">
                     <Table>
                         <TableHeader>
-                            <TableRow className="bg-gray-50 border-b border-gray-100 text-xs uppercase tracking-wider text-text-secondary">
+                            <TableRow className="bg-gray-50 border-b border-gray-100 text-xs uppercase text-text-secondary font-semibold tracking-wider">
                                 <TableHead className="px-6 py-4 font-bold">Empreendimento</TableHead>
                                 <TableHead className="px-6 py-4 font-bold">Construtora</TableHead>
                                 <TableHead className="px-6 py-4 font-bold">Personas</TableHead>
@@ -1011,7 +1018,23 @@ export default function ImoveisPage() {
                                                     <Image alt={property.informacoesbasicas.nome} className="h-full w-full object-cover" src={property.midia?.[0] || 'https://placehold.co/100x100'} width={96} height={64} />
                                                 </div>
                                                 <div>
+                                                  <div className="flex items-center gap-2">
                                                     <p className="font-bold text-text-main text-base">{property.informacoesbasicas.nome}</p>
+                                                    <TooltipProvider>
+                                                      <Tooltip>
+                                                        <TooltipTrigger>
+                                                            {property.localizacao?.address ? (
+                                                                <span className="material-symbols-outlined text-green-500 text-base">check_circle</span>
+                                                            ) : (
+                                                                <span className="material-symbols-outlined text-yellow-500 text-base">warning</span>
+                                                            )}
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>
+                                                            <p>{property.localizacao?.address ? 'Endereço completo preenchido' : 'Endereço completo pendente'}</p>
+                                                        </TooltipContent>
+                                                      </Tooltip>
+                                                    </TooltipProvider>
+                                                  </div>
                                                     <p className="text-text-secondary text-xs">{property.localizacao.cidade}, {property.localizacao.estado}</p>
                                                     <div className="mt-1 flex items-center gap-2">
                                                         <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium ${property.informacoesbasicas.status === 'Lançamento' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}`}>{property.informacoesbasicas.status}</span>

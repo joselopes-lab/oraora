@@ -42,6 +42,9 @@ type ClientFormProps = {
     onSave: (data: ClientFormData) => void;
     isEditing: boolean;
     isSubmitting?: boolean;
+    onCancel?: () => void;
+    title?: string;
+    description?: string;
 };
 
 type Persona = {
@@ -82,7 +85,7 @@ const brazilianStates = [
 ];
 
 
-export default function ClientForm({ clientData, onSave, isEditing, isSubmitting }: ClientFormProps) {
+export default function ClientForm({ clientData, onSave, isEditing, isSubmitting, onCancel, title, description }: ClientFormProps) {
     const firestore = useFirestore();
     const { user } = useUser();
     
@@ -116,27 +119,35 @@ export default function ClientForm({ clientData, onSave, isEditing, isSubmitting
     return (
         <Form {...form}>
             <form onSubmit={form.handleSubmit(onSave)}>
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8 p-6">
                     <div>
-                        <Link href="/dashboard/clientes" className="text-text-secondary hover:text-text-main font-medium text-sm transition-colors flex items-center gap-2 mb-2">
-                             <span className="material-symbols-outlined text-[20px]">arrow_back</span>
-                             Voltar para Clientes
-                        </Link>
-                        <h1 className="text-3xl font-bold text-text-main tracking-tight">{isEditing ? 'Editar Cliente' : 'Cadastro de Novo Cliente'}</h1>
-                        <p className="text-text-secondary mt-1">{isEditing ? 'Atualize as informações do cliente.' : 'Preencha as informações abaixo para adicionar um novo cliente à base.'}</p>
+                        {!onCancel && (
+                            <Link href="/dashboard/clientes" className="text-text-secondary hover:text-text-main font-medium text-sm transition-colors flex items-center gap-2 mb-2">
+                                <span className="material-symbols-outlined text-[20px]">arrow_back</span>
+                                Voltar para Clientes
+                            </Link>
+                        )}
+                        <h1 className="text-3xl font-bold text-text-main tracking-tight">{title || (isEditing ? 'Editar Cliente' : 'Cadastro de Novo Cliente')}</h1>
+                        <p className="text-text-secondary mt-1">{description || (isEditing ? 'Atualize as informações do cliente.' : 'Preencha as informações abaixo para adicionar um novo cliente à base.')}</p>
                     </div>
                      <div className="flex gap-3">
-                        <Button asChild variant="outline" className="bg-white border border-gray-200 text-text-main font-medium py-2.5 px-5 rounded-lg shadow-sm hover:bg-gray-50 transition-all duration-300">
-                             <Link href="/dashboard/clientes">Cancelar</Link>
-                        </Button>
-                        <Button type="submit" disabled={isSubmitting} className="w-full bg-secondary hover:bg-primary text-white hover:text-black font-bold py-3 px-5 rounded-lg shadow-sm hover:shadow-glow transition-all duration-300 flex items-center justify-center gap-2">
+                        {onCancel ? (
+                            <Button type="button" variant="outline" onClick={onCancel} className="bg-white border border-gray-200 text-text-main font-medium py-2.5 px-5 rounded-lg shadow-sm hover:bg-gray-50 transition-all duration-300">
+                                Cancelar
+                            </Button>
+                        ) : (
+                            <Button asChild variant="outline" className="bg-white border border-gray-200 text-text-main font-medium py-2.5 px-5 rounded-lg shadow-sm hover:bg-gray-50 transition-all duration-300">
+                                <Link href="/dashboard/clientes">Cancelar</Link>
+                            </Button>
+                        )}
+                        <Button type="submit" disabled={isSubmitting} className="bg-secondary hover:bg-primary text-white hover:text-black font-bold py-3 px-5 rounded-lg shadow-sm hover:shadow-glow transition-all duration-300 flex items-center justify-center gap-2">
                             <span className="material-symbols-outlined text-[20px]">check_circle</span>
                             {isSubmitting ? 'Salvando...' : 'Salvar Cliente'}
                         </Button>
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 p-6 pt-0">
                     <div className="lg:col-span-2 space-y-8">
                         <div className="bg-white rounded-xl shadow-soft border border-gray-100 p-6">
                             <h3 className="text-lg font-bold text-text-main mb-6 flex items-center gap-2 border-b border-gray-100 pb-4">
@@ -154,7 +165,7 @@ export default function ClientForm({ clientData, onSave, isEditing, isSubmitting
                                             <FormControl>
                                                 <div className="relative">
                                                 <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[18px]">badge</span>
-                                                    <Input className="w-full pl-10 bg-gray-50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm text-text-main focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all placeholder-gray-400" placeholder="Ex: Maria Oliveira" {...field} />
+                                                    <Input className="w-full pl-10 pr-4 bg-gray-50 border border-gray-200 rounded-lg py-2.5 text-sm text-text-main focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all placeholder-gray-400" placeholder="Ex: Maria Oliveira" {...field} />
                                                 </div>
                                             </FormControl>
                                             <FormMessage />
@@ -193,7 +204,7 @@ export default function ClientForm({ clientData, onSave, isEditing, isSubmitting
                                             <FormControl>
                                                 <div className="relative">
                                                 <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[18px]">mail</span>
-                                                    <Input className="w-full pl-10 bg-gray-50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm text-text-main focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all placeholder-gray-400" placeholder="cliente@email.com" type="email" {...field} />
+                                                    <Input className="w-full pl-10 pr-4 bg-gray-50 border border-gray-200 rounded-lg py-2.5 text-sm text-text-main focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all placeholder-gray-400" placeholder="cliente@email.com" type="email" {...field} />
                                                 </div>
                                             </FormControl>
                                             <FormMessage />
@@ -211,7 +222,7 @@ export default function ClientForm({ clientData, onSave, isEditing, isSubmitting
                                             <FormControl>
                                                  <div className="relative">
                                                     <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[18px]">call</span>
-                                                    <Input className="w-full pl-10 bg-gray-50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm text-text-main focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all placeholder-gray-400" placeholder="(00) 00000-0000" type="tel" {...field} />
+                                                    <Input className="w-full pl-10 pr-4 bg-gray-50 border border-gray-200 rounded-lg py-2.5 text-sm text-text-main focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all placeholder-gray-400" placeholder="(00) 00000-0000" type="tel" {...field} />
                                                 </div>
                                             </FormControl>
                                             <FormMessage />

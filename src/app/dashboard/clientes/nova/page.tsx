@@ -1,3 +1,4 @@
+
 'use client';
 import { useRouter } from 'next/navigation';
 import ClientForm, { ClientFormData } from '../components/client-form';
@@ -22,11 +23,37 @@ export default function NewClientPage() {
         setIsSubmitting(true);
         try {
             const leadsCollectionRef = collection(firestore, 'leads');
+
+            // Calculate lead score
+            let score = 20; // Base score
+            if (data.source === 'WhatsApp') {
+              score += 20;
+            }
+            // Using propertyInterest as a proxy for a detailed message in manual creation
+            if (data.propertyInterest && data.propertyInterest.length > 80) {
+              score += 20;
+            }
+            if (data.propertyInterest) {
+              score += 20;
+            }
+            if (data.name && data.email && data.phone) {
+                score += 20;
+            }
+
+            let qualification: 'Quente' | 'Morno' | 'Frio' = 'Frio';
+            if (score >= 70) {
+              qualification = 'Quente';
+            } else if (score >= 40) {
+              qualification = 'Morno';
+            }
+
             await addDocumentNonBlocking(leadsCollectionRef, {
                 ...data,
                 message: '', // Add empty message for consistency
                 brokerId: user.uid,
                 createdAt: serverTimestamp(),
+                leadScore: score,
+                leadQualification: qualification
             });
             
             toast({

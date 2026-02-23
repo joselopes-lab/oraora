@@ -19,15 +19,25 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import locationData from '@/lib/location-data.json';
-import { useCollection, useFirestore, useMemoFirebase, useUser } from "@/firebase";
-import { collection, query, where } from "firebase/firestore";
+import { useCollection, useFirestore, useMemoFirebase, useUser, addDocumentNonBlocking, useFirebase } from "@/firebase";
+import { collection, query, where, serverTimestamp } from "firebase/firestore";
 import { useForm, FormProvider, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Checkbox } from "@/components/ui/checkbox";
 import { usePathname } from "next/navigation";
-
+import { useToast } from "@/hooks/use-toast";
+import { generateSeoForProperty } from "@/ai/seo-generator";
+import type { GenerateSeoInput } from "@/ai/genkit";
+import ClientForm, { ClientFormData } from '../../clientes/components/client-form';
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
+import { v4 as uuidv4 } from 'uuid';
+import { uploadFile } from '@/lib/storage';
+import { Progress } from "@/components/ui/progress";
+import { cn } from "@/lib/utils";
+import { ref as storageRef, deleteObject } from "firebase/storage";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 // Zod Schema based on the new JSON structure
 const propertyFormSchema = z.object({
@@ -74,6 +84,19 @@ const propertyFormSchema = z.object({
   isVisibleOnSite: z.boolean().default(true),
 });
 
+const generateSlug = (name: string) => {
+    return name
+        .toString()
+        .toLowerCase()
+        .normalize('NFD') // separate accent from letter
+        .replace(/[\u0300-\u036f]/g, '') // remove all separated accents
+        .replace(/\s+/g, '-') // replace spaces with -
+        .replace(/[^a-z0-9-]/g, '') // remove all chars not letters, numbers and -
+        .replace(/-+/g, '-') // replace multiple - with single -
+        .replace(/^-+/, '') // trim - from start of text
+        .replace(/-+$/, ''); // trim - from end of text
+}
+
 
 export type PropertyFormData = z.infer<typeof propertyFormSchema>;
 
@@ -101,25 +124,18 @@ type PropertyFormProps = {
     isSubmitting?: boolean;
 };
 
-const generateSlug = (name: string) => {
-    return name
-        .toString()
-        .toLowerCase()
-        .normalize('NFD') // separate accent from letter
-        .replace(/[\u0300-\u036f]/g, '') // remove all separated accents
-        .replace(/\s+/g, '-') // replace spaces with -
-        .replace(/[^a-z0-9-]/g, '') // remove all chars not letters, numbers and -
-        .replace(/-+/g, '-') // replace multiple - with single -
-        .replace(/^-+/, '') // trim - from start of text
-        .replace(/-+$/, ''); // trim - from end of text
-}
-
 const bedroomOptions = ["1", "2", "3", "4", "5+"];
+
+type UploadState = {
+  id: string;
+  file: File;
+  progress: number;
+  error?: string;
+};
 
 
 export default function PropertyForm({ propertyData, onSave, isEditing, isSubmitting }: PropertyFormProps) {
-    const firestore = useFirestore();
-    const { user } = useUser();
+    const { firestore, user, storage } = useFirebase();
     const pathname = usePathname();
     const isAvulso = pathname.includes('/avulso/');
     const cancelUrl = pathname.includes('/avulso/') ? '/dashboard/avulso' : '/dashboard/imoveis';
@@ -133,7 +149,15 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
     const constructorsQuery = useMemoFirebase(() => firestore ? collection(firestore, 'constructors') : null, [firestore]);
     const { data: constructors, isLoading: areConstructorsLoading } = useCollection<Constructor>(constructorsQuery);
 
-    const defaultValues: PropertyFormData = {
+    const { toast } = useToast();
+    const [isGeneratingSeo, setIsGeneratingSeo] = useState(false);
+    const [isClientModalOpen, setIsClientModalOpen] = useState(false);
+    
+    const [imageUploads, setImageUploads] = useState<UploadState[]>([]);
+    const [isSlugManuallyEdited, setIsSlugManuallyEdited] = useState(isEditing);
+
+
+    let defaultValues: PropertyFormData = {
         builderId: '',
         brokerId: user?.uid || '',
         clientId: '',
@@ -151,6 +175,11 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
         seoDescription: '',
         isVisibleOnSite: true,
     };
+
+    if (isAvulso && !isEditing) {
+        defaultValues.statusobra = { fundacao: 100, estrutura: 100, alvenaria: 100, acabamentos: 100 };
+        defaultValues.informacoesbasicas.status = 'Pronto para Morar';
+    }
 
     const form = useForm<PropertyFormData>({
         resolver: zodResolver(propertyFormSchema),
@@ -183,14 +212,6 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
     const watchState = form.watch('localizacao.estado');
     const watchCity = form.watch('localizacao.cidade');
     const watchName = form.watch('informacoesbasicas.nome');
-
-    // Auto-generate slug from name
-    useEffect(() => {
-        if (watchName && !form.getValues('informacoesbasicas.slug')) { 
-            const slug = generateSlug(watchName);
-            form.setValue('informacoesbasicas.slug', slug, { shouldValidate: true });
-        }
-    }, [watchName, form]);
 
     // Populate cities when state changes
     useEffect(() => {
@@ -272,7 +293,6 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
     const [newAmenity, setNewAmenity] = useState('');
     const [newNearby, setNewNearby] = useState('');
     const [newImageUrl, setNewImageUrl] = useState("");
-    const [isImageModalOpen, setIsImageModalOpen] = useState(false);
     
     const handleAddAmenity = () => {
         if (newAmenity.trim()) {
@@ -303,16 +323,177 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
            const currentImages = form.getValues('midia') || [];
            form.setValue('midia', [...currentImages, newImageUrl.trim()]);
            setNewImageUrl("");
-           setIsImageModalOpen(false);
         }
     };
-    const handleRemoveImage = (index: number) => {
-       const currentImages = form.getValues('midia') || [];
-       form.setValue('midia', currentImages.filter((_, i) => i !== index));
+
+    const handleRemoveImage = async (index: number) => {
+        if (!storage) {
+            toast({
+                variant: 'destructive',
+                title: 'Erro',
+                description: 'Serviço de armazenamento não está disponível.',
+            });
+            return;
+        }
+
+        const currentImages = form.getValues('midia') || [];
+        const imageUrl = currentImages[index];
+
+        // Optimistically update the UI
+        form.setValue('midia', currentImages.filter((_, i) => i !== index));
+
+        // Check if it's a Firebase Storage URL before trying to delete
+        if (imageUrl.includes('firebasestorage.googleapis.com')) {
+            try {
+                // Create a reference from the HTTPS URL
+                const imageRef = storageRef(storage, imageUrl);
+                
+                // Delete the file
+                await deleteObject(imageRef);
+
+                toast({
+                    title: 'Imagem Removida',
+                    description: 'A imagem foi removida com sucesso do armazenamento.',
+                });
+            } catch (error) {
+                console.error("Erro ao remover imagem do storage:", error);
+                // Optional: Revert UI change if deletion fails. For now, just notify.
+                toast({
+                    variant: 'destructive',
+                    title: 'Erro ao Remover do Armazenamento',
+                    description: 'A imagem foi removida da lista, mas falhou ao ser deletada do armazenamento.',
+                });
+            }
+        }
     };
+    
+    const handleImageUploads = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const files = event.target.files;
+        if (!files || !user || !storage) return;
+
+        const newUploads: UploadState[] = Array.from(files).map(file => ({
+        id: uuidv4(),
+        file,
+        progress: 0,
+        }));
+
+        setImageUploads(prev => [...prev, ...newUploads]);
+
+        newUploads.forEach(upload => {
+        const path = `properties/${user.uid}`;
+        const onProgress = (progress: number) => {
+            setImageUploads(prev =>
+            prev.map(u => (u.id === upload.id ? { ...u, progress } : u))
+            );
+        };
+
+        uploadFile(storage, path, upload.file, onProgress)
+            .then(downloadURL => {
+            form.setValue('midia', [...(form.getValues('midia') || []), downloadURL], { shouldDirty: true });
+            // Remove from upload list on success after a short delay
+            setTimeout(() => {
+                setImageUploads(prev => prev.filter(u => u.id !== upload.id));
+            }, 1000);
+            })
+            .catch(error => {
+            console.error('Upload error:', error);
+            setImageUploads(prev =>
+                prev.map(u =>
+                u.id === upload.id ? { ...u, error: 'Falha no upload' } : u
+                )
+            );
+            toast({
+                variant: "destructive",
+                title: "Erro no Upload",
+                description: `Falha ao enviar ${upload.file.name}.`,
+            });
+            });
+        });
+    };
+
 
 
     const { areascomuns: watchedAmenities = [], proximidades: watchedNearby = [], midia: watchedMedia = [] } = form.watch();
+
+    const handleGenerateSeo = async () => {
+        setIsGeneratingSeo(true);
+        toast({
+            title: 'Gerando SEO com IA...',
+            description: 'Aguarde um momento, estamos criando o conteúdo para você.',
+        });
+
+        try {
+            const values = form.getValues();
+            const input: GenerateSeoInput = {
+                nome: values.informacoesbasicas.nome,
+                descricao: values.informacoesbasicas.descricao,
+                tipo: values.caracteristicasimovel.tipo,
+                bairro: values.localizacao.bairro,
+                cidade: values.localizacao.cidade,
+                estado: values.localizacao.estado,
+            };
+
+            const result = await generateSeoForProperty(input);
+
+            if (result) {
+                form.setValue('seoTitle', result.seoTitle, { shouldValidate: true });
+                form.setValue('seoDescription', result.seoDescription, { shouldValidate: true });
+                form.setValue('seoKeywords', result.seoKeywords, { shouldValidate: true });
+                toast({
+                    title: 'SEO Gerado com Sucesso!',
+                    description: 'Os campos de SEO foram preenchidos com as sugestões da IA.',
+                });
+            } else {
+                throw new Error("A resposta da IA foi vazia.");
+            }
+
+        } catch (error) {
+            console.error("Erro ao gerar SEO:", error);
+            toast({
+                variant: "destructive",
+                title: 'Erro ao Gerar SEO',
+                description: 'Não foi possível gerar o conteúdo de SEO. Tente novamente.',
+            });
+        } finally {
+            setIsGeneratingSeo(false);
+        }
+    };
+
+    const handleSaveNewClient = async (data: ClientFormData) => {
+        if (!firestore || !user) {
+            toast({ variant: 'destructive', title: 'Erro de Autenticação', description: 'Você precisa estar logado.' });
+            return;
+        }
+        
+        try {
+            const leadsCollectionRef = collection(firestore, 'leads');
+            const newData = {
+                ...data,
+                brokerId: user.uid,
+                createdAt: serverTimestamp(),
+                status: 'new',
+                clientType: 'vendedor',
+            };
+            const docRef = await addDocumentNonBlocking(leadsCollectionRef, newData);
+            
+            if (docRef) {
+                toast({
+                    title: 'Cliente Criado!',
+                    description: `O cliente "${data.name}" foi salvo e selecionado.`,
+                });
+                form.setValue('clientId', docRef.id, { shouldValidate: true });
+                setIsClientModalOpen(false);
+            }
+    
+        } catch (error) {
+            console.error("Erro ao cadastrar cliente:", error);
+            toast({
+                variant: 'destructive',
+                title: 'Erro ao Salvar',
+                description: 'Não foi possível salvar o novo cliente.',
+            });
+        }
+    };
 
     return (
       <FormProvider {...form}>
@@ -360,22 +541,50 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
                 <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-6">
                     {isAvulso ? (
                         <div className="lg:col-span-12">
-                            <FormField
-                                control={form.control}
-                                name="clientId"
-                                render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Cliente Associado (Proprietário)</FormLabel>
-                                    <FormControl>
-                                        <select {...field} className="w-full rounded-lg border-card-border bg-[#f7f8f5] focus:border-primary focus:ring-primary text-text-main h-11" disabled={areClientsLoading}>
-                                            <option value="">{areClientsLoading ? 'Carregando clientes...' : 'Selecione um cliente...'}</option>
-                                            {clients?.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                                        </select>
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                                )}
-                            />
+                            <FormLabel>Cliente Associado (Proprietário)</FormLabel>
+                            <div className="flex items-start gap-2">
+                                <FormField
+                                    control={form.control}
+                                    name="clientId"
+                                    render={({ field }) => (
+                                    <FormItem className="flex-1">
+                                        <FormControl>
+                                            <select {...field} className="w-full rounded-lg border-card-border bg-[#f7f8f5] focus:border-primary focus:ring-primary text-text-main h-11" disabled={areClientsLoading}>
+                                                <option value="">{areClientsLoading ? 'Carregando clientes...' : 'Selecione um cliente...'}</option>
+                                                {clients?.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                            </select>
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                    )}
+                                />
+                                <Dialog open={isClientModalOpen} onOpenChange={setIsClientModalOpen}>
+                                    <DialogTrigger asChild>
+                                        <Button type="button" variant="outline" className="h-11">
+                                            <span className="material-symbols-outlined text-[18px] mr-2">person_add</span>
+                                            Novo Cliente
+                                        </Button>
+                                    </DialogTrigger>
+                                     <DialogContent className="max-w-4xl p-0 max-h-[90vh] overflow-y-auto">
+                                        <VisuallyHidden>
+                                            <DialogHeader>
+                                                <DialogTitle>Cadastrar Novo Cliente (Vendedor)</DialogTitle>
+                                                <DialogDescription>Este cliente será o proprietário do imóvel avulso.</DialogDescription>
+                                            </DialogHeader>
+                                        </VisuallyHidden>
+                                      <div className="overflow-y-auto">
+                                          <ClientForm 
+                                              onSave={handleSaveNewClient} 
+                                              isEditing={false} 
+                                              clientData={{ clientType: 'vendedor' }}
+                                              onCancel={() => setIsClientModalOpen(false)}
+                                              title="Cadastrar Novo Cliente (Vendedor)"
+                                              description="Este cliente será o proprietário do imóvel avulso."
+                                          />
+                                       </div>
+                                    </DialogContent>
+                                </Dialog>
+                            </div>
                         </div>
                     ) : (
                         <div className="lg:col-span-12">
@@ -401,7 +610,12 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
                       <FormField control={form.control} name="informacoesbasicas.nome" render={({ field }) => (
                         <FormItem>
                           <FormLabel>Nome do Imóvel <span className="text-red-500">*</span></FormLabel>
-                          <FormControl><Input placeholder="Ex: Residencial Vista Verde" {...field} value={field.value || ''} /></FormControl>
+                          <FormControl><Input placeholder="Ex: Residencial Vista Verde" {...field} value={field.value || ''} onBlur={(e) => {
+                                field.onBlur();
+                                if (!isSlugManuallyEdited && e.target.value) {
+                                    form.setValue('informacoesbasicas.slug', generateSlug(e.target.value));
+                                }
+                            }}/></FormControl>
                           <FormMessage />
                         </FormItem>
                       )} />
@@ -439,7 +653,16 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
                                     <span className="inline-flex items-center px-3 rounded-l-lg border border-r-0 border-card-border bg-gray-50 text-text-secondary text-sm">
                                         site.com/imoveis/
                                     </span>
-                                    <Input className="flex-1 min-w-0 block w-full px-3 py-2 rounded-none rounded-r-lg border-card-border focus:ring-primary focus:border-primary sm:text-sm" placeholder="residencial-vista-verde" {...field} value={field.value || ''} />
+                                    <Input 
+                                      className="flex-1 min-w-0 block w-full px-3 py-2 rounded-none rounded-r-lg border-card-border focus:ring-primary focus:border-primary sm:text-sm" 
+                                      placeholder="residencial-vista-verde" 
+                                      {...field} 
+                                      value={field.value || ''} 
+                                      onChange={(e) => {
+                                        field.onChange(e);
+                                        setIsSlugManuallyEdited(true);
+                                      }}
+                                    />
                                 </div>
                               </FormControl>
                               <FormMessage />
@@ -563,10 +786,28 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
 
              <section className="bg-white rounded-xl border border-card-border shadow-sm overflow-hidden">
                 <div className="px-6 py-4 border-b border-card-border bg-gray-50/50">
-                    <h3 className="font-bold text-lg flex items-center gap-2">
-                        <span className="material-symbols-outlined text-text-secondary">groups</span>
-                        Público-Alvo (Personas)
-                    </h3>
+                    <div className="flex items-center gap-2">
+                        <h3 className="font-bold text-lg flex items-center gap-2">
+                            <span className="material-symbols-outlined text-text-secondary">groups</span>
+                            Público-Alvo (Personas)
+                        </h3>
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <button type="button" className="text-muted-foreground hover:text-foreground">
+                                        <span className="material-symbols-outlined text-base">help_outline</span>
+                                    </button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p className="max-w-xs">
+                                        Esta seleção serve para categorizar o imóvel para o tipo de cliente, <br />
+                                        permitindo que o sistema recomende os imóveis certos para as <br />
+                                        personas corretas e vice-versa.
+                                    </p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+                    </div>
                 </div>
                 <div className="p-6">
                     <FormField
@@ -640,7 +881,7 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
                     control={form.control} name="localizacao.estado"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Estado</FormLabel>
+                        <FormLabel>Estado <span className="text-red-500">*</span></FormLabel>
                         <FormControl>
                           <select {...field} onChange={(e) => { field.onChange(e); form.setValue('localizacao.cidade', ''); form.setValue('localizacao.bairro', ''); }} className="w-full rounded-lg border-card-border bg-[#f7f8f5] focus:border-primary focus:ring-primary h-11">
                             <option value="">Selecione um estado</option>
@@ -655,7 +896,7 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
                     control={form.control} name="localizacao.cidade"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Cidade</FormLabel>
+                        <FormLabel>Cidade <span className="text-red-500">*</span></FormLabel>
                         <FormControl>
                           <select {...field} onChange={(e) => { field.onChange(e); form.setValue('localizacao.bairro', ''); }} disabled={!watchState} className="w-full rounded-lg border-card-border bg-[#f7f8f5] focus:border-primary focus:ring-primary h-11 disabled:bg-gray-200">
                             <option value="">Selecione uma cidade</option>
@@ -670,7 +911,7 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
                     control={form.control} name="localizacao.bairro"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Bairro</FormLabel>
+                        <FormLabel>Bairro <span className="text-red-500">*</span></FormLabel>
                         <FormControl>
                           <select {...field} disabled={!watchCity} className="w-full rounded-lg border-card-border bg-[#f7f8f5] focus:border-primary focus:ring-primary h-11 disabled:bg-gray-200">
                              <option value="">Selecione um bairro</option>
@@ -700,57 +941,72 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
                 </div>
             </section>
             
-            <section className="bg-white rounded-xl border border-card-border shadow-sm overflow-hidden">
-              <div className="px-6 py-4 border-b border-card-border bg-gray-50/50">
-                <h3 className="font-bold text-lg flex items-center gap-2">
-                  <span className="material-symbols-outlined text-text-secondary">perm_media</span>
-                  Mídia e Galeria
-                </h3>
-              </div>
-              <div className="p-6 space-y-6">
-                <FormField control={form.control} name="youtubeVideoUrl" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Vídeo Promocional (YouTube/Vimeo)</FormLabel>
-                    <FormControl><Input placeholder="https://youtube.com/watch?v=..." {...field} value={field.value || ''} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <label className="block text-sm font-semibold text-text-main">Galeria de Imagens (URLs)</label>
-                    <Dialog open={isImageModalOpen} onOpenChange={setIsImageModalOpen}>
-                      <DialogTrigger asChild>
-                        <Button className="text-xs font-bold" type="button" size="sm">+ Adicionar URL</Button>
-                      </DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle>Adicionar URL da Imagem</DialogTitle>
-                          <DialogDescription>Cole a URL da imagem que você deseja adicionar à galeria.</DialogDescription>
-                        </DialogHeader>
-                        <div className="py-4">
-                          <Label htmlFor="imageUrl" className="text-right">URL</Label>
-                          <Input id="imageUrl" value={newImageUrl} onChange={(e) => setNewImageUrl(e.target.value)} placeholder="https://exemplo.com/imagem.jpg"/>
-                        </div>
-                        <DialogFooter>
-                          <DialogClose asChild><Button type="button" variant="outline">Cancelar</Button></DialogClose>
-                          <Button type="button" onClick={handleAddImage}>Adicionar à Galeria</Button>
-                        </DialogFooter>
-                      </DialogContent>
-                    </Dialog>
-                  </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-4">
-                    {watchedMedia.map((image, index) => (
-                      <div key={index} className="group relative aspect-square rounded-lg overflow-hidden border border-card-border bg-gray-100">
-                        <Image src={image} alt={`Property image ${'${index + 1}'}`} fill className="w-full h-full object-cover" />
-                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                          <button onClick={() => handleRemoveImage(index)} className="text-white hover:text-red-400" type="button"><span className="material-symbols-outlined">delete</span></button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+             <section className="bg-white rounded-xl border border-card-border shadow-sm overflow-hidden">
+                <div className="px-6 py-4 border-b border-card-border bg-gray-50/50">
+                    <h3 className="font-bold text-lg flex items-center gap-2">
+                        <span className="material-symbols-outlined text-text-secondary">perm_media</span>
+                        Mídia e Galeria
+                    </h3>
                 </div>
-              </div>
+                <div className="p-6 space-y-6">
+                    <FormField control={form.control} name="youtubeVideoUrl" render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Vídeo Promocional (YouTube/Vimeo)</FormLabel>
+                        <FormControl><Input placeholder="https://youtube.com/watch?v=..." {...field} value={field.value || ''} /></FormControl>
+                        <FormMessage />
+                    </FormItem>
+                    )} />
+                    <div className="space-y-3">
+                        <label className="block text-sm font-semibold text-text-main">Galeria de Imagens</label>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-4">
+                            {watchedMedia.map((image, index) => (
+                                <div key={index} className="group relative aspect-square rounded-lg overflow-hidden border border-card-border bg-gray-100">
+                                    <Image src={image} alt={`Property image ${index + 1}`} fill className="w-full h-full object-cover" />
+                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                                    <button onClick={() => handleRemoveImage(index)} type="button" className="text-white hover:text-red-400"><span className="material-symbols-outlined">delete</span></button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                        <div className="mt-4">
+                            <label htmlFor="image-upload" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
+                                <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                                    <span className="material-symbols-outlined text-gray-500 mb-2">cloud_upload</span>
+                                    <p className="mb-2 text-sm text-gray-500"><span className="font-semibold">Clique para carregar</span> ou arraste e solte</p>
+                                    <p className="text-xs text-gray-500">PNG, JPG, WEBP (Máx. 5MB por arquivo)</p>
+                                </div>
+                                <Input id="image-upload" type="file" className="hidden" multiple onChange={handleImageUploads} accept="image/png, image/jpeg, image/webp" />
+                            </label>
+                        </div>
+
+                        {imageUploads.length > 0 && (
+                        <div className="space-y-2 mt-4">
+                            <h4 className="text-xs font-bold uppercase text-gray-500">UPLOADS EM ANDAMENTO</h4>
+                            {imageUploads.map(upload => (
+                            <div key={upload.id}>
+                                <div className="flex justify-between items-center text-xs mb-1">
+                                <span className="truncate max-w-[200px]">{upload.file.name}</span>
+                                <span className={cn(upload.error ? 'text-red-500' : 'text-gray-500')}>{Math.round(upload.progress)}%</span>
+                                </div>
+                                <Progress value={upload.progress} className="h-1.5" />
+                                {upload.error && <p className="text-xs text-red-500 mt-1">{upload.error}</p>}
+                            </div>
+                            ))}
+                        </div>
+                        )}
+
+                        <div className="relative flex py-2 items-center">
+                            <div className="flex-grow border-t border-gray-200"></div>
+                            <span className="flex-shrink mx-4 text-xs text-gray-400">OU</span>
+                            <div className="flex-grow border-t border-gray-200"></div>
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                            <Input value={newImageUrl} onChange={(e) => setNewImageUrl(e.target.value)} placeholder="Adicione pela URL da imagem" />
+                            <Button onClick={handleAddImage} type="button" size="sm">Adicionar URL</Button>
+                        </div>
+                    </div>
+                </div>
             </section>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -865,6 +1121,19 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
                         <span className="material-symbols-outlined text-text-secondary">search</span>
                         Configurações de SEO
                     </h3>
+                    <Button type="button" onClick={handleGenerateSeo} disabled={isGeneratingSeo} size="sm" variant="outline" className="bg-white hover:bg-gray-100">
+                        {isGeneratingSeo ? (
+                            <>
+                                <span className="material-symbols-outlined text-sm mr-2 animate-spin">progress_activity</span>
+                                Gerando...
+                            </>
+                        ) : (
+                            <>
+                                <span className="material-symbols-outlined text-sm mr-2">auto_awesome</span>
+                                Gerar com IA
+                            </>
+                        )}
+                    </Button>
                 </div>
                 <div className="p-6 space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

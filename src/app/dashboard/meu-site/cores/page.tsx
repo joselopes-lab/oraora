@@ -49,6 +49,9 @@ const customizationSchema = z.object({
   mapTextColor: z.string().optional(),
   mapButtonBgColor: z.string().optional(),
   mapButtonTextColor: z.string().optional(),
+  sobrePageIconColor: z.string().optional(),
+  sobrePageCtaBgColor: z.string().optional(),
+  sobrePageCtaTextColor: z.string().optional(),
 });
 
 type CustomizationFormData = z.infer<typeof customizationSchema>;
@@ -89,6 +92,9 @@ type BrokerData = {
       mapTextColor?: string;
       mapButtonBgColor?: string;
       mapButtonTextColor?: string;
+      sobrePageIconColor?: string;
+      sobrePageCtaBgColor?: string;
+      sobrePageCtaTextColor?: string;
     };
     slug?: string;
 };
@@ -250,6 +256,9 @@ const defaultThemeColors: CustomizationFormData = {
     mapTextColor: '0 0% 80%',
     mapButtonBgColor: '80 99% 49%',
     mapButtonTextColor: '110 16% 8%',
+    sobrePageIconColor: '80 99% 49%',
+    sobrePageCtaBgColor: '80 99% 49%',
+    sobrePageCtaTextColor: '110 16% 8%',
 };
 
 const iconOptions = [
@@ -290,6 +299,7 @@ export default function EditSiteColorsPage() {
   const [isStatusTagOpen, setIsStatusTagOpen] = useState(false);
   const [isAboutOpen, setIsAboutOpen] = useState(false);
   const [isMapOpen, setIsMapOpen] = useState(false);
+  const [isSobrePageOpen, setIsSobrePageOpen] = useState(false);
 
 
   // When broker data loads, populate the form with saved values, falling back to defaults.
@@ -324,6 +334,9 @@ export default function EditSiteColorsPage() {
         mapTextColor: brokerData.homepage?.mapTextColor || defaultThemeColors.mapTextColor,
         mapButtonBgColor: brokerData.homepage?.mapButtonBgColor || defaultThemeColors.mapButtonBgColor,
         mapButtonTextColor: brokerData.homepage?.mapButtonTextColor || defaultThemeColors.mapButtonTextColor,
+        sobrePageIconColor: brokerData.homepage?.sobrePageIconColor || defaultThemeColors.sobrePageIconColor,
+        sobrePageCtaBgColor: brokerData.homepage?.sobrePageCtaBgColor || defaultThemeColors.sobrePageCtaBgColor,
+        sobrePageCtaTextColor: brokerData.homepage?.sobrePageCtaTextColor || defaultThemeColors.sobrePageCtaTextColor,
       });
     }
   }, [brokerData, form]);
@@ -356,6 +369,9 @@ export default function EditSiteColorsPage() {
       mapTextColor,
       mapButtonBgColor,
       mapButtonTextColor,
+      sobrePageIconColor,
+      sobrePageCtaBgColor,
+      sobrePageCtaTextColor,
       ...globalColors 
     } = data;
 
@@ -383,6 +399,9 @@ export default function EditSiteColorsPage() {
         mapTextColor,
         mapButtonBgColor,
         mapButtonTextColor,
+        sobrePageIconColor,
+        sobrePageCtaBgColor,
+        sobrePageCtaTextColor,
     };
     
     const sanitizedGlobalColors = JSON.parse(JSON.stringify(globalColors));
@@ -644,6 +663,20 @@ export default function EditSiteColorsPage() {
                         <ColorInputRow name="mapTextColor" label="Cor do Texto" sublabel="map_text_color" form={form} />
                         <ColorInputRow name="mapButtonBgColor" label="Cor Fundo Botão" sublabel="map_button_bg" form={form} />
                         <ColorInputRow name="mapButtonTextColor" label="Cor Texto Botão" sublabel="map_button_text" form={form} />
+                    </CollapsibleContent>
+                </Collapsible>
+                <Collapsible open={isSobrePageOpen} onOpenChange={setIsSobrePageOpen} className="bg-white rounded-xl shadow-soft border border-gray-100 overflow-hidden">
+                    <CollapsibleTrigger className="p-5 border-b border-gray-50 flex items-center justify-between gap-2 w-full hover:bg-gray-50/50 transition-colors data-[state=open]:bg-gray-50/50">
+                        <div className="flex items-center gap-2">
+                            <span className="material-symbols-outlined text-secondary">badge</span>
+                            <h3 className="font-bold text-text-main">Página Sobre</h3>
+                        </div>
+                        <span className="material-symbols-outlined text-gray-400 transition-transform duration-300 data-[state=open]:rotate-180">expand_more</span>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="p-6 space-y-6">
+                        <ColorInputRow name="sobrePageIconColor" label="Cor dos Ícones" sublabel="sobre_icon_color" form={form} />
+                        <ColorInputRow name="sobrePageCtaBgColor" label="Fundo Botão CTA" sublabel="sobre_cta_bg" form={form} />
+                        <ColorInputRow name="sobrePageCtaTextColor" label="Texto Botão CTA" sublabel="sobre_cta_text" form={form} />
                     </CollapsibleContent>
                 </Collapsible>
             </div>

@@ -2,13 +2,13 @@
 'use client';
 import { useParams, useRouter } from 'next/navigation';
 import { useDoc, useFirestore, useMemoFirebase, deleteDocumentNonBlocking, useCollection, useUser, setDocumentNonBlocking } from '@/firebase';
-import { collection, doc, query, where } from 'firebase/firestore';
+import { collection, doc, query, where, getDocs, limit } from 'firebase/firestore';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useState, useMemo } from 'react';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -42,6 +42,7 @@ type Event = {
   description?: string;
   location?: string;
   client?: string;
+  clientId?: string;
   broker?: string;
   completed?: boolean;
   notes?: Note[];
@@ -113,8 +114,14 @@ export default function EventDetailsPage() {
     // Query to find the client based on the name stored in the event
     const clientQuery = useMemoFirebase(
       () => {
-        if (user && firestore && event?.client) {
-          return query(collection(firestore, 'leads'), where('brokerId', '==', user.uid), where('name', '==', event.client));
+        if (user && firestore && event) {
+            const leadsCollection = collection(firestore, 'leads');
+            if (event.clientId) {
+                return query(leadsCollection, where('__name__', '==', event.clientId), limit(1));
+            }
+            if (event.client) { // Fallback for older events
+                return query(leadsCollection, where('brokerId', '==', user.uid), where('name', '==', event.client), limit(1));
+            }
         }
         return null;
       },
@@ -543,3 +550,5 @@ export default function EventDetailsPage() {
     </main>
     )
 }
+
+  

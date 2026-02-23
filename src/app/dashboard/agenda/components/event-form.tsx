@@ -1,3 +1,4 @@
+
 'use client';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -34,6 +35,7 @@ type EventFormProps = {
   onCancel: () => void;
   isSubmitting?: boolean;
   clients: Client[];
+  defaultValues?: Partial<EventFormData>;
 };
 
 const taskTypes = [
@@ -44,7 +46,7 @@ const taskTypes = [
     { id: 'outro', label: 'Outros', icon: 'more_horiz', color: 'text-gray-500' },
 ];
 
-export default function EventForm({ onSave, onCancel, isSubmitting, clients }: EventFormProps) {
+export default function EventForm({ onSave, onCancel, isSubmitting, clients, defaultValues }: EventFormProps) {
   const form = useForm<EventFormData>({
     resolver: zodResolver(eventSchema),
     defaultValues: {
@@ -57,6 +59,7 @@ export default function EventForm({ onSave, onCancel, isSubmitting, clients }: E
       client: '',
       broker: '',
       type: 'reuniao',
+      ...defaultValues,
     },
   });
 
@@ -174,7 +177,7 @@ export default function EventForm({ onSave, onCancel, isSubmitting, clients }: E
                                 <FormLabel htmlFor="client" className="block text-sm font-semibold text-text-main mb-1.5">Cliente Associado</FormLabel>
                                 <div className="relative group">
                                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 material-symbols-outlined text-[20px] group-focus-within:text-secondary transition-colors">person_search</span>
-                                    <FormControl><Input id="client" list="clients-list" placeholder="Buscar cliente..." className="w-full pl-10" {...field} value={field.value || ''} /></FormControl>
+                                    <FormControl><Input id="client" list="clients-list" placeholder="Buscar cliente..." className="w-full pl-10" {...field} value={field.value || ''} disabled={!!defaultValues?.client} /></FormControl>
                                     <datalist id="clients-list">
                                         {clients.map(client => (
                                             <option key={client.id} value={client.name} />
@@ -214,3 +217,5 @@ export default function EventForm({ onSave, onCancel, isSubmitting, clients }: E
     </Form>
   );
 }
+
+  

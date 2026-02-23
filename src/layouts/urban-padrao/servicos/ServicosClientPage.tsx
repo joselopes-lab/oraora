@@ -1,7 +1,8 @@
+
 'use client';
-import { UrbanPadraoHeader } from '@/layouts/urban-padrao/components/UrbanPadraoHeader';
-import { UrbanPadraoFooter } from '@/layouts/urban-padrao/components/UrbanPadraoFooter';
-import { WhatsAppWidget } from '@/layouts/urban-padrao/components/WhatsAppWidget';
+import { UrbanPadraoHeader } from '../components/UrbanPadraoHeader';
+import { UrbanPadraoFooter } from '../components/UrbanPadraoFooter';
+import { WhatsAppWidget } from '../components/WhatsAppWidget';
 
 type Broker = {
   id: string;
@@ -28,6 +29,10 @@ type Broker = {
     processImageUrl?: string;
     finalCtaTitle?: string;
     finalCtaSubtitle?: string;
+  },
+  homepage?: {
+    sobrePageCtaBgColor?: string;
+    sobrePageCtaTextColor?: string;
   }
 };
 
@@ -37,6 +42,7 @@ type ServicosPageProps = {
 
 export default function ServicosClientPage({ broker }: ServicosPageProps) {
     const content = broker.urbanPadraoServicos || {};
+    const homepageContent = broker.homepage || {};
     
     const defaultServiceItems = [
       { icon: 'real_estate_agent', title: 'Assessoria Completa', description: 'Acompanhamento integral na compra ou venda de imóveis. Desde a busca do perfil ideal até a negociação final, garantindo o melhor deal.' },
@@ -57,13 +63,15 @@ export default function ServicosClientPage({ broker }: ServicosPageProps) {
     const serviceItems = content.serviceItems && content.serviceItems.length > 0 ? content.serviceItems : defaultServiceItems;
     const processSteps = content.processSteps && content.processSteps.length > 0 ? content.processSteps : defaultProcessSteps;
     
-    const dynamicStyles = {
+    const dynamicStyles: React.CSSProperties = {
         '--background': broker.backgroundColor,
         '--foreground': broker.foregroundColor,
         '--primary': broker.primaryColor,
         '--secondary': broker.secondaryColor,
         '--accent': broker.accentColor,
-    } as React.CSSProperties;
+        '--sobre-page-cta-bg-color': homepageContent.sobrePageCtaBgColor,
+        '--sobre-page-cta-text-color': homepageContent.sobrePageCtaTextColor,
+    } as any;
 
 
     return (
@@ -93,10 +101,10 @@ export default function ServicosClientPage({ broker }: ServicosPageProps) {
                        {serviceItems.map((item, index) => (
                          <div key={index} className="bg-white p-8 rounded-2xl shadow-soft hover:shadow-card transition-all duration-300 border border-transparent hover:border-primary/30 group relative overflow-hidden">
                             <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                                <span className="material-symbols-outlined text-8xl text-primary">{item.icon}</span>
+                                <span className="material-symbols-outlined text-8xl text-primary">{item.icon || defaultServiceItems[index]?.icon}</span>
                             </div>
                             <div className="size-14 rounded-xl bg-background-light border border-gray-100 flex items-center justify-center mb-6 group-hover:bg-primary group-hover:text-black transition-colors duration-300 text-primary relative z-10">
-                                <span className="material-symbols-outlined text-3xl">{item.icon}</span>
+                                <span className="material-symbols-outlined text-3xl">{item.icon || defaultServiceItems[index]?.icon}</span>
                             </div>
                             <h3 className="text-xl font-bold text-text-main mb-3 relative z-10">{item.title}</h3>
                             <p className="text-text-muted leading-relaxed mb-6 relative z-10 text-sm">
@@ -159,7 +167,7 @@ export default function ServicosClientPage({ broker }: ServicosPageProps) {
                         {content.finalCtaSubtitle || 'Agende uma conversa sem compromisso e descubra como nossa assessoria pode fazer a diferença no seu próximo negócio imobiliário.'}
                     </p>
                     <div className="flex flex-col sm:flex-row justify-center gap-4">
-                        <button className="h-14 px-8 rounded-full bg-primary hover:bg-primary-hover text-black text-base font-bold shadow-lg shadow-primary/20 transition-all transform hover:scale-105 flex items-center justify-center gap-2">
+                        <button className="h-14 px-8 rounded-full text-base font-bold shadow-lg shadow-primary/20 transition-all transform hover:scale-105 flex items-center justify-center gap-2 bg-sobre-cta-bg text-sobre-cta-text">
                             <span className="material-symbols-outlined">calendar_month</span>
                             Solicitar Serviço
                         </button>
@@ -176,5 +184,3 @@ export default function ServicosClientPage({ broker }: ServicosPageProps) {
     </div>
   );
 }
-
-    

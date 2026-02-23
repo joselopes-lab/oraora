@@ -1,3 +1,4 @@
+
 'use client';
 import { useDoc, useFirebase, setDocumentNonBlocking, useMemoFirebase } from '@/firebase';
 import { doc } from 'firebase/firestore';
@@ -120,36 +121,6 @@ export default function EditUrbanPadraoServicosPage() {
                 )}/>
                 <FormField name="headerSubtitle" control={form.control} render={({ field }) => (
                     <FormItem className="md:col-span-2"><FormLabel>Subtítulo</FormLabel><FormControl><Textarea placeholder="Descrição abaixo do título" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
-                )}/>
-                <FormField name="processImageUrl" control={form.control} render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Foto do Corretor</FormLabel>
-                    <FormControl>
-                        <div className="flex items-center gap-4">
-                            <div className="relative size-24 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300 flex flex-col items-center justify-center overflow-hidden hover:border-primary transition-colors group cursor-pointer">
-                                {field.value ? <img src={field.value} alt="Preview" className="absolute inset-0 w-full h-full object-cover p-2"/> : <span className="material-symbols-outlined text-gray-400">add_a_photo</span>}
-                                <Input accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" type="file" onChange={(e) => {
-                                    if (e.target.files && e.target.files[0]) {
-                                        const file = e.target.files[0];
-                                        const reader = new FileReader();
-                                        reader.onloadend = () => {
-                                            form.setValue('processImageUrl', reader.result as string);
-                                        }
-                                        reader.readAsDataURL(file);
-                                    }
-                                }} />
-                            </div>
-                            <div className="flex flex-col gap-2 flex-1">
-                                <p className="text-xs text-muted-foreground">Arraste uma imagem ou clique para carregar. (PNG, JPG)</p>
-                                <Button type="button" size="sm" variant="outline" className="w-fit">
-                                  <span className="material-symbols-outlined text-sm mr-2">upload</span>
-                                  Carregar Foto
-                                </Button>
-                            </div>
-                        </div>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
                 )}/>
             </div>
         </div>

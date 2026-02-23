@@ -13,7 +13,8 @@ export default {
     extend: {
       fontFamily: {
         body: ['Inter', 'sans-serif'],
-        headline: ['Space Grotesk', 'sans-serif'],
+        headline: ['Inter', 'sans-serif'],
+        display: ['Inter', 'sans-serif'],
         code: ['monospace'],
       },
       colors: {
@@ -79,6 +80,11 @@ export default {
         'status-pending-text': '#854d0e',
         'status-error': '#fee2e2',
         'status-error-text': '#991b1b',
+        "neutral-dark": "#121811",
+        "neutral-light": "#f8f9f7",
+        'sobre-icon': 'hsl(var(--sobre-page-icon-color))',
+        'sobre-cta-bg': 'hsl(var(--sobre-page-cta-bg-color))',
+        'sobre-cta-text': 'hsl(var(--sobre-page-cta-text-color))',
       },
       borderRadius: {
         "2xl": "1.5rem",

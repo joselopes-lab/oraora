@@ -1,12 +1,9 @@
+
 'use client';
 import { UrbanPadraoHeader } from '../components/UrbanPadraoHeader';
 import { UrbanPadraoFooter } from '../components/UrbanPadraoFooter';
 import { WhatsAppWidget } from '../components/WhatsAppWidget';
 import Image from 'next/image';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 
 type Broker = {
   id: string;
@@ -14,6 +11,9 @@ type Broker = {
   logoUrl?: string;
   primaryColor?: string;
   secondaryColor?: string;
+  accentColor?: string;
+  backgroundColor?: string;
+  foregroundColor?: string;
   slug: string;
   layoutId?: string;
   urbanPadraoSobre?: {
@@ -36,6 +36,11 @@ type Broker = {
     areas?: string[];
     differentials?: { title?: string, description?: string }[];
     awards?: { yearOrEntity?: string, title?: string }[];
+  },
+  homepage?: {
+    sobrePageIconColor?: string;
+    sobrePageCtaBgColor?: string;
+    sobrePageCtaTextColor?: string;
   }
 };
 
@@ -46,6 +51,7 @@ type SobrePageProps = {
 
 export default function SobreClientPage({ broker }: SobrePageProps) {
   const content = broker.urbanPadraoSobre || {};
+  const homepageContent = broker.homepage || {};
   
   const defaultValues = {
     profileImageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBnnSrwSkNX4VEMzf8v2AibJQp1RcHvNb3_q0wuoHZwhVlAJKqmwIhebGEXD_ehHxVeLXegQhl11I3AK8d7sHOjyX2Ru2QsxLQ7CNKGhMFL1kuVczfW4JlWO-MgFaOLLDGfDt2hXsZyS7t5vdOo90YwN1Cwqcoemknmi74RiulnUXgpEBnQguZIsUxNueG01P_uPnYKeZbzSmXBrfvlrkH_y3PAJxi8hET-_dNaHXrJavIJPjRaZDjfN1aQrROrA0lpueLFt6_FA6I',
@@ -72,9 +78,20 @@ export default function SobreClientPage({ broker }: SobrePageProps) {
       { yearOrEntity: 'CRECI-SP', title: 'Certificado de Honra' },
     ]
   };
+
+  const dynamicStyles: React.CSSProperties = {
+    '--background': broker.backgroundColor,
+    '--foreground': broker.foregroundColor,
+    '--primary': broker.primaryColor,
+    '--secondary': broker.secondaryColor,
+    '--accent': broker.accentColor,
+    '--sobre-page-icon-color': homepageContent.sobrePageIconColor,
+    '--sobre-page-cta-bg-color': homepageContent.sobrePageCtaBgColor,
+    '--sobre-page-cta-text-color': homepageContent.sobrePageCtaTextColor,
+  } as any;
   
   return (
-    <div className="relative flex min-h-screen w-full flex-col group/design-root">
+    <div style={dynamicStyles} className="urban-padrao-theme relative flex min-h-screen w-full flex-col group/design-root">
       <UrbanPadraoHeader broker={broker} />
       <main className="flex-1 w-full flex flex-col items-center">
         <section className="w-full pt-16 pb-12 lg:pt-24 lg:pb-16 bg-white relative overflow-hidden">
@@ -161,7 +178,7 @@ export default function SobreClientPage({ broker }: SobrePageProps) {
             <div className="grid md:grid-cols-3 gap-8">
               <div className="group p-8 rounded-3xl bg-background-light border border-transparent hover:border-primary/30 hover:shadow-card transition-all duration-300 relative overflow-hidden">
                 <div className="relative z-10">
-                  <div className="size-12 rounded-xl bg-white flex items-center justify-center mb-6 shadow-sm text-primary group-hover:scale-110 transition-transform">
+                  <div className="size-12 rounded-xl bg-white flex items-center justify-center mb-6 shadow-sm text-sobre-icon group-hover:scale-110 transition-transform">
                     <span className="material-symbols-outlined text-3xl">verified_user</span>
                   </div>
                   <h3 className="text-xl font-bold text-text-main mb-3">{content.value1Title || defaultValues.value1Title}</h3>
@@ -170,7 +187,7 @@ export default function SobreClientPage({ broker }: SobrePageProps) {
               </div>
               <div className="group p-8 rounded-3xl bg-background-light border border-transparent hover:border-primary/30 hover:shadow-card transition-all duration-300 relative overflow-hidden">
                 <div className="relative z-10">
-                  <div className="size-12 rounded-xl bg-white flex items-center justify-center mb-6 shadow-sm text-primary group-hover:scale-110 transition-transform">
+                  <div className="size-12 rounded-xl bg-white flex items-center justify-center mb-6 shadow-sm text-sobre-icon group-hover:scale-110 transition-transform">
                     <span className="material-symbols-outlined text-3xl">person_check</span>
                   </div>
                   <h3 className="text-xl font-bold text-text-main mb-3">{content.value2Title || defaultValues.value2Title}</h3>
@@ -179,7 +196,7 @@ export default function SobreClientPage({ broker }: SobrePageProps) {
               </div>
               <div className="group p-8 rounded-3xl bg-background-light border border-transparent hover:border-primary/30 hover:shadow-card transition-all duration-300 relative overflow-hidden">
                 <div className="relative z-10">
-                  <div className="size-12 rounded-xl bg-white flex items-center justify-center mb-6 shadow-sm text-primary group-hover:scale-110 transition-transform">
+                  <div className="size-12 rounded-xl bg-white flex items-center justify-center mb-6 shadow-sm text-sobre-icon group-hover:scale-110 transition-transform">
                     <span className="material-symbols-outlined text-3xl">auto_graph</span>
                   </div>
                   <h3 className="text-xl font-bold text-text-main mb-3">{content.value3Title || defaultValues.value3Title}</h3>
@@ -234,14 +251,14 @@ export default function SobreClientPage({ broker }: SobrePageProps) {
         <section className="w-full py-16 bg-white">
           <div className="layout-container max-w-[1280px] mx-auto px-6">
             <div className="flex flex-col items-center text-center gap-2 mb-10">
-              <span className="material-symbols-outlined text-4xl text-primary mb-2">military_tech</span>
+              <span className="material-symbols-outlined text-4xl text-sobre-icon mb-2">military_tech</span>
               <h2 className="text-2xl font-bold text-text-main">Meus Reconhecimentos</h2>
               <p className="text-text-muted max-w-lg">Prêmios que validam a dedicação individual e o compromisso com a excelência que entrego a cada cliente.</p>
             </div>
             <div className="flex flex-wrap justify-center gap-6 md:gap-10">
               {(content.awards?.length ? content.awards : defaultValues.awards).map(award => (
                 <div key={award.title} className="flex flex-col items-center justify-center gap-3 p-6 border border-gray-100 rounded-xl w-40 hover:border-primary hover:shadow-lg hover:-translate-y-1 transition-all duration-300 bg-background-light group">
-                    <span className="material-symbols-outlined text-4xl text-gray-400 group-hover:text-primary transition-colors">trophy</span>
+                    <span className="material-symbols-outlined text-4xl text-gray-400 group-hover:text-sobre-icon transition-colors">trophy</span>
                     <div className="text-center">
                     <span className="block text-xs text-gray-400 font-bold uppercase">{award.yearOrEntity}</span>
                     <span className="block text-sm font-bold text-text-main">{award.title}</span>
@@ -259,7 +276,7 @@ export default function SobreClientPage({ broker }: SobrePageProps) {
               Agende uma consultoria diretamente comigo. Sem intermediários, apenas uma conversa franca sobre seus objetivos imobiliários.
             </p>
             <div className="flex flex-col sm:flex-row justify-center gap-4">
-              <button className="h-14 px-8 rounded-full bg-primary hover:bg-primary-hover text-black text-base font-bold shadow-lg shadow-primary/20 transition-all transform hover:scale-105 flex items-center justify-center gap-2">
+              <button className="h-14 px-8 rounded-full text-base font-bold shadow-lg shadow-primary/20 transition-all transform hover:scale-105 flex items-center justify-center gap-2 bg-sobre-cta-bg text-sobre-cta-text">
                 <span className="material-symbols-outlined">calendar_month</span>
                 Agendar Reunião Pessoal
               </button>

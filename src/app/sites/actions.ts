@@ -1,3 +1,4 @@
+
 'use server';
 
 import { initializeFirebase } from '@/firebase/index.server';
@@ -18,6 +19,29 @@ export async function createLead(data: LeadFormData) {
     const { firestore } = initializeFirebase();
     const leadsCollection = collection(firestore, 'leads');
 
+    // Calculate lead score
+    let score = 20; // Base score
+    if (data.source === 'WhatsApp') {
+      score += 20;
+    }
+    if (data.message && data.message.length > 80) {
+      score += 20;
+    }
+    if (data.propertyInterest) {
+      score += 20;
+    }
+    if (data.name && data.email && data.phone) {
+        score += 20;
+    }
+
+    let qualification: 'Quente' | 'Morno' | 'Frio' = 'Frio';
+    if (score >= 70) {
+      qualification = 'Quente';
+    } else if (score >= 40) {
+      qualification = 'Morno';
+    }
+
+
     // Use the standard addDoc for server-side operations
     await addDoc(leadsCollection, {
       brokerId: data.brokerId,
@@ -29,6 +53,8 @@ export async function createLead(data: LeadFormData) {
       status: 'new',
       source: data.source || 'Site Público',
       createdAt: serverTimestamp(),
+      leadScore: score,
+      leadQualification: qualification,
     });
 
     return {

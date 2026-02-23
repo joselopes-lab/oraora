@@ -1,8 +1,11 @@
+
 'use client';
 import Image from 'next/image';
 import Link from 'next/link';
 import { GoogleMap, useJsApiLoader, Marker, InfoWindow } from '@react-google-maps/api';
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
+import locationData from '@/lib/location-data.json';
 import { cn } from '@/lib/utils';
 
 type Property = {
@@ -12,6 +15,7 @@ type Property = {
     status: string;
     valor?: number;
     descricao?: string;
+    slug?: string;
   };
   localizacao: {
     bairro: string;
@@ -47,8 +51,8 @@ const containerStyle = {
 };
 
 const defaultCenter = {
-  lat: -23.55052,
-  lng: -46.633308,
+  lat: -7.1195, // João Pessoa
+  lng: -34.8451,
 };
 
 const poiCategories = [
@@ -87,6 +91,11 @@ export default function MapResultsComponent({ properties, searchControls }: { pr
     const [places, setPlaces] = useState<Poi[]>([]);
     const [activePoiTypes, setActivePoiTypes] = useState<string[]>([]);
     const [selectedPoi, setSelectedPoi] = useState<Poi | null>(null);
+
+    const searchParams = useSearchParams();
+    const [mapCenter, setMapCenter] = useState(defaultCenter);
+    const [zoom, setZoom] = useState(13);
+
 
     const onMapLoad = useCallback((map: google.maps.Map) => {
         mapRef.current = map;
@@ -147,16 +156,52 @@ export default function MapResultsComponent({ properties, searchControls }: { pr
           });
         }
       }, [isLoaded, properties]);
-    
-      const mapCenter = useMemo(() => {
-        if (geocodedProperties.length > 0) {
-          const avgLat = geocodedProperties.reduce((sum, p) => sum + p.position.lat, 0) / geocodedProperties.length;
-          const avgLng = geocodedProperties.reduce((sum, p) => sum + p.position.lng, 0) / geocodedProperties.length;
-          return { lat: avgLat, lng: avgLng };
-        }
-        return defaultCenter;
-      }, [geocodedProperties]);
 
+    useEffect(() => {
+        if (!isLoaded) return;
+        
+        const geocoder = new window.google.maps.Geocoder();
+        const stateUf = searchParams.get('state');
+        const citiesParam = searchParams.get('cities');
+        const neighborhoodsParam = searchParams.get('neighborhoods');
+
+        let address = 'João Pessoa, Brazil'; // Default to João Pessoa
+        let newZoom = 13;
+
+        if (stateUf) {
+            const stateData = locationData.states.find(s => s.uf === stateUf);
+            address = stateData ? stateData.name : stateUf;
+            newZoom = 7;
+        }
+
+        if (citiesParam) {
+            const firstCity = citiesParam.split(',')[0].trim();
+            if (firstCity) {
+                address = `${firstCity}, ${address}`;
+                newZoom = 12;
+            }
+        }
+
+        if (neighborhoodsParam) {
+            const firstNeighborhood = neighborhoodsParam.split(',')[0].trim();
+            if (firstNeighborhood) {
+                address = `${firstNeighborhood}, ${address}`;
+                newZoom = 14;
+            }
+        }
+        
+        geocoder.geocode({ address }, (results, status) => {
+            if (status === 'OK' && results && results[0]) {
+                setMapCenter({
+                    lat: results[0].geometry.location.lat(),
+                    lng: results[0].geometry.location.lng(),
+                });
+                setZoom(newZoom);
+            }
+        });
+
+    }, [searchParams, isLoaded, geocodedProperties]);
+    
     const handleMarkerClick = (property: GeocodedProperty) => {
         setSelectedProperty(property);
     };
@@ -221,13 +266,13 @@ export default function MapResultsComponent({ properties, searchControls }: { pr
     }
 
     return (
-      <div className="flex-1 flex w-full h-full relative">
+      <div className="absolute inset-0">
         <div className="absolute inset-0 z-0 bg-gray-200">
           {isLoaded ? (
             <GoogleMap
               mapContainerStyle={containerStyle}
               center={mapCenter}
-              zoom={12}
+              zoom={zoom}
               onLoad={onMapLoad}
               options={{
                 disableDefaultUI: true,
@@ -281,7 +326,9 @@ export default function MapResultsComponent({ properties, searchControls }: { pr
         </div>
         
         <div className={cn("absolute top-6 left-6 z-30 w-full max-w-sm flex flex-col gap-4 transition-transform duration-300 ease-in-out", !isFilterOpen && "-translate-x-[calc(100%+32px)]")}>
-          {searchControls}
+          <div className='bg-white/80 backdrop-blur-md rounded-2xl shadow-float border border-gray-100'>
+             {searchControls}
+          </div>
           <div className="bg-white/80 backdrop-blur-md rounded-2xl shadow-float border border-gray-100 p-2 flex items-center justify-start gap-1 flex-wrap">
             {poiCategories.map(category => (
                 <button 
@@ -410,7 +457,7 @@ export default function MapResultsComponent({ properties, searchControls }: { pr
                         </p>
                         </div>
                         <div className="flex gap-3 mt-2">
-                            <Link href={`/imoveis/${selectedProperty.id}`} className="flex-1 bg-primary hover:bg-primary-hover text-black font-bold h-11 rounded-xl shadow-lg shadow-primary/20 flex items-center justify-center gap-2 transition-all hover:scale-[1.02]">
+                            <Link href={`/imoveis/${selectedProperty.informacoesbasicas.slug || selectedProperty.id}`} className="flex-1 bg-primary hover:bg-primary-hover text-black font-bold h-11 rounded-xl shadow-lg shadow-primary/20 flex items-center justify-center gap-2 transition-all hover:scale-[1.02]">
                                 Ver Detalhes
                                 <span className="material-symbols-outlined text-lg">arrow_forward</span>
                             </Link>

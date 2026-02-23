@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import TicketForm, { TicketFormData } from "./components/ticket-form";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { useCollection, useFirestore, useMemoFirebase, addDocumentNonBlocking } from "@/firebase";
-import { collection, query } from "firebase/firestore";
+import { collection, query, doc } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { TableRow, TableCell } from "@/components/ui/table";
 
@@ -21,6 +21,12 @@ type Ticket = {
   status: 'Novo' | 'Em Andamento' | 'Aguardando Cliente' | 'Fechado';
 };
 
+// Add User type
+type User = {
+    id: string;
+    username: string;
+}
+
 
 export default function TicketsDashboardPage() {
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -32,7 +38,17 @@ export default function TicketsDashboardPage() {
       [firestore]
     );
 
-    const { data: tickets, isLoading } = useCollection<Ticket>(ticketsQuery);
+    const { data: tickets, isLoading: areTicketsLoading } = useCollection<Ticket>(ticketsQuery);
+
+    // Fetch users
+    const usersQuery = useMemoFirebase(
+        () => (firestore ? query(collection(firestore, 'users')) : null),
+        [firestore]
+    );
+    const { data: users, isLoading: areUsersLoading } = useCollection<User>(usersQuery);
+
+    const isLoading = areTicketsLoading || areUsersLoading;
+
 
     const openTickets = useMemo(() => tickets?.filter(t => t.status !== 'Fechado').length || 0, [tickets]);
     const newTicketsToday = useMemo(() => {
@@ -48,8 +64,20 @@ export default function TicketsDashboardPage() {
 
     const handleSaveTicket = async (data: TicketFormData) => {
         if (!firestore) return;
+        
+        const selectedUser = users?.find(u => u.id === data.clientId);
+        if (!selectedUser) {
+            toast({
+                variant: 'destructive',
+                title: 'Erro',
+                description: 'Cliente selecionado não é válido.',
+            });
+            return;
+        }
+
         const ticketData = {
             ...data,
+            clientName: selectedUser.username, // Get clientName from the selected user
             status: 'Novo',
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
@@ -86,7 +114,12 @@ export default function TicketsDashboardPage() {
                                 </DialogDescription>
                             </VisuallyHidden>
                         </DialogHeader>
-                        <TicketForm onSave={handleSaveTicket} onCancel={() => setIsModalOpen(false)} />
+                        <TicketForm 
+                            onSave={handleSaveTicket} 
+                            onCancel={() => setIsModalOpen(false)} 
+                            users={users || []}
+                            isLoadingUsers={areUsersLoading}
+                        />
                     </DialogContent>
                 </Dialog>
             </div>
