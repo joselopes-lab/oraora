@@ -74,7 +74,7 @@ const poiCategories = [
 export default function MapResultsComponent({ properties, searchControls }: { properties: Property[], searchControls: React.ReactNode }) {
     const { isLoaded, loadError } = useJsApiLoader({
         id: 'google-map-script',
-        googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!,
+        googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || 'AIzaSyCbPxGXZuW0kPodzVnymKb8CbXnAF5Pdkg',
         libraries: ['places'],
         preventGoogleFontsLoading: true, 
     });
