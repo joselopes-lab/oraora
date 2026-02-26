@@ -12,6 +12,7 @@ import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
+import { PlaceHolderImages } from '@/lib/placeholder-images';
 
 export default function RadarLoginPage() {
     const [showPassword, setShowPassword] = useState(false);
@@ -23,6 +24,7 @@ export default function RadarLoginPage() {
     const firestore = useFirestore();
     const router = useRouter();
     const { toast } = useToast();
+    const defaultLogo = PlaceHolderImages.find(img => img.id === 'default-logo')?.imageUrl;
 
     const siteContentRef = useMemoFirebase(
       () => (firestore ? doc(firestore, 'brokers', 'oraora-main-site') : null),
@@ -33,7 +35,6 @@ export default function RadarLoginPage() {
     // Placeholder images - in a real scenario, these would come from a CMS or a dedicated image service
     const bgImage = "https://lh3.googleusercontent.com/aida-public/AB6AXuBWzh6uISTMq88anhDplYoQR9S-h9IIvtfBbvNce2Kskusv9xuhdgJr2J6r3aO9fB2j_8kt_UlJodvBD9fIZzA0DFKC87gnZp_XcxMbh0f77Ut66PR-MQQvbZbfKAZ8ZteK8HOmS9GbvXri44rEfGR-015SoTGlKQJfxq1boNgqhHDeAzcy3aqE1VcY3JEBOJVGbhT_VYeYZm1-ozBAb7UnlwaUhJetPhk61LXnylxJi9N1uw8G5OYxze0-cO3JSOeLi-HC57e7IuE";
     const userAvatar = "https://lh3.googleusercontent.com/aida-public/AB6AXuAi4UXbaUgoWVmbSEIToD_AJ_0Gxhmgy2_PyLOZlFt5AEwrZWK74rmzyXuz-9F0V2k9RJwOHCU0Pt8ZSee0fGIyVLpOmpBzw16_JobaP_SzfckPFV1qoRFUZ2Ku9gWnjJiAJ3euWivZWPjW6-GZVyrXAYBqJqvJ57G134lJk_bJpSgWeDZn-RSC2ep3ZEmarJ3n_Mfg_34rLeKf1-VO85iPzsaCFlynl9hj96CBgxtnyPSKNX7Qzrq03DK1-XEYxrYdopDEdAQ1sQM";
-    const qrCodeImage = "https://lh3.googleusercontent.com/aida-public/AB6AXuCOgpNhYFJffFMUlfz8rLyKaaXEIfZXxfiLZ65GOGgSY73guOuAkJMXGxrRWWSFH5j0b5xuuWthl3kTBi-HJvhNHD5WfkbzYLRwJwV6qb-gpYSPdiBjRczW1gcQBF_rJF_w56gXrbLU5TFW0B1e_KHnDYqSVQsV4wE0Ce3QX9gOHNHsm42inrVtdekjofYGPt4k19NkpCkEOw5XAQohk7xRJYb8VGqwg_j4MEmMVWbGmwcmpQdeKsHJB-e0G43Il5tt671-tcmduLI";
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -87,7 +88,7 @@ export default function RadarLoginPage() {
                 <div className="flex flex-col flex-1 bg-white relative z-10 w-full lg:w-1/2 lg:max-w-[600px] xl:max-w-[700px] border-r border-gray-100">
                     <div className="px-8 py-8 md:px-12 lg:px-16 flex items-center justify-between">
                         <Link href="/" className="flex items-center gap-3">
-                            <Image src={siteData?.logoUrl || "https://dotestudio.com.br/wp-content/uploads/2025/08/oraora.png"} alt="Oraora Logo" width={160} height={40} className="h-10 w-auto" />
+                            <Image src={siteData?.logoUrl || defaultLogo || ""} alt="Oraora Logo" width={160} height={40} className="h-10 w-auto" style={{ width: 'auto' }} />
                         </Link>
                         <a className="text-sm font-medium text-gray-400 hover:text-neutral-dark transition-colors hidden sm:block" href="/ajuda">
                             Precisa de ajuda?

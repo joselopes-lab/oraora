@@ -20,7 +20,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 
 const clientSchema = z.object({
   name: z.string().min(1, "O nome é obrigatório."),
-  email: z.string().email("Insira um e-mail válido."),
+  email: z.string().email("Insira um e-mail válido.").optional().or(z.literal('')),
   phone: z.string().min(1, "O telefone é obrigatório."),
   clientType: z.enum(['comprador', 'vendedor']).optional(),
   propertyInterest: z.string().optional(),
@@ -200,7 +200,7 @@ export default function ClientForm({ clientData, onSave, isEditing, isSubmitting
                                         name="email"
                                         render={({ field }) => (
                                         <FormItem>
-                                             <FormLabel className="block text-xs font-medium text-text-secondary mb-1.5 uppercase tracking-wide">E-mail <span className="text-red-500">*</span></FormLabel>
+                                             <FormLabel className="block text-xs font-medium text-text-secondary mb-1.5 uppercase tracking-wide">E-mail</FormLabel>
                                             <FormControl>
                                                 <div className="relative">
                                                 <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[18px]">mail</span>

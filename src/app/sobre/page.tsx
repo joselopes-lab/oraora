@@ -8,13 +8,14 @@ import { useAuthContext, useAuth, useDoc, useFirestore, useMemoFirebase } from '
 import { useRouter } from 'next/navigation';
 import { Skeleton } from "@/components/ui/skeleton";
 import { signOut } from 'firebase/auth';
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { doc } from 'firebase/firestore';
 import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import SearchFilters from '@/components/SearchFilters';
+import { PlaceHolderImages } from '@/lib/placeholder-images';
 
 
 export default function SobrePage() {
@@ -25,6 +26,8 @@ export default function SobrePage() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const firestore = useFirestore();
+  const defaultLogo = PlaceHolderImages.find(img => img.id === 'default-logo')?.imageUrl;
+
   const siteContentRef = useMemoFirebase(
       () => (firestore ? doc(firestore, 'brokers', 'oraora-main-site') : null),
       [firestore]
@@ -68,7 +71,7 @@ export default function SobrePage() {
                             </SheetHeader>
                             <div className="p-6 border-b">
                                 <Link href="/" onClick={() => setIsMobileMenuOpen(false)}>
-                                    <Image src={siteData?.logoUrl || "https://dotestudio.com.br/wp-content/uploads/2025/08/oraora.png"} alt="Oraora Logo" width={120} height={30} className="h-[30px] w-auto" />
+                                    <Image src={siteData?.logoUrl || defaultLogo || ""} alt="Oraora Logo" width={120} height={30} className="h-[30px] w-auto" style={{ width: 'auto' }} />
                                 </Link>
                             </div>
                             <nav className="flex flex-col gap-2 p-4 text-lg font-semibold">
@@ -127,7 +130,7 @@ export default function SobrePage() {
                 </div>
                  {/* Desktop Logo */}
                 <Link className="hidden lg:flex items-center gap-3" href="/">
-                    <Image src={siteData?.logoUrl || "https://dotestudio.com.br/wp-content/uploads/2025/08/oraora.png"} alt="Oraora Logo" width={120} height={30} className="h-[30px] w-auto" />
+                    <Image src={siteData?.logoUrl || defaultLogo || ""} alt="Oraora Logo" width={120} height={30} className="h-[30px] w-auto" style={{ width: 'auto' }} />
                 </Link>
             </div>
 
@@ -135,7 +138,7 @@ export default function SobrePage() {
             <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
                 {/* Mobile Logo */}
                 <Link className="flex items-center gap-3 lg:hidden" href="/">
-                    <Image src={siteData?.logoUrl || "https://dotestudio.com.br/wp-content/uploads/2025/08/oraora.png"} alt="Oraora Logo" width={120} height={30} className="h-[30px] w-auto" />
+                    <Image src={siteData?.logoUrl || defaultLogo || ""} alt="Oraora Logo" width={120} height={30} className="h-[30px] w-auto" style={{ width: 'auto' }} />
                 </Link>
                 {/* Desktop Nav */}
                 <nav className="hidden lg:flex items-center gap-8 text-sm font-semibold">
@@ -201,7 +204,9 @@ export default function SobrePage() {
                                 </DialogDescription>
                             </DialogHeader>
                             <div className="pt-4">
-                                <SearchFilters onSearch={handleSearch} />
+                                <Suspense fallback={<Skeleton className="h-20 w-full" />}>
+                                    <SearchFilters onSearch={handleSearch} />
+                                </Suspense>
                             </div>
                         </DialogContent>
                     </Dialog>
@@ -218,7 +223,7 @@ export default function SobrePage() {
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8 mb-12">
                 <div className="col-span-2 lg:col-span-2">
                     <div className="flex items-center gap-2 mb-4">
-                        <Image src={siteData?.logoUrl || "https://dotestudio.com.br/wp-content/uploads/2025/08/oraora.png"} alt="Oraora Logo" width={160} height={40} className="h-8 w-auto" />
+                        <Image src={siteData?.logoUrl || defaultLogo || ""} alt="Oraora Logo" width={160} height={40} className="h-8 w-auto" style={{ width: 'auto' }} />
                     </div>
                     {isSiteDataLoading ? (
                       <div className="space-y-2 max-w-xs">
@@ -271,6 +276,7 @@ export default function SobrePage() {
                            Área do corretor
                         </Link>
                     </Button>
+                    <Link href="/corretor" className="text-xs text-gray-400 hover:text-primary transition-colors">Desenvolvido por <strong>Oraora</strong></Link>
                 </div>
             </div>
         </div>

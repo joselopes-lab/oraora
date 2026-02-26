@@ -1,4 +1,3 @@
-
 'use client';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -18,6 +17,7 @@ import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger, DialogClose } from '@/components/ui/dialog';
+import { PlaceHolderImages } from '@/lib/placeholder-images';
 
 const formSchema = z.object({
   name: z.string().min(1, 'O nome é obrigatório.'),
@@ -36,6 +36,7 @@ export default function ContatoClientPage() {
     const { toast } = useToast();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const firestore = useFirestore();
+    const defaultLogo = PlaceHolderImages.find(img => img.id === 'default-logo')?.imageUrl;
 
     const siteContentRef = useMemoFirebase(
         () => (firestore ? doc(firestore, 'brokers', 'oraora-main-site') : null),
@@ -358,7 +359,7 @@ export default function ContatoClientPage() {
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8 mb-12">
         <div className="col-span-2 lg:col-span-2">
         <div className="flex items-center gap-2 mb-4">
-            <Image src={siteData?.logoUrl || "https://dotestudio.com.br/wp-content/uploads/2025/08/oraora.png"} alt="Oraora Logo" width={160} height={40} className="h-8 w-auto" />
+            <Image src={siteData?.logoUrl || defaultLogo || ""} alt="Oraora Logo" width={160} height={40} className="h-8 w-auto" style={{ width: 'auto' }} />
         </div>
         {isSiteDataLoading ? (
             <div className="space-y-2 max-w-xs">
@@ -411,6 +412,7 @@ export default function ContatoClientPage() {
                         Área do corretor
                     </Link>
                 </Button>
+                <Link href="/corretor" className="text-xs text-gray-400 hover:text-primary transition-colors">Desenvolvido por <strong>Oraora</strong></Link>
             </div>
         </div>
         </div>
@@ -418,5 +420,3 @@ export default function ContatoClientPage() {
       </>
     )
 }
-
-    

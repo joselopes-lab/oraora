@@ -1,6 +1,6 @@
 'use client';
-import { useDoc, useFirebase, setDocumentNonBlocking, useMemoFirebase } from '@/firebase';
-import { doc } from 'firebase/firestore';
+import { useDoc, useFirebase, setDocumentNonBlocking, useMemoFirebase, useCollection } from '@/firebase';
+import { doc, collection, query, where, getDocs } from 'firebase/firestore';
 import { useForm, FormProvider } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -9,13 +9,14 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { Switch } from '@/components/ui/switch';
 import Image from 'next/image';
 import { Progress } from '@/components/ui/progress';
 import { uploadFile } from '@/lib/storage';
-
+import { Checkbox } from '@/components/ui/checkbox';
+import { cn } from '@/lib/utils';
 
 const homepageSchema = z.object({
   heroTagline: z.string().optional(),
@@ -30,13 +31,13 @@ const homepageSchema = z.object({
   featuredTagline: z.string().optional(),
   featuredTitle: z.string().optional(),
   featuredSubtitle: z.string().optional(),
+  featuredPropertyIds: z.array(z.string()).optional().default([]),
   aboutTagline: z.string().optional(),
   aboutTitle: z.string().optional(),
   aboutText: z.string().optional(),
   aboutImageUrl: z.string().url("URL inválida.").optional().or(z.literal('')),
   ctaTitle: z.string().optional(),
   ctaSubtitle: z.string().optional(),
-  // Domus specific fields
   value1Icon: z.string().optional(),
   value1Title: z.string().optional(),
   value1Description: z.string().optional(),
@@ -55,12 +56,23 @@ const homepageSchema = z.object({
   hideStats: z.boolean().optional(),
 });
 
-
 type HomepageData = z.infer<typeof homepageSchema>;
 
 type BrokerData = {
     homepage?: HomepageData;
-    layoutId?: string; // We need to know the active layout
+    layoutId?: string;
+}
+
+type Property = {
+  id: string;
+  informacoesbasicas: {
+    nome: string;
+  };
+  midia: string[];
+};
+
+type Portfolio = {
+  propertyIds: string[];
 }
 
 type UploadState = {
@@ -72,90 +84,91 @@ type UploadState = {
 export default function EditHomepagePage() {
   const { firestore, user, storage } = useFirebase();
   const { toast } = useToast();
+  const [heroImageUploadState, setHeroImageUploadState] = useState<UploadState>({ progress: 0, isUploading: false, error: null });
+
   const brokerDocRef = useMemoFirebase(
     () => (user ? doc(firestore, 'brokers', user.uid) : null),
     [firestore, user]
   );
-  const { data: brokerData, isLoading } = useDoc<BrokerData>(brokerDocRef);
+  const { data: brokerData, isLoading: isBrokerLoading } = useDoc<BrokerData>(brokerDocRef);
 
-  const [heroImageUploadState, setHeroImageUploadState] = useState<UploadState>({ progress: 0, isUploading: false, error: null });
+  // --- Fetching Available Properties for Selection ---
+  const brokerPropertiesQuery = useMemoFirebase(
+    () => (user ? query(collection(firestore, 'brokerProperties'), where('brokerId', '==', user.uid)) : null),
+    [user, firestore]
+  );
+  const { data: avulsoProperties, isLoading: areAvulsoLoading } = useCollection<Property>(brokerPropertiesQuery);
+
+  const portfolioDocRef = useMemoFirebase(
+    () => (user ? doc(firestore, 'portfolios', user.uid) : null),
+    [user, firestore]
+  );
+  const { data: portfolio, isLoading: isPortfolioLoading } = useDoc<Portfolio>(portfolioDocRef);
+
+  const [portfolioProperties, setPortfolioProperties] = useState<Property[]>([]);
+  const [arePortfolioPropertiesLoading, setArePortfolioPropertiesLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchPortfolioProperties = async () => {
+      if (!firestore || !portfolio) {
+        setPortfolioProperties([]);
+        setArePortfolioPropertiesLoading(false);
+        return;
+      }
+      const ids = portfolio.propertyIds || [];
+      if (ids.length === 0) {
+        setPortfolioProperties([]);
+        setArePortfolioPropertiesLoading(false);
+        return;
+      }
+      setArePortfolioPropertiesLoading(true);
+      const results: Property[] = [];
+      const propertiesRef = collection(firestore, 'properties');
+      for (let i = 0; i < ids.length; i += 30) {
+        const batch = ids.slice(i, i + 30);
+        const q = query(propertiesRef, where('__name__', 'in', batch));
+        const snap = await getDocs(q);
+        snap.forEach(d => results.push({ id: d.id, ...d.data() } as Property));
+      }
+      setPortfolioProperties(results);
+      setArePortfolioPropertiesLoading(false);
+    };
+    if (!isPortfolioLoading) fetchPortfolioProperties();
+  }, [firestore, portfolio, isPortfolioLoading]);
+
+  const allAvailableProperties = useMemo(() => {
+    return [...(avulsoProperties || []), ...portfolioProperties];
+  }, [avulsoProperties, portfolioProperties]);
 
   const form = useForm<HomepageData>({
     resolver: zodResolver(homepageSchema),
-    defaultValues: {},
+    defaultValues: {
+      featuredPropertyIds: [],
+    },
   });
 
   useEffect(() => {
     if (brokerData?.homepage) {
-       const existingData = brokerData.homepage;
-       const defaultData = form.formState.defaultValues ?? {};
-       const mergedData: HomepageData = {
-          ...defaultData,
-          ...existingData,
-          heroTagline: existingData.heroTagline ?? '',
-          heroTitle: existingData.heroTitle ?? '',
-          heroSubtitle: existingData.heroSubtitle ?? '',
-          heroImageUrl: existingData.heroImageUrl ?? '',
-          heroVideoUrl: existingData.heroVideoUrl ?? '',
-          statsSold: existingData.statsSold ?? '',
-          statsExperience: existingData.statsExperience ?? '',
-          statsSatisfaction: existingData.statsSatisfaction ?? '',
-          statsSupport: existingData.statsSupport ?? '',
-          featuredTagline: existingData.featuredTagline ?? '',
-          featuredTitle: existingData.featuredTitle ?? '',
-          featuredSubtitle: existingData.featuredSubtitle ?? '',
-          aboutTagline: existingData.aboutTagline ?? '',
-          aboutTitle: existingData.aboutTitle ?? '',
-          aboutText: existingData.aboutText ?? '',
-          aboutImageUrl: existingData.aboutImageUrl ?? '',
-          ctaTitle: existingData.ctaTitle ?? '',
-          ctaSubtitle: existingData.ctaSubtitle ?? '',
-          value1Icon: existingData.value1Icon ?? '',
-          value1Title: existingData.value1Title ?? '',
-          value1Description: existingData.value1Description ?? '',
-          value2Icon: existingData.value2Icon ?? '',
-          value2Title: existingData.value2Title ?? '',
-          value2Description: existingData.value2Description ?? '',
-          value3Icon: existingData.value3Icon ?? '',
-          value3Title: existingData.value3Title ?? '',
-          value3Description: existingData.value3Description ?? '',
-          value4Icon: existingData.value4Icon ?? '',
-          value4Title: existingData.value4Title ?? '',
-          value4Description: existingData.value4Description ?? '',
-          aboutAwardTitle: existingData.aboutAwardTitle ?? '',
-          aboutAwardText: existingData.aboutAwardText ?? '',
-          aboutQuote: existingData.aboutQuote ?? '',
-          hideStats: existingData.hideStats ?? false,
-      };
-      form.reset(mergedData);
+      form.reset({
+        ...form.formState.defaultValues,
+        ...brokerData.homepage,
+        featuredPropertyIds: brokerData.homepage.featuredPropertyIds || [],
+      });
     }
   }, [brokerData, form]);
 
   const handleHeroImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file || !user || !storage) {
-        toast({
-            variant: "destructive",
-            title: "Erro de Upload",
-            description: "Não foi possível iniciar o upload. Tente novamente."
-        });
-        return;
-    }
-
+    if (!file || !user || !storage) return;
     setHeroImageUploadState({ progress: 0, isUploading: true, error: null });
-
     try {
         const path = `brokers/${user.uid}/site_images`;
         const onProgress = (progress: number) => {
             setHeroImageUploadState(prev => ({ ...prev, progress, isUploading: true }));
         };
-
         const downloadURL = await uploadFile(storage, path, file, onProgress);
-        
         form.setValue('heroImageUrl', downloadURL, { shouldDirty: true });
-        
-        toast({ title: 'Upload Concluído!', description: 'A imagem foi enviada. Salve as alterações para publicar.' });
-
+        toast({ title: 'Upload Concluído!', description: 'A imagem foi enviada.' });
     } catch (error) {
         console.error('Upload error:', error);
         setHeroImageUploadState({ progress: 0, isUploading: false, error: 'Falha no upload.' });
@@ -165,7 +178,6 @@ export default function EditHomepagePage() {
     }
   };
 
-
   const onSubmit = (data: HomepageData) => {
     if (!user) return;
     const sanitizedData = JSON.parse(JSON.stringify(data));
@@ -173,14 +185,35 @@ export default function EditHomepagePage() {
     setDocumentNonBlocking(docRef, { homepage: sanitizedData, userId: user.uid }, { merge: true });
     toast({
         title: 'Página Inicial Atualizada!',
-        description: 'As alterações foram salvas e já estão visíveis no seu site.',
+        description: 'As alterações foram salvas.',
     });
   };
-  
-  if (isLoading) {
-    return <p>Carregando...</p>;
+
+  const selectedFeaturedIds = form.watch('featuredPropertyIds') || [];
+
+  const handlePropertyToggle = (id: string) => {
+    const current = [...selectedFeaturedIds];
+    if (current.includes(id)) {
+      form.setValue('featuredPropertyIds', current.filter(i => i !== id));
+    } else {
+      if (current.length >= 6) {
+        toast({
+          variant: "destructive",
+          title: "Limite Atingido",
+          description: "Você pode selecionar no máximo 6 imóveis para destaque."
+        });
+        return;
+      }
+      form.setValue('featuredPropertyIds', [...current, id]);
+    }
+  };
+
+  const isLoadingData = isBrokerLoading || areAvulsoLoading || arePortfolioPropertiesLoading;
+
+  if (isLoadingData) {
+    return <p>Carregando configurações...</p>;
   }
-  
+
   return (
     <div className="min-h-screen w-full max-w-5xl mx-auto p-6 md:p-10">
         <FormProvider {...form}>
@@ -195,19 +228,12 @@ export default function EditHomepagePage() {
                     <p className="text-text-muted mt-2 text-sm md:text-base">Gerencie o conteúdo do seu site. As alterações são aplicadas a todos os layouts.</p>
                 </div>
                 <div className="flex gap-3">
-                    <Button asChild variant="outline" className="hidden md:flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors">
-                        <Link href="#">
-                            <span className="material-symbols-outlined text-[18px]">visibility</span>
-                            Pré-visualizar
-                        </Link>
-                    </Button>
                      <Button type="submit" disabled={form.formState.isSubmitting}>
                         {form.formState.isSubmitting ? 'Salvando...' : 'Salvar Alterações'}
                     </Button>
                 </div>
             </div>
             
-              {/* Hero Section */}
       <section className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
           <h2 className="text-lg font-bold flex items-center gap-2 text-gray-800">
@@ -269,13 +295,7 @@ export default function EditHomepagePage() {
                         {heroImageUploadState.isUploading && (
                           <div className="space-y-1">
                             <Progress value={heroImageUploadState.progress} className="h-2" />
-                            <p className="text-xs text-muted-foreground text-center">
-                              Enviando... {Math.round(heroImageUploadState.progress)}%
-                            </p>
                           </div>
-                        )}
-                         {heroImageUploadState.error && (
-                          <p className="text-xs text-red-500">{heroImageUploadState.error}</p>
                         )}
                         <Input
                           className="w-full h-10 border-gray-200"
@@ -371,7 +391,7 @@ export default function EditHomepagePage() {
         </div>
       </section>
 
-      {/* Featured Section */}
+      {/* Featured Section with Property Picker */}
        <section className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="p-6 border-b border-gray-100 bg-gray-50/50">
             <h2 className="text-lg font-bold flex items-center gap-2 text-gray-800">
@@ -379,33 +399,70 @@ export default function EditHomepagePage() {
                 Seção de Destaques
             </h2>
         </div>
-         <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="md:col-span-2">
-                <FormField control={form.control} name="featuredTitle" render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Título da Seção</FormLabel>
-                        <FormControl><Input {...field} value={field.value ?? ''} /></FormControl>
-                        <FormMessage />
-                    </FormItem>
-                )}/>
+         <div className="p-6 space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="md:col-span-2">
+                    <FormField control={form.control} name="featuredTitle" render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Título da Seção</FormLabel>
+                            <FormControl><Input {...field} value={field.value ?? ''} /></FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}/>
+                </div>
+                <div className="md:col-span-2">
+                    <FormField control={form.control} name="featuredSubtitle" render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Descrição</FormLabel>
+                            <FormControl><Textarea rows={2} {...field} value={field.value ?? ''} /></FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}/>
+                </div>
             </div>
-            <div className="md:col-span-2">
-                <FormField control={form.control} name="featuredSubtitle" render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Descrição</FormLabel>
-                        <FormControl><Textarea rows={2} {...field} value={field.value ?? ''} /></FormControl>
-                        <FormMessage />
-                    </FormItem>
-                )}/>
-            </div>
-             <div className="md:col-span-2">
-                <FormField control={form.control} name="featuredTagline" render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Tagline (texto pequeno acima do título)</FormLabel>
-                        <FormControl><Input {...field} value={field.value ?? ''} /></FormControl>
-                        <FormMessage />
-                    </FormItem>
-                )}/>
+
+            <div className="border-t pt-6">
+              <FormLabel className="text-base font-bold">Selecionar Imóveis em Destaque (Máx. 6)</FormLabel>
+              <p className="text-sm text-muted-foreground mb-4">Escolha os imóveis que aparecerão na vitrine da sua página inicial. Caso nenhum seja selecionado, o sistema exibirá imóveis aleatórios do seu catálogo.</p>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[400px] overflow-y-auto p-1">
+                {allAvailableProperties.map(property => (
+                  <div 
+                    key={property.id} 
+                    onClick={() => handlePropertyToggle(property.id)}
+                    className={cn(
+                      "flex items-center gap-3 p-3 rounded-xl border-2 transition-all cursor-pointer group",
+                      selectedFeaturedIds.includes(property.id) 
+                        ? "border-primary bg-primary/5" 
+                        : "border-gray-100 hover:border-gray-300 bg-white"
+                    )}
+                  >
+                    <div className="relative size-12 rounded-lg overflow-hidden bg-gray-100 shrink-0">
+                      <Image 
+                        src={property.midia?.[0] || 'https://placehold.co/100x100'} 
+                        alt={property.informacoesbasicas.nome} 
+                        fill 
+                        className="object-cover"
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold truncate text-text-main uppercase">{property.informacoesbasicas.nome}</p>
+                      <p className="text-[10px] text-muted-foreground">ID: {property.id.substring(0, 6)}</p>
+                    </div>
+                    <div className={cn(
+                      "size-5 rounded-full border-2 flex items-center justify-center transition-colors",
+                      selectedFeaturedIds.includes(property.id) ? "bg-primary border-primary" : "border-gray-300"
+                    )}>
+                      {selectedFeaturedIds.includes(property.id) && <span className="material-symbols-outlined text-xs text-black font-bold">check</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 flex justify-end">
+                <span className="text-xs font-bold text-muted-foreground">
+                  {selectedFeaturedIds.length} de 6 selecionados
+                </span>
+              </div>
             </div>
         </div>
       </section>
@@ -444,20 +501,6 @@ export default function EditHomepagePage() {
                 <FormField control={form.control} name="aboutTagline" render={({ field }) => (
                     <FormItem>
                         <FormLabel>Tagline (texto acima do título)</FormLabel>
-                        <FormControl><Input {...field} value={field.value ?? ''} /></FormControl>
-                        <FormMessage />
-                    </FormItem>
-                )}/>
-                <FormField control={form.control} name="aboutAwardText" render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Texto do Prêmio</FormLabel>
-                        <FormControl><Input {...field} value={field.value ?? ''} /></FormControl>
-                        <FormMessage />
-                    </FormItem>
-                )}/>
-                 <FormField control={form.control} name="aboutAwardTitle" render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Título do Prêmio</FormLabel>
                         <FormControl><Input {...field} value={field.value ?? ''} /></FormControl>
                         <FormMessage />
                     </FormItem>

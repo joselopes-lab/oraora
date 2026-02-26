@@ -12,6 +12,7 @@ import { useAuth, useDoc, useFirestore, useMemoFirebase } from '@/firebase';
 import { confirmPasswordReset, verifyPasswordResetCode } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { doc } from 'firebase/firestore';
+import { PlaceHolderImages } from '@/lib/placeholder-images';
 
 
 function NewPasswordForm() {
@@ -142,6 +143,7 @@ export default function NewPasswordPage() {
   const auth = useAuth();
   const { toast } = useToast();
   const firestore = useFirestore();
+  const defaultLogo = PlaceHolderImages.find(img => img.id === 'default-logo')?.imageUrl;
 
   const siteContentRef = useMemoFirebase(
     () => (firestore ? doc(firestore, 'brokers', 'oraora-main-site') : null),
@@ -165,7 +167,7 @@ export default function NewPasswordPage() {
         <div className="p-8 sm:p-10 flex flex-col gap-8">
             <div className="flex justify-center mb-2">
                 <Link href="/" className="flex items-center gap-2.5 group">
-                    <Image src={siteData?.logoUrl || "https://dotestudio.com.br/wp-content/uploads/2025/08/oraora.png"} alt="Oraora Logo" width={160} height={40} className="h-10 w-auto" />
+                    <Image src={siteData?.logoUrl || defaultLogo || ""} alt="Oraora Logo" width={160} height={40} className="h-10 w-auto" style={{ width: 'auto' }} />
                 </Link>
             </div>
             <div className="flex flex-col gap-3 text-center">

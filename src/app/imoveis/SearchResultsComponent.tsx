@@ -1,11 +1,10 @@
 
-
 'use client';
 
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useCallback, useState, useEffect, useRef, useMemo } from 'react';
+import { useCallback, useState, useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import {
   DropdownMenu,
@@ -141,14 +140,13 @@ export default function SearchResultsComponent({ properties }: SearchResultsComp
                 sorted.sort((a, b) => (b.informacoesbasicas.valor || 0) - (a.informacoesbasicas.valor || 0));
                 break;
             case 'area_asc':
-                sorted.sort((a, b) => (parseInt(a.caracteristicasimovel.tamanho || '0') || 0) - (parseInt(b.caracteristicasimovel.tamanho || '0') || 0));
+                sorted.sort((a, b) => (parseInt(String(a.caracteristicasimovel.tamanho || '0')) || 0) - (parseInt(String(b.caracteristicasimovel.tamanho || '0')) || 0));
                 break;
             case 'area_desc':
-                sorted.sort((a, b) => (parseInt(b.caracteristicasimovel.tamanho || '0') || 0) - (parseInt(a.caracteristicasimovel.tamanho || '0') || 0));
+                sorted.sort((a, b) => (parseInt(String(b.caracteristicasimovel.tamanho || '0')) || 0) - (parseInt(String(a.caracteristicasimovel.tamanho || '0')) || 0));
                 break;
             case 'relevance':
             default:
-                // Default relevance logic can be implemented here if needed
                 break;
         }
         return sorted;
@@ -201,8 +199,8 @@ export default function SearchResultsComponent({ properties }: SearchResultsComp
     return (
         <main className="flex flex-1">
         {viewMode === 'grid' && (
-          <aside className="sticky top-20 hidden h-[calc(100vh-80px)] w-96 min-w-[384px] flex-col overflow-y-auto border-r border-[#f0f2f4] bg-white p-6 lg:flex">
-            <SearchFilters />
+          <aside className="sticky top-20 hidden h-[calc(100vh-80px)] w-[320px] flex-col overflow-y-auto border-r border-gray-100 bg-white p-6 lg:flex">
+            <SearchFilters vertical={true} />
           </aside>
         )}
         <div className="flex-1 flex flex-col min-w-0">
@@ -269,11 +267,6 @@ export default function SearchResultsComponent({ properties }: SearchResultsComp
                                <span className="material-symbols-outlined text-[20px]">radar</span>
                            </button>
                        </div>
-                      {property.informacoesbasicas.status === 'Lançamento' && (
-                        <div className="absolute left-4 top-4 rounded-full bg-primary px-3 py-1 text-xs font-bold text-black shadow-[0_0_15px_rgba(195,231,56,0.4)]">
-                          Novo
-                        </div>
-                      )}
                       <Image alt={property.informacoesbasicas.nome} className="h-full w-full object-cover transition duration-700 group-hover:scale-110" src={property.midia[0] || "https://picsum.photos/400/300"} width={400} height={300}/>
                       <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent"></div>
                       <div className="absolute bottom-3 left-3 text-white">
@@ -287,7 +280,6 @@ export default function SearchResultsComponent({ properties }: SearchResultsComp
                       <p className="text-sm text-gray-500 mt-1">{property.localizacao.bairro}, {property.localizacao.cidade}</p>
                       <div className="mt-3 pt-3 border-t border-gray-100 flex items-center gap-4 text-sm text-gray-600">
                         <span className="flex items-center gap-1.5"><span className="material-symbols-outlined text-base">bed</span> {formatQuartos(quartos)}</span>
-                        <span className="flex items-center gap-1.5"><span className="material-symbols-outlined text-base">shower</span> {property.caracteristicasimovel.vagas}</span>
                         <span className="flex items-center gap-1.5"><span className="material-symbols-outlined text-base">square_foot</span> {property.caracteristicasimovel.tamanho}</span>
                       </div>
                     </div>
@@ -312,13 +304,10 @@ export default function SearchResultsComponent({ properties }: SearchResultsComp
               </div>
           ) : (
              <div className="relative" style={{ height: 'calc(100vh - 80px - 88px)'}}>
-                <MapResultsComponent properties={sortedProperties} searchControls={<SearchFilters />} />
+                <MapResultsComponent properties={sortedProperties} searchControls={<SearchFilters vertical={true} />} />
             </div>
           )}
         </div>
         </main>
     )
 }
-      
-    
-    

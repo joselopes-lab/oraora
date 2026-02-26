@@ -232,7 +232,7 @@ export default function SearchResults({ broker, properties }: SearchResultsPageP
                                             <div className="w-px h-4 bg-gray-200"></div>
                                              {property.caracteristicasimovel.vagas && (
                                                 <div className="flex items-center gap-1.5">
-                                                    <span className="material-symbols-outlined text-primary text-[20px]">directions_car</span>
+                                                    <span className="material-symbols-outlined text-primary text-[20px]">shower</span>
                                                     <span className="text-sm font-semibold text-[#111418]">{property.caracteristicasimovel.vagas}</span>
                                                 </div>
                                              )}

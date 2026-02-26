@@ -1,8 +1,9 @@
+
 'use client';
 import Image from 'next/image';
 import Link from 'next/link';
-import { UrbanPadraoHeader } from '../components/UrbanPadraoHeader';
-import { UrbanPadraoFooter } from '../components/UrbanPadraoFooter';
+import { UrbanPadraoHeader } from '../../components/UrbanPadraoHeader';
+import { UrbanPadraoFooter } from '../../components/UrbanPadraoFooter';
 import { useState, useMemo, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -180,7 +181,6 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
       phone: data.phone,
       propertyInterest: informacoesbasicas.nome,
       message: data.message,
-      source: 'Formulário de Contato do Imóvel',
     });
 
     if (result.success) {
@@ -337,7 +337,7 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
               <div className="flex flex-col items-end">
                 {informacoesbasicas.valor && (
                   <div>
-                    {!isAvulso && (
+                    {isAvulso ? null : (
                       <p className="text-base font-medium text-gray-500">A partir de:</p>
                     )}
                     <span className="text-3xl font-black text-primary drop-shadow-sm">
@@ -365,7 +365,7 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 h-[300px] md:h-[500px]">
             <div onClick={() => openGallery(0)} className="md:col-span-2 md:row-span-2 relative rounded-2xl overflow-hidden group cursor-pointer shadow-soft h-full">
               <div className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105" style={{ backgroundImage: `url("${midia?.[0] || ''}")` }}></div>
-              <div className="absolute bottom-4 left-4 bg-black/60 text-white px-3 py-1.5 rounded-lg backdrop-blur-md text-sm font-bold flex items-center gap-2 hover:bg-black/80 transition-colors">
+              <div className="absolute bottom-4 left-4 bg-black/60 text-white px-3 py-1.5 rounded-lg backdrop-blur-md text-sm font-bold flex items-center gap-2">
                 <span className="material-symbols-outlined text-base">photo_camera</span> Ver todas as fotos
               </div>
               <div className="absolute top-4 left-4 bg-primary text-black px-3 py-1 rounded-md text-xs font-bold uppercase tracking-wider">
@@ -445,10 +445,11 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
             </div>
             <div>
               <h2 className="text-2xl font-bold text-text-main mb-4">Sobre o Imóvel</h2>
-              <div
-                className="prose text-text-muted max-w-none leading-relaxed"
-                dangerouslySetInnerHTML={{ __html: informacoesbasicas?.descricao || '' }}
-              />
+              <div className="prose text-text-muted max-w-none leading-relaxed">
+                {informacoesbasicas?.descricao?.split('\n').map((paragraph, index) => (
+                    <p key={index}>{paragraph}</p>
+                ))}
+              </div>
             </div>
             {videoEmbedUrl && (
               <div>

@@ -27,6 +27,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger, DialogClose } from '@/components/ui/dialog';
+import { PlaceHolderImages } from '@/lib/placeholder-images';
 
 const formSchema = z
   .object({
@@ -53,6 +54,7 @@ export default function RadarSignUpPage() {
   const firestore = useFirestore();
   const router = useRouter();
   const { toast } = useToast();
+  const defaultLogo = PlaceHolderImages.find(img => img.id === 'default-logo')?.imageUrl;
 
   const siteContentRef = useMemoFirebase(
     () => (firestore ? doc(firestore, 'brokers', 'oraora-main-site') : null),
@@ -125,7 +127,7 @@ export default function RadarSignUpPage() {
         <div className="flex flex-col flex-1 bg-white relative z-10 w-full lg:w-1/2 lg:max-w-[650px] xl:max-w-[750px] border-r border-[#f1f5f0]">
           <header className="px-8 py-8 md:px-12 lg:px-16 flex items-center justify-between">
             <Link href="/" className="flex items-center gap-3">
-                <Image src={siteData?.logoUrl || "https://dotestudio.com.br/wp-content/uploads/2025/08/oraora.png"} alt="Oraora Logo" width={160} height={40} className="h-10 w-auto" />
+                <Image src={siteData?.logoUrl || defaultLogo || ""} alt="Oraora Logo" width={160} height={40} className="h-10 w-auto" style={{ width: 'auto' }} />
             </Link>
             <div className='flex items-center gap-4'>
                 <Button asChild variant="outline" className="hidden lg:flex h-10 rounded-full px-6 text-sm font-bold transition">
@@ -146,7 +148,7 @@ export default function RadarSignUpPage() {
                          </SheetHeader>
                          <div className="p-6 border-b">
                             <Link href="/" onClick={() => setIsMobileMenuOpen(false)}>
-                                <Image src="https://dotestudio.com.br/wp-content/uploads/2025/08/oraora.png" alt="Oraora Logo" width={160} height={40} className="h-10 w-auto" />
+                                <Image src={siteData?.logoUrl || defaultLogo || ""} alt="Oraora Logo" width={120} height={30} className="h-10 w-auto" style={{ width: 'auto' }} />
                             </Link>
                         </div>
                         <div className="mt-auto p-6 space-y-4 border-t">
@@ -432,5 +434,3 @@ export default function RadarSignUpPage() {
     </div>
   );
 }
-
-    

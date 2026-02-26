@@ -48,6 +48,7 @@ export default function RequestAccessPage() {
   const firestore = useFirestore();
   const router = useRouter();
   const { toast } = useToast();
+  const defaultLogo = PlaceHolderImages.find(img => img.id === 'default-logo')?.imageUrl;
 
   const siteContentRef = useMemoFirebase(
     () => (firestore ? doc(firestore, 'brokers', 'oraora-main-site') : null),
@@ -159,7 +160,7 @@ export default function RequestAccessPage() {
       <header className="sticky top-0 z-50 bg-white/80 dark:bg-background-dark/80 backdrop-blur-md border-b border-border dark:border-white/10 px-6 py-3">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <Link href="/" className="flex items-center gap-3">
-             <Image src={siteData?.logoUrl || "https://dotestudio.com.br/wp-content/uploads/2025/08/oraora.png"} alt="Oraora Logo" width={160} height={40} className="h-10 w-auto" />
+             <Image src={siteData?.logoUrl || defaultLogo || ""} alt="Oraora Logo" width={160} height={40} className="h-10 w-auto" style={{ width: 'auto' }} />
           </Link>
           <div className="flex items-center gap-4">
             <span className="hidden sm:inline text-sm text-muted-foreground dark:text-gray-400 font-medium">

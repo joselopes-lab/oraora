@@ -1,4 +1,3 @@
-
 'use client';
 import { UrbanPadraoHeader } from '../components/UrbanPadraoHeader';
 import { UrbanPadraoFooter } from '../components/UrbanPadraoFooter';

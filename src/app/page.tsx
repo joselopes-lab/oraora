@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { Button } from '@/components/ui/button';
@@ -8,7 +7,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { collection, getDocs, query, doc, arrayRemove, arrayUnion, where } from 'firebase/firestore';
 import { useFirestore, useUser, useDoc, useMemoFirebase, setDocumentNonBlocking, useAuthContext, useAuth } from '@/firebase';
-import { useEffect, useState, useMemo, useRef } from 'react';
+import { useEffect, useState, useMemo, useRef, Suspense } from 'react';
 import { cn } from '@/lib/utils';
 import locationData from '@/lib/location-data.json';
 import { useToast } from '@/hooks/use-toast';
@@ -32,6 +31,7 @@ import { Input } from '@/components/ui/input';
 import { createLead } from '@/app/sites/actions';
 import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import SearchFilters from '@/components/SearchFilters';
+import { PlaceHolderImages } from '@/lib/placeholder-images';
 
 
 type Property = {
@@ -81,30 +81,13 @@ const newsletterSchema = z.object({
 export default function BrokerHomePage() {
   const router = useRouter();
   const [properties, setProperties] = useState<Property[]>([]);
-  const [featuredProperties, setFeaturedProperties] = useState<Property[]>([]); // New state
+  const [featuredProperties, setFeaturedProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
   const firestore = useFirestore();
   const auth = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
-
-  // State for search form
-  const [propertyType, setPropertyType] = useState('all');
-  const [selectedState, setSelectedState] = useState('');
-  const [selectedCities, setSelectedCities] = useState<string[]>([]);
-  const [rooms, setRooms] = useState<string[]>([]);
-  const [price, setPrice] = useState('2500000');
-  
-  const [availableCities, setAvailableCities] = useState<string[]>([]);
-  const [citySearch, setCitySearch] = useState('');
-  const [isCityDropdownOpen, setIsCityDropdownOpen] = useState(false);
-  const cityRef = useRef<HTMLDivElement>(null);
-  
-  const [selectedNeighborhoods, setSelectedNeighborhoods] = useState<string[]>([]);
-  const [availableNeighborhoods, setAvailableNeighborhoods] = useState<string[]>([]);
-  const [neighborhoodSearch, setNeighborhoodSearch] = useState('');
-  const [isNeighborhoodDropdownOpen, setIsNeighborhoodDropdownOpen] = useState(false);
-  const neighborhoodRef = useRef<HTMLDivElement>(null);
+  const defaultLogo = PlaceHolderImages.find(img => img.id === 'default-logo')?.imageUrl;
 
   const { user, userProfile, isReady } = useAuthContext();
   const { toast } = useToast();
@@ -201,11 +184,6 @@ export default function BrokerHomePage() {
         const propertiesSnap = await getDocs(q);
         const props = propertiesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Property));
         setProperties(props);
-        
-        // Randomize featured properties
-        const shuffled = [...props].sort(() => 0.5 - Math.random());
-        setFeaturedProperties(shuffled.slice(0, 6));
-
       } catch (error) {
         console.error("Failed to fetch properties:", error);
       } finally {
@@ -215,92 +193,12 @@ export default function BrokerHomePage() {
     fetchProperties();
   }, [firestore]);
 
-
   useEffect(() => {
-    if (selectedState) {
-      const stateData = locationData.states.find(s => s.uf === selectedState);
-      setAvailableCities(stateData?.cities.map(c => c.name) || []);
-    } else {
-      setAvailableCities([]);
+    if (properties.length > 0) {
+      const shuffled = [...properties].sort(() => 0.5 - Math.random());
+      setFeaturedProperties(shuffled.slice(0, 6));
     }
-    setSelectedCities([]);
-    setSelectedNeighborhoods([]);
-  }, [selectedState]);
-
-  useEffect(() => {
-    if (selectedCities.length > 0 && selectedState) {
-        const stateData = locationData.states.find(s => s.uf === selectedState);
-        if(stateData) {
-            const allNeighborhoods = selectedCities.flatMap(cityName => {
-                const cityData = stateData.cities.find(c => c.name === cityName);
-                return cityData ? cityData.neighborhoods : [];
-            });
-            setAvailableNeighborhoods([...new Set(allNeighborhoods)]);
-        }
-    } else {
-        setAvailableNeighborhoods([]);
-    }
-    setSelectedNeighborhoods([]);
-  }, [selectedCities, selectedState]);
-
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (cityRef.current && !cityRef.current.contains(event.target as Node)) {
-        setIsCityDropdownOpen(false);
-      }
-      if (neighborhoodRef.current && !neighborhoodRef.current.contains(event.target as Node)) {
-        setIsNeighborhoodDropdownOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const handleSearchSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const queryParams = new URLSearchParams();
-    if (propertyType !== 'all') queryParams.set('type', propertyType);
-    if (selectedState) queryParams.set('state', selectedState);
-    if (selectedCities.length > 0) queryParams.set('cities', selectedCities.join(','));
-    if (selectedNeighborhoods.length > 0) queryParams.set('neighborhoods', selectedNeighborhoods.join(','));
-    if (rooms.length > 0) queryParams.set('rooms', rooms.join(','));
-    if (price) queryParams.set('price', price);
-    
-    router.push(`/imoveis?${queryParams.toString()}`);
-  };
-
-  const handleRoomToggle = (room: string) => {
-    setRooms(prev => 
-      prev.includes(room) ? prev.filter(r => r !== room) : [...prev, room]
-    );
-  };
-
-  const handleCitySelect = (city: string) => {
-    setSelectedCities(prev => prev.includes(city) ? prev.filter(c => c !== city) : [...prev, city]);
-    setCitySearch('');
-  };
-
-  const handleCityRemove = (city: string) => {
-    setSelectedCities(prev => prev.filter(c => c !== city));
-  };
-  
-  const filteredCities = availableCities.filter(c => 
-    c.toLowerCase().includes(citySearch.toLowerCase()) && !selectedCities.includes(c)
-  );
-
-  const handleNeighborhoodSelect = (neighborhood: string) => {
-    setSelectedNeighborhoods(prev => prev.includes(neighborhood) ? prev.filter(n => n !== neighborhood) : [...prev, neighborhood]);
-    setNeighborhoodSearch('');
-  };
-
-  const handleNeighborhoodRemove = (neighborhood: string) => {
-    setSelectedNeighborhoods(prev => prev.filter(n => n !== neighborhood));
-  };
-  
-  const filteredNeighborhoods = availableNeighborhoods.filter(n => 
-    n.toLowerCase().includes(neighborhoodSearch.toLowerCase()) && !selectedNeighborhoods.includes(n)
-  );
+  }, [properties]);
 
 
   const dashboardUrl = userProfile?.userType === 'client' ? '/radar/dashboard' : '/dashboard';
@@ -361,9 +259,7 @@ export default function BrokerHomePage() {
     <div className="bg-background-light overflow-x-hidden w-full">
       <header className="sticky top-0 z-50 w-full border-b border-[#f0f2f4] bg-white/90 px-4 md:px-6 backdrop-blur-md transition-all lg:px-10">
         <div className="relative flex h-20 items-center justify-between">
-            {/* Left side items */}
             <div className="flex items-center">
-                {/* Mobile Menu */}
                 <div className="lg:hidden">
                     <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
                         <SheetTrigger asChild>
@@ -380,7 +276,7 @@ export default function BrokerHomePage() {
                             </SheetHeader>
                             <div className="p-6 border-b">
                                 <Link href="/" onClick={() => setIsMobileMenuOpen(false)}>
-                                    <Image src={siteData?.logoUrl || "https://dotestudio.com.br/wp-content/uploads/2025/08/oraora.png"} alt="Oraora Logo" width={120} height={30} className="h-[30px] w-auto" />
+                                    <Image src={siteData?.logoUrl || defaultLogo || ""} alt="Oraora Logo" width={120} height={30} className="h-[30px] w-auto" style={{ width: 'auto' }} />
                                 </Link>
                             </div>
                             <nav className="flex flex-col gap-2 p-4 text-lg font-semibold">
@@ -437,19 +333,15 @@ export default function BrokerHomePage() {
                         </SheetContent>
                     </Sheet>
                 </div>
-                 {/* Desktop Logo */}
                 <Link className="hidden lg:flex items-center gap-3" href="/">
-                    <Image src={siteData?.logoUrl || "https://dotestudio.com.br/wp-content/uploads/2025/08/oraora.png"} alt="Oraora Logo" width={120} height={30} className="h-[30px] w-auto" />
+                    <Image src={siteData?.logoUrl || defaultLogo || ""} alt="Oraora Logo" width={120} height={30} className="h-[30px] w-auto" style={{ width: 'auto' }} />
                 </Link>
             </div>
 
-            {/* Center items */}
             <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-                {/* Mobile Logo */}
                 <Link className="flex items-center gap-3 lg:hidden" href="/">
-                    <Image src={siteData?.logoUrl || "https://dotestudio.com.br/wp-content/uploads/2025/08/oraora.png"} alt="Oraora Logo" width={120} height={30} className="h-[30px] w-auto" />
+                    <Image src={siteData?.logoUrl || defaultLogo || ""} alt="Oraora Logo" width={120} height={30} className="h-[30px] w-auto" style={{ width: 'auto' }} />
                 </Link>
-                {/* Desktop Nav */}
                 <nav className="hidden lg:flex items-center gap-8 text-sm font-semibold">
                     <Link className="text-text-main transition hover:text-primary" href="/imoveis">Imóveis</Link>
                     <Link className="text-text-main transition hover:text-primary" href="/corretor">Para Corretores</Link>
@@ -459,7 +351,6 @@ export default function BrokerHomePage() {
                 </nav>
             </div>
 
-            {/* Right side items */}
             <div className="flex items-center justify-end">
                 <div className="hidden lg:flex items-center gap-2 md:gap-4">
                     {!isReady ? (
@@ -497,7 +388,6 @@ export default function BrokerHomePage() {
                         </div>
                     )}
                 </div>
-                {/* Mobile Icons */}
                 <div className="flex items-center gap-2 lg:hidden">
                     <Dialog open={isSearchModalOpen} onOpenChange={setIsSearchModalOpen}>
                         <DialogTrigger asChild>
@@ -513,7 +403,9 @@ export default function BrokerHomePage() {
                                 </DialogDescription>
                             </DialogHeader>
                             <div className="pt-4">
-                                <SearchFilters onSearch={handleSearch} />
+                                <Suspense fallback={<Skeleton className="h-20 w-full" />}>
+                                    <SearchFilters onSearch={handleSearch} />
+                                </Suspense>
                             </div>
                         </DialogContent>
                     </Dialog>
@@ -551,138 +443,9 @@ export default function BrokerHomePage() {
               </div>
             </div>
             <div className="max-w-5xl mx-auto relative z-10">
-              <div className="bg-white/80 backdrop-blur-lg rounded-2xl p-6 lg:p-8 shadow-xl border border-gray-100">
-                 <form onSubmit={handleSearchSubmit}>
-                  <div className="flex flex-col gap-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-gray-500 uppercase tracking-wide ml-1">Tipo de imóvel</label>
-                            <div className="relative">
-                                <select onChange={(e) => setPropertyType(e.target.value)} value={propertyType} className="w-full h-12 bg-gray-50 border border-gray-200 rounded-xl px-3 focus:ring-2 focus:ring-primary focus:border-transparent outline-none text-dark-text font-medium appearance-none">
-                                    <option value="all">Todos os tipos</option>
-                                    <option value="Apartamento">Apartamento</option>
-                                    <option value="Casa">Casa</option>
-                                    <option value="Cobertura">Cobertura</option>
-                                </select>
-                                <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">expand_more</span>
-                            </div>
-                        </div>
-                         <div className="space-y-1.5">
-                          <label className="text-xs font-bold text-gray-500 uppercase tracking-wide ml-1">Estado</label>
-                          <select onChange={(e) => setSelectedState(e.target.value)} value={selectedState} className="w-full h-12 bg-gray-50 border border-gray-200 rounded-xl px-3 focus:ring-2 focus:ring-primary focus:border-transparent outline-none text-dark-text font-medium placeholder-gray-400 appearance-none">
-                             <option value="">Selecione um Estado</option>
-                             {locationData.states.map(s => <option key={s.uf} value={s.uf}>{s.name}</option>)}
-                          </select>
-                        </div>
-                        <div className="relative z-30 space-y-1.5" ref={cityRef}>
-                          <label className="text-xs font-bold text-gray-500 uppercase tracking-wide ml-1">Cidades</label>
-                           <div className="relative">
-                             <div onClick={() => setIsCityDropdownOpen(true)} className="w-full pl-4 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl h-12 flex items-center cursor-pointer overflow-hidden text-sm font-medium">
-                               {selectedCities.length > 0 ? (
-                                 <div className="flex flex-wrap gap-1.5">
-                                   {selectedCities.map(c => (
-                                     <div key={c} className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
-                                       <span>{c}</span>
-                                       <button type="button" onClick={(e) => { e.stopPropagation(); handleCityRemove(c)}} className="text-blue-400 hover:text-blue-700">
-                                         <span className="material-symbols-outlined text-[12px]">close</span>
-                                       </button>
-                                     </div>
-                                   ))}
-                                 </div>
-                               ) : <span className="text-gray-400">Selecione cidades</span>}
-                             </div>
-                             {isCityDropdownOpen && (
-                                <div className="absolute top-full mt-1 w-full bg-white rounded-lg border border-gray-200 shadow-lg z-30">
-                                  <div className="p-2">
-                                    <div className="relative">
-                                      <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">search</span>
-                                      <input value={citySearch} onChange={(e) => setCitySearch(e.target.value)} className="w-full pl-10 px-3 py-2 text-sm border-gray-200 rounded-md focus:ring-2 focus:ring-primary/50 focus:border-transparent outline-none" placeholder="Buscar cidade..."/>
-                                    </div>
-                                  </div>
-                                  <div className="max-h-48 overflow-y-auto">
-                                    {filteredCities.map(c => (
-                                      <div key={c} onClick={() => handleCitySelect(c)} className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">
-                                        <div className={cn('w-4 h-4 rounded border-2 flex items-center justify-center', selectedCities.includes(c) ? 'bg-primary border-primary' : 'bg-white border-gray-300')}>
-                                          {selectedCities.includes(c) && <span className="material-symbols-outlined text-xs text-black">check</span>}
-                                        </div>
-                                        {c}
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-                           </div>
-                        </div>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-                      <div className="relative z-20 space-y-1.5" ref={neighborhoodRef}>
-                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wide ml-1">Bairros</label>
-                        <div className="relative">
-                            <div onClick={() => setIsNeighborhoodDropdownOpen(true)} className="w-full pl-4 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl h-12 flex items-center cursor-pointer overflow-hidden text-sm font-medium">
-                            {selectedNeighborhoods.length > 0 ? (
-                                <div className="flex flex-wrap gap-1.5">
-                                {selectedNeighborhoods.slice(0, 3).map(n => (
-                                    <div key={n} className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
-                                    <span>{n}</span>
-                                    <button type="button" onClick={(e) => { e.stopPropagation(); handleNeighborhoodRemove(n)}} className="text-blue-400 hover:text-blue-700">
-                                        <span className="material-symbols-outlined text-[12px]">close</span>
-                                    </button>
-                                    </div>
-                                ))}
-                                {selectedNeighborhoods.length > 3 && <span className='text-xs text-gray-500'>+{selectedNeighborhoods.length - 3}</span>}
-                                </div>
-                            ) : <span className="text-gray-400">Selecione bairros</span>}
-                            </div>
-                            {isNeighborhoodDropdownOpen && (
-                            <div className="absolute top-full mt-1 w-full bg-white rounded-lg border border-gray-200 shadow-lg z-20">
-                                <div className="p-2">
-                                <div className="relative">
-                                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">search</span>
-                                  <input value={neighborhoodSearch} onChange={(e) => setNeighborhoodSearch(e.target.value)} className="w-full pl-10 px-3 py-2 text-sm border-gray-200 rounded-md focus:ring-2 focus:ring-primary/50 focus:border-transparent outline-none" placeholder="Buscar bairro..."/>
-                                </div>
-                                </div>
-                                <div className="max-h-48 overflow-y-auto">
-                                {filteredNeighborhoods.map(n => (
-                                    <div key={n} onClick={() => handleNeighborhoodSelect(n)} className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">
-                                    <div className={cn('w-4 h-4 rounded border-2 flex items-center justify-center', selectedNeighborhoods.includes(n) ? 'bg-primary border-primary' : 'bg-white border-gray-300')}>
-                                        {selectedNeighborhoods.includes(n) && <span className="material-symbols-outlined text-xs text-black">check</span>}
-                                    </div>
-                                    {n}
-                                    </div>
-                                ))}
-                                </div>
-                            </div>
-                            )}
-                        </div>
-                      </div>
-                      <div className="space-y-1.5">
-                          <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Quartos</label>
-                          <div className="flex items-center h-12 w-full bg-gray-50 border border-gray-200 rounded-xl p-1 gap-1">
-                             {["1", "2", "3", "4+"].map(room => (
-                                <button key={room} type="button" onClick={() => handleRoomToggle(room)} className={cn("flex-1 h-full rounded-lg text-sm font-bold transition-colors", rooms.includes(room) ? 'bg-black text-primary shadow-sm' : 'text-gray-500 hover:bg-gray-200')}>
-                                  {room}
-                                </button>
-                             ))}
-                          </div>
-                      </div>
-                      <div className="w-full flex items-end gap-4">
-                        <div className="w-full space-y-1.5">
-                            <div className="flex items-center justify-between">
-                                <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Imóveis até:</label>
-                                <div className="text-right">
-                                    <span className="font-display font-bold text-dark-text">R$ {Number(price).toLocaleString('pt-BR')}</span>
-                                </div>
-                            </div>
-                            <input value={price} onChange={(e) => setPrice(e.target.value)} className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer" max="5000000" min="100000" step="50000" type="range" />
-                        </div>
-                        <button className="h-12 px-8 rounded-lg bg-black text-primary font-bold hover:bg-gray-900 transition-colors shadow-lg flex items-center justify-center gap-2" type="submit">
-                            <span className="material-symbols-outlined font-bold">search</span>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </form>
-              </div>
+              <Suspense fallback={<Skeleton className="h-24 w-full rounded-2xl" />}>
+                <SearchFilters onSearch={handleSearch} />
+              </Suspense>
             </div>
             <div className="mt-[-100px] lg:mt-[-140px] pt-[140px] lg:pt-[180px] pb-12 rounded-3xl overflow-hidden relative mx-4 lg:mx-8">
               <div className="absolute inset-0 bg-gray-200">
@@ -897,7 +660,7 @@ export default function BrokerHomePage() {
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8 mb-12">
                 <div className="col-span-2 lg:col-span-2">
                     <div className="flex items-center gap-2 mb-4">
-                        <Image src={siteData?.logoUrl || "https://dotestudio.com.br/wp-content/uploads/2025/08/oraora.png"} alt="Oraora Logo" width={120} height={30} className="h-[30px] w-auto" />
+                        <Image src={siteData?.logoUrl || defaultLogo || ""} alt="Oraora Logo" width={120} height={30} className="h-10 w-auto" style={{ width: 'auto' }} />
                     </div>
                     {isSiteDataLoading ? (
                       <div className="space-y-2 max-w-xs">
@@ -950,6 +713,7 @@ export default function BrokerHomePage() {
                            Área do corretor
                         </Link>
                     </Button>
+                    <Link href="/corretor" className="text-xs text-gray-400 hover:text-primary transition-colors">Desenvolvido por <strong>Oraora</strong></Link>
                 </div>
             </div>
         </div>

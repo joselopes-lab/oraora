@@ -27,6 +27,7 @@ export default function LoginPage() {
   const firestore = useFirestore();
   const router = useRouter();
   const { toast } = useToast();
+  const defaultLogo = PlaceHolderImages.find(img => img.id === 'default-logo')?.imageUrl;
 
   const siteContentRef = useMemoFirebase(
     () => (firestore ? doc(firestore, 'brokers', 'oraora-main-site') : null),
@@ -108,7 +109,7 @@ export default function LoginPage() {
         {/* Header/Logo Area */}
         <header className="px-8 py-6 md:px-12 lg:px-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-3 text-foreground group">
-            <Image src={siteData?.logoUrl || "https://dotestudio.com.br/wp-content/uploads/2025/08/oraora.png"} alt="Oraora Logo" width={160} height={40} className="h-10 w-auto" />
+            <Image src={siteData?.logoUrl || defaultLogo || ""} alt="Oraora Logo" width={160} height={40} className="h-10 w-auto" style={{ width: 'auto' }} />
           </Link>
           <Link className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors hidden sm:block" href="/ajuda">
             Precisa de ajuda?
@@ -176,7 +177,7 @@ export default function LoginPage() {
               </Button>
             </form>
 
-            {/* <div className="relative my-8">
+            <div className="relative my-8">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-border"></div>
               </div>
@@ -187,16 +188,13 @@ export default function LoginPage() {
 
             <Button asChild variant="outline" className="w-full h-12 px-6 font-semibold text-foreground bg-gray-50 dark:bg-input border-border rounded-lg hover:bg-gray-100 dark:hover:bg-secondary">
               <Link href="/solicitar-acesso">Solicitar Acesso de Corretor</Link>
-            </Button> */}
+            </Button>
           </div>
         </main>
         
         <footer className="px-8 py-6 md:px-12 lg:px-16 text-center md:text-left">
           <p className="text-xs text-muted-foreground">
             2025 Oraora Tecnologia. Todos os direitos reservados. CNPJ: 64.052.552/0001-26
-            <Button asChild variant="link" className="text-xs p-0 h-auto ml-2">
-              <Link href="/radar">É cliente?</Link>
-            </Button>
           </p>
         </footer>
       </div>

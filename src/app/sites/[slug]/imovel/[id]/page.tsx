@@ -1,5 +1,4 @@
 
-
 import { collection, query, where, getDocs, doc, getDoc, limit } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase/index.server';
 import { notFound } from 'next/navigation';
@@ -49,6 +48,7 @@ type Property = {
   caracteristicasimovel: {
     tipo: string;
     quartos?: string[] | string;
+    suites?: string[] | string;
     tamanho?: string;
     vagas?: string;
   };
@@ -106,7 +106,7 @@ async function getPropertyData(propertySlug: string): Promise<Property | null> {
                 propData = { id: docSnap.id, ...docSnap.data() } as Property;
             } else {
                 propertyRef = doc(firestore, 'brokerProperties', propertySlug);
-                docSnap = await getDoc(docSnap);
+                docSnap = await getDoc(propertyRef);
                 if (docSnap.exists()) {
                     propData = { id: docSnap.id, ...docSnap.data() } as Property;
                 }

@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from "next/link";
@@ -10,6 +9,7 @@ import React, { useState, useEffect } from 'react';
 import { UserProfile } from "@/firebase/auth-provider";
 import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
 import { doc } from 'firebase/firestore';
+import { PlaceHolderImages } from '@/lib/placeholder-images';
 
 const AIChatWidget = () => {
     const [isChatOpen, setIsChatOpen] = useState(false);
@@ -149,6 +149,7 @@ export default function DashboardCore({
 }) {
   const pathname = usePathname();
   const firestore = useFirestore();
+  const defaultLogo = PlaceHolderImages.find(img => img.id === 'default-logo')?.imageUrl;
 
   const siteContentRef = useMemoFirebase(
     () => (firestore ? doc(firestore, 'brokers', 'oraora-main-site') : null),
@@ -197,7 +198,7 @@ export default function DashboardCore({
         <div className="max-w-[1440px] mx-auto px-6 md:px-10 h-16 flex items-center justify-between">
           <div className="flex items-center gap-10 h-full">
             <Link href="/dashboard" className="flex items-center gap-3">
-              <Image src={siteData?.logoUrl || "https://dotestudio.com.br/wp-content/uploads/2025/08/oraora.png"} alt="Oraora Logo" width={128} height={32} className="h-6 w-auto" />
+              <Image src={siteData?.logoUrl || defaultLogo || ""} alt="Oraora Logo" width={128} height={32} className="h-6 w-auto" style={{ width: 'auto' }} />
             </Link>
             <nav className="hidden md:flex items-center gap-8 h-full">
                 {userProfile.userType === 'broker' && (

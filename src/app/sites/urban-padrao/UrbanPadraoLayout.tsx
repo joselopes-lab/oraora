@@ -1,4 +1,3 @@
-
 'use client';
 
 import Image from 'next/image';
@@ -13,6 +12,8 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
+import { useState, useEffect, Suspense } from 'react';
+import SearchFilters from '@/components/SearchFilters';
 
 
 // NOTE: This is now a regular component, not a default page export.
@@ -120,9 +121,8 @@ export default function UrbanPadraoLayout({ broker, properties }: UrbanPadraoPag
     }
   };
   
-  const handleSearchSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    router.push(`/sites/${broker.slug}/search`);
+  const handleSearch = (queryString: string) => {
+    router.push(`/sites/${broker.slug}/search?${queryString}`);
   };
 
   const formatQuartos = (quartosData: any): string => {
@@ -214,47 +214,9 @@ export default function UrbanPadraoLayout({ broker, properties }: UrbanPadraoPag
           </div>
           {/* Floating Search Bar */}
           <div className="relative z-20 -mt-16 w-full max-w-5xl mx-auto px-4">
-            <div className="bg-white p-4 rounded-xl shadow-card border border-gray-100">
-              <form onSubmit={handleSearchSubmit} className="flex flex-col lg:flex-row gap-4">
-                <div className="flex-1 flex flex-col gap-1">
-                  <label className="text-xs font-semibold text-text-muted uppercase tracking-wider ml-1">Localização</label>
-                  <div className="flex items-center h-12 bg-[#f8f9fa] rounded-lg px-3 border border-transparent focus-within:border-primary/50 focus-within:bg-white transition-all">
-                    <span className="material-symbols-outlined text-text-muted">location_on</span>
-                    <input className="w-full bg-transparent border-none focus:ring-0 text-text-main text-sm font-medium placeholder-gray-400" placeholder="Bairro, Cidade ou Condomínio" type="text" />
-                  </div>
-                </div>
-                <div className="flex-1 flex flex-col gap-1">
-                  <label className="text-xs font-semibold text-text-muted uppercase tracking-wider ml-1">Tipo</label>
-                  <div className="flex items-center h-12 bg-[#f8f9fa] rounded-lg px-3 border border-transparent focus-within:border-primary/50 focus-within:bg-white transition-all">
-                    <span className="material-symbols-outlined text-text-muted">home_work</span>
-                    <select className="w-full bg-transparent border-none focus:ring-0 text-text-main text-sm font-medium cursor-pointer">
-                      <option>Apartamento</option>
-                      <option>Casa de Condomínio</option>
-                      <option>Cobertura</option>
-                      <option>Terreno</option>
-                    </select>
-                  </div>
-                </div>
-                <div className="flex-1 flex flex-col gap-1">
-                  <label className="text-xs font-semibold text-text-muted uppercase tracking-wider ml-1">Faixa de Preço</label>
-                  <div className="flex items-center h-12 bg-[#f8f9fa] rounded-lg px-3 border border-transparent focus-within:border-primary/50 focus-within:bg-white transition-all">
-                    <span className="material-symbols-outlined text-text-muted">attach_money</span>
-                    <select className="w-full bg-transparent border-none focus:ring-0 text-text-main text-sm font-medium cursor-pointer">
-                      <option>Qualquer valor</option>
-                      <option>R$ 500k - R$ 1M</option>
-                      <option>R$ 1M - R$ 3M</option>
-                      <option>Acima de R$ 3M</option>
-                    </select>
-                  </div>
-                </div>
-                <div className="flex flex-col justify-end">
-                  <button className="h-12 px-8 rounded-lg bg-black text-primary font-bold hover:bg-gray-900 transition-colors shadow-lg flex items-center justify-center gap-2" type="submit">
-                    <span className="material-symbols-outlined">search</span>
-                    Buscar
-                  </button>
-                </div>
-              </form>
-            </div>
+            <Suspense fallback={<div className="h-24 bg-white rounded-2xl animate-pulse shadow-card border border-gray-100" />}>
+              <SearchFilters onSearch={handleSearch} className="shadow-card border border-gray-100" />
+            </Suspense>
           </div>
         </section>
         {/* Stats Bar */}

@@ -1,3 +1,4 @@
+
 'use client';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -38,11 +39,10 @@ export function DomusFooter({ broker }: { broker: Broker }) {
             </p>
           </div>
           <div>
-            <h4 className="text-sm font-bold text-[#161811]/40 dark:text-white/40 uppercase tracking-widest mb-6">Contato</h4>
+            <h4 className="text-sm font-bold text-[#161811]/40 dark:text-white/40 uppercase tracking-widest mb-6">Legal</h4>
             <ul className="flex flex-col gap-3 text-sm">
-              {broker.footerContactEmail && <li><a href={`mailto:${broker.footerContactEmail}`} className="text-[#161811]/80 dark:text-white/80 hover:text-primary transition-colors">{broker.footerContactEmail}</a></li>}
-              {broker.footerContactPhone && <li><a href={`tel:${broker.footerContactPhone}`} className="text-[#161811]/80 dark:text-white/80 hover:text-primary transition-colors">{broker.footerContactPhone}</a></li>}
-              {broker.footerContactAddress && <li className="text-[#161811]/60 dark:text-white/60">{broker.footerContactAddress}</li>}
+              <li><Link className="text-[#161811]/80 dark:text-white/80 hover:text-primary transition-colors" href="/termos-de-uso">Termos de Uso</Link></li>
+              <li><Link className="text-[#161811]/80 dark:text-white/80 hover:text-primary transition-colors" href="/politica-de-privacidade">Política de Privacidade</Link></li>
             </ul>
           </div>
           <div>
@@ -58,7 +58,7 @@ export function DomusFooter({ broker }: { broker: Broker }) {
           <p className="text-[#161811]/40 dark:text-white/40 text-xs">© 2024 {broker.brandName}. Todos os direitos reservados. {broker.creci && `| ${broker.creci}`}</p>
           <div className="flex gap-6 text-xs font-medium text-[#161811]/60 dark:text-white/60">
             <Link className="hover:text-primary transition-colors" href="/termos-de-uso">Termos de Uso</Link>
-            <a className="hover:text-primary transition-colors" href="#">Política de Privacidade</a>
+            <Link className="hover:text-primary transition-colors" href="/politica-de-privacidade">Privacidade</Link>
           </div>
         </div>
       </div>

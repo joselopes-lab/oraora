@@ -27,6 +27,7 @@ export default function LoginPage() {
   const firestore = useFirestore();
   const router = useRouter();
   const { toast } = useToast();
+  const defaultLogo = PlaceHolderImages.find(img => img.id === 'default-logo')?.imageUrl;
 
   useEffect(() => {
     if (auth) {
@@ -101,7 +102,7 @@ export default function LoginPage() {
         {/* Header/Logo Area */}
         <header className="px-8 py-6 md:px-12 lg:px-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-3 text-foreground group">
-            <Image src="https://dotestudio.com.br/wp-content/uploads/2025/08/oraora.png" alt="Oraora Logo" width={160} height={40} className="h-10 w-auto" />
+            <Image src={defaultLogo || ""} alt="Oraora Logo" width={160} height={40} className="h-10 w-auto" style={{ width: 'auto' }} />
           </Link>
           <Link className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors hidden sm:block" href="/ajuda">
             Precisa de ajuda?

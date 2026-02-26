@@ -1,13 +1,14 @@
+
 'use client';
-import { UrbanPadraoHeader } from '../components/UrbanPadraoHeader';
-import { UrbanPadraoFooter } from '../components/UrbanPadraoFooter';
+import { UrbanPadraoHeader } from '@/layouts/urban-padrao/components/UrbanPadraoHeader';
+import { UrbanPadraoFooter } from '@/layouts/urban-padrao/components/UrbanPadraoFooter';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { createLead } from '@/app/sites/actions';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
-import { WhatsAppWidget } from '../components/WhatsAppWidget';
+import { WhatsAppWidget } from '@/layouts/urban-padrao/components/WhatsAppWidget';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 
@@ -65,6 +66,7 @@ export default function FaleConoscoClientPage({ broker }: FaleConoscoPageProps) 
       phone: data.phone,
       propertyInterest: data.subject,
       message: data.message,
+      source: 'Formulário de Contato',
     });
 
     if (result.success) {

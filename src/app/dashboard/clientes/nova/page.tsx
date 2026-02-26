@@ -1,4 +1,3 @@
-
 'use client';
 import { useRouter } from 'next/navigation';
 import ClientForm, { ClientFormData } from '../components/client-form';
@@ -36,7 +35,7 @@ export default function NewClientPage() {
             if (data.propertyInterest) {
               score += 20;
             }
-            if (data.name && data.email && data.phone) {
+            if (data.name && data.phone) {
                 score += 20;
             }
 

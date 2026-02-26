@@ -1,4 +1,3 @@
-
 'use client';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -326,7 +325,7 @@ export default function MapResultsComponent({ properties, searchControls }: { pr
         </div>
         
         <div className={cn("absolute top-6 left-6 z-30 w-full max-w-sm flex flex-col gap-4 transition-transform duration-300 ease-in-out", !isFilterOpen && "-translate-x-[calc(100%+32px)]")}>
-          <div className='bg-white/80 backdrop-blur-md rounded-2xl shadow-float border border-gray-100'>
+          <div className='bg-white/80 backdrop-blur-md rounded-2xl shadow-float border border-gray-100 p-[5px]'>
              {searchControls}
           </div>
           <div className="bg-white/80 backdrop-blur-md rounded-2xl shadow-float border border-gray-100 p-2 flex items-center justify-start gap-1 flex-wrap">
@@ -345,7 +344,7 @@ export default function MapResultsComponent({ properties, searchControls }: { pr
         </div>
           
         {!isFilterOpen && (
-          <button onClick={() => setIsFilterOpen(true)} className="absolute top-6 left-6 z-30 flex items-center justify-center size-12 bg-white rounded-full shadow-float border border-gray-200 text-gray-600 hover:text-black hover:scale-105 transition-all">
+          <button onClick={() => setIsFilterOpen(true)} className="absolute top-6 left-6 z-30 flex items-center justify-center size-12 bg-white rounded-full shadow-float border border-gray-100 text-gray-600 hover:text-black hover:scale-105 transition-all">
               <span className="material-symbols-outlined">tune</span>
           </button>
         )}

@@ -1,3 +1,4 @@
+
 'use client';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -5,7 +6,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import Image from "next/image";
 import Link from "next/link";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, forwardRef, useRef, useImperativeHandle } from "react";
 import { Slider } from "@/components/ui/slider";
 import {
   Dialog,
@@ -39,6 +40,64 @@ import { cn } from "@/lib/utils";
 import { ref as storageRef, deleteObject } from "firebase/storage";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
+// A simple rich text editor component
+const MiniRichEditor = forwardRef<
+  HTMLDivElement,
+  { value?: string; onChange: (value: string) => void; onBlur: () => void; }
+>(({ value, onChange, onBlur }, ref) => {
+  const editorRef = useRef<HTMLDivElement>(null);
+  
+  // Combine forwarded ref and internal ref
+  useImperativeHandle(ref, () => editorRef.current!);
+
+  const handleInput = () => {
+    if (editorRef.current) {
+      onChange(editorRef.current.innerHTML);
+    }
+  };
+
+  const execCmd = (command: string) => {
+    document.execCommand(command, false, undefined);
+    editorRef.current?.focus();
+  };
+
+  useEffect(() => {
+    if (editorRef.current && value !== editorRef.current.innerHTML) {
+      editorRef.current.innerHTML = value || '';
+    }
+  }, [value]);
+
+  return (
+    <div className="rounded-lg border border-input bg-background focus-within:ring-2 focus-within:ring-ring">
+      <div className="p-1 border-b border-input flex items-center gap-1">
+        <button
+          type="button"
+          onClick={() => execCmd('bold')}
+          className="p-2 rounded hover:bg-accent text-sm font-bold w-8 h-8"
+        >
+          B
+        </button>
+        <button
+          type="button"
+          onClick={() => execCmd('italic')}
+          className="p-2 rounded hover:bg-accent text-sm font-bold italic w-8 h-8"
+        >
+          I
+        </button>
+      </div>
+      <div
+        ref={editorRef}
+        contentEditable
+        onInput={handleInput}
+        onBlur={onBlur} // Trigger validation on blur
+        className="prose prose-sm dark:prose-invert max-w-none min-h-[120px] w-full rounded-md p-3 text-sm ring-offset-background focus-visible:outline-none"
+      />
+    </div>
+  );
+});
+MiniRichEditor.displayName = 'MiniRichEditor';
+
+
 // Zod Schema based on the new JSON structure
 const propertyFormSchema = z.object({
   builderId: z.string().optional(), // Kept for associating property with constructors
@@ -53,10 +112,15 @@ const propertyFormSchema = z.object({
     descricao: z.string().optional(),
     valor: z.coerce.number().optional(),
     previsaoentrega: z.string().optional(),
+    condominio: z.coerce.number().optional(),
+    iptu: z.coerce.number().optional(),
+    nomeCondominio: z.string().optional(),
+    exclusivo: z.boolean().default(false),
   }),
   caracteristicasimovel: z.object({
     tipo: z.string().default('Apartamento'),
     quartos: z.array(z.string()).optional(),
+    suites: z.array(z.string()).optional(),
     tamanho: z.string().optional(), // Now a string like "23m² a 48m²"
     vagas: z.string().optional(),
   }),
@@ -125,6 +189,7 @@ type PropertyFormProps = {
 };
 
 const bedroomOptions = ["1", "2", "3", "4", "5+"];
+const suiteOptions = ["1", "2", "3", "4+"];
 
 type UploadState = {
   id: string;
@@ -162,8 +227,8 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
         brokerId: user?.uid || '',
         clientId: '',
         personaIds: [],
-        informacoesbasicas: { nome: '', status: 'Em Construção', valor: 0, slug: '', slogan: '', descricao: '', previsaoentrega: '' },
-        caracteristicasimovel: { tipo: 'Apartamento', quartos: [], tamanho: '', vagas: '' },
+        informacoesbasicas: { nome: '', status: 'Em Construção', valor: 0, slug: '', slogan: '', descricao: '', previsaoentrega: '', condominio: 0, iptu: 0, nomeCondominio: '', exclusivo: false },
+        caracteristicasimovel: { tipo: 'Apartamento', quartos: [], suites: [], tamanho: '', vagas: '' },
         localizacao: { estado: '', cidade: '', bairro: '', address: '', googleMapsLink: '', googleStreetViewLink: '' },
         midia: [],
         youtubeVideoUrl: '',
@@ -687,26 +752,101 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
                           </FormItem>
                        )} />
                     </div>
+                    {isAvulso && (
+                        <>
+                            <div className="lg:col-span-6">
+                                <FormField control={form.control} name="informacoesbasicas.nomeCondominio" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Nome do Condomínio</FormLabel>
+                                        <FormControl><Input placeholder="Ex: Edifício Central Park" {...field} value={field.value || ''} /></FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )} />
+                            </div>
+                            <div className="lg:col-span-3">
+                                <FormField control={form.control} name="informacoesbasicas.condominio" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Valor do Condomínio</FormLabel>
+                                        <FormControl>
+                                            <div className="relative">
+                                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary font-medium">R$</span>
+                                                <Input type="number" step="0.01" className="pl-9" {...field} value={field.value ?? 0} />
+                                            </div>
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )} />
+                            </div>
+                            <div className="lg:col-span-3">
+                                <FormField control={form.control} name="informacoesbasicas.iptu" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Valor do IPTU (Anual)</FormLabel>
+                                        <FormControl>
+                                            <div className="relative">
+                                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary font-medium">R$</span>
+                                                <Input type="number" step="0.01" className="pl-9" {...field} value={field.value ?? 0} />
+                                            </div>
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )} />
+                            </div>
+                            <div className="lg:col-span-12">
+                                <FormField
+                                    control={form.control}
+                                    name="informacoesbasicas.exclusivo"
+                                    render={({ field }) => (
+                                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4 bg-gray-50/50">
+                                            <div className="space-y-0.5">
+                                                <FormLabel className="text-base">
+                                                    Imóvel com Exclusividade
+                                                </FormLabel>
+                                                <FormDescription>
+                                                    Marque se você possui exclusividade na venda deste imóvel.
+                                                </FormDescription>
+                                            </div>
+                                            <FormControl>
+                                                <Switch
+                                                    checked={field.value}
+                                                    onCheckedChange={field.onChange}
+                                                />
+                                            </FormControl>
+                                        </FormItem>
+                                    )}
+                                />
+                            </div>
+                        </>
+                    )}
                      <div className="lg:col-span-12">
-                       <FormField control={form.control} name="informacoesbasicas.descricao" render={({ field }) => (
-                          <FormItem>
-                              <FormLabel>Descrição Completa</FormLabel>
-                              <FormControl><Textarea placeholder="Descreva os detalhes do imóvel..." rows={4} {...field} value={field.value || ''} /></FormControl>
-                              <FormMessage />
-                          </FormItem>
-                       )} />
+                        <FormField
+                            control={form.control}
+                            name="informacoesbasicas.descricao"
+                            render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Descrição Completa</FormLabel>
+                                <FormControl>
+                                    <MiniRichEditor
+                                        value={field.value || ''}
+                                        onChange={field.onChange}
+                                        onBlur={field.onBlur}
+                                    />
+                                </FormControl>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                        />
                     </div>
                 </div>
             </section>
             
-            <section className="bg-white rounded-xl border border-card-border shadow-sm overflow-hidden">
+             <section className="bg-white rounded-xl border border-card-border shadow-sm overflow-hidden">
                 <div className="px-6 py-4 border-b border-card-border bg-gray-50/50">
                     <h3 className="font-bold text-lg flex items-center gap-2">
                         <span className="material-symbols-outlined text-text-secondary">straighten</span>
                         Características
                     </h3>
                 </div>
-                <div className="p-6 grid grid-cols-2 md:grid-cols-4 gap-6">
+                <div className="p-6 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                     <FormField control={form.control} name="caracteristicasimovel.tipo" render={({ field }) => (
                       <FormItem>
                         <FormLabel>Tipo</FormLabel>
@@ -723,11 +863,35 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
                     )} />
                      <FormField
                         control={form.control}
+                        name="caracteristicasimovel.tamanho"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Área (m²)</FormLabel>
+                                <FormControl><Input placeholder="Ex: 23m² a 48m²" {...field} value={field.value || ''} /></FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                     <FormField
+                        control={form.control}
+                        name="caracteristicasimovel.vagas"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Vagas Garagem</FormLabel>
+                                <FormControl><Input placeholder="Ex: 1 ou 2" {...field} value={field.value || ''} /></FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                </div>
+                 <div className="px-6 pb-6 grid grid-cols-1 md:grid-cols-2 gap-8">
+                     <FormField
+                        control={form.control}
                         name="caracteristicasimovel.quartos"
                         render={() => (
                             <FormItem>
                             <FormLabel>Quartos</FormLabel>
-                                <div className="flex flex-wrap items-center gap-2 pt-2">
+                                <div className="flex flex-wrap items-center gap-x-6 gap-y-2 pt-2">
                                 {bedroomOptions.map((item) => (
                                     <FormField
                                     key={item}
@@ -767,21 +931,44 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
                             </FormItem>
                         )}
                         />
-                     <FormField control={form.control} name="caracteristicasimovel.tamanho" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Área (m²)</FormLabel>
-                        <FormControl><Input placeholder="Ex: 23m² a 48m²" {...field} value={field.value || ''} /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )} />
-                     <FormField control={form.control} name="caracteristicasimovel.vagas" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Vagas Garagem</FormLabel>
-                        <FormControl><Input placeholder="Ex: 1 ou 2" {...field} value={field.value || ''} /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )} />
-                </div>
+                    {isAvulso && (
+                        <FormField
+                            control={form.control}
+                            name="caracteristicasimovel.suites"
+                            render={() => (
+                            <FormItem>
+                                <FormLabel>Suítes</FormLabel>
+                                <div className="flex flex-wrap items-center gap-x-6 gap-y-2 pt-2">
+                                {suiteOptions.map((item) => (
+                                    <FormField
+                                    key={item}
+                                    control={form.control}
+                                    name="caracteristicasimovel.suites"
+                                    render={({ field }) => (
+                                        <FormItem key={item} className="flex flex-row items-start space-x-2 space-y-0">
+                                        <FormControl>
+                                            <Checkbox
+                                            checked={Array.isArray(field.value) && field.value.includes(item)}
+                                            onCheckedChange={(checked) => {
+                                                const currentValue = Array.isArray(field.value) ? field.value : [];
+                                                return checked
+                                                ? field.onChange([...currentValue, item])
+                                                : field.onChange(currentValue.filter((value) => value !== item));
+                                            }}
+                                            />
+                                        </FormControl>
+                                        <FormLabel className="font-normal text-sm">{item}</FormLabel>
+                                        </FormItem>
+                                    )}
+                                    />
+                                ))}
+                                </div>
+                                <FormMessage />
+                            </FormItem>
+                            )}
+                        />
+                    )}
+                 </div>
             </section>
 
              <section className="bg-white rounded-xl border border-card-border shadow-sm overflow-hidden">
@@ -1174,3 +1361,4 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
       </FormProvider>
     );
 }
+

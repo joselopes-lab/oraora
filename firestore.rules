@@ -109,7 +109,6 @@ service cloud.firestore {
     match /leads/{leadId} {
       allow create: if request.resource.data.brokerId is string && 
                        request.resource.data.name is string &&
-                       request.resource.data.email is string &&
                        request.resource.data.status is string &&
                        (request.resource.data.personaIds is list || !('personaIds' in request.resource.data));
       allow read, update, delete: if (isSignedIn() && 

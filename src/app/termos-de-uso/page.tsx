@@ -14,6 +14,7 @@ import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { doc } from 'firebase/firestore';
 import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import SearchFilters from '@/components/SearchFilters';
+import { PlaceHolderImages } from '@/lib/placeholder-images';
 
 
 export default function TermosDeUsoPage() {
@@ -24,6 +25,8 @@ export default function TermosDeUsoPage() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const firestore = useFirestore();
+  const defaultLogo = PlaceHolderImages.find(img => img.id === 'default-logo')?.imageUrl;
+
   const siteContentRef = useMemoFirebase(
       () => (firestore ? doc(firestore, 'brokers', 'oraora-main-site') : null),
       [firestore]
@@ -66,7 +69,7 @@ export default function TermosDeUsoPage() {
                             </SheetHeader>
                             <div className="p-6 border-b">
                                 <Link href="/" onClick={() => setIsMobileMenuOpen(false)}>
-                                    <Image src={siteData?.logoUrl || "https://dotestudio.com.br/wp-content/uploads/2025/08/oraora.png"} alt="Oraora Logo" width={120} height={30} className="h-[30px] w-auto" />
+                                    <Image src={siteData?.logoUrl || defaultLogo || ""} alt="Oraora Logo" width={120} height={30} className="h-[30px] w-auto" style={{ width: 'auto' }} />
                                 </Link>
                             </div>
                             <nav className="flex flex-col gap-2 p-4 text-lg font-semibold">
@@ -125,7 +128,7 @@ export default function TermosDeUsoPage() {
                 </div>
                  {/* Desktop Logo */}
                 <Link className="hidden lg:flex items-center gap-3" href="/">
-                    <Image src={siteData?.logoUrl || "https://dotestudio.com.br/wp-content/uploads/2025/08/oraora.png"} alt="Oraora Logo" width={120} height={30} className="h-[30px] w-auto" />
+                    <Image src={siteData?.logoUrl || defaultLogo || ""} alt="Oraora Logo" width={120} height={30} className="h-[30px] w-auto" style={{ width: 'auto' }} />
                 </Link>
             </div>
 
@@ -133,7 +136,7 @@ export default function TermosDeUsoPage() {
             <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
                 {/* Mobile Logo */}
                 <Link className="flex items-center gap-3 lg:hidden" href="/">
-                    <Image src={siteData?.logoUrl || "https://dotestudio.com.br/wp-content/uploads/2025/08/oraora.png"} alt="Oraora Logo" width={120} height={30} className="h-[30px] w-auto" />
+                    <Image src={siteData?.logoUrl || defaultLogo || ""} alt="Oraora Logo" width={120} height={30} className="h-[30px] w-auto" style={{ width: 'auto' }} />
                 </Link>
                 {/* Desktop Nav */}
                 <nav className="hidden lg:flex items-center gap-8 text-sm font-semibold">
@@ -218,7 +221,7 @@ export default function TermosDeUsoPage() {
             </div>
             <div className="prose prose-lg max-w-none mx-auto bg-white p-8 rounded-lg shadow-sm border border-gray-100">
                 <h2>1. IDENTIFICAÇÃO</h2>
-                <p>Este site e a plataforma OraOra são operados por ORAORA SOLUÇÕES DIGITAIS INOVA SIMPLES (I.S.), pessoa jurídica inscrita no CNPJ nº 64.052.552/0001-26, com sede na Rua Rui Barbosa, nº 1486, Centro, Foz do Iguaçu/PR, e e-mail de contato <a href="mailto:contato@oraora.com.br">contato@oraora.com.br</a>, doravante denominada “OraOra”.</p>
+                <p>Este site e a plataforma Oraora são operados por ORAORA SOLUÇÕES DIGITAIS INOVA SIMPLES (I.S.), pessoa jurídica inscrita no CNPJ nº 64.052.552/0001-26, com sede na Rua Rui Barbosa, nº 1486, Centro, Foz do Iguaçu/PR, e e-mail de contato <a href="mailto:contato@oraora.com.br">contato@oraora.com.br</a>, doravante denominada “OraOra”.</p>
                 <br />
                 <h2>2. ACEITAÇÃO DOS TERMOS</h2>
                 <p>Ao acessar, navegar, cadastrar-se ou utilizar qualquer funcionalidade do site OraOra, o usuário declara ter lido, compreendido e aceitado integralmente estes Termos de Uso e a Política de Privacidade.</p>
@@ -303,7 +306,7 @@ export default function TermosDeUsoPage() {
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8 mb-12">
                 <div className="col-span-2 lg:col-span-2">
                     <div className="flex items-center gap-2 mb-4">
-                        <Image src={siteData?.logoUrl || "https://dotestudio.com.br/wp-content/uploads/2025/08/oraora.png"} alt="Oraora Logo" width={160} height={40} className="h-8 w-auto" />
+                        <Image src={siteData?.logoUrl || defaultLogo || ""} alt="Oraora Logo" width={160} height={40} className="h-8 w-auto" style={{ width: 'auto' }} />
                     </div>
                     {isSiteDataLoading ? (
                       <div className="space-y-2 max-w-xs">
@@ -356,6 +359,7 @@ export default function TermosDeUsoPage() {
                            Área do corretor
                         </Link>
                     </Button>
+                    <Link href="/corretor" className="text-xs text-gray-400 hover:text-primary transition-colors">Desenvolvido por <strong>Oraora</strong></Link>
                 </div>
             </div>
         </div>
@@ -363,4 +367,3 @@ export default function TermosDeUsoPage() {
     </div>
   );
 }
-

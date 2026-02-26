@@ -1,7 +1,21 @@
-import {genkit} from 'genkit';
-import {googleAI} from '@genkit-ai/google-genai';
-import {z} from 'genkit';
 
+import { genkit } from 'genkit';
+import { googleAI } from '@genkit-ai/google-genai';
+import { z } from 'genkit';
+import { getSecret } from '@/lib/secrets';
+
+// Dynamic initialization helper
+export const getAi = async () => {
+  const apiKey = await getSecret('GEMINI_API_KEY') || await getSecret('GOOGLE_GENAI_API_KEY');
+  
+  return genkit({
+    plugins: [googleAI({ apiKey })],
+    model: 'googleai/gemini-2.5-flash',
+  });
+};
+
+// Original export for backward compatibility where possible, 
+// though dynamic usage is preferred for secrets.
 export const ai = genkit({
   plugins: [googleAI()],
   model: 'googleai/gemini-2.5-flash',

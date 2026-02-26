@@ -188,23 +188,30 @@ export default function ProfilePage() {
 
   const onProfileSubmit = async (data: z.infer<typeof profileSchema>) => {
     if (!user || !firestore) return;
-
+    
     try {
-      await updateProfile(user, { displayName: data.username });
+      if (user.displayName !== data.username) {
+        await updateProfile(user, { displayName: data.username });
+      }
 
       const userDocRef = doc(firestore, 'users', user.uid);
-      setDocumentNonBlocking(userDocRef, {
+      await setDocumentNonBlocking(userDocRef, {
         username: data.username,
         phone: data.phone,
-        creci: data.creci,
         bio: data.bio,
       }, { merge: true });
+
+      if(userData?.userType === 'broker'){
+        const brokerDocRef = doc(firestore, 'brokers', user.uid);
+        await setDocumentNonBlocking(brokerDocRef, {
+            creci: data.creci,
+        }, { merge: true });
+      }
 
       toast({
         title: 'Perfil atualizado!',
         description: 'Suas informações pessoais foram salvas com sucesso.',
       });
-      profileForm.reset(profileForm.getValues());
 
     } catch (error: any) {
       console.error('Erro ao atualizar perfil:', error);
@@ -509,5 +516,3 @@ export default function ProfilePage() {
     </div>
   );
 }
-
-    

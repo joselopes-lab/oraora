@@ -1,11 +1,7 @@
 
-
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase/index.server';
-import Image from 'next/image';
 import { notFound } from 'next/navigation';
-import { Badge } from '@/components/ui/badge';
-import Link from 'next/link';
 import UrbanPadraoLayout from '@/layouts/urban-padrao/UrbanPadraoLayout';
 import LivingLayout from '@/layouts/living/LivingLayout';
 import DomusLayout from '@/app/layouts/domus/DomusLayout';
@@ -21,7 +17,7 @@ type Broker = {
   primaryColor?: string;
   secondaryColor?: string;
   slug: string;
-  layoutId?: string; // Adicionar layoutId
+  layoutId?: string;
   homepage?: {
     heroTagline?: string;
     heroTitle?: string;
@@ -35,6 +31,7 @@ type Broker = {
     featuredTagline?: string;
     featuredTitle?: string;
     featuredSubtitle?: string;
+    featuredPropertyIds?: string[];
     aboutTagline?: string;
     aboutTitle?: string;
     aboutText?: string;
@@ -69,10 +66,6 @@ type Broker = {
   whatsappUrl?: string;
   instagramUrl?: string;
   linkedinUrl?: string;
-};
-
-type Portfolio = {
-  propertyIds: string[];
 };
 
 type Property = {
@@ -129,7 +122,6 @@ async function getPortfolioProperties(brokerId: string): Promise<Property[]> {
   const propertiesData: Property[] = [];
   const propertiesRef = collection(firestore, 'properties');
 
-  // Firestore 'in' query is limited to 30 elements, so we batch the requests.
   for (let i = 0; i < propertyIds.length; i += 30) {
     const batch = propertyIds.slice(i, i + 30);
     if (batch.length > 0) {
@@ -147,7 +139,6 @@ async function getPortfolioProperties(brokerId: string): Promise<Property[]> {
   return propertiesData;
 }
 
-
 async function getBrokerProperties(brokerId: string): Promise<Property[]> {
   const { firestore } = initializeFirebase();
   const brokerPropertiesRef = collection(firestore, 'brokerProperties');
@@ -157,8 +148,6 @@ async function getBrokerProperties(brokerId: string): Promise<Property[]> {
   return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Property));
 }
 
-
-// A página principal que atua como roteador de layouts
 export default async function BrokerSitePage({ params }: { params: { slug: string } }) {
   const { slug } = params;
   const broker = await getBrokerData(slug);
@@ -174,22 +163,43 @@ export default async function BrokerSitePage({ params }: { params: { slug: strin
 
   const allProperties = [...portfolioProperties, ...brokerProperties];
 
+  // Logic for Featured Properties (up to 6)
+  let featuredProperties: Property[] = [];
+  const selectedIds = broker.homepage?.featuredPropertyIds || [];
 
-  // Lógica para escolher qual layout renderizar
+  if (selectedIds.length > 0) {
+    // Fill featured based on selection order
+    selectedIds.forEach(id => {
+      const match = allProperties.find(p => p.id === id);
+      if (match) featuredProperties.push(match);
+    });
+    
+    // If less than 6 selected, and we have more, we can optionally fill or just leave as is.
+    // User requested specifically to prioritize selection.
+  }
+
+  // If no manual selection or selection was empty, do random shuffle
+  if (featuredProperties.length === 0 && allProperties.length > 0) {
+    featuredProperties = [...allProperties].sort(() => 0.5 - Math.random()).slice(0, 6);
+  }
+
+  // To maintain compatibility with existing layouts that might slice properties directly,
+  // we ensure that the 'allProperties' list starts with the featured ones.
+  const otherProperties = allProperties.filter(p => !featuredProperties.find(fp => fp.id === p.id));
+  const sortedProperties = [...featuredProperties, ...otherProperties];
+
   switch (broker.layoutId) {
     case 'urban-padrao':
-      return <UrbanPadraoLayout broker={broker} properties={allProperties} />;
+      return <UrbanPadraoLayout broker={broker} properties={sortedProperties} />;
     case 'living':
-        return <LivingLayout broker={broker} properties={allProperties} />;
+        return <LivingLayout broker={broker} properties={sortedProperties} />;
     case 'domus':
-        return <DomusLayout broker={broker} properties={allProperties} />;
+        return <DomusLayout broker={broker} properties={sortedProperties} />;
     default:
-      // Renderiza o layout padrão se nenhum for selecionado ou se o ID for inválido
-      return <UrbanPadraoLayout broker={broker} properties={allProperties} />;
+      return <UrbanPadraoLayout broker={broker} properties={sortedProperties} />;
   }
 }
 
-// Generate static routes at build time for better performance
 export async function generateStaticParams() {
   try {
     const { firestore } = initializeFirebase();

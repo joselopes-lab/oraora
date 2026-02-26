@@ -146,6 +146,11 @@
                 "featuredTagline": {"type": "string"},
                 "featuredTitle": {"type": "string"},
                 "featuredSubtitle": {"type": "string"},
+                "featuredPropertyIds": {
+                  "type": "array",
+                  "items": { "type": "string" },
+                  "description": "List of up to 6 property IDs to be displayed in the featured section."
+                },
                 "aboutTagline": {"type": "string"},
                 "aboutTitle": {"type": "string"},
                 "aboutText": {"type": "string"},
@@ -258,7 +263,8 @@
                 "properties": {
                   "icon": { "type": "string" },
                   "title": { "type": "string" },
-                  "description": { "type": "string" }
+                  "description": { "type": "string" },
+                  "isVisible": { "type": "boolean" }
                 },
                 "required": ["icon", "title", "description"]
               }
@@ -460,12 +466,9 @@
           "properties": {
             "tipo": { "type": "string" },
             "tamanho": { "type": "string" },
-            "unidades": {
-              "type": "object",
-              "properties": {
-                "quartos": { "type": "array", "items": { "type": "string" } }
-              }
-            }
+            "quartos": { "type": "array", "items": { "type": "string" } },
+            "suites": { "type": "array", "items": { "type": "string" } },
+            "vagas": { "type": "string" }
           }
         },
         "midia": {
@@ -510,7 +513,11 @@
             "descricao": { "type": "string" },
             "status": { "type": "string" },
             "valor": { "type": "number" },
-            "previsaoentrega": { "type": "string" }
+            "previsaoentrega": { "type": "string" },
+            "condominio": { "type": "number" },
+            "iptu": { "type": "number" },
+            "nomeCondominio": { "type": "string" },
+            "exclusivo": { "type": "boolean" }
           }
         },
         "localizacao": {
@@ -531,12 +538,9 @@
           "properties": {
             "tipo": { "type": "string" },
             "tamanho": { "type": "string" },
-            "unidades": {
-              "type": "object",
-              "properties": {
-                "quartos": { "type": "array", "items": { "type": "string" } }
-              }
-            }
+            "quartos": { "type": "array", "items": { "type": "string" } },
+            "suites": { "type": "array", "items": { "type": "string" } },
+            "vagas": { "type": "string" }
           }
         },
         "midia": {
@@ -696,7 +700,7 @@
             "enum": ["Frio", "Morno", "Quente"]
         }
       },
-      "required": ["brokerId", "name", "email", "status", "createdAt"]
+      "required": ["brokerId", "name", "status", "createdAt"]
     },
     "LeadFunnelColumn": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -853,31 +857,33 @@
         "comments": {
           "type": "array",
           "items": {
-            "type": "object",
-            "properties": {
-              "author": { "type": "string" },
-              "authorId": { "type": "string" },
-              "content": { "type": "string" },
-              "createdAt": { "type": "string", "format": "date-time" },
-              "type": { "type": "string", "enum": ["public", "internal"] }
-            },
-            "required": ["authorId", "content", "createdAt", "type"]
+            "object": {
+              "properties": {
+                "author": { "type": "string" },
+                "authorId": { "type": "string" },
+                "content": { "type": "string" },
+                "createdAt": { "type": "string", "format": "date-time" },
+                "type": { "type": "string", "enum": ["public", "internal"] }
+              },
+              "required": ["authorId", "content", "createdAt", "type"]
+            }
           }
         },
         "attachments": {
           "type": "array",
           "items": {
-            "type": "object",
-            "properties": {
-              "name": { "type": "string" },
-              "url": { "type": "string", "format": "uri" },
-              "size": { "type": "number" }
-            },
-            "required": ["name", "url", "size"]
+            "object": {
+              "properties": {
+                "name": { "type": "string" },
+                "url": { "type": "string", "format": "uri" },
+                "size": { "type": "number" }
+              },
+              "required": ["name", "url", "size"]
+            }
           }
         }
       },
-      "required": ["title", "clientId", "status", "priority", "category", "createdAt"]
+      "required": ["title", "clientId", "status", "priority", "createdAt"]
     },
     "RadarList": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -1210,5 +1216,3 @@
     "reasoning": "The Firestore data structure is designed to securely manage users (brokers, constructors, admins) and their associated data, focusing on authorization independence and clear access patterns. User data is separated into collections based on user type to simplify security rules. The Plans collection stores subscription plan details. A new 'properties' collection is added to store all property listings, with each property linked to a constructor via 'builderId'. The structure also facilitates the management of user-specific public websites and dashboards.\n\nKey design choices:\n\n1.  Authorization Independence: The `planId` is stored directly in the `User` document. This denormalization avoids the need for `get()` calls to the `/plans` collection in security rules when creating a user, thus enabling atomic operations.\n\n2.  Structural Segregation: Different user types (brokers, constructors, admins) have their data stored in separate collections (`/brokers`, `/constructors`, `/admins`) to allow for distinct security rules tailored to each user type.\n\n3.  Access Modeling:  User-owned data (e.g., website URLs) is stored within the specific broker or constructor documents, ensuring clear ownership. The admin collection is existence based, indicating admin privileges through document presence. Property data is stored in a top-level 'properties' collection for easy querying and management, linked to constructors.\n\n4.  QAPs: List operations are secured by segregating user types into different collections. Rules can easily specify that only authenticated users of a specific type can list documents in their respective collections.\n\n5.  Invariants:  Timestamps (if added) can be enforced via rules to ensure data integrity. Ownership is structurally enforced through the use of subcollections."
   }
 }
-
-    

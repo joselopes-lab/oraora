@@ -35,6 +35,12 @@
       "description": "QR code for the Radar page",
       "imageUrl": "https://lh3.googleusercontent.com/aida-public/AB6AXuCOgpNhYFJffFMUlfz8rLyKaaXEIfZXxfiLZ65GOGgSY73guOuAkJMXGxrRWWSFH5j0b5xuuWthl3kTBi-HJvhNHD5WfkbzYLRwJwV6qb-gpYSPdiBjRczW1gcQBF_rJF_w56gXrbLU5TFW0B1e_KHnDYqSVQsV4wE0Ce3QX9gOHNHsm42inrVtdekjofYGPt4k19NkpCkEOw5XAQohk7xRJYb8VGqwg_j4MEmMVWbGmwcmpQdeKsHJB-e0G43Il5tt671-tcmduLI",
       "imageHint": "qr code"
+    },
+    {
+      "id": "default-logo",
+      "description": "Default logo for the platform",
+      "imageUrl": "https://images.unsplash.com/photo-1619551734325-81aaf323686c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxjb21wYW55JTIwbG9nb3xlbnwwfHx8fDE3NzIxMTYzMjJ8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "company logo"
     }
   ]
 }

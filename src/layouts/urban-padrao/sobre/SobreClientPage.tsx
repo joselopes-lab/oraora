@@ -1,9 +1,9 @@
-
 'use client';
 import { UrbanPadraoHeader } from '../components/UrbanPadraoHeader';
 import { UrbanPadraoFooter } from '../components/UrbanPadraoFooter';
 import { WhatsAppWidget } from '../components/WhatsAppWidget';
 import Image from 'next/image';
+import React from 'react';
 
 type Broker = {
   id: string;
@@ -11,9 +11,9 @@ type Broker = {
   logoUrl?: string;
   primaryColor?: string;
   secondaryColor?: string;
-  accentColor?: string;
   backgroundColor?: string;
   foregroundColor?: string;
+  accentColor?: string;
   slug: string;
   layoutId?: string;
   urbanPadraoSobre?: {
@@ -21,6 +21,12 @@ type Broker = {
     brokerName?: string;
     brokerTitle?: string;
     bio?: string;
+    showStatsSection?: boolean;
+    showVideoSection?: boolean;
+    showValuesSection?: boolean;
+    showAreasSection?: boolean;
+    showDifferentialsSection?: boolean;
+    showAwardsSection?: boolean;
     statManagedDeals?: string;
     statAssistedFamilies?: string;
     statYearsExperience?: string;
@@ -122,158 +128,178 @@ export default function SobreClientPage({ broker }: SobrePageProps) {
                   <p key={index}>{paragraph}</p>
               ))}
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-12 w-full max-w-4xl border-t border-gray-100 pt-10">
-              <div className="flex flex-col items-center gap-1 group cursor-default">
-                <span className="text-4xl lg:text-5xl font-black text-text-main group-hover:text-primary transition-colors duration-300">{content.statManagedDeals || defaultValues.statManagedDeals}</span>
-                <span className="text-sm text-text-muted font-bold uppercase tracking-wider">em Negócios Geridos</span>
-              </div>
-              <div className="flex flex-col items-center gap-1 group cursor-default">
-                <span className="text-4xl lg:text-5xl font-black text-text-main group-hover:text-primary transition-colors duration-300">{content.statAssistedFamilies || defaultValues.statAssistedFamilies}</span>
-                <span className="text-sm text-text-muted font-bold uppercase tracking-wider">Famílias Assessoradas</span>
-              </div>
-              <div className="flex flex-col items-center gap-1 group cursor-default">
-                <span className="text-4xl lg:text-5xl font-black text-text-main group-hover:text-primary transition-colors duration-300">{content.statYearsExperience || defaultValues.statYearsExperience}</span>
-                <span className="text-sm text-text-muted font-bold uppercase tracking-wider">de Experiência Sólida</span>
-              </div>
-            </div>
+            
+            {content.showStatsSection !== false && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-12 w-full max-w-4xl border-t border-gray-100 pt-10">
+                <div className="flex flex-col items-center gap-1 group cursor-default">
+                    <span className="text-4xl lg:text-5xl font-black text-text-main group-hover:text-primary transition-colors duration-300">{content.statManagedDeals || defaultValues.statManagedDeals}</span>
+                    <span className="text-sm text-text-muted font-bold uppercase tracking-wider">em Negócios Geridos</span>
+                </div>
+                <div className="flex flex-col items-center gap-1 group cursor-default">
+                    <span className="text-4xl lg:text-5xl font-black text-text-main group-hover:text-primary transition-colors duration-300">{content.statAssistedFamilies || defaultValues.statAssistedFamilies}</span>
+                    <span className="text-sm text-text-muted font-bold uppercase tracking-wider">Famílias Assessoradas</span>
+                </div>
+                <div className="flex flex-col items-center gap-1 group cursor-default">
+                    <span className="text-4xl lg:text-5xl font-black text-text-main group-hover:text-primary transition-colors duration-300">{content.statYearsExperience || defaultValues.statYearsExperience}</span>
+                    <span className="text-sm text-text-muted font-bold uppercase tracking-wider">de Experiência Sólida</span>
+                </div>
+                </div>
+            )}
           </div>
         </section>
-        <section className="w-full py-12 lg:py-20 bg-background-light">
-          <div className="layout-container max-w-[1280px] mx-auto px-6">
-            <div className="flex flex-col items-center mb-10 text-center">
-              <span className="inline-block px-3 py-1 rounded-full bg-white border border-gray-200 text-text-muted text-xs font-bold uppercase tracking-wider mb-3 shadow-sm">
-                Apresentação Pessoal
-              </span>
-              <h2 className="text-3xl font-bold text-text-main">{content.videoTitle || defaultValues.videoTitle}</h2>
+
+        {content.showVideoSection !== false && (
+            <section className="w-full py-12 lg:py-20 bg-background-light">
+            <div className="layout-container max-w-[1280px] mx-auto px-6">
+                <div className="flex flex-col items-center mb-10 text-center">
+                <span className="inline-block px-3 py-1 rounded-full bg-white border border-gray-200 text-text-muted text-xs font-bold uppercase tracking-wider mb-3 shadow-sm">
+                    Apresentação Pessoal
+                </span>
+                <h2 className="text-3xl font-bold text-text-main">{content.videoTitle || defaultValues.videoTitle}</h2>
+                </div>
+                <div className="relative w-full max-w-5xl mx-auto aspect-video rounded-3xl overflow-hidden shadow-2xl bg-black group cursor-pointer border-4 border-white ring-1 ring-gray-200 transform hover:scale-[1.01] transition-transform duration-500">
+                    {content.videoUrl ? (
+                        <iframe src={`https://www.youtube.com/embed/${new URL(content.videoUrl).searchParams.get('v')}`} title={content.videoTitle || ''} className="absolute inset-0 w-full h-full" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen></iframe>
+                    ) : (
+                        <>
+                            <div className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105" style={{ backgroundImage: `url("${defaultValues.videoImageUrl}")` }}></div>
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/40 group-hover:via-black/30 transition-colors duration-300"></div>
+                            <div className="absolute inset-0 flex items-center justify-center z-20">
+                                <div className="relative flex items-center justify-center group/play">
+                                <div className="absolute size-24 md:size-32 rounded-full bg-primary/20 animate-[ping_2s_linear_infinite]"></div>
+                                <div className="absolute size-24 md:size-32 rounded-full bg-primary/10 animate-[ping_2s_linear_infinite_0.5s]"></div>
+                                <div className="relative size-20 md:size-24 rounded-full bg-white/10 backdrop-blur-xl border border-white/40 flex items-center justify-center transition-all duration-300 group-hover/play:scale-110 group-hover/play:bg-primary group-hover/play:border-primary shadow-[0_0_40px_rgba(195,231,56,0.4)]">
+                                    <span className="material-symbols-outlined text-white text-5xl md:text-6xl ml-2 group-hover/play:text-black transition-colors">play_arrow</span>
+                                </div>
+                                </div>
+                            </div>
+                        </>
+                    )}
+                </div>
             </div>
-            <div className="relative w-full max-w-5xl mx-auto aspect-video rounded-3xl overflow-hidden shadow-2xl bg-black group cursor-pointer border-4 border-white ring-1 ring-gray-200 transform hover:scale-[1.01] transition-transform duration-500">
-                {content.videoUrl ? (
-                    <iframe src={`https://www.youtube.com/embed/${new URL(content.videoUrl).searchParams.get('v')}`} title={content.videoTitle || ''} className="absolute inset-0 w-full h-full" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen></iframe>
-                ) : (
-                    <>
-                        <div className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105" style={{ backgroundImage: `url("${defaultValues.videoImageUrl}")` }}></div>
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/40 group-hover:via-black/30 transition-colors duration-300"></div>
-                        <div className="absolute inset-0 flex items-center justify-center z-20">
-                            <div className="relative flex items-center justify-center group/play">
-                            <div className="absolute size-24 md:size-32 rounded-full bg-primary/20 animate-[ping_2s_linear_infinite]"></div>
-                            <div className="absolute size-24 md:size-32 rounded-full bg-primary/10 animate-[ping_2s_linear_infinite_0.5s]"></div>
-                            <div className="relative size-20 md:size-24 rounded-full bg-white/10 backdrop-blur-xl border border-white/40 flex items-center justify-center transition-all duration-300 group-hover/play:scale-110 group-hover/play:bg-primary group-hover/play:border-primary shadow-[0_0_40px_rgba(195,231,56,0.4)]">
-                                <span className="material-symbols-outlined text-white text-5xl md:text-6xl ml-2 group-hover/play:text-black transition-colors">play_arrow</span>
+            </section>
+        )}
+
+        {content.showValuesSection !== false && (
+            <section className="w-full py-16 lg:py-24 bg-white">
+            <div className="layout-container max-w-[1280px] mx-auto px-6">
+                <div className="flex flex-col md:flex-row justify-between items-end mb-12 gap-6">
+                <div className="max-w-2xl">
+                    <h2 className="text-3xl font-bold text-text-main mb-4">Meus Valores e Princípios</h2>
+                    <p className="text-text-muted text-lg">Os pilares que sustentam minha conduta profissional e garantem a segurança do seu investimento.</p>
+                </div>
+                </div>
+                <div className="grid md:grid-cols-3 gap-8">
+                <div className="group p-8 rounded-3xl bg-background-light border border-transparent hover:border-primary/30 hover:shadow-card transition-all duration-300 relative overflow-hidden">
+                    <div className="relative z-10">
+                    <div className="size-12 rounded-xl bg-white flex items-center justify-center mb-6 shadow-sm text-sobre-icon group-hover:scale-110 transition-transform">
+                        <span className="material-symbols-outlined text-3xl">verified_user</span>
+                    </div>
+                    <h3 className="text-xl font-bold text-text-main mb-3">{content.value1Title || defaultValues.value1Title}</h3>
+                    <p className="text-text-muted leading-relaxed text-sm">{content.value1Description || defaultValues.value1Description}</p>
+                    </div>
+                </div>
+                <div className="group p-8 rounded-3xl bg-background-light border border-transparent hover:border-primary/30 hover:shadow-card transition-all duration-300 relative overflow-hidden">
+                    <div className="relative z-10">
+                    <div className="size-12 rounded-xl bg-white flex items-center justify-center mb-6 shadow-sm text-sobre-icon group-hover:scale-110 transition-transform">
+                        <span className="material-symbols-outlined text-3xl">person_check</span>
+                    </div>
+                    <h3 className="text-xl font-bold text-text-main mb-3">{content.value2Title || defaultValues.value2Title}</h3>
+                    <p className="text-text-muted leading-relaxed text-sm">{content.value2Description || defaultValues.value2Description}</p>
+                    </div>
+                </div>
+                <div className="group p-8 rounded-3xl bg-background-light border border-transparent hover:border-primary/30 hover:shadow-card transition-all duration-300 relative overflow-hidden">
+                    <div className="relative z-10">
+                    <div className="size-12 rounded-xl bg-white flex items-center justify-center mb-6 shadow-sm text-sobre-icon group-hover:scale-110 transition-transform">
+                        <span className="material-symbols-outlined text-3xl">auto_graph</span>
+                    </div>
+                    <h3 className="text-xl font-bold text-text-main mb-3">{content.value3Title || defaultValues.value3Title}</h3>
+                    <p className="text-text-muted leading-relaxed text-sm">{content.value3Description || defaultValues.value3Description}</p>
+                    </div>
+                </div>
+                </div>
+            </div>
+            </section>
+        )}
+
+        {(content.showAreasSection !== false || content.showDifferentialsSection !== false) && (
+            <section className="w-full py-16 lg:py-24 bg-background-light border-y border-gray-100">
+            <div className="layout-container max-w-[1280px] mx-auto px-6 grid lg:grid-cols-2 gap-16 lg:gap-24 items-start">
+                {content.showAreasSection !== false && (
+                    <div>
+                    <div className="flex items-center gap-2 mb-4">
+                        <span className="h-px w-8 bg-secondary"></span>
+                        <span className="text-secondary font-bold tracking-wider uppercase text-sm">Onde Atuo</span>
+                    </div>
+                    <h2 className="text-3xl font-bold text-text-main mb-8">Regiões que Domino</h2>
+                    <div className="grid grid-cols-2 sm:grid-cols-2 gap-4">
+                        {(content.areas?.length ? content.areas : defaultValues.areas).map(area => (
+                            <div key={area} className="flex flex-col p-4 bg-white rounded-xl shadow-sm border border-transparent hover:border-primary transition-all group">
+                                <div className="flex justify-between items-start mb-2">
+                                    <span className="material-symbols-outlined text-gray-300 group-hover:text-primary transition-colors">apartment</span>
+                                    <span className="text-[10px] font-bold text-gray-400 bg-gray-50 px-2 py-1 rounded">SP</span>
+                                </div>
+                                <span className="font-bold text-text-main group-hover:text-primary transition-colors">{area}</span>
                             </div>
+                        ))}
+                    </div>
+                    </div>
+                )}
+                {content.showDifferentialsSection !== false && (
+                    <div>
+                    <div className="flex items-center gap-2 mb-4">
+                        <span className="h-px w-8 bg-secondary"></span>
+                        <span className="text-secondary font-bold tracking-wider uppercase text-sm">Meus Diferenciais</span>
+                    </div>
+                    <h2 className="text-3xl font-bold text-text-main mb-8">Por que confiar em mim?</h2>
+                    <div className="space-y-6">
+                        {(content.differentials && content.differentials.length > 0 ? content.differentials : [{ title: 'Negociação "Harvard"', description: 'Certificado em negociação complexa, garanto que seus interesses sejam defendidos com técnica e firmeza para obter o melhor "deal".' }]).map((diff, index) => (
+                            <div key={index} className="flex gap-5 group">
+                                <div className="shrink-0 size-14 rounded-2xl bg-white border border-gray-100 text-text-main flex items-center justify-center group-hover:bg-primary group-hover:border-primary transition-all shadow-sm">
+                                    <span className="material-symbols-outlined">handshake</span>
+                                </div>
+                                <div>
+                                    <h4 className="text-lg font-bold text-text-main group-hover:text-primary transition-colors">{diff.title}</h4>
+                                    <p className="text-text-muted text-sm mt-1 leading-relaxed">{diff.description}</p>
+                                </div>
                             </div>
-                        </div>
-                    </>
+                        ))}
+                    </div>
+                    </div>
                 )}
             </div>
-          </div>
-        </section>
-        <section className="w-full py-16 lg:py-24 bg-white">
-          <div className="layout-container max-w-[1280px] mx-auto px-6">
-            <div className="flex flex-col md:flex-row justify-between items-end mb-12 gap-6">
-              <div className="max-w-2xl">
-                <h2 className="text-3xl font-bold text-text-main mb-4">Meus Valores e Princípios</h2>
-                <p className="text-text-muted text-lg">Os pilares que sustentam minha conduta profissional e garantem a segurança do seu investimento.</p>
-              </div>
-            </div>
-            <div className="grid md:grid-cols-3 gap-8">
-              <div className="group p-8 rounded-3xl bg-background-light border border-transparent hover:border-primary/30 hover:shadow-card transition-all duration-300 relative overflow-hidden">
-                <div className="relative z-10">
-                  <div className="size-12 rounded-xl bg-white flex items-center justify-center mb-6 shadow-sm text-sobre-icon group-hover:scale-110 transition-transform">
-                    <span className="material-symbols-outlined text-3xl">verified_user</span>
-                  </div>
-                  <h3 className="text-xl font-bold text-text-main mb-3">{content.value1Title || defaultValues.value1Title}</h3>
-                  <p className="text-text-muted leading-relaxed text-sm">{content.value1Description || defaultValues.value1Description}</p>
+            </section>
+        )}
+
+        {content.showAwardsSection !== false && (
+            <section className="w-full py-16 bg-white">
+            <div className="layout-container max-w-[1280px] mx-auto px-6">
+                <div className="flex flex-col items-center text-center gap-2 mb-10">
+                <span className="material-symbols-outlined text-4xl text-sobre-icon mb-2">military_tech</span>
+                <h2 className="text-2xl font-bold text-text-main">Meus Reconhecimentos</h2>
+                <p className="text-text-muted max-w-lg">Prêmios que validam a dedicação individual e o compromisso com a excelência que entrego a cada cliente.</p>
                 </div>
-              </div>
-              <div className="group p-8 rounded-3xl bg-background-light border border-transparent hover:border-primary/30 hover:shadow-card transition-all duration-300 relative overflow-hidden">
-                <div className="relative z-10">
-                  <div className="size-12 rounded-xl bg-white flex items-center justify-center mb-6 shadow-sm text-sobre-icon group-hover:scale-110 transition-transform">
-                    <span className="material-symbols-outlined text-3xl">person_check</span>
-                  </div>
-                  <h3 className="text-xl font-bold text-text-main mb-3">{content.value2Title || defaultValues.value2Title}</h3>
-                  <p className="text-text-muted leading-relaxed text-sm">{content.value2Description || defaultValues.value2Description}</p>
-                </div>
-              </div>
-              <div className="group p-8 rounded-3xl bg-background-light border border-transparent hover:border-primary/30 hover:shadow-card transition-all duration-300 relative overflow-hidden">
-                <div className="relative z-10">
-                  <div className="size-12 rounded-xl bg-white flex items-center justify-center mb-6 shadow-sm text-sobre-icon group-hover:scale-110 transition-transform">
-                    <span className="material-symbols-outlined text-3xl">auto_graph</span>
-                  </div>
-                  <h3 className="text-xl font-bold text-text-main mb-3">{content.value3Title || defaultValues.value3Title}</h3>
-                  <p className="text-text-muted leading-relaxed text-sm">{content.value3Description || defaultValues.value3Description}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-        <section className="w-full py-16 lg:py-24 bg-background-light border-y border-gray-100">
-          <div className="layout-container max-w-[1280px] mx-auto px-6 grid lg:grid-cols-2 gap-16 lg:gap-24 items-start">
-            <div>
-              <div className="flex items-center gap-2 mb-4">
-                <span className="h-px w-8 bg-secondary"></span>
-                <span className="text-secondary font-bold tracking-wider uppercase text-sm">Onde Atuo</span>
-              </div>
-              <h2 className="text-3xl font-bold text-text-main mb-8">Regiões que Domino</h2>
-              <div className="grid grid-cols-2 sm:grid-cols-2 gap-4">
-                {(content.areas?.length ? content.areas : defaultValues.areas).map(area => (
-                    <div key={area} className="flex flex-col p-4 bg-white rounded-xl shadow-sm border border-transparent hover:border-primary transition-all group">
-                        <div className="flex justify-between items-start mb-2">
-                            <span className="material-symbols-outlined text-gray-300 group-hover:text-primary transition-colors">apartment</span>
-                            <span className="text-[10px] font-bold text-gray-400 bg-gray-50 px-2 py-1 rounded">SP</span>
+                <div className="flex flex-wrap justify-center gap-6 md:gap-10">
+                {(content.awards?.length ? content.awards : defaultValues.awards).map(award => (
+                    <div key={award.title} className="flex flex-col items-center justify-center gap-3 p-6 border border-gray-100 rounded-xl w-40 hover:border-primary hover:shadow-lg hover:-translate-y-1 transition-all duration-300 bg-background-light group">
+                        <span className="material-symbols-outlined text-4xl text-gray-400 group-hover:text-sobre-icon transition-colors">trophy</span>
+                        <div className="text-center">
+                        <span className="block text-xs text-gray-400 font-bold uppercase">{award.yearOrEntity}</span>
+                        <span className="block text-sm font-bold text-text-main">{award.title}</span>
                         </div>
-                        <span className="font-bold text-text-main group-hover:text-primary transition-colors">{area}</span>
                     </div>
                 ))}
-              </div>
-            </div>
-            <div>
-              <div className="flex items-center gap-2 mb-4">
-                <span className="h-px w-8 bg-secondary"></span>
-                <span className="text-secondary font-bold tracking-wider uppercase text-sm">Meus Diferenciais</span>
-              </div>
-              <h2 className="text-3xl font-bold text-text-main mb-8">Por que confiar em mim?</h2>
-              <div className="space-y-6">
-                <div className="flex gap-5 group">
-                  <div className="shrink-0 size-14 rounded-2xl bg-white border border-gray-100 text-text-main flex items-center justify-center group-hover:bg-primary group-hover:border-primary transition-all shadow-sm">
-                    <span className="material-symbols-outlined">handshake</span>
-                  </div>
-                  <div>
-                    <h4 className="text-lg font-bold text-text-main group-hover:text-primary transition-colors">Negociação "Harvard"</h4>
-                    <p className="text-text-muted text-sm mt-1 leading-relaxed">
-                      Certificado em negociação complexa, garanto que seus interesses sejam defendidos com técnica e firmeza para obter o melhor "deal".
-                    </p>
-                  </div>
                 </div>
-              </div>
             </div>
-          </div>
-        </section>
-        <section className="w-full py-16 bg-white">
-          <div className="layout-container max-w-[1280px] mx-auto px-6">
-            <div className="flex flex-col items-center text-center gap-2 mb-10">
-              <span className="material-symbols-outlined text-4xl text-sobre-icon mb-2">military_tech</span>
-              <h2 className="text-2xl font-bold text-text-main">Meus Reconhecimentos</h2>
-              <p className="text-text-muted max-w-lg">Prêmios que validam a dedicação individual e o compromisso com a excelência que entrego a cada cliente.</p>
-            </div>
-            <div className="flex flex-wrap justify-center gap-6 md:gap-10">
-              {(content.awards?.length ? content.awards : defaultValues.awards).map(award => (
-                <div key={award.title} className="flex flex-col items-center justify-center gap-3 p-6 border border-gray-100 rounded-xl w-40 hover:border-primary hover:shadow-lg hover:-translate-y-1 transition-all duration-300 bg-background-light group">
-                    <span className="material-symbols-outlined text-4xl text-gray-400 group-hover:text-sobre-icon transition-colors">trophy</span>
-                    <div className="text-center">
-                    <span className="block text-xs text-gray-400 font-bold uppercase">{award.yearOrEntity}</span>
-                    <span className="block text-sm font-bold text-text-main">{award.title}</span>
-                    </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
+            </section>
+        )}
+
         <section className="w-full py-20 bg-text-main relative overflow-hidden">
           <div className="absolute inset-0 bg-primary/5 opacity-10" style={{backgroundImage: "radial-gradient(#c3e738 1px, transparent 1px)", backgroundSize: "20px 20px"}}></div>
           <div className="layout-container max-w-4xl mx-auto px-6 text-center relative z-10">
-            <h2 className="text-3xl md:text-5xl font-black text-black mb-6">Vamos conversar sobre seu futuro?</h2>
+            <h2 className="text-3xl md:text-5xl font-black text-black mb-6">{content.finalCtaTitle || 'Pronto para transformar seus planos?'}</h2>
             <p className="text-gray-400 text-lg mb-10 max-w-2xl mx-auto">
-              Agende uma consultoria diretamente comigo. Sem intermediários, apenas uma conversa franca sobre seus objetivos imobiliários.
+              Agende uma conversa sem compromisso e descubra como nossa assessoria pode fazer a diferença no seu próximo negócio imobiliário.
             </p>
             <div className="flex flex-col sm:flex-row justify-center gap-4">
               <button className="h-14 px-8 rounded-full text-base font-bold shadow-lg shadow-primary/20 transition-all transform hover:scale-105 flex items-center justify-center gap-2 bg-sobre-cta-bg text-sobre-cta-text">
