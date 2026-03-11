@@ -128,13 +128,21 @@ service cloud.firestore {
 
     match /events/{eventId} {
       allow create: if isOwner(request.resource.data.brokerId);
-      allow read: if isOwner(resource.data.brokerId);
+      allow get: if isOwner(resource.data.brokerId);
+      allow list: if isSignedIn() && resource.data.brokerId == request.auth.uid;
       allow update, delete: if isOwner(resource.data.brokerId) || isAdmin();
     }
 
     match /transactions/{transactionId} {
       allow create: if isOwner(request.resource.data.brokerId);
-      allow read: if isOwner(resource.data.brokerId);
+      
+      // Permite buscar um documento específico se for o dono
+      allow get: if isOwner(resource.data.brokerId);
+      
+      // Permite a query (list) correspondente ao seu código frontend
+      allow list: if isSignedIn() && resource.data.brokerId == request.auth.uid;
+      
+      // Correção para resource.data nas atualizações/exclusões
       allow update, delete: if isOwner(resource.data.brokerId) || isAdmin();
     }
 
@@ -146,13 +154,8 @@ service cloud.firestore {
     
     match /tickets/{ticketId} {
       allow create: if isOwner(request.resource.data.clientId);
-      
-      // Separamos 'get' (busca direta) e 'list' (queries)
       allow get: if isOwner(resource.data.clientId) || isAdmin();
-      
-      // Para queries, deixamos a verificação explícita para o Firestore reconhecer o "where" do frontend
       allow list: if (isSignedIn() && resource.data.clientId == request.auth.uid) || isAdmin();
-      
       allow update: if isOwner(resource.data.clientId) || isAdmin();
       allow delete: if isAdmin();
     }
@@ -164,7 +167,12 @@ service cloud.firestore {
     
     match /corretorMetrics/{userId} {
       allow read: if isOwner(userId) || isAdmin();
-      allow write: if false; // Deixei false pois métricas geralmente são calculadas pelo servidor
+      allow write: if false; 
+    }
+
+    match /announcements/{announcementId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
     }
   }
 }

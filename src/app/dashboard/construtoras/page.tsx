@@ -336,11 +336,11 @@ export default function ConstructorsPage() {
           </div>
           {!isLoading && isAdmin && (
             <div className="flex items-center gap-3">
-              <Button onClick={() => setIsImportModalOpen(true)} variant="outline" className="bg-white border border-gray-200 hover:bg-gray-50 text-text-main font-medium py-2.5 px-5 rounded-lg transition-all duration-300 flex items-center gap-2">
+              <Button onClick={() => setIsImportModalOpen(true)} variant="outline" className="bg-white border border-gray-200 hover:bg-gray-50 text-text-main font-medium py-2.5 px-5 rounded-lg transition-all duration-300 flex items-center gap-2 cursor-pointer">
                   <span className="material-symbols-outlined text-[20px]">upload</span>
                   Importar
               </Button>
-              <Button asChild className="bg-secondary hover:bg-primary text-white hover:text-black font-bold py-2.5 px-5 rounded-lg shadow-sm hover:shadow-glow transition-all duration-300 flex items-center gap-2">
+              <Button asChild className="bg-secondary hover:bg-primary text-white hover:text-black font-bold py-2.5 px-5 rounded-lg shadow-sm hover:shadow-glow transition-all duration-300 flex items-center gap-2 cursor-pointer">
                 <Link href="/dashboard/construtoras/nova">
                   <span className="material-symbols-outlined">add</span>
                   Nova Construtora
@@ -423,7 +423,7 @@ export default function ConstructorsPage() {
                           <span className="material-symbols-outlined text-gray-400">{constructor.icon || 'apartment'}</span>
                         </div>
                         <div>
-                          <Link href={`/dashboard/construtoras/${constructor.id}`} className="text-sm font-bold text-text-main hover:text-primary transition-colors">{constructor.name}</Link>
+                          <Link href={`/dashboard/construtoras/${constructor.id}`} className="text-sm font-bold text-text-main hover:text-primary transition-colors cursor-pointer">{constructor.name}</Link>
                           <p className="text-xs text-text-secondary">CNPJ: {constructor.cnpj || 'Não informado'}</p>
                         </div>
                       </div>
@@ -463,13 +463,13 @@ export default function ConstructorsPage() {
                            )}
                            {isAdmin && (
                             <>
-                            <Button asChild variant="ghost" size="icon" className="size-8 text-text-main hover:text-text-main" title="Editar">
+                            <Button asChild variant="ghost" size="icon" className="size-8 text-text-main hover:text-text-main cursor-pointer" title="Editar">
                               <Link href={`/dashboard/construtoras/editar/${constructor.id}`}>
                                 <span className="material-symbols-outlined text-[18px]">edit</span>
                               </Link>
                             </Button>
                             <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon" className="size-8 text-text-secondary hover:text-red-500" title="Excluir" onClick={() => setConstructorToDelete(constructor)}>
+                              <Button variant="ghost" size="icon" className="size-8 text-text-secondary hover:text-red-500 cursor-pointer" title="Excluir" onClick={() => setConstructorToDelete(constructor)}>
                                 <span className="material-symbols-outlined text-[18px]">delete</span>
                               </Button>
                             </AlertDialogTrigger>
@@ -491,11 +491,11 @@ export default function ConstructorsPage() {
               </span> de <span className="font-bold text-text-main">{filteredConstructors?.length || 0}</span> construtoras
             </p>
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="icon" className="size-8" onClick={handlePrevPage} disabled={currentPage === 1}>
+              <Button variant="outline" size="icon" className="size-8 cursor-pointer" onClick={handlePrevPage} disabled={currentPage === 1}>
                 <span className="material-symbols-outlined text-[16px]">chevron_left</span>
               </Button>
               <span className="text-xs font-bold">{currentPage} de {totalPages}</span>
-              <Button variant="outline" size="icon" className="size-8" onClick={handleNextPage} disabled={currentPage === totalPages}>
+              <Button variant="outline" size="icon" className="size-8 cursor-pointer" onClick={handleNextPage} disabled={currentPage === totalPages}>
                 <span className="material-symbols-outlined text-[16px]">chevron_right</span>
               </Button>
             </div>
@@ -509,8 +509,8 @@ export default function ConstructorsPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setConstructorToDelete(null)}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            <AlertDialogCancel className="cursor-pointer" onClick={() => setConstructorToDelete(null)}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90 cursor-pointer">
               Sim, excluir
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -556,7 +556,7 @@ export default function ConstructorsPage() {
                  )}
             </div>
             <DialogFooter>
-                 <Button type="button" variant="secondary" onClick={() => { setIsImportModalOpen(false); resetImportState(); }}>
+                 <Button type="button" variant="secondary" className="cursor-pointer" onClick={() => { setIsImportModalOpen(false); resetImportState(); }}>
                     Fechar
                 </Button>
             </DialogFooter>

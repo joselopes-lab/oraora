@@ -1,9 +1,8 @@
-
-
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase/index.server';
 import { notFound } from 'next/navigation';
 import FaleConoscoClientPage from '@/layouts/urban-padrao/fale-conosco/FaleConoscoClientPage';
+import DomusFaleConoscoPage from '@/app/layouts/domus/fale-conosco/DomusFaleConoscoPage';
 
 // Force dynamic rendering to ensure data is fresh on every request
 export const dynamic = 'force-dynamic';
@@ -14,8 +13,18 @@ type Broker = {
   logoUrl?: string;
   primaryColor?: string;
   secondaryColor?: string;
+  accentColor?: string;
+  backgroundColor?: string;
+  foregroundColor?: string;
   slug: string;
   layoutId?: string;
+  footerContactEmail?: string;
+  footerContactPhone?: string;
+  footerContactAddress?: string;
+  creci?: string;
+  whatsappUrl?: string;
+  instagramUrl?: string;
+  linkedinUrl?: string;
 };
 
 async function getBrokerData(slug: string): Promise<Broker | null> {
@@ -40,8 +49,10 @@ export default async function BrokerContactPage({ params }: { params: { slug: st
     notFound();
   }
 
-  // You could add logic here to switch between different contact page layouts
-  // based on broker.layoutId if needed in the future.
+  // Lógica de seleção de layout
+  if (broker.layoutId === 'domus') {
+    return <DomusFaleConoscoPage broker={broker} />;
+  }
   
   return <FaleConoscoClientPage broker={broker} />;
 }

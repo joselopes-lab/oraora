@@ -1,4 +1,3 @@
-
 'use client';
 import Link from "next/link";
 import { useState, useMemo } from "react";
@@ -92,7 +91,7 @@ export default function TicketsDashboardPage() {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
                 <div>
                     <nav className="flex items-center gap-2 text-xs text-text-secondary mb-2 font-medium">
-                        <a className="hover:text-primary transition-colors" href="#">Dashboard</a>
+                        <Link className="hover:text-primary transition-colors cursor-pointer" href="/dashboard">Dashboard</Link>
                         <span className="material-symbols-outlined text-[10px]">chevron_right</span>
                         <span className="text-text-main">Tickets de Suporte</span>
                     </nav>
@@ -100,7 +99,7 @@ export default function TicketsDashboardPage() {
                 </div>
                 <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
                     <DialogTrigger asChild>
-                         <Button className="bg-secondary hover:bg-primary-hover text-secondary-foreground font-bold py-2.5 px-6 rounded-lg shadow-glow hover:shadow-lg transition-all duration-300 flex items-center gap-2 transform hover:scale-[1.02]">
+                         <Button className="bg-secondary hover:bg-primary-hover text-secondary-foreground font-bold py-2.5 px-6 rounded-lg shadow-glow hover:shadow-lg transition-all duration-300 flex items-center gap-2 transform hover:scale-[1.02] cursor-pointer">
                             <span className="material-symbols-outlined text-[20px]">add</span>
                             Abrir Novo Ticket
                         </Button>
@@ -180,7 +179,7 @@ export default function TicketsDashboardPage() {
                         <option>Média</option>
                         <option>Baixa</option>
                     </select>
-                    <button className="flex items-center gap-2 px-4 py-2 bg-background-light hover:bg-gray-100 text-text-main rounded-lg text-sm font-bold border border-gray-200 transition-colors whitespace-nowrap">
+                    <button className="flex items-center gap-2 px-4 py-2 bg-background-light hover:bg-gray-100 text-text-main rounded-lg text-sm font-bold border border-gray-200 transition-colors whitespace-nowrap cursor-pointer">
                         <span className="material-symbols-outlined text-[18px]">filter_list</span>
                         Filtros
                     </button>
@@ -205,17 +204,15 @@ export default function TicketsDashboardPage() {
                                 <TableRow><TableCell colSpan={7} className="text-center p-6">Carregando tickets...</TableCell></TableRow>
                             )}
                             {!isLoading && tickets?.map(ticket => (
-                            <tr key={ticket.id} className="hover:bg-gray-50/80 transition-colors group cursor-pointer">
+                            <tr key={ticket.id} className="hover:bg-gray-50/80 transition-colors group cursor-pointer" onClick={() => router.push(`/dashboard/admin/tickets/${ticket.id}`)}>
                                 <td className="p-5">
-                                    <Link href={`/dashboard/admin/tickets/${ticket.id}`}>
-                                        <div className="flex items-center gap-3">
-                                            <div className="size-2 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]"></div>
-                                            <div>
-                                                <p className="font-bold text-text-main text-sm">{ticket.title}</p>
-                                                <p className="text-xs text-text-secondary mt-0.5">ID: {ticket.id.substring(0,6)}</p>
-                                            </div>
+                                    <div className="flex items-center gap-3">
+                                        <div className="size-2 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]"></div>
+                                        <div>
+                                            <p className="font-bold text-text-main text-sm">{ticket.title}</p>
+                                            <p className="text-xs text-text-secondary mt-0.5">ID: {ticket.id.substring(0,6)}</p>
                                         </div>
-                                    </Link>
+                                    </div>
                                 </td>
                                 <td className="p-5">
                                     <div className="flex items-center gap-2">
@@ -248,7 +245,7 @@ export default function TicketsDashboardPage() {
                                     </span>
                                 </td>
                                 <td className="p-5 text-right">
-                                    <Link href={`/dashboard/admin/tickets/${ticket.id}`} className="text-gray-400 hover:text-secondary transition-colors">
+                                    <Link href={`/dashboard/admin/tickets/${ticket.id}`} className="text-gray-400 hover:text-secondary transition-colors cursor-pointer">
                                         <span className="material-symbols-outlined">navigate_next</span>
                                     </Link>
                                 </td>
@@ -260,13 +257,13 @@ export default function TicketsDashboardPage() {
                 <div className="bg-white border-t border-gray-100 p-4 flex items-center justify-between">
                     <p className="text-xs text-text-secondary">Mostrando <span className="font-bold text-text-main">1-{tickets?.length || 0}</span> de <span className="font-bold text-text-main">{tickets?.length || 0}</span> tickets</p>
                     <div className="flex items-center gap-2">
-                        <button className="size-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-400 hover:border-gray-300 hover:text-text-main transition-all disabled:opacity-50">
+                        <button className="size-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-400 hover:border-gray-300 hover:text-text-main transition-all disabled:opacity-50 cursor-pointer" disabled>
                             <span className="material-symbols-outlined text-[16px]">chevron_left</span>
                         </button>
-                        <button className="size-8 rounded-lg bg-secondary text-white font-bold text-xs shadow-glow">1</button>
-                        <button className="size-8 rounded-lg border border-gray-200 flex items-center justify-center text-text-secondary hover:bg-gray-50 hover:text-text-main transition-all text-xs font-medium">2</button>
-                        <button className="size-8 rounded-lg border border-gray-200 flex items-center justify-center text-text-secondary hover:bg-gray-50 hover:text-text-main transition-all text-xs font-medium">3</button>
-                        <button className="size-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-400 hover:border-gray-300 hover:text-text-main transition-all">
+                        <button className="size-8 rounded-lg bg-secondary text-white font-bold text-xs shadow-glow cursor-pointer">1</button>
+                        <button className="size-8 rounded-lg border border-gray-200 flex items-center justify-center text-text-secondary hover:bg-gray-50 hover:text-text-main transition-all text-xs font-medium cursor-pointer">2</button>
+                        <button className="size-8 rounded-lg border border-gray-200 flex items-center justify-center text-text-secondary hover:bg-gray-50 hover:text-text-main transition-all text-xs font-medium cursor-pointer">3</button>
+                        <button className="size-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-400 hover:border-gray-300 hover:text-text-main transition-all cursor-pointer">
                             <span className="material-symbols-outlined text-[16px]">chevron_right</span>
                         </button>
                     </div>

@@ -46,7 +46,7 @@ export default function LoginPage() {
       }
     }
   }, [auth]);
-  
+
   const bgImage = PlaceHolderImages.find(p => p.id === 'login-background');
   const portraitImage = PlaceHolderImages.find(p => p.id === 'broker-portrait');
 
@@ -62,7 +62,7 @@ export default function LoginPage() {
     }
 
     setIsSubmitting(true);
-    
+
     try {
       const userCredential = await signInWithEmailAndPassword(authService, email, password);
       const user = userCredential.user;
@@ -85,15 +85,15 @@ export default function LoginPage() {
       router.push(redirectTo);
 
     } catch (error: any) {
-      setIsSubmitting(false); 
-      
-      console.error("Firebase Login Error Code:", error.code); 
-      
+      setIsSubmitting(false);
+
+      console.error("Firebase Login Error Code:", error.code);
+
       let description = "Credenciais inválidas. Verifique seu e-mail e senha.";
       if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
         description = "Credenciais inválidas. Verifique seu e-mail e senha. Se o erro persistir em produção, assegure-se que o provedor 'E-mail/Senha' está habilitado no Console do Firebase > Authentication > Sign-in method.";
       }
-      
+
       toast({
         variant: "destructive",
         title: "Erro de login",
@@ -129,13 +129,13 @@ export default function LoginPage() {
               <div className="space-y-2">
                 <Label htmlFor="email" className="text-sm font-medium">Endereço de E-mail</Label>
                 <div className="relative">
-                  <Input 
-                    className="w-full h-12 px-4 pr-12 rounded-lg bg-card dark:bg-input border-border text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary transition-all duration-200 shadow-sm hover:border-gray-300 dark:hover:border-gray-600" 
-                    id="email" 
-                    name="email" 
-                    placeholder="corretor@agencia.com.br" 
-                    required 
-                    type="email" 
+                  <Input
+                    className="w-full h-12 px-4 pr-12 rounded-lg bg-card dark:bg-input border-border text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary transition-all duration-200 shadow-sm hover:border-gray-300 dark:hover:border-gray-600"
+                    id="email"
+                    name="email"
+                    placeholder="corretor@agencia.com.br"
+                    required
+                    type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                   />
@@ -150,13 +150,13 @@ export default function LoginPage() {
                   <Link className="text-sm font-semibold text-muted-foreground hover:text-primary transition-colors" href="/esqueceu-a-senha">Esqueceu a senha?</Link>
                 </div>
                 <div className="relative group">
-                  <Input 
-                    className="w-full h-12 px-4 pr-12 rounded-lg bg-card dark:bg-input border-border text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary transition-all duration-200 shadow-sm hover:border-gray-300 dark:hover:border-gray-600" 
-                    id="password" 
-                    name="password" 
-                    placeholder="••••••••" 
-                    required 
-                    type={showPassword ? 'text' : 'password'} 
+                  <Input
+                    className="w-full h-12 px-4 pr-12 rounded-lg bg-card dark:bg-input border-border text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary transition-all duration-200 shadow-sm hover:border-gray-300 dark:hover:border-gray-600"
+                    id="password"
+                    name="password"
+                    placeholder="••••••••"
+                    required
+                    type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                   />
@@ -165,7 +165,7 @@ export default function LoginPage() {
                   </button>
                 </div>
               </div>
-              
+
               <div className="flex items-center">
                 <Checkbox id="remember" className="w-4 h-4 text-primary bg-card border-gray-300 rounded focus:ring-primary focus:ring-2 dark:bg-input dark:border-gray-600" />
                 <Label htmlFor="remember" className="ml-2 text-sm text-muted-foreground">Lembrar de mim por 30 dias</Label>
@@ -177,7 +177,7 @@ export default function LoginPage() {
               </Button>
             </form>
 
-            <div className="relative my-8">
+            {/* <div className="relative my-8">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-border"></div>
               </div>
@@ -188,10 +188,10 @@ export default function LoginPage() {
 
             <Button asChild variant="outline" className="w-full h-12 px-6 font-semibold text-foreground bg-gray-50 dark:bg-input border-border rounded-lg hover:bg-gray-100 dark:hover:bg-secondary">
               <Link href="/solicitar-acesso">Solicitar Acesso de Corretor</Link>
-            </Button>
+            </Button> */}
           </div>
         </main>
-        
+
         <footer className="px-8 py-6 md:px-12 lg:px-16 text-center md:text-left">
           <p className="text-xs text-muted-foreground">
             2025 Oraora Tecnologia. Todos os direitos reservados. CNPJ: 64.052.552/0001-26
@@ -213,7 +213,7 @@ export default function LoginPage() {
         )}
         <div className="absolute inset-0 bg-gradient-to-br from-neutral-dark/90 via-neutral-dark/40 to-primary/20 mix-blend-overlay"></div>
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
-        
+
         <div className="relative z-10 flex flex-col justify-end p-16 w-full h-full text-white">
           <div className="max-w-md space-y-6">
             <div className="w-16 h-1 bg-primary rounded-full"></div>
@@ -223,14 +223,14 @@ export default function LoginPage() {
             <div className="flex items-center gap-4 pt-4">
               {portraitImage && (
                 <div className="size-12 rounded-full overflow-hidden border-2 border-white/20">
-                   <Image
-                      alt={portraitImage.description}
-                      src={portraitImage.imageUrl}
-                      width={48}
-                      height={48}
-                      className="w-full h-full object-cover"
-                      data-ai-hint={portraitImage.imageHint}
-                   />
+                  <Image
+                    alt={portraitImage.description}
+                    src={portraitImage.imageUrl}
+                    width={48}
+                    height={48}
+                    className="w-full h-full object-cover"
+                    data-ai-hint={portraitImage.imageHint}
+                  />
                 </div>
               )}
               <div>
@@ -242,14 +242,14 @@ export default function LoginPage() {
         </div>
 
         <div className="absolute top-12 right-12 flex gap-2">
-            <Card className="p-4 rounded-xl bg-white/10 backdrop-blur-md border border-white/10 shadow-xl w-48 animate-pulse text-white" style={{ animationDuration: '4s' }}>
-                <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs text-gray-300 uppercase tracking-wider">Negócios Ativos</span>
-                    <span className="material-symbols-outlined text-primary text-sm">trending_up</span>
-                </div>
-                <div className="text-2xl font-bold">124</div>
-                <div className="text-xs text-primary mt-1">+12% esta semana</div>
-            </Card>
+          <Card className="p-4 rounded-xl bg-white/10 backdrop-blur-md border border-white/10 shadow-xl w-48 animate-pulse text-white" style={{ animationDuration: '4s' }}>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs text-gray-300 uppercase tracking-wider">Negócios Ativos</span>
+              <span className="material-symbols-outlined text-primary text-sm">trending_up</span>
+            </div>
+            <div className="text-2xl font-bold">124</div>
+            <div className="text-xs text-primary mt-1">+12% esta semana</div>
+          </Card>
         </div>
       </div>
     </div>

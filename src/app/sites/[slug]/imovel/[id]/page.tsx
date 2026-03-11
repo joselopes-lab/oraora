@@ -3,6 +3,7 @@ import { collection, query, where, getDocs, doc, getDoc, limit } from 'firebase/
 import { initializeFirebase } from '@/firebase/index.server';
 import { notFound } from 'next/navigation';
 import PropertyDetailsPage from '@/layouts/urban-padrao/imovel/PropertyDetailsPage';
+import DomusPropertyDetailsPage from '@/app/layouts/domus/imovel/DomusPropertyDetailsPage';
 import type { Metadata } from 'next';
 
 // Force dynamic rendering to ensure data is fresh on every request
@@ -32,6 +33,8 @@ type Property = {
     valor?: number;
     descricao?: string;
     slug?: string;
+    condominio?: number;
+    iptu?: number;
   };
   localizacao: {
     address?: string;
@@ -112,7 +115,7 @@ async function getPropertyData(propertySlug: string): Promise<Property | null> {
                 }
             }
         } catch(e) {
-            console.error("Error fetching document by ID, could be invalid slug format for ID", e);
+            console.error("Error fetching document by ID, it might be an invalid slug format for an ID", e);
         }
     }
 
@@ -183,7 +186,8 @@ export default async function BrokerPropertyDetailsPage({ params: { slug, id: pr
   switch (broker.layoutId) {
     case 'urban-padrao':
         return <PropertyDetailsPage broker={broker} property={property} similarProperties={similarProperties} />;
-    // Futuramente, outros layouts podem ser adicionados aqui
+    case 'domus':
+        return <DomusPropertyDetailsPage broker={broker} property={property} similarProperties={similarProperties} />;
     default:
       // Renderiza o layout padrão se nenhum for selecionado ou se o ID for inválido
       return <PropertyDetailsPage broker={broker} property={property} similarProperties={similarProperties} />;

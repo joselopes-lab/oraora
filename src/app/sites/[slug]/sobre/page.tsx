@@ -1,9 +1,8 @@
-
-
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase/index.server';
 import { notFound } from 'next/navigation';
 import SobreClientPage from '@/layouts/urban-padrao/sobre/SobreClientPage';
+import DomusSobrePage from '@/app/layouts/domus/sobre/DomusSobrePage';
 
 // Force dynamic rendering to ensure data is fresh on every request
 export const dynamic = 'force-dynamic';
@@ -14,8 +13,13 @@ type Broker = {
   logoUrl?: string;
   primaryColor?: string;
   secondaryColor?: string;
+  backgroundColor?: string;
+  foregroundColor?: string;
+  accentColor?: string;
   slug: string;
   layoutId?: string;
+  urbanPadraoSobre?: any;
+  oraoraSobre?: any;
 };
 
 async function getBrokerData(slug: string): Promise<Broker | null> {
@@ -38,6 +42,10 @@ export default async function BrokerAboutPage({ params }: { params: { slug: stri
 
   if (!broker) {
     notFound();
+  }
+  
+  if (broker.layoutId === 'domus') {
+    return <DomusSobrePage broker={broker} />;
   }
   
   return <SobreClientPage broker={broker} />;

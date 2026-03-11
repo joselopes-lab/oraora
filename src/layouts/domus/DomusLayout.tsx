@@ -1,4 +1,3 @@
-
 'use client';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -7,6 +6,9 @@ import { DomusFooter } from './components/DomusFooter';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { useState, useEffect } from 'react';
+import { WhatsAppWidget } from '@/layouts/urban-padrao/components/WhatsAppWidget';
+import { useRouter } from 'next/navigation';
+import { cn } from '@/lib/utils';
 
 
 type Broker = {
@@ -48,7 +50,7 @@ type Broker = {
     value4Title?: string;
     value4Description?: string;
     aboutQuote?: string;
-    aboutTagline?: string; // Added here
+    aboutTagline?: string; 
   };
   footerSlogan?: string;
   footerContactEmail?: string;
@@ -77,6 +79,7 @@ type Property = {
     quartos?: string[] | string;
     tamanho?: string;
     vagas?: string;
+    tipo: string;
   };
 };
 
@@ -86,12 +89,31 @@ type DomusLayoutProps = {
 };
 
 export default function DomusLayout({ broker, properties }: DomusLayoutProps) {
+  const router = useRouter();
   const [isMounted, setIsMounted] = useState(false);
+  
+  // Filter States
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterType, setFilterType] = useState("all");
+  const [maxPrice, setMaxPrice] = useState("5000000");
+  const [finality, setFinality] = useState<'venda' | 'aluguel'>('venda');
+
   useEffect(() => {
     setIsMounted(true);
   }, []);
   
   const content = broker.homepage || {};
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const params = new URLSearchParams();
+    if (searchQuery) params.set('q', searchQuery);
+    if (filterType !== 'all') params.set('type', filterType);
+    if (maxPrice !== '5000000') params.set('maxPrice', maxPrice);
+    params.set('finality', finality);
+    
+    router.push(`/sites/${broker.slug}/search?${params.toString()}`);
+  };
 
   const getEmbedUrl = (url: string | undefined): string | null => {
     if (!url) return null;
@@ -155,10 +177,21 @@ export default function DomusLayout({ broker, properties }: DomusLayoutProps) {
 
   return (
     <div className="domus-theme font-display bg-background-light dark:bg-background-dark text-[#161811] dark:text-white transition-colors duration-300">
+      <style jsx global>{`
+        .price-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 18px;
+            width: 18px;
+            border-radius: 50%;
+            background: #00FF00;
+            cursor: pointer;
+            border: 2px solid white;
+        }
+      `}</style>
       <DomusHeader broker={broker} />
       <main>
-        <section className="max-w-[1280px] mx-auto px-6 py-12 md:py-20">
-          <div className="flex flex-col lg:flex-row gap-12 items-center">
+        <section className="max-w-[1280px] mx-auto px-6 pt-12 md:pt-20 pb-10">
+          <div className="flex flex-col lg:flex-row gap-12 items-center mb-16 lg:mb-24">
             <div className="flex flex-col gap-8 flex-1 text-left">
               <div className="flex flex-col gap-4">
                 <span className="inline-flex items-center gap-2 px-3 py-1 bg-primary/20 text-background-dark dark:text-primary rounded-full text-xs font-bold uppercase tracking-wider w-fit">
@@ -169,13 +202,14 @@ export default function DomusLayout({ broker, properties }: DomusLayoutProps) {
                   {content.heroSubtitle || defaultContent.heroSubtitle}
                 </p>
               </div>
+              
               <div className="flex flex-col sm:flex-row gap-4">
                 {videoEmbedUrl && isMounted && (
                   <Dialog>
                     <DialogTrigger asChild>
-                      <button className="flex min-w-[200px] items-center justify-center gap-2 rounded-xl h-14 px-8 bg-primary text-background-dark text-base font-bold shadow-lg hover:shadow-primary/20 hover:scale-[1.02] transition-all">
+                      <button type="button" className="flex min-w-[200px] items-center justify-center gap-2 rounded-xl h-14 px-8 bg-primary text-background-dark text-base font-bold shadow-lg hover:shadow-primary/20 hover:scale-[1.02] transition-all">
                         <span className="material-symbols-outlined">play_circle</span>
-                        Assistir Vídeo
+                        Assistir Apresentação
                       </button>
                     </DialogTrigger>
                     <DialogContent className="p-0 bg-black border-0 max-w-4xl">
@@ -201,8 +235,8 @@ export default function DomusLayout({ broker, properties }: DomusLayoutProps) {
                   </Dialog>
                 )}
                 <button className="flex min-w-[200px] items-center justify-center rounded-xl h-14 px-8 bg-white dark:bg-white/5 border border-[#e3e5dc] dark:border-white/10 text-[#161811] dark:text-white text-base font-bold hover:bg-gray-50 dark:hover:bg-white/10 transition-all">
-                        Ver Catálogo
-                    </button>
+                    Ver Catálogo
+                </button>
               </div>
             </div>
             <div className="w-full flex-1">
@@ -227,7 +261,88 @@ export default function DomusLayout({ broker, properties }: DomusLayoutProps) {
               </div>
             </div>
           </div>
+
+          {/* Horizontal Search Form */}
+          <div className="bg-white dark:bg-slate-900/90 backdrop-blur-2xl p-8 rounded-[2.5rem] border border-slate-200 dark:border-white/10 shadow-2xl relative z-20 -mt-16 lg:-mt-24 w-full">
+            <form onSubmit={handleSearchSubmit} className="flex flex-col lg:flex-row gap-6 items-end">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 flex-1 w-full">
+                    {/* Finalidade */}
+                    <div>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">Finalidade</label>
+                        <div className="flex p-1 bg-gray-50 dark:bg-slate-800/50 rounded-xl border border-slate-200/50 dark:border-slate-700/50">
+                            <button 
+                                type="button"
+                                onClick={() => setFinality('venda')}
+                                className={cn("flex-1 py-2 px-4 rounded-lg font-bold text-xs transition-all", finality === 'venda' ? "bg-primary text-black shadow-sm" : "text-slate-500 hover:bg-gray-100 dark:hover:bg-slate-700")}
+                            >
+                                Venda
+                            </button>
+                            <button 
+                                type="button"
+                                onClick={() => setFinality('aluguel')}
+                                className={cn("flex-1 py-2 px-4 rounded-lg font-bold text-xs transition-all", finality === 'aluguel' ? "bg-primary text-black shadow-sm" : "text-slate-500 hover:bg-gray-100 dark:hover:bg-slate-700")}
+                            >
+                                Aluguel
+                            </button>
+                        </div>
+                    </div>
+                    {/* Tipo */}
+                    <div>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">Tipo de Imóvel</label>
+                        <select 
+                            value={filterType}
+                            onChange={(e) => setFilterType(e.target.value)}
+                            className="w-full h-11 bg-gray-50 dark:bg-slate-800/50 border-slate-200/50 dark:border-slate-700/50 rounded-xl py-2 px-4 text-xs font-bold focus:ring-primary focus:border-primary text-slate-900 dark:text-white appearance-none"
+                        >
+                            <option value="all">Todos os tipos</option>
+                            <option value="Apartamento">Apartamentos</option>
+                            <option value="Casa">Casas de Luxo</option>
+                            <option value="Cobertura">Coberturas</option>
+                            <option value="Terreno">Terrenos</option>
+                        </select>
+                    </div>
+                    {/* Localização */}
+                    <div>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">Cidade ou Bairro</label>
+                        <div className="relative">
+                            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">place</span>
+                            <input 
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="w-full h-11 bg-gray-50 dark:bg-slate-800/50 border-slate-200/50 dark:border-slate-700/50 rounded-xl py-2 pl-10 pr-4 text-xs font-bold focus:ring-primary focus:border-primary text-slate-900 dark:text-white transition-all outline-none" 
+                                placeholder="João Pessoa, Manaíra..." 
+                                type="text"
+                            />
+                        </div>
+                    </div>
+                    {/* Preço */}
+                    <div>
+                        <div className="flex justify-between items-center mb-3 ml-1">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Valor Máximo</label>
+                            <span className="text-[10px] font-black text-primary uppercase">{parseInt(maxPrice).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })}</span>
+                        </div>
+                        <div className="py-2 px-1">
+                            <input 
+                                className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-primary price-slider" 
+                                max="5000000" 
+                                min="0" 
+                                step="50000" 
+                                type="range"
+                                value={maxPrice}
+                                onChange={(e) => setMaxPrice(e.target.value)}
+                            />
+                        </div>
+                    </div>
+                </div>
+                
+                <button type="submit" className="w-full lg:w-auto min-w-[200px] bg-primary text-black font-black h-14 rounded-2xl shadow-lg hover:shadow-primary/20 hover:scale-[1.05] transition-all flex items-center justify-center gap-2 uppercase text-xs tracking-[0.1em] group">
+                    <span className="material-symbols-outlined transition-transform group-hover:rotate-12">search</span>
+                    Buscar Imóveis
+                </button>
+            </form>
+          </div>
         </section>
+
         {!content.hideStats && (
         <section className="bg-white dark:bg-background-dark py-16 border-y border-[#f3f4f0] dark:border-white/5">
             <div className="max-w-[1280px] mx-auto px-6">
@@ -259,13 +374,13 @@ export default function DomusLayout({ broker, properties }: DomusLayoutProps) {
 <h2 className="text-[#161811] dark:text-white text-4xl font-bold leading-tight tracking-tight">{content.featuredTitle || defaultContent.featuredTitle}</h2>
 <p className="text-[#161811]/60 dark:text-white/60 text-lg">{content.featuredSubtitle || defaultContent.featuredSubtitle}</p>
 </div>
-<button className="flex items-center gap-2 text-background-dark dark:text-primary font-bold hover:underline group">
+<Link href={`/sites/${broker.slug}/search`} className="flex items-center gap-2 text-background-dark dark:text-primary font-bold hover:underline group">
                 Ver todos os imóveis <span className="material-symbols-outlined group-hover:translate-x-1 transition-transform">arrow_forward</span>
-</button>
+</Link>
 </div>
 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {featuredProperties.map((property) => (
-              <div key={property.id} className="flex flex-col gap-4 group cursor-pointer">
+              <Link key={property.id} href={`/sites/${broker.slug}/imovel/${property.informacoesbasicas.slug || property.id}`} className="flex flex-col gap-4 group cursor-pointer">
                 <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden shadow-lg">
                   <div className="absolute inset-0 bg-center bg-no-repeat bg-cover group-hover:scale-110 transition-transform duration-700" style={{ backgroundImage: 'url(' + (property.midia?.[0] || 'https://picsum.photos/400/300') + ')' }}></div>
                   <div className="absolute top-4 left-4 bg-white/90 dark:bg-background-dark/90 backdrop-blur px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-widest">{property.informacoesbasicas.status}</div>
@@ -281,7 +396,7 @@ export default function DomusLayout({ broker, properties }: DomusLayoutProps) {
 <span className="material-symbols-outlined text-lg">bed</span> {Array.isArray(property.caracteristicasimovel.quartos) ? property.caracteristicasimovel.quartos.join(', ') : property.caracteristicasimovel.quartos}
                     </div>
 <div className="flex items-center gap-1 text-[#161811]/60 dark:text-white/60 text-sm">
-<span className="material-symbols-outlined text-lg">bathtub</span> {property.caracteristicasimovel.vagas}
+<span className="material-symbols-outlined text-lg">directions_car</span> {property.caracteristicasimovel.vagas}
                     </div>
 <div className="flex items-center gap-1 text-[#161811]/60 dark:text-white/60 text-sm">
 <span className="material-symbols-outlined text-lg">square_foot</span> {property.caracteristicasimovel.tamanho}
@@ -289,7 +404,7 @@ export default function DomusLayout({ broker, properties }: DomusLayoutProps) {
 </div>
 <p className="text-[#161811] dark:text-white text-2xl font-bold mt-2">{property.informacoesbasicas.valor?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) || 'Consulte'}</p>
 </div>
-</div>
+</Link>
             ))}
 </div>
 </section>
@@ -353,16 +468,17 @@ export default function DomusLayout({ broker, properties }: DomusLayoutProps) {
 <h2 className="text-white text-4xl md:text-6xl font-bold leading-tight tracking-tight">{content.ctaTitle || defaultContent.ctaTitle}</h2>
 <p className="text-white/60 text-xl">{content.ctaSubtitle || defaultContent.ctaSubtitle}</p>
 <div className="flex flex-col sm:flex-row gap-4 mt-4">
-<button className="flex min-w-[240px] items-center justify-center gap-3 rounded-full h-16 px-10 bg-primary text-background-dark text-lg font-bold shadow-lg hover:scale-[1.05] transition-transform">
+<Link href={`/sites/${broker.slug}/fale-conosco`} className="flex min-w-[240px] items-center justify-center gap-3 rounded-full h-16 px-10 bg-primary text-background-dark text-lg font-bold shadow-lg hover:scale-[1.05] transition-transform">
 <span className="material-symbols-outlined font-bold">chat</span>
                         Falar no WhatsApp
-                    </button>
+                    </Link>
 </div>
 </div>
 </div>
 </section>
 </main>
 <DomusFooter broker={broker} />
+<WhatsAppWidget brokerId={broker.id} />
 </div>
   );
 }

@@ -4,6 +4,7 @@ import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firesto
 import { useFirestore } from '@/firebase';
 import { notFound, useParams } from 'next/navigation';
 import SearchResults from '@/layouts/urban-padrao/search/SearchResults';
+import DomusSearchPage from '@/app/layouts/domus/search/DomusSearchPage';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -24,10 +25,6 @@ type Broker = {
   layoutId?: string; 
 };
 
-type Portfolio = {
-  propertyIds: string[];
-};
-
 type Property = {
   id: string;
   informacoesbasicas: {
@@ -35,14 +32,17 @@ type Property = {
     status: string;
     valor?: number;
     descricao?: string;
+    slug?: string;
   };
   localizacao: {
     bairro: string;
     cidade: string;
+    estado: string;
   };
   midia: string[];
   caracteristicasimovel: {
-    quartos?: string[];
+    tipo: string;
+    quartos?: string[] | string;
     tamanho?: string;
     vagas?: string;
   };
@@ -122,6 +122,10 @@ export default function BrokerSearchPage() {
   
   if (!broker) {
       return notFound();
+  }
+
+  if (broker.layoutId === 'domus') {
+    return <DomusSearchPage broker={broker} properties={properties} />;
   }
 
   return <SearchResults broker={broker} properties={properties} />;

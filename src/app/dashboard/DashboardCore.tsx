@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from "next/link";
@@ -5,11 +6,17 @@ import { UserMenu } from "./user-info";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { UserProfile } from "@/firebase/auth-provider";
 import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const AIChatWidget = () => {
     const [isChatOpen, setIsChatOpen] = useState(false);
@@ -44,14 +51,14 @@ const AIChatWidget = () => {
     };
 
     return (
-        <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-4">
+        <div className="fixed bottom-6 right-6 z-[100] flex flex-col items-end gap-4 pointer-events-none">
             {/* Chat Window */}
             <div
                 id="chatWindow"
                 className={cn(
-                    "w-[420px] h-[600px] bg-white rounded-2xl flex flex-col shadow-2xl border border-gray-100 overflow-hidden",
+                    "w-[420px] h-[600px] bg-white rounded-2xl flex flex-col shadow-2xl border border-gray-100 overflow-hidden pointer-events-auto",
                     "transition-all duration-300 ease-out",
-                    isChatOpen ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 translate-y-4 pointer-events-none'
+                    isChatOpen ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 translate-y-4 pointer-events-none hidden'
                 )}
             >
               <header className="p-4 border-b border-gray-100 flex items-center justify-between bg-white">
@@ -69,7 +76,7 @@ const AIChatWidget = () => {
                     <p className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">Online agora</p>
                   </div>
                 </div>
-                <button className="p-2 hover:bg-gray-100 rounded-full transition-colors" onClick={toggleChat}>
+                <button className="p-2 hover:bg-gray-100 rounded-full transition-colors cursor-pointer" onClick={toggleChat}>
                   <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <path d="M6 18L18 6M6 6l12 12" strokeLinecap="round" strokeWidth="2"></path>
                   </svg>
@@ -94,17 +101,6 @@ const AIChatWidget = () => {
                     )
                 ))}
               </div>
-              <div className="px-4 py-2 flex gap-2 overflow-x-auto" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                <button className="whitespace-nowrap px-3 py-1.5 bg-white border border-gray-200 text-xs font-medium text-gray-600 rounded-full hover:border-primary hover:text-secondary transition-all">
-                  Ver próximos compromissos
-                </button>
-                <button className="whitespace-nowrap px-3 py-1.5 bg-white border border-gray-200 text-xs font-medium text-gray-600 rounded-full hover:border-primary hover:text-secondary transition-all">
-                  Dicas de leads
-                </button>
-                <button className="whitespace-nowrap px-3 py-1.5 bg-white border border-gray-200 text-xs font-medium text-gray-600 rounded-full hover:border-primary hover:text-secondary transition-all">
-                  Status de vendas
-                </button>
-              </div>
               <footer className="p-4 bg-white">
                 <form onSubmit={handleSendMessage} className="relative flex items-center">
                   <input 
@@ -114,41 +110,41 @@ const AIChatWidget = () => {
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
                   />
-                  <button type="submit" className="absolute right-2 p-2 bg-secondary text-primary rounded-lg hover:bg-black transition-colors">
+                  <button type="submit" className="absolute right-2 p-2 bg-secondary text-primary rounded-lg hover:bg-black transition-colors cursor-pointer">
                     <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" strokeLinecap="round" strokeWidth="2"></path>
+                      <path d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"></path>
                     </svg>
                   </button>
                 </form>
-                <p className="text-center text-[9px] text-gray-400 mt-3 uppercase tracking-tighter">Powered by NextEstate AI Engine</p>
               </footer>
             </div>
 
             <button
                 className={cn(
-                    "w-14 h-14 bg-primary rounded-2xl flex items-center justify-center shadow-lg hover:scale-105 transition-transform group",
+                    "w-14 h-14 bg-primary rounded-2xl flex items-center justify-center shadow-lg hover:scale-105 transition-transform group cursor-pointer pointer-events-auto",
                     isChatOpen && 'hidden'
                 )}
                 onClick={toggleChat}
             >
                 <svg className="h-7 w-7 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" strokeLinecap="round" strokeWidth="2"></path>
+                    <path d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"></path>
                 </svg>
             </button>
         </div>
     );
 };
 
-// Este componente agora espera receber o userProfile e não faz mais buscas.
 export default function DashboardCore({
   children,
   userProfile,
 }: {
   children: React.ReactNode;
-  userProfile: UserProfile; // Não é mais nulo, garantido pelo AuthGuard
+  userProfile: UserProfile;
 }) {
   const pathname = usePathname();
   const firestore = useFirestore();
+  const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const defaultLogo = PlaceHolderImages.find(img => img.id === 'default-logo')?.imageUrl;
 
   const siteContentRef = useMemoFirebase(
@@ -157,11 +153,21 @@ export default function DashboardCore({
   );
   const { data: siteData } = useDoc<{ logoUrl?: string }>(siteContentRef);
 
+  const handleMouseEnter = (id: string) => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    setOpenMenu(id);
+  };
+
+  const handleMouseLeave = () => {
+    timeoutRef.current = setTimeout(() => {
+      setOpenMenu(null);
+    }, 150);
+  };
 
   const navLinkClasses = (path: string, exact: boolean = false) => {
     const isActive = exact ? pathname === path : pathname.startsWith(path);
     return cn(
-      "text-text-secondary hover:text-text-main font-medium text-sm transition-colors h-full flex items-center relative gap-2",
+      "text-text-secondary hover:text-text-main font-medium text-sm transition-colors h-full flex items-center relative gap-2 cursor-pointer whitespace-nowrap",
       "after:content-[''] after:absolute after:bottom-0 after:left-0 after:h-[2px] after:bg-primary after:transition-all after:duration-300",
       isActive ? "text-text-main font-semibold after:w-full" : "after:w-0 hover:after:w-full"
     );
@@ -170,26 +176,10 @@ export default function DashboardCore({
   const dropdownTriggerClasses = (paths: string[]) => {
     const isActive = paths.some(p => pathname.startsWith(p));
     return cn(
-      "text-text-secondary hover:text-text-main font-medium text-sm transition-colors flex items-center gap-2 h-full relative group-hover:after:w-full",
+      "text-text-secondary hover:text-text-main font-medium text-sm transition-colors flex items-center gap-2 h-full relative cursor-pointer whitespace-nowrap outline-none",
       "after:content-[''] after:absolute after:bottom-0 after:left-0 after:h-[2px] after:bg-primary after:transition-all after:duration-300",
-      isActive ? "text-text-main font-semibold after:w-full" : "after:w-0"
+      isActive ? "text-text-main font-semibold after:w-full" : "after:w-0 hover:after:w-full"
     );
-  }
-
-  const dropdownItemClasses = (path: string) => {
-    const isActive = pathname === path;
-    return cn(
-      "block px-4 py-2 text-sm text-text-secondary hover:bg-gray-50 hover:text-primary transition-colors",
-      isActive && "font-bold text-text-main bg-primary/10 border-l-4 border-primary"
-    )
-  }
-  
-  const dropdownItemClassesSub = (path: string) => {
-    const isActive = pathname.startsWith(path);
-    return cn(
-      "block px-4 py-2 text-sm text-text-secondary hover:bg-gray-50 hover:text-primary transition-colors",
-      isActive && "font-bold text-text-main bg-primary/10 border-l-4 border-primary"
-    )
   }
 
   return (
@@ -198,155 +188,152 @@ export default function DashboardCore({
         <div className="max-w-[1440px] mx-auto px-6 md:px-10 h-16 flex items-center justify-between">
           <div className="flex items-center gap-10 h-full">
             <Link href="/dashboard" className="flex items-center gap-3">
-              <Image src={siteData?.logoUrl || defaultLogo || ""} alt="Oraora Logo" width={128} height={32} className="h-6 w-auto" style={{ width: 'auto' }} />
+              <Image src={siteData?.logoUrl || defaultLogo || ""} alt="Oraora Logo" width={128} height={32} className="h-6 w-auto" />
             </Link>
-            <nav className="hidden md:flex items-center gap-8 h-full">
+            <nav className="hidden md:flex items-center gap-6 h-full">
                 {userProfile.userType === 'broker' && (
                   <>
-                    <Link
-                        className={navLinkClasses("/dashboard", true)}
-                        href="/dashboard"
-                    >
-                        <span className="material-symbols-outlined text-sm">grid_view</span>
-                        Dashboard
+                    <Link className={navLinkClasses("/dashboard", true)} href="/dashboard">
+                      <span className="material-symbols-outlined text-[20px]">grid_view</span>
+                      Dashboard
                     </Link>
-                    <div className="relative group h-full flex items-center">
-                      <button className={dropdownTriggerClasses(["/dashboard/leads", "/dashboard/clientes", "/dashboard/construtoras", "/dashboard/personas"])}>
-                        <span className="material-symbols-outlined text-sm">group</span>
-                        Clientes
-                      </button>
-                      <div className="absolute top-full left-0 w-56 bg-white border border-gray-200 shadow-xl rounded-b-lg py-2 z-[60] hidden group-hover:block animate-in fade-in duration-150">
-                        <Link className={dropdownItemClassesSub("/dashboard/leads")} href="/dashboard/leads">Leads / Pipeline</Link>
-                        <Link className={dropdownItemClassesSub("/dashboard/clientes")} href="/dashboard/clientes">Clientes Ativos</Link>
-                        <Link className={dropdownItemClassesSub("/dashboard/construtoras")} href="/dashboard/construtoras">Construtoras</Link>
-                        <Link className={dropdownItemClassesSub("/dashboard/personas")} href="/dashboard/personas">Personas</Link>
-                      </div>
+                    
+                    <div onMouseEnter={() => handleMouseEnter('clientes')} onMouseLeave={handleMouseLeave} className="h-full">
+                      <DropdownMenu open={openMenu === 'clientes'} onOpenChange={(open) => setOpenMenu(open ? 'clientes' : null)}>
+                        <DropdownMenuTrigger className={dropdownTriggerClasses(["/dashboard/leads", "/dashboard/clientes", "/dashboard/personas"])}>
+                          <span className="material-symbols-outlined text-[20px]">group</span>
+                          Clientes
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="w-56" onMouseEnter={() => handleMouseEnter('clientes')} onMouseLeave={handleMouseLeave}>
+                          <DropdownMenuItem asChild><Link href="/dashboard/leads">Leads / Pipeline</Link></DropdownMenuItem>
+                          <DropdownMenuItem asChild><Link href="/dashboard/clientes">Clientes Ativos</Link></DropdownMenuItem>
+                          <DropdownMenuItem asChild><Link href="/dashboard/personas">Personas</Link></DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
 
-                    <div className="relative group h-full flex items-center">
-                      <button className={dropdownTriggerClasses(["/dashboard/imoveis", "/dashboard/minha-carteira", "/dashboard/avulso"])}>
-                         <span className="material-symbols-outlined text-sm">folder</span>
-                        Portfólio
-                      </button>
-                      <div className="absolute top-full left-0 w-56 bg-white border border-gray-200 shadow-xl rounded-b-lg py-2 z-[60] hidden group-hover:block animate-in fade-in duration-150">
-                        <Link className={dropdownItemClassesSub("/dashboard/imoveis")} href="/dashboard/imoveis">Imóveis de Construtoras</Link>
-                        <Link className={dropdownItemClassesSub("/dashboard/minha-carteira")} href="/dashboard/minha-carteira">Minha Carteira</Link>
-                        <Link className={dropdownItemClassesSub("/dashboard/avulso")} href="/dashboard/avulso">Imóveis Próprios</Link>
-                      </div>
+                    <div onMouseEnter={() => handleMouseEnter('portfolio')} onMouseLeave={handleMouseLeave} className="h-full">
+                      <DropdownMenu open={openMenu === 'portfolio'} onOpenChange={(open) => setOpenMenu(open ? 'portfolio' : null)}>
+                        <DropdownMenuTrigger className={dropdownTriggerClasses(["/dashboard/imoveis", "/dashboard/minha-carteira", "/dashboard/avulso"])}>
+                          <span className="material-symbols-outlined text-[20px]">apartment</span>
+                          Portfólio
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="w-56" onMouseEnter={() => handleMouseEnter('portfolio')} onMouseLeave={handleMouseLeave}>
+                          <DropdownMenuItem asChild><Link href="/dashboard/imoveis">Imóveis de Construtoras</Link></DropdownMenuItem>
+                          <DropdownMenuItem asChild><Link href="/dashboard/minha-carteira">Minha Carteira</Link></DropdownMenuItem>
+                          <DropdownMenuItem asChild><Link href="/dashboard/avulso">Imóveis Próprios</Link></DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                     
-                    <div className="relative group h-full flex items-center">
-                        <button className={dropdownTriggerClasses(["/dashboard/agenda", "/dashboard/propostas", "/dashboard/financeiro"])}>
-                            <span className="material-symbols-outlined text-sm">business_center</span>
-                            Negócios
-                        </button>
-                        <div className="absolute top-full left-0 w-56 bg-white border border-gray-200 shadow-xl rounded-b-lg py-2 z-[60] hidden group-hover:block animate-in fade-in duration-150">
-                            <Link className={dropdownItemClassesSub("/dashboard/agenda")} href="/dashboard/agenda">Agenda</Link>
-                            <Link className={dropdownItemClassesSub("/dashboard/propostas")} href="/dashboard/propostas">Propostas</Link>
-                            <Link className={dropdownItemClassesSub("/dashboard/financeiro")} href="/dashboard/financeiro">Financeiro</Link>
-                        </div>
+                    <div onMouseEnter={() => handleMouseEnter('negocios')} onMouseLeave={handleMouseLeave} className="h-full">
+                      <DropdownMenu open={openMenu === 'negocios'} onOpenChange={(open) => setOpenMenu(open ? 'negocios' : null)}>
+                        <DropdownMenuTrigger className={dropdownTriggerClasses(["/dashboard/agenda", "/dashboard/propostas", "/dashboard/financeiro"])}>
+                          <span className="material-symbols-outlined text-[20px]">business_center</span>
+                          Negócios
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="w-56" onMouseEnter={() => handleMouseEnter('negocios')} onMouseLeave={handleMouseLeave}>
+                          <DropdownMenuItem asChild><Link href="/dashboard/agenda">Agenda</Link></DropdownMenuItem>
+                          <DropdownMenuItem asChild><Link href="/dashboard/propostas">Propostas</Link></DropdownMenuItem>
+                          <DropdownMenuItem asChild><Link href="/dashboard/financeiro">Financeiro</Link></DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                     
-                    <div className="relative group h-full flex items-center">
-                        <button className={dropdownTriggerClasses(["/dashboard/meu-site", "/dashboard/marketing", "/dashboard/loja", "/dashboard/sob-medida"])}>
-                            <span className="material-symbols-outlined text-sm">trending_up</span>
-                            Crescimento
-                        </button>
-                        <div className="absolute top-full left-0 w-56 bg-white border border-gray-200 shadow-xl rounded-b-lg py-2 z-[60] hidden group-hover:block animate-in fade-in duration-150">
-                            <Link className={dropdownItemClassesSub("/dashboard/meu-site")} href="/dashboard/meu-site">Meu Site</Link>
-                            <Link className={dropdownItemClassesSub("/dashboard/marketing")} href="/dashboard/marketing">Marketing</Link>
-                            <Link className={dropdownItemClassesSub("/dashboard/loja")} href="/dashboard/loja">Loja</Link>
-                            <Link className={dropdownItemClassesSub("/dashboard/sob-medida")} href="/dashboard/sob-medida">Sob Medida</Link>
-                        </div>
+                    <div onMouseEnter={() => handleMouseEnter('crescimento')} onMouseLeave={handleMouseLeave} className="h-full">
+                      <DropdownMenu open={openMenu === 'crescimento'} onOpenChange={(open) => setOpenMenu(open ? 'crescimento' : null)}>
+                        <DropdownMenuTrigger className={dropdownTriggerClasses(["/dashboard/meu-site", "/dashboard/marketing", "/dashboard/loja", "/dashboard/oralink"])}>
+                          <span className="material-symbols-outlined text-[20px]">trending_up</span>
+                          Crescimento
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="w-56" onMouseEnter={() => handleMouseEnter('crescimento')} onMouseLeave={handleMouseLeave}>
+                          <DropdownMenuItem asChild><Link href="/dashboard/meu-site">Meu Site</Link></DropdownMenuItem>
+                          <DropdownMenuItem asChild><Link href="/dashboard/oralink">Oralink</Link></DropdownMenuItem>
+                          <DropdownMenuItem asChild><Link href="/dashboard/marketing">Marketing</Link></DropdownMenuItem>
+                          <DropdownMenuItem asChild><Link href="/dashboard/loja">Loja</Link></DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
 
-                    <div className="relative group h-full flex items-center">
-                        <button className={dropdownTriggerClasses(["/dashboard/benchmark", "/dashboard/score", "/dashboard/insights"])}>
-                            <span className="material-symbols-outlined text-sm">psychology</span>
-                            Inteligência
-                        </button>
-                        <div className="absolute top-full left-0 w-56 bg-white border border-gray-200 shadow-xl rounded-b-lg py-2 z-[60] hidden group-hover:block animate-in fade-in duration-150">
-                            <Link className={dropdownItemClassesSub("/dashboard/benchmark")} href="/dashboard/benchmark">Benchmark</Link>
-                            <Link className={dropdownItemClassesSub("/dashboard/score")} href="/dashboard/score">Score</Link>
-                            <Link className={dropdownItemClassesSub("/dashboard/insights")} href="/dashboard/insights">Insights</Link>
-                        </div>
-                    </div>
                     <Link className={navLinkClasses("/dashboard/suporte")} href="/dashboard/suporte">
-                        <span className="material-symbols-outlined text-sm">support_agent</span>
-                        Suporte
+                      <span className="material-symbols-outlined text-[20px]">help</span>
+                      Suporte
                     </Link>
                   </>
                 )}
                 
                 {userProfile.userType === 'admin' && (
                   <>
-                    {/* Inteligência */}
-                    <div className="relative group h-full flex items-center">
-                      <button className={dropdownTriggerClasses(["/dashboard", "/dashboard/admin/leads", "/dashboard/personas"])}>
-                        <span className="material-symbols-outlined text-sm">psychology</span>
-                        Inteligência
-                      </button>
-                      <div className="absolute top-full left-0 w-56 bg-white border border-gray-200 shadow-xl rounded-b-lg py-2 z-[60] hidden group-hover:block animate-in fade-in duration-150">
-                        <Link className={dropdownItemClasses("/dashboard", true)} href="/dashboard">Visão Geral</Link>
-                        <Link className={dropdownItemClassesSub("/dashboard/admin/leads")} href="/dashboard/admin/leads">Leads</Link>
-                        <Link className={dropdownItemClassesSub("/dashboard/personas")} href="/dashboard/personas">Personas</Link>
-                      </div>
+                    <div onMouseEnter={() => handleMouseEnter('inteligencia')} onMouseLeave={handleMouseLeave} className="h-full">
+                      <DropdownMenu open={openMenu === 'inteligencia'} onOpenChange={(open) => setOpenMenu(open ? 'inteligencia' : null)}>
+                        <DropdownMenuTrigger className={dropdownTriggerClasses(["/dashboard", "/dashboard/admin/leads", "/dashboard/personas"])}>
+                          <span className="material-symbols-outlined text-[20px]">psychology</span>
+                          Inteligência
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="w-56" onMouseEnter={() => handleMouseEnter('inteligencia')} onMouseLeave={handleMouseLeave}>
+                          <DropdownMenuItem asChild><Link href="/dashboard">Visão Geral</Link></DropdownMenuItem>
+                          <DropdownMenuItem asChild><Link href="/dashboard/admin/leads">Leads</Link></DropdownMenuItem>
+                          <DropdownMenuItem asChild><Link href="/dashboard/personas">Personas</Link></DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
 
-                    {/* Rede */}
-                    <div className="relative group h-full flex items-center">
-                      <button className={dropdownTriggerClasses(["/dashboard/admin/users", "/dashboard/construtoras"])}>
-                        <span className="material-symbols-outlined text-sm">hub</span>
-                        Rede
-                      </button>
-                      <div className="absolute top-full left-0 w-56 bg-white border border-gray-200 shadow-xl rounded-b-lg py-2 z-[60] hidden group-hover:block animate-in fade-in duration-150">
-                        <Link className={dropdownItemClassesSub("/dashboard/admin/users")} href="/dashboard/admin/users">Usuários</Link>
-                        <Link className={dropdownItemClassesSub("/dashboard/construtoras")} href="/dashboard/construtoras">Construtoras</Link>
-                      </div>
+                    <div onMouseEnter={() => handleMouseEnter('rede')} onMouseLeave={handleMouseLeave} className="h-full">
+                      <DropdownMenu open={openMenu === 'rede'} onOpenChange={(open) => setOpenMenu(open ? 'rede' : null)}>
+                        <DropdownMenuTrigger className={dropdownTriggerClasses(["/dashboard/admin/users", "/dashboard/construtoras"])}>
+                          <span className="material-symbols-outlined text-[20px]">lan</span>
+                          Rede
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="w-56" onMouseEnter={() => handleMouseEnter('rede')} onMouseLeave={handleMouseLeave}>
+                          <DropdownMenuItem asChild><Link href="/dashboard/admin/users">Usuários</Link></DropdownMenuItem>
+                          <DropdownMenuItem asChild><Link href="/dashboard/construtoras">Construtoras</Link></DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
 
-                    {/* Ativos */}
-                     <Link className={navLinkClasses("/dashboard/imoveis")} href="/dashboard/imoveis">
-                        <span className="material-symbols-outlined text-sm">apartment</span>
-                        Ativos
-                      </Link>
-
-                    {/* Monetização */}
-                    <div className="relative group h-full flex items-center">
-                      <button className={dropdownTriggerClasses(["/dashboard/admin/planos", "/dashboard/loja"])}>
-                        <span className="material-symbols-outlined text-sm">monetization_on</span>
-                        Monetização
-                      </button>
-                      <div className="absolute top-full left-0 w-56 bg-white border border-gray-200 shadow-xl rounded-b-lg py-2 z-[60] hidden group-hover:block animate-in fade-in duration-150">
-                        <Link className={dropdownItemClassesSub("/dashboard/admin/planos")} href="/dashboard/admin/planos">Planos</Link>
-                        <Link className={dropdownItemClassesSub("/dashboard/loja")} href="/dashboard/loja">Loja</Link>
-                      </div>
-                    </div>
-
-                    {/* Suporte */}
-                    <Link className={navLinkClasses("/dashboard/admin/tickets")} href="/dashboard/admin/tickets">
-                        <span className="material-symbols-outlined text-sm">support_agent</span>
-                        Suporte
+                    <Link className={navLinkClasses("/dashboard/imoveis")} href="/dashboard/imoveis">
+                      <span className="material-symbols-outlined text-[20px]">inventory</span>
+                      Ativos
                     </Link>
 
-                    {/* Plataforma */}
-                    <div className="relative group h-full flex items-center">
-                      <button className={dropdownTriggerClasses(["/dashboard/admin/site", "/dashboard/admin/sitemap"])}>
-                        <span className="material-symbols-outlined text-sm">settings</span>
-                        Plataforma
-                      </button>
-                      <div className="absolute top-full left-0 w-56 bg-white border border-gray-200 shadow-xl rounded-b-lg py-2 z-[60] hidden group-hover:block animate-in fade-in duration-150">
-                        <Link className={dropdownItemClassesSub("/dashboard/admin/site/inicio")} href="/dashboard/admin/site/inicio">Editor do Site</Link>
-                        <Link className={dropdownItemClassesSub("/dashboard/admin/sitemap")} href="/dashboard/admin/sitemap">Sitemap</Link>
-                      </div>
+                    <div onMouseEnter={() => handleMouseEnter('monetizacao')} onMouseLeave={handleMouseLeave} className="h-full">
+                      <DropdownMenu open={openMenu === 'monetizacao'} onOpenChange={(open) => setOpenMenu(open ? 'monetizacao' : null)}>
+                        <DropdownMenuTrigger className={dropdownTriggerClasses(["/dashboard/admin/planos", "/dashboard/loja"])}>
+                          <span className="material-symbols-outlined text-[20px]">payments</span>
+                          Monetização
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="w-56" onMouseEnter={() => handleMouseEnter('monetizacao')} onMouseLeave={handleMouseLeave}>
+                          <DropdownMenuItem asChild><Link href="/dashboard/admin/planos">Planos</Link></DropdownMenuItem>
+                          <DropdownMenuItem asChild><Link href="/dashboard/loja">Loja</Link></DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
-                  </>
-                )}
-                
-                {userProfile.userType === 'constructor' && (
-                  <>
-                    <Link className={navLinkClasses("/dashboard/imoveis")} href="/dashboard/imoveis">Imóveis</Link>
-                    <Link className={navLinkClasses("/dashboard/loja")} href="/dashboard/loja">Loja</Link>
+
+                    <div onMouseEnter={() => handleMouseEnter('atendimento')} onMouseLeave={handleMouseLeave} className="h-full">
+                      <DropdownMenu open={openMenu === 'atendimento'} onOpenChange={(open) => setOpenMenu(open ? 'atendimento' : null)}>
+                        <DropdownMenuTrigger className={dropdownTriggerClasses(["/dashboard/admin/tickets", "/dashboard/admin/comunicados"])}>
+                          <span className="material-symbols-outlined text-[20px]">support_agent</span>
+                          Atendimento
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="w-56" onMouseEnter={() => handleMouseEnter('atendimento')} onMouseLeave={handleMouseLeave}>
+                          <DropdownMenuItem asChild><Link href="/dashboard/admin/tickets">Suporte</Link></DropdownMenuItem>
+                          <DropdownMenuItem asChild><Link href="/dashboard/admin/comunicados">Comunicados</Link></DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+
+                    <div onMouseEnter={() => handleMouseEnter('plataforma')} onMouseLeave={handleMouseLeave} className="h-full">
+                      <DropdownMenu open={openMenu === 'plataforma'} onOpenChange={(open) => setOpenMenu(open ? 'plataforma' : null)}>
+                        <DropdownMenuTrigger className={dropdownTriggerClasses(["/dashboard/admin/site", "/dashboard/admin/sitemap"])}>
+                          <span className="material-symbols-outlined text-[20px]">settings_suggest</span>
+                          Plataforma
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="w-56" onMouseEnter={() => handleMouseEnter('plataforma')} onMouseLeave={handleMouseLeave}>
+                          <DropdownMenuItem asChild><Link href="/dashboard/admin/site/inicio">Editor do Site</Link></DropdownMenuItem>
+                          <DropdownMenuItem asChild><Link href="/dashboard/admin/sitemap">Sitemap</Link></DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </>
                 )}
             </nav>
@@ -361,9 +348,9 @@ export default function DashboardCore({
         <div className="max-w-[1440px] mx-auto px-6 py-6 flex flex-col md:flex-row items-center justify-between gap-4 text-center md:text-left">
           <p className="text-text-secondary text-xs font-normal">© 2024 Oraora Tecnologia. Todos os direitos reservados.</p>
           <div className="flex items-center gap-6">
-            <a className="text-text-secondary text-xs font-medium hover:text-text-main transition-colors" href="#">Privacidade</a>
-            <a className="text-text-secondary text-xs font-medium hover:text-text-main transition-colors" href="#">Termos de Uso</a>
-            <a className="text-text-secondary text-xs font-medium hover:text-text-main transition-colors" href="/ajuda">Ajuda</a>
+            <Link className="text-text-secondary text-xs font-medium hover:text-text-main transition-colors" href="/politica-de-privacidade">Privacidade</Link>
+            <Link className="text-text-secondary text-xs font-medium hover:text-text-main transition-colors" href="/termos-de-uso">Termos de Uso</Link>
+            <Link className="text-text-secondary text-xs font-medium hover:text-text-main transition-colors" href="/ajuda">Help</Link>
           </div>
         </div>
       </footer>

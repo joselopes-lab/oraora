@@ -1,4 +1,3 @@
-
 'use client';
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -238,7 +237,7 @@ export default function LayoutStorePage() {
                                                         {isSelected ? 'Selecionado' : 'Selecionar'}
                                                     </Button>
                                                 )}
-                                                {isBroker && layout.id === 'urban-padrao' && (
+                                                {isBroker && ['urban-padrao', 'domus'].includes(layout.id) && (
                                                     <>
                                                         <Button asChild variant="outline" size="icon" title="Editar Cores" className="size-9 text-text-secondary hover:text-primary hover:bg-primary/10 transition-colors">
                                                             <Link href="/dashboard/meu-site/cores">

@@ -1,4 +1,3 @@
-
 'use client';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -66,9 +65,6 @@ export default function EventForm({ onSave, onCancel, isSubmitting, clients, def
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSave)} className="w-full">
-         <div className="absolute top-6 right-6 p-2 rounded-full hover:bg-gray-100 text-text-secondary hover:text-text-main transition-colors cursor-pointer" onClick={onCancel}>
-            <span className="material-symbols-outlined">close</span>
-        </div>
         <div className="p-8">
             <div className="mb-8">
                 <div className="flex items-center gap-3 mb-2">
@@ -217,5 +213,3 @@ export default function EventForm({ onSave, onCancel, isSubmitting, clients, def
     </Form>
   );
 }
-
-  

@@ -1,21 +1,31 @@
-
-
 'use client';
 import { Button } from "@/components/ui/button";
-import { useCollection, useFirestore, useMemoFirebase, useAuthContext } from "@/firebase";
-import { collection, query, where } from "firebase/firestore";
+import { Badge } from "@/components/ui/badge";
+import { useCollection, useFirestore, useMemoFirebase, useAuthContext, deleteDocumentNonBlocking } from "@/firebase";
+import { collection, query, where, doc, Timestamp, orderBy } from "firebase/firestore";
 import Link from "next/link";
 import { useState, useEffect, useMemo } from "react";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useToast } from "@/hooks/use-toast";
 
-const ClientSideDate = ({ dateString }: { dateString: string }) => {
-    const [formattedDate, setFormattedDate] = useState<string | null>(null);
+const ClientSideDate = ({ date, options }: { date: Date, options?: Intl.DateTimeFormatOptions }) => {
+  const [formattedDate, setFormattedDate] = useState<string | null>(null);
 
-    useEffect(() => {
-        setFormattedDate(new Date(dateString).toLocaleDateString('pt-BR'));
-    }, [dateString]);
+  useEffect(() => {
+    setFormattedDate(date.toLocaleDateString('pt-BR', options));
+  }, [date, options]);
 
-    return <>{formattedDate || '...'}</>;
-}
+  return <>{formattedDate || '...'}</>;
+};
 
 
 type Lead = {
@@ -26,25 +36,53 @@ type Lead = {
   propertyInterest: string;
   source: string;
   status: 'new' | 'contacted' | 'qualified' | 'proposal' | 'converted' | 'lost';
-  createdAt: string;
+  createdAt: Timestamp;
 }
 
 export default function ClientListPage() {
   const firestore = useFirestore();
   const { user, userProfile } = useAuthContext();
+  const { toast } = useToast();
+  const [leadToDelete, setLeadToDelete] = useState<Lead | null>(null);
 
   const leadsQuery = useMemoFirebase(
     () => {
       if (!firestore || !user) return null;
       if (userProfile?.userType === 'admin') {
-        return query(collection(firestore, 'leads'));
+        return query(collection(firestore, 'leads'), orderBy('createdAt', 'desc'));
       }
-      return query(collection(firestore, 'leads'), where('brokerId', '==', user.uid));
+      return query(collection(firestore, 'leads'), where('brokerId', '==', user.uid), orderBy('createdAt', 'desc'));
     },
     [firestore, user, userProfile]
   );
   
   const { data: clients, isLoading, error } = useCollection<Lead>(leadsQuery);
+
+  const handleDeleteLead = () => {
+    if (!leadToDelete || !firestore) return;
+
+    const leadDocRef = doc(firestore, 'leads', leadToDelete.id);
+    deleteDocumentNonBlocking(leadDocRef);
+
+    toast({
+        title: "Lead excluído!",
+        description: `O lead de "${leadToDelete.name}" foi removido com sucesso.`,
+    });
+
+    setLeadToDelete(null);
+  };
+
+  const getStatusBadgeClass = (status: string) => {
+    switch (status) {
+        case 'new': return 'bg-blue-100 text-blue-800 border-blue-200';
+        case 'contacted': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+        case 'qualified': return 'bg-purple-100 text-purple-800 border-purple-200';
+        case 'proposal': return 'bg-orange-100 text-orange-800 border-orange-200';
+        case 'converted': return 'bg-green-100 text-green-800 border-green-200';
+        case 'lost': return 'bg-red-100 text-red-800 border-red-200';
+        default: return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
+  }
 
   return (
     <>
@@ -131,7 +169,7 @@ export default function ClientListPage() {
             </thead>
             <tbody className="divide-y divide-gray-100 text-sm">
             {isLoading && (
-              <tr><td colSpan={6} className="text-center p-6">Carregando clientes...</td></tr>
+              <tr><td colSpan={6} className="text-center p-6 text-text-secondary">Carregando clientes...</td></tr>
             )}
             {!isLoading && error && (
               <tr><td colSpan={6} className="text-center p-6 text-red-500">Erro ao carregar clientes.</td></tr>
@@ -165,12 +203,14 @@ export default function ClientListPage() {
                   </div>
                 </td>
                 <td className="px-6 py-4 text-center">
-                  <span className="text-text-secondary font-medium text-xs"><ClientSideDate dateString={client.createdAt} /></span>
+                  <span className="text-text-secondary font-medium text-xs">
+                    {client.createdAt && <ClientSideDate date={client.createdAt.toDate()} />}
+                  </span>
                 </td>
                 <td className="px-6 py-4 text-center">
-                  <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${client.status === 'new' ? 'bg-green-100 text-green-800 border-green-200' : 'bg-gray-100 text-gray-800 border-gray-200'} border`}>
+                  <Badge variant="outline" className={getStatusBadgeClass(client.status)}>
                     {client.status}
-                  </span>
+                  </Badge>
                 </td>
                 <td className="px-6 py-4 text-right">
                   <div className="flex items-center justify-end gap-2">
@@ -179,8 +219,8 @@ export default function ClientListPage() {
                         <span className="material-symbols-outlined text-[20px]">visibility</span>
                       </Link>
                     </Button>
-                    <button className="p-2 text-text-secondary hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Excluir">
-                      <span className="material-symbols-outlined text-[20px]">delete</span>
+                    <button onClick={() => setLeadToDelete(client)} className="p-2 text-text-secondary hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer" title="Excluir">
+                        <span className="material-symbols-outlined text-[20px]">delete</span>
                     </button>
                   </div>
                 </td>
@@ -198,6 +238,22 @@ export default function ClientListPage() {
           </div>
         </div>
       </div>
+      <AlertDialog open={!!leadToDelete} onOpenChange={(open) => !open && setLeadToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita. Isso excluirá permanentemente o lead de <span className="font-bold">{leadToDelete?.name}</span>.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setLeadToDelete(null)}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteLead} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Sim, excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
-  )
+  );
 }
