@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useForm, useFieldArray, FormProvider } from 'react-hook-form';
@@ -65,7 +66,7 @@ export default function EditSobrePage() {
     const { firestore, user } = useFirebase();
     const { toast } = useToast();
 
-    const brokerDocRef = useMemoFirebase(() => user ? doc(firestore, 'brokers', user.uid) : null, [firestore, user]);
+    const brokerDocRef = useMemoFirebase(() => user?.uid ? doc(firestore, 'brokers', user.uid) : null, [firestore, user?.uid]);
     const { data: brokerData, isLoading } = useDoc<BrokerData>(brokerDocRef);
 
     const form = useForm<SobreFormData>({
@@ -273,17 +274,9 @@ export default function EditSobrePage() {
                     </section>
 
                     <section className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                        <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50 flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                                <span className="material-symbols-outlined text-text-muted">diamond</span>
-                                <h2 className="font-bold text-text-main">Meus Valores e Princípios</h2>
-                            </div>
-                            <FormField name="showValuesSection" control={form.control} render={({ field }) => (
-                                <div className="flex items-center gap-2">
-                                    <Label className="text-xs font-medium cursor-pointer" htmlFor="showValuesSection">Visível</Label>
-                                    <Switch id="showValuesSection" checked={field.value !== false} onCheckedChange={field.onChange} />
-                                </div>
-                            )}/>
+                        <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50 flex items-center gap-2">
+                            <span className="material-symbols-outlined text-text-muted">diamond</span>
+                            <h2 className="font-bold text-text-main">Meus Valores e Princípios</h2>
                         </div>
                         <div className="p-6 space-y-6">
                             <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">

@@ -3,15 +3,25 @@
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import Link from "next/link";
-import { useState, useMemo } from "react";
-import { Checkbox } from "@/components/ui/checkbox";
+import { useState, useMemo, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { useAuthContext, useFirestore, setDocumentNonBlocking } from "@/firebase";
-import { doc, Timestamp } from 'firebase/firestore';
+import { useAuthContext, useFirestore, setDocumentNonBlocking, useFirebase, addDocumentNonBlocking, useCollection, useDoc, useMemoFirebase } from "@/firebase";
+import { doc, Timestamp, collection, query, where, orderBy, arrayUnion, arrayRemove, getDocs } from 'firebase/firestore';
 import { v4 as uuidv4 } from 'uuid';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Textarea } from '@/components/ui/textarea';
-
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { cn } from "@/lib/utils";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger, DialogClose } from '@/components/ui/dialog';
+import { Progress } from "@/components/ui/progress";
+import { uploadFile } from '@/lib/storage';
+import { ref as storageRef, deleteObject } from "firebase/storage";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { format, addMinutes, parseISO } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { Badge } from "@/components/ui/badge";
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
+import { Checkbox } from "@/components/ui/checkbox";
 
 type Note = {
     id: string;
@@ -21,6 +31,31 @@ type Note = {
     authorName: string;
 };
 
+type ClientDocument = {
+    url: string;
+    name: string;
+    uploadedAt: string;
+    status: 'pending' | 'verified' | 'rejected';
+};
+
+type Financing = {
+    bank: string;
+    status: 'Não iniciado' | 'Em análise' | 'Aprovado' | 'Reprovado';
+    value: number;
+    updatedAt: string;
+};
+
+type Proposal = {
+    id: string;
+    propertyId: string;
+    propertyTitle: string;
+    offeredValue: number;
+    entryValue: number;
+    financingValue: number;
+    status: 'Negociação' | 'Aceita' | 'Recusada' | 'Arquivada';
+    createdAt: string;
+};
+
 type Lead = {
     id: string;
     name: string;
@@ -28,7 +63,6 @@ type Lead = {
     phone: string;
     clientType?: 'comprador' | 'vendedor';
     propertyInterest?: string;
-    source?: string;
     status: string;
     createdAt: Timestamp;
     address?: {
@@ -38,6 +72,15 @@ type Lead = {
     };
     personaIds?: string[];
     notes?: Note[];
+    potentialValue?: number;
+    documents?: {
+        identity?: ClientDocument;
+        civilStatus?: ClientDocument;
+        residence?: ClientDocument;
+        income?: ClientDocument;
+    };
+    financing?: Financing;
+    proposals?: Proposal[];
 };
 
 type Persona = {
@@ -45,6 +88,7 @@ type Persona = {
     name: string;
     icon: string;
     iconBackgroundColor: string;
+    description?: string;
 }
 
 type Property = {
@@ -53,12 +97,29 @@ type Property = {
     nome: string;
     status: string;
     valor?: number;
+    slug?: string;
   };
   localizacao: {
     bairro: string;
     cidade: string;
   };
   midia: string[];
+  caracteristicasimovel: {
+      tamanho?: string;
+  };
+};
+
+type Event = {
+  id: string;
+  title: string;
+  date: string;
+  time?: string;
+  type: 'reuniao' | 'visita' | 'tarefa' | 'particular' | 'outro';
+  completed?: boolean;
+  clientId?: string;
+  description?: string;
+  location?: string;
+  broker?: string;
 };
 
 type ClientDetailViewProps = {
@@ -70,64 +131,76 @@ type ClientDetailViewProps = {
 };
 
 export default function ClientDetailView({ client, personas, recommendedProperties, linkedProperties, brokerSlug }: ClientDetailViewProps) {
-    const [selectedProperties, setSelectedProperties] = useState<string[]>([]);
     const { toast } = useToast();
-    const { user } = useAuthContext();
+    const { user, storage } = useFirebase();
     const firestore = useFirestore();
     const [newNote, setNewNote] = useState('');
     const [isSavingNote, setIsSavingNote] = useState(false);
-    
-    // Pagination state for recommended properties
-    const [currentPage, setCurrentPage] = useState(1);
-    const itemsPerPage = 10;
-    const totalPages = Math.ceil(recommendedProperties.length / itemsPerPage);
-    const [editingNote, setEditingNote] = useState<{ id: string; text: string } | null>(null);
     const [noteToDelete, setNoteToDelete] = useState<Note | null>(null);
+    const [isSavingLink, setIsSavingLink] = useState<string | null>(null);
+    const [isPersonaPickerOpen, setIsPersonaPickerOpen] = useState(false);
     
-    const paginatedRecommendedProperties = recommendedProperties.slice(
-        (currentPage - 1) * itemsPerPage,
-        currentPage * itemsPerPage
+    // Selection for sharing
+    const [selectedPropertyIds, setSelectedPropertyIds] = useState<string[]>([]);
+
+    // --- Pagination for IA Recommendations ---
+    const [recPage, setRecPage] = useState(1);
+    const recsPerPage = 9;
+    const totalRecPages = Math.ceil(recommendedProperties.length / recsPerPage);
+    const paginatedRecs = recommendedProperties.slice((recPage - 1) * recsPerPage, recPage * recsPerPage);
+
+    // Reset to first page when client/persona changes
+    useEffect(() => {
+        setRecPage(1);
+        setSelectedPropertyIds([]); // Clear selection when profile changes
+    }, [client.personaIds]);
+
+    // Fetch all available personas for the picker
+    const allPersonasQuery = useMemoFirebase(
+        () => (firestore ? query(collection(firestore, 'personas'), where('status', '==', 'Ativo')) : null),
+        [firestore]
     );
+    const { data: allPersonas, isLoading: areAllPersonasLoading } = useCollection<Persona>(allPersonasQuery);
 
-    const handlePageChange = (newPage: number) => {
-        if (newPage >= 1 && newPage <= totalPages) {
-            setCurrentPage(newPage);
+    // Pagination for Linked Properties
+    const [linkedPropsPage, setLinkedPropsPage] = useState(1);
+    const propsPerPage = 3;
+    const totalLinkedPages = Math.ceil(linkedProperties.length / propsPerPage);
+    const paginatedLinkedProps = linkedProperties.slice((linkedPropsPage - 1) * propsPerPage, linkedPropsPage * propsPerPage);
+
+    // Fetch Events for this Client
+    const clientEventsQuery = useMemoFirebase(
+        () => {
+            if (firestore && user?.uid && client?.id) {
+                return query(
+                    collection(firestore, 'events'), 
+                    where('brokerId', '==', user.uid),
+                    where('clientId', '==', client.id), 
+                    orderBy('date', 'desc'), 
+                    orderBy('time', 'desc')
+                );
+            }
+            return null;
+        },
+        [firestore, user?.uid, client?.id]
+    );
+    const { data: clientEvents, isLoading: areEventsLoading } = useCollection<Event>(clientEventsQuery);
+
+    const getStatusBadgeClass = (status: string) => {
+        switch (status) {
+            case 'new': return 'bg-blue-100 text-blue-800 border-blue-200';
+            case 'contacted': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+            case 'qualified': return 'bg-purple-100 text-purple-800 border-purple-200';
+            case 'proposal': return 'bg-orange-100 text-orange-800 border-orange-200';
+            case 'converted': return 'bg-green-100 text-green-800 border-green-200';
+            case 'lost': return 'bg-red-100 text-red-800 border-red-200';
+            default: return 'bg-gray-100 text-gray-800 border-gray-200';
         }
-    };
-
-
-    const handlePropertySelection = (propertyId: string) => {
-        setSelectedProperties(prev => 
-            prev.includes(propertyId) 
-                ? prev.filter(id => id !== propertyId)
-                : [...prev, propertyId]
-        );
-    };
-
-    const handleShare = () => {
-        if (selectedProperties.length === 0) {
-            toast({
-                variant: 'destructive',
-                title: 'Nenhum imóvel selecionado',
-                description: 'Selecione pelo menos um imóvel para compartilhar.'
-            });
-            return;
-        }
-
-        const siteUrl = window.location.origin;
-        const propertyLinks = selectedProperties.map(id => `${siteUrl}/sites/${brokerSlug}/imovel/${id}`).join('\n');
-        
-        const message = encodeURIComponent(`Olá ${client.name}! Conforme nossa conversa, seguem os links para os imóveis que selecionei para você:\n\n${propertyLinks}`);
-        const whatsappUrl = `https://wa.me/${client.phone.replace(/\D/g, '')}?text=${message}`;
-
-        window.open(whatsappUrl, '_blank');
-    };
+    }
 
     const handleAddNote = async () => {
         if (!newNote.trim() || !user || !client || !firestore) return;
-
         setIsSavingNote(true);
-
         const noteToAdd: Note = {
             id: uuidv4(),
             text: newNote,
@@ -135,402 +208,482 @@ export default function ClientDetailView({ client, personas, recommendedProperti
             authorId: user.uid,
             authorName: user.displayName || 'Usuário',
         };
-        
         const updatedNotes = [...(client.notes || []), noteToAdd];
-
         try {
             const docRef = doc(firestore, 'leads', client.id);
-            await setDocumentNonBlocking(docRef, { notes: updatedNotes }, { merge: true });
-            
+            setDocumentNonBlocking(docRef, { notes: updatedNotes }, { merge: true });
             setNewNote('');
-            toast({
-                title: 'Nota Adicionada!',
-                description: 'Sua observação foi salva no histórico do cliente.',
-            });
+            toast({ title: 'Nota Adicionada!', description: 'Sua observação foi salva no histórico do cliente.' });
         } catch (error) {
-            console.error("Error adding note:", error);
-            toast({
-                variant: 'destructive',
-                title: 'Erro ao salvar',
-                description: 'Não foi possível adicionar a nota.',
-            });
+            toast({ variant: 'destructive', title: 'Erro ao salvar', description: 'Não foi possível adicionar a nota.' });
         } finally {
             setIsSavingNote(false);
         }
-    };
-    
-    const handleUpdateNote = async () => {
-        if (!editingNote || !client || !firestore) return;
-        const updatedNotes = client.notes?.map(note =>
-            note.id === editingNote.id ? { ...note, text: editingNote.text, updatedAt: new Date().toISOString() } : note
-        ) || [];
-        const docRef = doc(firestore, 'leads', client.id);
-        await setDocumentNonBlocking(docRef, { notes: updatedNotes }, { merge: true });
-        toast({ title: 'Nota Atualizada!', description: 'Sua nota foi salva com sucesso.' });
-        setEditingNote(null);
-    };
-
-    const handleStartEdit = (note: Note) => {
-        setEditingNote({ id: note.id, text: note.text });
     };
 
     const handleDeleteNote = async () => {
         if (!noteToDelete || !client || !firestore) return;
         const updatedNotes = client.notes?.filter(note => note.id !== noteToDelete.id) || [];
         const docRef = doc(firestore, 'leads', client.id);
-        await setDocumentNonBlocking(docRef, { notes: updatedNotes }, { merge: true });
+        setDocumentNonBlocking(docRef, { notes: updatedNotes }, { merge: true });
         toast({ title: 'Nota Excluída!', description: 'A nota foi removida do histórico.' });
         setNoteToDelete(null);
     };
 
-    const getStatusBadge = (status: string) => {
-        switch (status) {
-            case 'new':
-                return <span className="bg-green-100 text-green-800 text-xs font-bold px-2.5 py-1 rounded-full border border-green-200 uppercase tracking-wider">Ativo</span>;
-            case 'contacted':
-                return <span className="bg-yellow-100 text-yellow-800 text-xs font-bold px-2.5 py-1 rounded-full border border-yellow-200 uppercase tracking-wider">Em Contato</span>;
-            // Add other statuses here
-            default:
-                return <span className="bg-gray-100 text-gray-800 text-xs font-bold px-2.5 py-1 rounded-full border border-gray-200 uppercase tracking-wider">{status}</span>;
+    const handleLinkProperty = async (propertyId: string) => {
+        if (!firestore || !user?.uid || !client.id) return;
+        setIsSavingLink(propertyId);
+        
+        const journeysQuery = query(
+            collection(firestore, 'journeys'), 
+            where('clientId', '==', client.id), 
+            where('brokerId', '==', user.uid)
+        );
+        
+        try {
+            const snap = await getDocs(journeysQuery);
+            if (!snap.empty) {
+                const journeyDoc = snap.docs[0];
+                const journeyRef = doc(firestore, 'journeys', journeyDoc.id);
+                setDocumentNonBlocking(journeyRef, { 
+                    propertyIds: arrayUnion(propertyId) 
+                }, { merge: true });
+                toast({ title: "Imóvel Vinculado!", description: "O imóvel foi adicionado aos interesses do cliente." });
+            } else {
+                toast({ variant: 'destructive', title: "Aviso", description: "Crie uma Jornada para este cliente antes de vincular imóveis." });
+            }
+        } catch (error) {
+            toast({ variant: 'destructive', title: "Erro ao vincular" });
+        } finally {
+            setIsSavingLink(null);
         }
-    }
-    
-    const getSourceBadge = (source: string | undefined) => {
-        if (!source) return null;
-        switch (source.toLowerCase()) {
-            case 'google':
-            case 'google / busca orgânica':
-                return <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100"><span className="material-symbols-outlined text-[14px]">public</span>Google Orgânico</span>
-            case 'site':
-                return <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100"><span className="material-symbols-outlined text-[14px]">public</span>Site</span>
-            default:
-                 return <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200"><span className="material-symbols-outlined text-[14px]">help</span>{source}</span>
-        }
-    }
+    };
+
+    const handleSelectPersona = (personaId: string) => {
+        if (!firestore || !client.id) return;
+        const docRef = doc(firestore, 'leads', client.id);
+        setDocumentNonBlocking(docRef, { personaIds: [personaId] }, { merge: true });
+        toast({ title: "Persona Definida!", description: "O perfil do cliente foi atualizado." });
+        setIsPersonaPickerOpen(false);
+    };
+
+    const togglePropertySelection = (id: string) => {
+        setSelectedPropertyIds(prev => 
+            prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+        );
+    };
+
+    const handleShareSelection = () => {
+        if (selectedPropertyIds.length === 0 || !brokerSlug) return;
+
+        const selectedProps = recommendedProperties.filter(p => selectedPropertyIds.includes(p.id));
+        
+        let message = `Olá ${client.name}! Separei estas oportunidades exclusivas que combinam perfeitamente com o seu perfil:\n\n`;
+        
+        selectedProps.forEach(prop => {
+            const link = `https://oraora.com.br/sites/${brokerSlug}/imovel/${prop.informacoesbasicas.slug || prop.id}`;
+            message += `📍 *${prop.informacoesbasicas.nome}*\n${prop.localizacao.bairro}, ${prop.localizacao.cidade}\n🔗 ${link}\n\n`;
+        });
+
+        message += `O que achou destas opções? Podemos agendar uma visita?`;
+
+        const encodedMessage = encodeURIComponent(message);
+        const cleanPhone = client.phone.replace(/\D/g, '');
+        const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodedMessage}`;
+        
+        window.open(whatsappUrl, '_blank');
+        toast({ title: "WhatsApp Aberto", description: "A mensagem foi preparada com os links selecionados." });
+    };
+
+    const currentPersona = personas[0];
 
     return (
-      <AlertDialog>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-2 space-y-8">
-                <div className="bg-white rounded-xl shadow-soft border border-gray-100 overflow-hidden">
-                    <div className="p-6 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
-                        <h3 className="text-lg font-bold text-text-main flex items-center gap-2">
-                            <span className="material-symbols-outlined text-secondary">person</span>
-                            Dados Pessoais
-                        </h3>
+      <div className="flex flex-col gap-6">
+        <AlertDialog open={!!noteToDelete} onOpenChange={(open) => !open && setNoteToDelete(null)}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Excluir esta nota?</AlertDialogTitle>
+                    <AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel onClick={() => setNoteToDelete(null)}>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDeleteNote} className="bg-destructive">Sim, Excluir</AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+
+        <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
+            <div className="xl:col-span-3 space-y-6">
+                
+                {/* Main Client Profile Data */}
+                <div className="bg-white dark:bg-slate-900 p-8 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                    <div className="flex flex-col md:flex-row gap-8 items-center md:items-start">
+                        <div className="relative h-32 w-32 rounded-full border-4 border-primary/20 overflow-hidden bg-slate-100 flex-shrink-0">
+                            <Image 
+                                src={`https://i.pravatar.cc/150?u=${client.id}`} 
+                                alt={client.name} 
+                                fill 
+                                className="object-cover"
+                            />
+                        </div>
+                        <div className="flex-1 text-center md:text-left space-y-4">
+                            <div>
+                                <h2 className="text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tight">{client.name}</h2>
+                                <p className="text-slate-500 font-medium">{client.email} • {client.phone}</p>
+                            </div>
+                            <div className="flex flex-wrap justify-center md:justify-start gap-3">
+                                <Badge variant="outline" className="px-4 py-1.5 rounded-lg border-primary/30 bg-primary/5 text-primary-hover font-bold uppercase tracking-wider text-[10px]">
+                                    {client.clientType || 'Comprador'}
+                                </Badge>
+                                <Badge variant="outline" className={cn("px-4 py-1.5 rounded-lg font-bold uppercase tracking-wider text-[10px]", getStatusBadgeClass(client.status))}>
+                                    Status: {client.status}
+                                </Badge>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4">
+                                <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800">
+                                    <span className="text-[10px] font-black text-slate-400 uppercase block mb-1">Ticket Médio</span>
+                                    <span className="text-lg font-bold">{client.potentialValue?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }) || 'R$ 850.000'}</span>
+                                </div>
+                                <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800">
+                                    <span className="text-[10px] font-black text-slate-400 uppercase block mb-1">Interesse</span>
+                                    <span className="text-lg font-bold truncate block">{client.propertyInterest || 'Apartamento'}</span>
+                                </div>
+                                <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800">
+                                    <span className="text-[10px] font-black text-slate-400 uppercase block mb-1">Origem</span>
+                                    <span className="text-lg font-bold">{client.source || 'Site'}</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div className="p-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-8">
-                            <div className="space-y-1">
-                                <span className="text-xs uppercase tracking-wide text-text-secondary font-semibold">Nome Completo</span>
-                                <p className="text-text-main font-medium">{client.name}</p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Persona Detail Card */}
+                    <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm h-full flex flex-col">
+                        <div className="flex items-center justify-between mb-6">
+                            <div className="flex items-center gap-3">
+                                <div className="size-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary">
+                                    <span className="material-symbols-outlined font-bold">psychology</span>
+                                </div>
+                                <h3 className="font-black text-slate-900 dark:text-white uppercase tracking-tight">Perfil (Persona)</h3>
                             </div>
-                            <div className="space-y-1">
-                                <span className="text-xs uppercase tracking-wide text-text-secondary font-semibold">E-mail</span>
-                                <div className="flex items-center gap-2">
-                                    <p className="text-text-main font-medium">{client.email}</p>
-                                    <button className="text-gray-400 hover:text-primary transition-colors" title="Copiar E-mail">
-                                        <span className="material-symbols-outlined text-[16px]">content_copy</span>
-                                    </button>
+                            {currentPersona && (
+                                <button onClick={() => setIsPersonaPickerOpen(true)} className="text-[10px] font-black text-primary hover:underline uppercase tracking-widest cursor-pointer">Trocar Perfil</button>
+                            )}
+                        </div>
+                        {currentPersona ? (
+                            <div className="flex-1 space-y-6">
+                                <div className="bg-primary/5 p-5 rounded-2xl border border-primary/10">
+                                    <p className="text-primary-hover font-black text-xl mb-2">{currentPersona.name}</p>
+                                    <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed">{currentPersona.description}</p>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-1">
+                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Estilo de Vida</span>
+                                        <p className="text-xs font-bold">Exclusivo & Moderno</p>
+                                    </div>
+                                    <div className="space-y-1 text-right">
+                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Frequência</span>
+                                        <p className="text-xs font-bold text-primary">Alta Atividade</p>
+                                    </div>
                                 </div>
                             </div>
-                            <div className="space-y-1">
-                                <span className="text-xs uppercase tracking-wide text-text-secondary font-semibold">Telefone / WhatsApp</span>
-                                <div className="flex items-center gap-2">
-                                    <p className="text-text-main font-medium">{client.phone}</p>
-                                    <a className="text-green-600 hover:text-green-700 transition-colors bg-green-50 rounded-full p-1" href={`https://wa.me/${client.phone.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" title="Abrir WhatsApp">
-                                        <span className="material-symbols-outlined text-[16px] block">chat</span>
-                                    </a>
-                                </div>
+                        ) : (
+                            <div className="flex-1 flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-slate-100 rounded-2xl">
+                                <span className="material-symbols-outlined text-slate-200 text-4xl mb-2">person_search</span>
+                                <p className="text-xs text-slate-400 font-medium">Nenhuma persona vinculada.</p>
+                                <Dialog open={isPersonaPickerOpen} onOpenChange={setIsPersonaPickerOpen}>
+                                    <DialogTrigger asChild>
+                                        <Button variant="link" className="text-xs font-bold text-primary mt-2">Definir Perfil</Button>
+                                    </DialogTrigger>
+                                    <DialogContent className="max-w-3xl max-h-[80vh] flex flex-col p-0">
+                                        <DialogHeader className="p-6 border-b border-slate-100">
+                                            <DialogTitle>Definir Perfil do Cliente</DialogTitle>
+                                            <DialogDescription>Escolha a persona que melhor descreve este cliente para receber recomendações inteligentes.</DialogDescription>
+                                        </DialogHeader>
+                                        <div className="flex-1 overflow-y-auto p-6">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                {areAllPersonasLoading ? <p>Carregando perfis...</p> : allPersonas?.map(p => (
+                                                    <div 
+                                                        key={p.id} 
+                                                        onClick={() => handleSelectPersona(p.id)}
+                                                        className="p-4 rounded-xl border border-slate-100 bg-slate-50 hover:border-primary hover:bg-primary/5 transition-all cursor-pointer group"
+                                                    >
+                                                        <div className="flex items-center gap-3 mb-2">
+                                                            <div className={cn("size-8 rounded-lg flex items-center justify-center", p.iconBackgroundColor)}>
+                                                                <span className="material-symbols-outlined text-sm">{p.icon}</span>
+                                                            </div>
+                                                            <h4 className="font-bold text-slate-900 group-hover:text-primary-hover transition-colors">{p.name}</h4>
+                                                        </div>
+                                                        <p className="text-xs text-slate-500 line-clamp-2">{p.description}</p>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        <DialogFooter className="p-6 border-t border-slate-100">
+                                            <DialogClose asChild>
+                                                <Button variant="outline">Cancelar</Button>
+                                            </DialogClose>
+                                        </DialogFooter>
+                                    </DialogContent>
+                                </Dialog>
                             </div>
-                            {client.address?.street && (
-                                <div className="space-y-1">
-                                    <span className="text-xs uppercase tracking-wide text-text-secondary font-semibold">Endereço</span>
-                                    <p className="text-text-main font-medium">{client.address.street}</p>
-                                    <p className="text-text-secondary text-sm">{client.address.city} - {client.address.state}</p>
+                        )}
+                    </div>
+
+                    {/* Property Summary (Interests) */}
+                    <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm h-full flex flex-col">
+                        <div className="flex items-center justify-between mb-6">
+                            <div className="flex items-center gap-3">
+                                <div className="size-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary">
+                                    <span className="material-symbols-outlined font-bold">apartment</span>
+                                </div>
+                                <h3 className="font-black text-slate-900 dark:text-white uppercase tracking-tight">Imóveis de Interesse</h3>
+                            </div>
+                            <span className="bg-slate-100 dark:bg-slate-800 text-[10px] font-black px-2 py-1 rounded text-slate-500 uppercase">{linkedProperties.length} itens</span>
+                        </div>
+                        <div className="space-y-3 flex-1">
+                            {linkedProperties.length > 0 ? (
+                                paginatedLinkedProps.map((prop) => (
+                                    <div key={prop.id} className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800 group hover:border-primary/50 transition-all shadow-sm">
+                                        <div className="h-12 w-12 rounded-lg bg-cover bg-center shrink-0 border border-slate-200" style={{ backgroundImage: `url('${prop.midia?.[0] || 'https://placehold.co/100x100'}')` }}></div>
+                                        <div className="flex-1 overflow-hidden min-w-0">
+                                            <p className="text-xs font-black text-slate-900 dark:text-white truncate">{prop.informacoesbasicas.nome}</p>
+                                            <p className="text-[10px] text-primary font-bold mt-0.5">{prop.informacoesbasicas.valor?.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL', maximumFractionDigits: 0})}</p>
+                                        </div>
+                                        <Link href={`/dashboard/imoveis/${prop.id}`} className="p-1.5 rounded-lg text-slate-300 group-hover:text-primary transition-colors">
+                                            <span className="material-symbols-outlined text-lg">open_in_new</span>
+                                        </Link>
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="flex-1 flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-slate-100 rounded-2xl">
+                                    <p className="text-xs text-slate-400">Nenhum imóvel vinculado.</p>
                                 </div>
                             )}
                         </div>
-                    </div>
-                </div>
-                 <div className="bg-white rounded-xl shadow-soft border border-gray-100 p-6">
-                    <h3 className="text-lg font-bold text-text-main mb-4 flex items-center gap-2 border-b border-gray-100 pb-4">
-                        <span className="material-symbols-outlined text-secondary">groups</span>
-                        Perfil do Cliente (Personas)
-                    </h3>
-                    <div className="flex flex-wrap gap-4">
-                        {personas.length > 0 ? personas.map((persona) => (
-                            <div key={persona.id} className="flex items-center gap-3 p-3 bg-gray-50/50 rounded-lg border border-gray-100">
-                                <div className={`size-8 rounded-full ${persona.iconBackgroundColor} flex items-center justify-center`}>
-                                    <span className="material-symbols-outlined text-sm">{persona.icon}</span>
-                                </div>
-                                <span className="font-bold text-sm text-text-main">{persona.name}</span>
+                        {totalLinkedPages > 1 && (
+                            <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-100 dark:border-slate-800">
+                                <button onClick={() => setLinkedPropsPage(p => Math.max(1, p - 1))} disabled={linkedPropsPage === 1} className="text-[10px] font-black text-slate-400 hover:text-primary disabled:opacity-20 uppercase tracking-widest flex items-center gap-1 cursor-pointer"><span className="material-symbols-outlined text-sm">chevron_left</span> Anterior</button>
+                                <button onClick={() => setLinkedPropsPage(p => Math.min(totalLinkedPages, p + 1))} disabled={linkedPropsPage === totalLinkedPages} className="text-[10px] font-black text-slate-400 hover:text-primary disabled:opacity-20 uppercase tracking-widest flex items-center gap-1 cursor-pointer">Próximo <span className="material-symbols-outlined text-sm">chevron_right</span></button>
                             </div>
-                        )) : (
-                            <p className="text-sm text-text-secondary">Nenhuma persona associada a este cliente.</p>
                         )}
                     </div>
                 </div>
-                <div className="bg-white rounded-xl shadow-soft border border-gray-100 overflow-hidden">
-                    <div className="p-6 border-b border-gray-100 bg-gray-50/50">
-                        <h3 className="text-lg font-bold text-text-main flex items-center gap-2">
-                            <span className="material-symbols-outlined text-secondary">interests</span>
-                            Perfil de Interesse
-                        </h3>
-                    </div>
-                    <div className="p-6">
-                        <div className="grid grid-cols-1 gap-6">
-                            <div className="space-y-2">
-                                <span className="text-xs uppercase tracking-wide text-text-secondary font-semibold">O que procura</span>
-                                <div className="bg-gray-50 border border-gray-100 p-4 rounded-lg">
-                                    <p className="text-text-main text-sm leading-relaxed">
-                                        {client.propertyInterest || 'Nenhum interesse específico detalhado.'}
-                                    </p>
-                                </div>
+
+                {/* AI Recommendations Section */}
+                <div id="ai-suggestions" className="bg-white dark:bg-slate-900 p-8 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm scroll-mt-20 relative">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+                        <div className="flex items-center gap-3">
+                            <div className="size-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary shadow-sm">
+                                <span className="material-symbols-outlined text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>auto_awesome</span>
                             </div>
-                            <div className="space-y-1">
-                                <span className="text-xs uppercase tracking-wide text-text-secondary font-semibold">Origem do Lead</span>
-                                <div className="flex items-center gap-2 mt-1">
-                                    {getSourceBadge(client.source)}
+                            <div>
+                                <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Sugestões da IA para {client.name}</h3>
+                                <p className="text-xs text-slate-500 font-medium">Imóveis compatíveis com o perfil de <strong>{currentPersona?.name || 'Comprador'}</strong></p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase">
+                            <span>{recommendedProperties.length} imóveis compatíveis</span>
+                        </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {recommendedProperties.length > 0 ? (
+                            paginatedRecs.map((prop) => {
+                                const isSelected = selectedPropertyIds.includes(prop.id);
+                                return (
+                                <div key={prop.id} className={cn(
+                                    "group flex flex-col bg-slate-50 dark:bg-slate-800/30 rounded-2xl border transition-all duration-300 relative",
+                                    isSelected ? "border-primary ring-2 ring-primary shadow-glow" : "border-slate-100 dark:border-slate-800 hover:border-primary/50 overflow-hidden"
+                                )}>
+                                    <div className="absolute top-3 left-3 z-20">
+                                        <Checkbox 
+                                            checked={isSelected}
+                                            onCheckedChange={() => togglePropertySelection(prop.id)}
+                                            className="size-6 rounded-lg border-2 border-white bg-white/20 backdrop-blur shadow-sm data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                                        />
+                                    </div>
+                                    <div className="relative h-40 w-full overflow-hidden rounded-t-2xl">
+                                        <Image src={prop.midia?.[0] || 'https://picsum.photos/seed/prop/400/300'} alt={prop.informacoesbasicas.nome} fill className="object-cover group-hover:scale-110 transition-transform duration-700" />
+                                        <div className="absolute top-3 right-3 bg-primary text-black text-[9px] font-black px-2 py-1 rounded uppercase tracking-widest shadow-lg">
+                                            98% Match
+                                        </div>
+                                    </div>
+                                    <div className="p-4 flex flex-col flex-1">
+                                        <h4 className="text-sm font-black text-slate-900 dark:text-white truncate mb-1 uppercase tracking-tight">{prop.informacoesbasicas.nome}</h4>
+                                        <p className="text-[10px] text-slate-500 font-bold uppercase mb-4">{prop.localizacao.bairro}, {prop.localizacao.cidade}</p>
+                                        <div className="mt-auto pt-4 border-t border-slate-200/50 flex items-center justify-between">
+                                            <span className="text-sm font-black text-slate-900 dark:text-white">{prop.informacoesbasicas.valor?.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL', maximumFractionDigits: 0})}</span>
+                                            <button 
+                                                onClick={(e) => { e.stopPropagation(); handleLinkProperty(prop.id); }}
+                                                disabled={isSavingLink === prop.id}
+                                                className="size-8 bg-white dark:bg-slate-800 rounded-lg flex items-center justify-center text-slate-400 hover:text-primary hover:scale-110 transition-all shadow-sm cursor-pointer disabled:opacity-50"
+                                                title="Vincular ao Interesse"
+                                            >
+                                                {isSavingLink === prop.id ? (
+                                                    <span className="material-symbols-outlined text-lg animate-spin">progress_activity</span>
+                                                ) : (
+                                                    <span className="material-symbols-outlined text-lg">add_circle</span>
+                                                )}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )})
+                        ) : (
+                            <div className="col-span-full py-12 text-center bg-slate-50/50 rounded-2xl border-2 border-dashed border-slate-100">
+                                <p className="text-sm text-slate-400 font-medium">Nenhuma recomendação compatível encontrada no inventário atual.</p>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Floating Action Bar for Selection */}
+                    {selectedPropertyIds.length > 0 && (
+                        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[60] animate-in slide-in-from-bottom-10 duration-300">
+                            <div className="bg-slate-900 text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-6 border border-white/10 backdrop-blur-md">
+                                <div className="flex flex-col">
+                                    <span className="text-xs font-bold text-primary uppercase tracking-widest">{selectedPropertyIds.length} selecionado{selectedPropertyIds.length > 1 ? 's' : ''}</span>
+                                    <p className="text-[10px] text-slate-400">Compartilhe no WhatsApp</p>
+                                </div>
+                                <div className="h-8 w-px bg-white/10"></div>
+                                <div className="flex gap-2">
+                                    <Button 
+                                        variant="ghost" 
+                                        onClick={() => setSelectedPropertyIds([])}
+                                        className="text-white hover:text-red-400 h-11 px-4"
+                                    >
+                                        Limpar
+                                    </Button>
+                                    <Button 
+                                        onClick={handleShareSelection}
+                                        className="bg-primary hover:bg-primary-hover text-slate-900 font-black h-11 px-6 rounded-xl flex items-center gap-2 shadow-glow"
+                                    >
+                                        <span className="material-symbols-outlined">send</span>
+                                        Compartilhar Seleção
+                                    </Button>
                                 </div>
                             </div>
                         </div>
-                    </div>
-                </div>
+                    )}
 
-                <div className="bg-white rounded-xl shadow-soft border border-gray-100 overflow-hidden">
-                    <div className="p-6 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
-                        <h3 className="text-lg font-bold text-text-main flex items-center gap-2">
-                            <span className="material-symbols-outlined text-secondary">real_estate_agent</span>
-                            Imóveis do Cliente
-                        </h3>
-                    </div>
-                    <div className="p-6 space-y-4">
-                       {linkedProperties.length > 0 ? linkedProperties.map((prop) => (
-                           <div key={prop.id} className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg border border-gray-100 hover:shadow-md transition-shadow">
-                               <div className="size-16 rounded-md overflow-hidden bg-gray-200 shrink-0">
-                                   <Image src={prop.midia?.[0] || 'https://placehold.co/100x100'} alt={prop.informacoesbasicas.nome} width={64} height={64} className="w-full h-full object-cover" />
-                               </div>
-                               <div className="flex-1">
-                                   <p className="font-bold text-text-main text-sm">{prop.informacoesbasicas.nome}</p>
-                                   <p className="text-xs text-text-secondary">{prop.localizacao.bairro}, {prop.localizacao.cidade}</p>
-                                   {prop.informacoesbasicas.valor && <p className="text-xs font-bold text-primary mt-1">{prop.informacoesbasicas.valor.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}</p>}
-                               </div>
-                               <Button asChild variant="outline" size="sm">
-                                   <Link href={`/dashboard/imoveis/editar/${prop.id}`}>Detalhes</Link>
-                               </Button>
-                           </div>
-                       )) : (
-                           <p className="text-sm text-text-secondary text-center py-4">Nenhum imóvel diretamente associado a este cliente.</p>
-                       )}
-                    </div>
-                </div>
-
-
-                 <div className="bg-white rounded-xl shadow-soft border border-gray-100 overflow-hidden">
-                    <div className="p-6 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
-                        <h3 className="text-lg font-bold text-text-main flex items-center gap-2">
-                            <span className="material-symbols-outlined text-secondary">recommend</span>
-                            Indicação de Vendas
-                        </h3>
-                        <Button onClick={handleShare} disabled={selectedProperties.length === 0} className="flex items-center gap-2">
-                            <span className="material-symbols-outlined text-lg">share</span>
-                            Compartilhar ({selectedProperties.length})
-                        </Button>
-                    </div>
-                    <div className="p-6 space-y-4">
-                       {recommendedProperties.length > 0 ? paginatedRecommendedProperties.map((prop) => (
-                           <div key={prop.id} className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg border border-gray-100 hover:shadow-md transition-shadow">
-                               <Checkbox
-                                    id={`prop-${prop.id}`}
-                                    checked={selectedProperties.includes(prop.id)}
-                                    onCheckedChange={() => handlePropertySelection(prop.id)}
-                                    className="mr-2"
-                                />
-                               <div className="size-16 rounded-md overflow-hidden bg-gray-200 shrink-0">
-                                   <Image src={prop.midia?.[0] || 'https://placehold.co/100x100'} alt={prop.informacoesbasicas.nome} width={64} height={64} className="w-full h-full object-cover" />
-                               </div>
-                               <div className="flex-1">
-                                   <p className="font-bold text-text-main text-sm">{prop.informacoesbasicas.nome}</p>
-                                   <p className="text-xs text-text-secondary">{prop.localizacao.bairro}, {prop.localizacao.cidade}</p>
-                                   {prop.informacoesbasicas.valor && <p className="text-xs font-bold text-primary mt-1">{prop.informacoesbasicas.valor.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}</p>}
-                               </div>
-                               <Button asChild variant="outline" size="sm">
-                                   <Link href={`/dashboard/imoveis/${prop.id}`}>Detalhes</Link>
-                               </Button>
-                           </div>
-                       )) : (
-                           <p className="text-sm text-text-secondary text-center py-4">Nenhum imóvel recomendado para esta combinação de personas.</p>
-                       )}
-                    </div>
-                    {totalPages > 1 && (
-                        <div className="p-4 border-t border-gray-100 flex items-center justify-center gap-4">
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handlePageChange(currentPage - 1)}
-                                disabled={currentPage === 1}
-                            >
-                                Anterior
-                            </Button>
-                            <span className="text-sm font-medium text-gray-500">
-                                Página {currentPage} de {totalPages}
-                            </span>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handlePageChange(currentPage + 1)}
-                                disabled={currentPage === totalPages}
-                            >
-                                Próxima
-                            </Button>
+                    {/* Pagination Controls for Recommendations */}
+                    {totalRecPages > 1 && (
+                        <div className="mt-10 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-slate-100 dark:border-slate-800 pt-6">
+                            <p className="text-xs text-slate-500 font-medium">
+                                Mostrando {(recPage - 1) * recsPerPage + 1} - {Math.min(recPage * recsPerPage, recommendedProperties.length)} de {recommendedProperties.length} imóveis
+                            </p>
+                            <div className="flex items-center gap-2">
+                                <button 
+                                    onClick={() => { setRecPage(p => Math.max(1, p - 1)); document.getElementById('ai-suggestions')?.scrollIntoView({ behavior: 'smooth' }); }}
+                                    disabled={recPage === 1}
+                                    className="size-9 rounded-lg border border-slate-200 dark:border-slate-800 flex items-center justify-center text-slate-400 hover:bg-slate-50 disabled:opacity-20 transition-all cursor-pointer"
+                                >
+                                    <span className="material-symbols-outlined text-lg">chevron_left</span>
+                                </button>
+                                {Array.from({ length: totalRecPages }, (_, i) => i + 1).map(page => (
+                                    <button
+                                        key={page}
+                                        onClick={() => { setRecPage(page); document.getElementById('ai-suggestions')?.scrollIntoView({ behavior: 'smooth' }); }}
+                                        className={cn(
+                                            "size-9 rounded-lg border text-xs font-bold transition-all cursor-pointer",
+                                            recPage === page 
+                                                ? "bg-primary border-primary text-slate-900 shadow-sm" 
+                                                : "border-slate-200 dark:border-slate-800 text-slate-500 hover:bg-slate-50"
+                                        )}
+                                    >
+                                        {page}
+                                    </button>
+                                ))}
+                                <button 
+                                    onClick={() => { setRecPage(p => Math.min(totalRecPages, p + 1)); document.getElementById('ai-suggestions')?.scrollIntoView({ behavior: 'smooth' }); }}
+                                    disabled={recPage === totalRecPages}
+                                    className="size-9 rounded-lg border border-slate-200 dark:border-slate-800 flex items-center justify-center text-slate-400 hover:bg-slate-50 disabled:opacity-20 transition-all cursor-pointer"
+                                >
+                                    <span className="material-symbols-outlined text-lg">chevron_right</span>
+                                </button>
+                            </div>
                         </div>
                     )}
                 </div>
+            </div>
 
-                 <div className="bg-white rounded-xl shadow-soft border border-gray-100 overflow-hidden">
-                    <div className="p-6 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
-                        <h3 className="text-lg font-bold text-text-main flex items-center gap-2">
-                            <span className="material-symbols-outlined text-secondary">history</span>
-                            Histórico de Interações
-                        </h3>
-                        <div className="flex gap-2">
-                            <span className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider bg-white border border-gray-200 rounded text-text-secondary cursor-pointer hover:border-secondary">Tudo</span>
-                            <span className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider bg-transparent border border-transparent rounded text-text-secondary cursor-pointer hover:bg-gray-100">Notas</span>
-                            <span className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider bg-transparent border border-transparent rounded text-text-secondary cursor-pointer hover:bg-gray-100">Tarefas</span>
-                        </div>
+            {/* Sticky Interaction Sidebar */}
+            <div className="xl:col-span-1 space-y-6">
+                
+                {/* Internal Notes Section */}
+                <div className="bg-slate-950 text-white p-6 rounded-2xl shadow-xl flex flex-col h-[500px]">
+                    <div className="flex items-center gap-2 mb-6 border-b border-white/10 pb-4">
+                        <span className="material-symbols-outlined text-primary">sticky_note_2</span>
+                        <h3 className="font-bold uppercase text-xs tracking-widest">Notas do Corretor</h3>
                     </div>
-                    <div className="p-6">
-                        <div className="relative pl-4 border-l border-gray-200 space-y-8">
-                            {client.notes?.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map((note) => (
-                               <div key={note.id} className="relative group">
-                                {editingNote?.id === note.id ? (
-                                    <div>
-                                        <Textarea
-                                            value={editingNote.text}
-                                            onChange={(e) => setEditingNote({ ...editingNote, text: e.target.value })}
-                                            className="w-full bg-gray-50 p-3 rounded-lg border border-primary mb-2"
-                                            rows={3}
-                                        />
-                                        <div className="flex gap-2 justify-end">
-                                            <Button size="sm" variant="ghost" onClick={() => setEditingNote(null)}>Cancelar</Button>
-                                            <Button size="sm" onClick={handleUpdateNote}>Salvar</Button>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <>
-                                        <span className="absolute -left-[23px] top-1 bg-secondary rounded-full size-3.5 border-2 border-white shadow-sm group-hover:scale-110 transition-transform"></span>
-                                        <div className="flex justify-between items-start mb-1">
-                                            <h4 className="font-bold text-sm text-text-main pr-24">Nota de {note.authorName}</h4>
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-xs text-text-secondary font-medium">{note.createdAt ? new Date(note.createdAt).toLocaleDateString('pt-BR', {day: '2-digit', month: 'short', hour: '2-digit', minute:'2-digit'}) : 'Data inválida'}</span>
-                                                <div className="flex items-center gap-1">
-                                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleStartEdit(note)}>
-                                                        <span className="material-symbols-outlined text-base">edit</span>
-                                                    </Button>
-                                                    <AlertDialogTrigger asChild>
-                                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setNoteToDelete(note)}>
-                                                            <span className="material-symbols-outlined text-base">delete</span>
-                                                        </Button>
-                                                    </AlertDialogTrigger>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <p className="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg border border-gray-100">
-                                            {note.text}
-                                        </p>
-                                    </>
-                                )}
-                               </div>
-                            ))}
-                            <div className="relative group">
-                                <span className="absolute -left-[23px] top-1 bg-gray-300 rounded-full size-3.5 border-2 border-white shadow-sm group-hover:bg-secondary transition-colors"></span>
-                                <div className="flex flex-col sm:flex-row sm:items-baseline justify-between mb-1">
-                                    <h4 className="font-bold text-sm text-text-main">Novo Cliente Cadastrado</h4>
-                                    <span className="text-xs text-text-secondary font-medium">{client.createdAt?.toDate ? new Date(client.createdAt.toDate()).toLocaleDateString('pt-BR', {day: '2-digit', month: 'short'}) : ''}</span>
+                    <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-4 mb-4">
+                        {client.notes?.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map(note => (
+                            <div key={note.id} className="p-4 bg-white/5 rounded-xl relative group border border-white/5 shadow-inner">
+                                <p className="text-xs text-slate-300 leading-relaxed">"{note.text}"</p>
+                                <div className="flex justify-between items-center mt-3 pt-3 border-t border-white/5">
+                                    <p className="text-[9px] text-slate-500 font-bold uppercase">{new Date(note.createdAt).toLocaleDateString('pt-BR', {day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'})}</p>
+                                    <button onClick={() => setNoteToDelete(note)} className="opacity-0 group-hover:opacity-100 transition-opacity text-red-400 hover:text-red-600 cursor-pointer">
+                                        <span className="material-symbols-outlined text-[16px]">delete</span>
+                                    </button>
                                 </div>
-                                <p className="text-sm text-gray-600">
-                                    Cadastro realizado via {client.source}.
-                                </p>
                             </div>
-                        </div>
+                        ))}
+                        {(!client.notes || client.notes.length === 0) && (
+                            <p className="text-xs text-slate-500 text-center py-10 italic">Nenhuma observação interna registrada.</p>
+                        )}
+                    </div>
+                    <div className="pt-4 border-t border-white/10">
+                        <textarea 
+                            value={newNote}
+                            onChange={(e) => setNewNote(e.target.value)}
+                            placeholder="Adicionar nota rápida..."
+                            className="w-full bg-white/5 border-none rounded-xl p-4 text-xs resize-none focus:ring-1 focus:ring-primary h-24 mb-3 text-white placeholder:text-slate-600 shadow-inner"
+                        />
+                        <Button 
+                            onClick={handleAddNote}
+                            disabled={isSavingNote || !newNote.trim()}
+                            className="w-full font-black text-[10px] uppercase tracking-widest h-11 bg-primary text-slate-900 hover:brightness-110 shadow-glow"
+                        >
+                            Salvar Nota
+                        </Button>
                     </div>
                 </div>
-            </div>
-            <div className="space-y-8">
-                <div className="bg-white rounded-xl shadow-soft border border-gray-100 p-6 sticky top-24">
-                    <h3 className="text-lg font-bold text-text-main mb-4 border-b border-gray-100 pb-2">Ações Rápidas</h3>
-                    <details className="group bg-gray-50 rounded-lg border border-gray-200 open:bg-white open:ring-2 open:ring-secondary/20 transition-all duration-300">
-                        <summary className="flex items-center justify-between p-3 cursor-pointer select-none font-bold text-sm text-text-main hover:text-primary-hover transition-colors">
-                            <div className="flex items-center gap-2">
-                                <div className="bg-secondary text-text-main rounded p-1">
-                                    <span className="material-symbols-outlined text-[18px] block">note_add</span>
-                                </div>
-                                Adicionar Nota
-                            </div>
-                            <span className="material-symbols-outlined text-gray-400 group-open:rotate-180 transition-transform">expand_more</span>
-                        </summary>
-                        <div className="p-3 pt-0 animate-fade-in border-t border-gray-100 mt-2">
-                            <textarea 
-                                className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-text-main focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all placeholder-gray-400 min-h-[100px] mb-2" 
-                                placeholder="Digite sua nota sobre o cliente..."
-                                value={newNote}
-                                onChange={(e) => setNewNote(e.target.value)}
-                            ></textarea>
-                            <button 
-                                className="w-full bg-secondary hover:bg-primary text-white hover:text-black font-bold py-2 rounded-lg text-sm transition-colors shadow-sm disabled:opacity-50"
-                                onClick={handleAddNote}
-                                disabled={isSavingNote || !newNote.trim()}
-                            >
-                                {isSavingNote ? 'Salvando...' : 'Salvar Nota'}
-                            </button>
-                        </div>
-                    </details>
-                    <div className="mt-8">
-                        <h3 className="text-lg font-bold text-text-main mb-4 flex items-center justify-between border-b border-gray-100 pb-2">
-                            Tarefas Associadas
-                            <button className="text-secondary hover:text-primary transition-colors" title="Nova Tarefa">
-                                <span className="material-symbols-outlined text-[20px]">add_circle</span>
-                            </button>
-                        </h3>
-                        <div className="space-y-3">
-                             {/* Mockup task */}
-                             <div className="bg-white border border-gray-100 rounded-lg p-3 shadow-sm hover:shadow-md transition-shadow group">
-                                <div className="flex items-start justify-between">
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <span className="material-symbols-outlined text-orange-500 text-[18px]">calendar_clock</span>
-                                        <span className="text-xs font-bold text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded">Reunião</span>
+
+                {/* Next Steps / Task Card */}
+                <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                    <h3 className="font-black text-slate-900 dark:text-white mb-6 uppercase text-xs tracking-widest flex items-center gap-2">
+                        <span className="material-symbols-outlined text-primary">event_note</span>
+                        Próximas Atividades
+                    </h3>
+                    <div className="space-y-4">
+                        {clientEvents && clientEvents.filter(e => !e.completed).length > 0 ? (
+                            clientEvents.filter(e => !e.completed).slice(0, 2).map(event => (
+                                <div key={event.id} className="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-800">
+                                    <div className="flex justify-between items-start mb-1">
+                                        <span className="text-[9px] font-black text-primary uppercase">{event.type}</span>
+                                        <span className="text-[9px] text-slate-400 font-bold">{format(parseISO(event.date), 'dd/MM')}</span>
                                     </div>
-                                    <a className="text-gray-400 hover:text-primary transition-colors opacity-0 group-hover:opacity-100" href="#">
-                                        <span className="material-symbols-outlined text-[18px]">open_in_new</span>
-                                    </a>
+                                    <p className="text-xs font-bold text-slate-900 dark:text-white truncate">{event.title}</p>
                                 </div>
-                                <h4 className="text-sm font-bold text-text-main mb-0.5">Apresentação de Proposta</h4>
-                                <p className="text-xs text-text-secondary mb-2">Ref. Imóvel 5501 - Ed. Horizonte</p>
-                                <div className="flex items-center gap-1 text-xs text-gray-500">
-                                    <span className="material-symbols-outlined text-[14px]">event</span>
-                                    22 Out, 10:00
-                                </div>
-                            </div>
-                        </div>
+                            ))
+                        ) : (
+                            <p className="text-xs text-slate-400 text-center py-4 italic">Nenhuma atividade pendente.</p>
+                        )}
                     </div>
+                    <Button asChild variant="outline" className="w-full mt-6 h-10 rounded-xl font-bold text-[10px] uppercase tracking-widest border-slate-200 hover:bg-primary hover:text-slate-900 hover:border-primary transition-all">
+                        <Link href="/dashboard/agenda">Gerenciar Agenda</Link>
+                    </Button>
                 </div>
             </div>
         </div>
-         <AlertDialogContent>
-            <AlertDialogHeader>
-                <AlertDialogTitle>Excluir esta nota?</AlertDialogTitle>
-                <AlertDialogDescription>
-                    Esta ação não pode ser desfeita. A nota será removida permanentemente do histórico deste cliente.
-                </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-                <AlertDialogCancel onClick={() => setNoteToDelete(null)}>Cancelar</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDeleteNote} className="bg-destructive hover:bg-destructive/90">
-                    Sim, Excluir
-                </AlertDialogAction>
-            </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+
+        <style jsx global>{`
+            .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+            .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+            .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
+            .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.2); }
+        `}</style>
+      </div>
     )
 }

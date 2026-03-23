@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuthContext, useDoc, useFirestore, useMemoFirebase, setDocumentNonBlocking, useFirebase, useCollection } from '@/firebase';
-import { doc, collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -51,6 +51,15 @@ type OralinkData = {
   featuredPropertyIds?: string[];
   videoUrl?: string;
   showVideo?: boolean;
+  // Color Customization
+  backgroundColor?: string;
+  textColor?: string;
+  buttonBgColor?: string;
+  buttonTextColor?: string;
+  cardTextColor?: string;
+  footerTextColor?: string;
+  statusTagBgColor?: string;
+  statusTagTextColor?: string;
 };
 
 type Property = {
@@ -81,6 +90,48 @@ const availableIcons = [
   { value: 'share', label: 'Compartilhar' },
 ];
 
+function hexToHsl(hex: string): string {
+    if (!hex) return '0 0% 0%';
+    const shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i;
+    hex = hex.replace(shorthandRegex, (m, r, g, b) => {
+        return r + r + g + g + b + b;
+    });
+
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    if (!result) {
+        return '0 0% 0%';
+    }
+
+    let r = parseInt(result[1], 16);
+    let g = parseInt(result[2], 16);
+    let b = parseInt(result[3], 16);
+
+    r /= 255;
+    g /= 255;
+    b /= 255;
+
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    let h = 0, s = 0, l = (max + min) / 2;
+
+    if (max !== min) {
+        const d = max - min;
+        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+        switch (max) {
+            case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+            case g: h = (b - r) / d + 2; break;
+            case b: h = (r - g) / d + 4; break;
+        }
+        h /= 6;
+    }
+
+    h = Math.round(h * 360);
+    s = Math.round(s * 100);
+    l = Math.round(l * 100);
+    
+    return `${h} ${s}% ${l}%`;
+}
+
 function hslToHex(hslStr: string): string {
     if (!hslStr || typeof hslStr !== 'string') return '#000000';
     const parts = hslStr.match(/(\d+(\.\d+)?)/g);
@@ -98,6 +149,26 @@ function hslToHex(hslStr: string): string {
     };
     return `#${f(0)}${f(8)}${f(4)}`;
 }
+
+const ColorPicker = ({ label, value, onChange }: { label: string, value: string | undefined, onChange: (val: string) => void }) => {
+    const hexValue = value ? hslToHex(value) : '#000000';
+    return (
+        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100">
+            <div className="flex items-center gap-3">
+                <div className="size-8 rounded-lg border border-gray-200 relative overflow-hidden" style={{ backgroundColor: hexValue }}>
+                    <input 
+                        type="color" 
+                        value={hexValue} 
+                        onChange={(e) => onChange(hexToHsl(e.target.value))}
+                        className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                    />
+                </div>
+                <span className="text-xs font-bold text-text-secondary uppercase tracking-wider">{label}</span>
+            </div>
+            <span className="text-[10px] font-mono text-gray-400 uppercase">{hexValue}</span>
+        </div>
+    );
+};
 
 export default function OralinkManagementPage() {
   const { user, userProfile } = useAuthContext();
@@ -155,6 +226,14 @@ export default function OralinkManagementPage() {
     featuredPropertyIds: [],
     videoUrl: '',
     showVideo: false,
+    backgroundColor: '90 20% 97%',
+    textColor: '110 16% 8%',
+    buttonBgColor: '80 99% 49%',
+    buttonTextColor: '110 16% 8%',
+    cardTextColor: '110 16% 8%',
+    footerTextColor: '110 16% 8%',
+    statusTagBgColor: '80 99% 49%',
+    statusTagTextColor: '110 16% 8%',
   });
 
   useEffect(() => {
@@ -280,10 +359,15 @@ export default function OralinkManagementPage() {
 
   if (isBrokerLoading) return <div className="p-10 text-center">Carregando editor...</div>;
 
-  const primaryHex = brokerData?.primaryColor ? hslToHex(brokerData.primaryColor) : '#c3e738';
-  const secondaryHex = brokerData?.secondaryColor ? hslToHex(brokerData.secondaryColor) : '#141811';
-  const bgHex = brokerData?.backgroundColor ? hslToHex(brokerData.backgroundColor) : '#fcfdfa';
-  const textHex = brokerData?.foregroundColor ? hslToHex(brokerData.foregroundColor) : '#141811';
+  // Preview Colors
+  const previewBg = oralink.backgroundColor ? hslToHex(oralink.backgroundColor) : '#fcfdfa';
+  const previewText = oralink.textColor ? hslToHex(oralink.textColor) : '#141811';
+  const previewBtnBg = oralink.buttonBgColor ? hslToHex(oralink.buttonBgColor) : '#c3e738';
+  const previewBtnText = oralink.buttonTextColor ? hslToHex(oralink.buttonTextColor) : '#141811';
+  const previewCardText = oralink.cardTextColor ? hslToHex(oralink.cardTextColor) : '#141811';
+  const previewFooterText = oralink.footerTextColor ? hslToHex(oralink.footerTextColor) : '#141811';
+  const previewTagBg = oralink.statusTagBgColor ? hslToHex(oralink.statusTagBgColor) : '#c3e738';
+  const previewTagText = oralink.statusTagTextColor ? hslToHex(oralink.statusTagTextColor) : '#141811';
 
   return (
     <div className="flex flex-col lg:flex-row gap-8">
@@ -307,12 +391,12 @@ export default function OralinkManagementPage() {
             <h2 className="text-xl font-bold text-text-main">1. Informações de Perfil</h2>
           </div>
           <div className="flex flex-col md:flex-row gap-8 items-start">
-            <div className="relative group">
-              <div className="size-32 rounded-full overflow-hidden border-4 border-slate-100 bg-gray-100 relative">
+            <div className="relative group flex-shrink-0">
+              <div className="size-32 rounded-full overflow-hidden border-4 border-slate-100 bg-gray-100 relative shrink-0 flex-shrink-0">
                 {oralink.profileImageUrl ? (
                   <Image src={oralink.profileImageUrl} alt="Profile" fill className="object-cover rounded-full" />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-gray-300">
+                  <div className="size-full flex items-center justify-center text-gray-300">
                     <span className="material-symbols-outlined text-5xl">person</span>
                   </div>
                 )}
@@ -330,19 +414,21 @@ export default function OralinkManagementPage() {
             <div className="flex-1 grid gap-4 w-full">
               <div>
                 <label className="text-sm font-bold mb-1.5 block text-text-secondary uppercase tracking-wider">Nome de Exibição</label>
-                <Input 
+                <input 
                   value={oralink.displayName} 
                   onChange={e => setOralink(prev => ({ ...prev, displayName: e.target.value }))}
                   placeholder="Seu nome profissional"
+                  className="w-full rounded-lg border-slate-200 focus:ring-primary focus:border-primary px-4 py-2"
                 />
               </div>
               <div>
                 <label className="text-sm font-bold mb-1.5 block text-text-secondary uppercase tracking-wider">Bio Curta</label>
-                <Textarea 
+                <textarea 
                   value={oralink.bio} 
                   onChange={e => setOralink(prev => ({ ...prev, bio: e.target.value }))}
                   placeholder="Ex: Especialista em imóveis de alto padrão..."
                   rows={2}
+                  className="w-full rounded-lg border-slate-200 focus:ring-primary focus:border-primary px-4 py-2"
                 />
               </div>
             </div>
@@ -350,10 +436,59 @@ export default function OralinkManagementPage() {
         </section>
 
         <section className="bg-white p-6 rounded-xl border border-gray-100 shadow-soft">
+          <div className="flex items-center gap-3 mb-6">
+            <span className="material-symbols-outlined text-primary">palette</span>
+            <h2 className="text-xl font-bold text-text-main">2. Personalização de Cores</h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <ColorPicker 
+                label="Cor do Fundo" 
+                value={oralink.backgroundColor} 
+                onChange={val => setOralink(prev => ({ ...prev, backgroundColor: val }))} 
+            />
+            <ColorPicker 
+                label="Cor do Texto Principal" 
+                value={oralink.textColor} 
+                onChange={val => setOralink(prev => ({ ...prev, textColor: val }))} 
+            />
+            <ColorPicker 
+                label="Fundo do Botão" 
+                value={oralink.buttonBgColor} 
+                onChange={val => setOralink(prev => ({ ...prev, buttonBgColor: val }))} 
+            />
+            <ColorPicker 
+                label="Texto/Ícone do Botão" 
+                value={oralink.buttonTextColor} 
+                onChange={val => setOralink(prev => ({ ...prev, buttonTextColor: val }))} 
+            />
+            <ColorPicker 
+                label="Texto dos Cards" 
+                value={oralink.cardTextColor} 
+                onChange={val => setOralink(prev => ({ ...prev, cardTextColor: val }))} 
+            />
+            <ColorPicker 
+                label="Texto do Rodapé" 
+                value={oralink.footerTextColor} 
+                onChange={val => setOralink(prev => ({ ...prev, footerTextColor: val }))} 
+            />
+            <ColorPicker 
+                label="Fundo da Tag de Status" 
+                value={oralink.statusTagBgColor} 
+                onChange={val => setOralink(prev => ({ ...prev, statusTagBgColor: val }))} 
+            />
+            <ColorPicker 
+                label="Texto da Tag de Status" 
+                value={oralink.statusTagTextColor} 
+                onChange={val => setOralink(prev => ({ ...prev, statusTagTextColor: val }))} 
+            />
+          </div>
+        </section>
+
+        <section className="bg-white p-6 rounded-xl border border-gray-100 shadow-soft">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
               <span className="material-symbols-outlined text-primary">play_circle</span>
-              <h2 className="text-xl font-bold text-text-main">2. Vídeo em Destaque</h2>
+              <h2 className="text-xl font-bold text-text-main">3. Vídeo em Destaque</h2>
             </div>
             <div className="flex items-center gap-4">
               <span className="text-xs font-bold text-text-secondary uppercase">Exibir Vídeo</span>
@@ -366,10 +501,11 @@ export default function OralinkManagementPage() {
           <div className="space-y-4">
             <div>
               <label className="text-sm font-bold mb-1.5 block text-text-secondary uppercase tracking-wider">Link do YouTube</label>
-              <Input 
+              <input 
                 value={oralink.videoUrl} 
                 onChange={e => setOralink(prev => ({ ...prev, videoUrl: e.target.value }))}
                 placeholder="https://www.youtube.com/watch?v=..."
+                className="w-full rounded-lg border-slate-200 focus:ring-primary focus:border-primary px-4 py-2"
               />
               <p className="text-[10px] text-text-secondary mt-2">O vídeo aparecerá antes dos links de contato no seu Oralink.</p>
             </div>
@@ -380,12 +516,12 @@ export default function OralinkManagementPage() {
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
               <span className="material-symbols-outlined text-primary">link</span>
-              <h2 className="text-xl font-bold text-text-main">3. Meus Links Personalizados</h2>
+              <h2 className="text-xl font-bold text-text-main">4. Meus Links Personalizados</h2>
             </div>
-            <Button variant="ghost" onClick={handleAddLink} className="text-primary hover:text-primary-hover font-bold text-sm">
-              <span className="material-symbols-outlined text-lg mr-1">add_circle</span>
+            <button onClick={handleAddLink} className="text-primary hover:text-primary-hover font-bold text-sm flex items-center gap-1 cursor-pointer">
+              <span className="material-symbols-outlined text-lg">add_circle</span>
               Novo Link
-            </Button>
+            </button>
           </div>
           <div className="flex flex-col gap-4">
             {oralink.links.map((link, index) => (
@@ -425,17 +561,17 @@ export default function OralinkManagementPage() {
                         ))}
                       </SelectContent>
                     </Select>
-                    <Input 
+                    <input 
                       value={link.title} 
                       onChange={e => handleUpdateLink(link.id, { title: e.target.value })}
-                      className="bg-transparent border-none p-0 font-bold focus:ring-0"
+                      className="bg-transparent border-none p-0 font-bold focus:ring-0 w-full"
                       placeholder="Título do botão"
                     />
                   </div>
-                  <Input 
+                  <input 
                     value={link.url} 
                     onChange={e => handleUpdateLink(link.id, { url: e.target.value })}
-                    className="bg-transparent border-none p-0 text-text-secondary text-sm focus:ring-0 ml-16"
+                    className="bg-transparent border-none p-0 text-text-secondary text-sm focus:ring-0 ml-16 w-full"
                     placeholder="https://..."
                   />
                 </div>
@@ -444,7 +580,7 @@ export default function OralinkManagementPage() {
                     checked={link.active} 
                     onCheckedChange={checked => handleUpdateLink(link.id, { active: checked })}
                   />
-                  <button onClick={() => handleRemoveLink(link.id)} className="p-2 text-gray-300 hover:text-red-500 transition-colors">
+                  <button onClick={() => handleRemoveLink(link.id)} className="p-2 text-gray-300 hover:text-red-500 transition-colors cursor-pointer">
                     <span className="material-symbols-outlined text-xl">delete</span>
                   </button>
                 </div>
@@ -460,7 +596,7 @@ export default function OralinkManagementPage() {
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
               <span className="material-symbols-outlined text-primary">apartment</span>
-              <h2 className="text-xl font-bold text-text-main">4. Vitrine de Imóveis</h2>
+              <h2 className="text-xl font-bold text-text-main">5. Vitrine de Imóveis</h2>
             </div>
             <div className="flex items-center gap-4">
               <span className="text-xs font-bold text-text-secondary uppercase">Exibir Vitrine</span>
@@ -491,11 +627,11 @@ export default function OralinkManagementPage() {
                   <h3 className="text-xl font-bold text-text-main mb-4">Selecionar Imóveis</h3>
                   <div className="relative">
                     <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">search</span>
-                    <Input 
+                    <input 
                       value={searchTerm} 
                       onChange={e => setSearchTerm(e.target.value)} 
                       placeholder="Buscar por nome ou bairro..." 
-                      className="pl-10 h-12 bg-gray-50 border-gray-100"
+                      className="pl-10 h-12 w-full rounded-xl bg-gray-50 border-gray-100 px-4 py-2 focus:ring-primary focus:border-primary"
                     />
                   </div>
                 </div>
@@ -551,7 +687,7 @@ export default function OralinkManagementPage() {
                 </div>
                 <button 
                   onClick={() => handlePropertyToggle(prop.id)}
-                  className="absolute top-2 right-2 size-6 rounded-full bg-red-50 text-red-500 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                  className="absolute top-2 right-2 size-6 rounded-full bg-red-50 text-red-500 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer"
                 >
                   <span className="material-symbols-outlined text-sm">close</span>
                 </button>
@@ -570,21 +706,21 @@ export default function OralinkManagementPage() {
       <aside className="w-full lg:w-[400px] flex flex-col items-center">
         <div className="sticky top-24 w-full max-w-[320px]">
           <p className="text-center text-[10px] font-black text-gray-400 mb-4 uppercase tracking-[0.2em]">Preview Mobile</p>
-          <div className="relative mx-auto border-[10px] border-slate-900 rounded-[3rem] h-[640px] w-full bg-white overflow-hidden shadow-2xl ring-1 ring-slate-200" style={{ backgroundColor: bgHex }}>
+          <div className="relative mx-auto border-[10px] border-slate-900 rounded-[3rem] h-[640px] w-full overflow-hidden shadow-2xl ring-1 ring-slate-200" style={{ backgroundColor: previewBg }}>
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-6 bg-slate-950 rounded-b-2xl z-20"></div>
             
             <div className="h-full overflow-y-auto no-scrollbar p-6 flex flex-col items-center">
-              <div className="mt-8 size-24 rounded-full border-4 p-1 mb-4 overflow-hidden shadow-lg relative bg-gray-100" style={{ borderColor: primaryHex }}>
+              <div className="mt-8 w-24 h-24 flex-shrink-0 rounded-full border-4 p-1 mb-4 overflow-hidden shadow-lg relative bg-gray-100 flex-shrink-0" style={{ borderColor: previewBtnBg }}>
                 {oralink.profileImageUrl ? (
                   <Image src={oralink.profileImageUrl} alt="Avatar" fill className="object-cover rounded-full" />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-gray-300">
+                  <div className="size-full flex items-center justify-center text-gray-300">
                     <span className="material-symbols-outlined text-4xl">person</span>
                   </div>
                 )}
               </div>
-              <h3 className="text-xl font-bold mb-1" style={{ color: textHex }}>{oralink.displayName || 'Seu Nome'}</h3>
-              <p className="text-[11px] text-center mb-8 leading-relaxed px-2" style={{ color: textHex + 'CC' }}>
+              <h3 className="text-xl font-bold mb-1" style={{ color: previewText }}>{oralink.displayName || 'Seu Nome'}</h3>
+              <p className="text-[11px] text-center mb-8 leading-relaxed px-2" style={{ color: previewText + 'CC' }}>
                 {oralink.bio || 'Sua biografia profissional aparecerá aqui.'}
               </p>
 
@@ -599,33 +735,35 @@ export default function OralinkManagementPage() {
                   <div 
                     key={link.id} 
                     className="flex items-center justify-center gap-2 w-full text-center py-4 px-4 rounded-xl font-bold text-xs shadow-sm"
-                    style={{ backgroundColor: secondaryHex, color: '#fff' }}
+                    style={{ backgroundColor: previewBtnBg, color: previewBtnText }}
                   >
                     {link.icon && <span className="material-symbols-outlined text-lg">{link.icon}</span>}
                     <span>{link.title}</span>
                   </div>
                 ))}
-                <div className="flex items-center justify-center gap-2 w-full text-center py-4 px-4 rounded-xl font-black text-xs shadow-sm uppercase tracking-wider" style={{ backgroundColor: primaryHex, color: '#000' }}>
-                  <span className="material-symbols-outlined text-lg">calendar_today</span>
-                  <span>Agendar Consultoria</span>
-                </div>
               </div>
 
-              {oralink.showPropertyShowcase && selectedProperties.length > 0 && (
+              {oralink.showPropertyShowcase && allAvailableProperties.length > 0 && (
                 <div className="w-full">
-                  <h4 className="text-[10px] font-black uppercase tracking-widest mb-6 flex items-center gap-3" style={{ color: textHex + '80' }}>
-                    <div className="w-4 h-0.5" style={{ backgroundColor: primaryHex }}></div>
+                  <h4 className="text-[11px] font-black uppercase tracking-widest mb-6 flex items-center gap-3" style={{ color: previewText + '80' }}>
+                    <div className="w-4 h-0.5" style={{ backgroundColor: previewBtnBg }}></div>
                     Imóveis em Destaque
                   </h4>
                   <div className="space-y-4">
                     {selectedProperties.map(prop => (
-                      <div key={prop.id} className="bg-white rounded-xl overflow-hidden border border-gray-100 shadow-sm">
-                        <div className="relative h-28 w-full bg-gray-100">
-                          <Image src={prop.midia?.[0] || 'https://placehold.co/300/150'} alt="Imóvel" fill className="object-cover" />
+                      <div key={prop.id} className="bg-white rounded-xl overflow-hidden border border-gray-100 shadow-soft hover:shadow-lg transition-all group">
+                        <div className="relative h-48 w-full bg-gray-100">
+                          <Image src={prop.midia?.[0] || 'https://picsum.photos/seed/prop/400/200'} alt={prop.informacoesbasicas.nome} fill className="object-cover group-hover:scale-105 transition-transform duration-700" />
+                          <div className="absolute top-4 left-4">
+                            <span className="backdrop-blur text-[10px] font-black px-3 py-1 rounded-lg uppercase tracking-widest" style={{ backgroundColor: previewTagBg, color: previewTagText }}>{prop.informacoesbasicas.status}</span>
+                          </div>
                         </div>
-                        <div className="p-3">
-                          <p className="font-bold text-[11px] truncate text-text-main uppercase">{prop.informacoesbasicas.nome}</p>
-                          <p className="text-[9px] text-text-secondary mt-0.5">{prop.informacoesbasicas.valor?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                        <div className="p-6">
+                          <h5 className="font-bold text-base uppercase truncate mb-1" style={{ color: previewCardText }}>{prop.informacoesbasicas.nome}</h5>
+                          <div className="flex justify-between items-center">
+                            <p className="text-xs opacity-60" style={{ color: previewCardText }}>{prop.localizacao.bairro}, {prop.localizacao.cidade}</p>
+                            <p className="text-sm font-black" style={{ color: previewBtnBg }}>{prop.informacoesbasicas.valor?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -633,10 +771,10 @@ export default function OralinkManagementPage() {
                 </div>
               )}
 
-              <footer className="mt-12 mb-6 flex flex-col items-center gap-3 opacity-40">
+              <footer className="mt-12 mb-6 flex flex-col items-center gap-4 opacity-60 w-full pt-6 border-t border-gray-100/20" style={{ borderColor: previewText + '20' }}>
                 <div className="flex flex-col items-center gap-2">
-                    <Image src="https://dotestudio.com.br/wp-content/uploads/2025/08/oraora.png" alt="Oraora" width={80} height={20} className="h-4 w-auto" />
-                    <p className="text-[8px] font-black uppercase tracking-[0.2em]" style={{ color: textHex }}>Powered by Oraora</p>
+                    <Image src="https://dotestudio.com.br/wp-content/uploads/2025/08/oraora.png" alt="Oraora" width={80} height={20} className="h-4 w-auto grayscale" />
+                    <p className="text-[8px] font-black uppercase tracking-[0.2em]" style={{ color: previewFooterText }}>Powered by Oraora</p>
                 </div>
               </footer>
             </div>

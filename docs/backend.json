@@ -107,9 +107,37 @@
           }
         }
       }
+    },
+    "Journey": {
+      "title": "Journey",
+      "description": "Represents a sales journey for a lead.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "clientId": { "type": "string" },
+        "clientName": { "type": "string" },
+        "persona": { "type": "string" },
+        "propertyId": { "type": "string" },
+        "propertyIds": { "type": "array", "items": { "type": "string" } },
+        "propertyTitle": { "type": "string" },
+        "propertyLocation": { "type": "string" },
+        "propertyImage": { "type": "string" },
+        "stage": { "type": "string", "enum": ["prospeccao", "visitas", "proposta", "fechamento"] },
+        "statusTag": { "type": "string" },
+        "potentialValue": { "type": "number" },
+        "notes": { "type": "string" },
+        "brokerId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["clientId", "clientName", "stage", "brokerId", "createdAt"]
     }
   },
   "auth": {
     "providers": ["password"]
+  },
+  "firestore": {
+    "/users/{userId}": { "schema": { "$ref": "#/backend/entities/User" }, "description": "Users of the platform." },
+    "/brokers/{brokerId}": { "schema": { "$ref": "#/backend/entities/Broker" }, "description": "Broker details and site settings." },
+    "/journeys/{journeyId}": { "schema": { "$ref": "#/backend/entities/Journey" }, "description": "Sales journeys for leads." }
   }
 }

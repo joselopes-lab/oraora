@@ -205,7 +205,7 @@ export default function UrbanPadraoLayout({ broker, properties }: UrbanPadraoPag
   } as React.CSSProperties;
 
   const statsSectionBgColor = broker.homepage?.statsSectionBgColor ? hslToHex(broker.homepage.statsSectionBgColor) : '#ffffff';
-  const statsNumberColor = broker.homepage?.statsNumberColor ? hslToHex(broker.homepage.statsNumberColor) : 'hsl(var(--primary))';
+  const statsNumberColor = broker.homepage?.statsNumberColor ? hslToHex(broker.homepage.statsNumberColor) : 'hsl(var(--secondary))';
   const statsLabelColor = broker.homepage?.statsLabelColor ? hslToHex(broker.homepage.statsLabelColor) : 'hsl(var(--muted-foreground))';
   const cardIconColor = broker.homepage?.cardIconColor ? hslToHex(broker.homepage.cardIconColor) : undefined;
   const cardValueColor = broker.homepage?.cardValueColor ? hslToHex(broker.homepage.cardValueColor) : undefined;
@@ -280,30 +280,38 @@ export default function UrbanPadraoLayout({ broker, properties }: UrbanPadraoPag
           {/* Floating Search Bar */}
           <div className="relative z-20 -mt-16 w-full max-w-5xl mx-auto px-4">
             <Suspense fallback={<div className="h-24 bg-white rounded-2xl animate-pulse shadow-card border border-gray-100" />}>
-              <SearchFilters onSearch={handleSearch} className="shadow-card border border-gray-100" />
+              <SearchFilters onSearch={handleSearch} />
             </Suspense>
           </div>
         </section>
         
         {!content.hideStats && (
-          <section className="w-full py-8 border-b border-[#f0f2f4]" style={{ backgroundColor: statsSectionBgColor }}>
+          <section className="w-full py-16 border-b border-[#f0f2f4]" style={{ backgroundColor: statsSectionBgColor }}>
             <div className="layout-container max-w-[1280px] mx-auto px-6">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-8 divide-x divide-gray-100">
-                <div className="flex flex-col items-center justify-center text-center">
-                  <span className="text-3xl md:text-4xl font-black" style={{color: statsNumberColor}}>{content.statsSold || '+250'}</span>
-                  <span className="text-sm font-medium mt-1" style={{color: statsLabelColor}}>Imóveis Vendidos</span>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:divide-x divide-gray-100">
+                <div className="flex flex-col items-center justify-center text-center px-4">
+                  <div className="text-2xl md:text-3xl font-bold leading-tight" style={{color: statsNumberColor}}>
+                    {content.statsSold || '+30'} Imóveis<br />Vendidos
+                  </div>
+                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] mt-2" style={{color: statsLabelColor}}>Imóveis Vendidos</span>
                 </div>
-                <div className="flex flex-col items-center justify-center text-center">
-                  <span className="text-3xl md:text-4xl font-black" style={{color: statsNumberColor}}>{content.statsExperience || '12'}</span>
-                  <span className="text-sm font-medium mt-1" style={{color: statsLabelColor}}>Anos de Mercado</span>
+                <div className="flex flex-col items-center justify-center text-center px-4">
+                  <div className="text-2xl md:text-3xl font-bold leading-tight" style={{color: statsNumberColor}}>
+                    {content.statsExperience || '+5'} Anos de<br />Expertise
+                  </div>
+                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] mt-2" style={{color: statsLabelColor}}>Anos de Mercado</span>
                 </div>
-                <div className="flex flex-col items-center justify-center text-center">
-                  <span className="text-3xl md:text-4xl font-black" style={{color: statsNumberColor}}>{content.statsSatisfaction || '98%'}</span>
-                  <span className="text-sm font-medium mt-1" style={{color: statsLabelColor}}>Clientes Satisfeitos</span>
+                <div className="flex flex-col items-center justify-center text-center px-4">
+                  <div className="text-2xl md:text-3xl font-bold leading-tight" style={{color: statsNumberColor}}>
+                    {content.statsSatisfaction || '100%'} Satisfação<br />Comprovada
+                  </div>
+                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] mt-2" style={{color: statsLabelColor}}>Clientes Satisfeitos</span>
                 </div>
-                <div className="flex flex-col items-center justify-center text-center">
-                  <span className="text-3xl md:text-4xl font-black" style={{color: statsNumberColor}}>{content.statsSupport || '24/7'}</span>
-                  <span className="text-sm font-medium mt-1" style={{color: statsLabelColor}}>Suporte Premium</span>
+                <div className="flex flex-col items-center justify-center text-center px-4">
+                  <div className="text-2xl md:text-3xl font-bold leading-tight" style={{color: statsNumberColor}}>
+                    Suporte<br />Pós-Venda
+                  </div>
+                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] mt-2" style={{color: statsLabelColor}}>Suporte Premium</span>
                 </div>
               </div>
             </div>

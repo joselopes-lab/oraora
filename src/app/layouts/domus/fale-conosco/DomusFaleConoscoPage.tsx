@@ -1,4 +1,3 @@
-
 'use client';
 /**
  * @fileOverview Página de Contato exclusiva para o template Domus.
@@ -30,6 +29,19 @@ type Broker = {
   backgroundColor?: string;
   foregroundColor?: string;
   slug: string;
+  homepage?: {
+    ctaButtonBgColor?: string;
+    ctaButtonTextColor?: string;
+    ctaButtonText?: string;
+    ctaButtonIcon?: string;
+    ctaTitle?: string;
+    ctaSubtitle?: string;
+    ctaSectionBgColor?: string;
+    ctaSectionTitleColor?: string;
+    ctaSectionSubtitleColor?: string;
+    ctaSectionButtonBgColor?: string;
+    ctaSectionButtonTextColor?: string;
+  };
   footerContactEmail?: string;
   footerContactPhone?: string;
   footerContactAddress?: string;
@@ -45,6 +57,7 @@ type DomusFaleConoscoPageProps = {
 const formSchema = z.object({
   name: z.string().min(1, 'O nome é obrigatório.'),
   email: z.string().email('Por favor, insira um e-mail válido.'),
+  phone: z.string().min(1, 'O telefone é obrigatório.'),
   subject: z.string().min(1, 'Selecione um assunto.'),
   message: z.string().min(1, 'A mensagem não pode estar vazia.'),
 });
@@ -72,12 +85,14 @@ function hslToHex(hslStr: string): string {
 export default function DomusFaleConoscoPage({ broker }: DomusFaleConoscoPageProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const content = broker.homepage || {};
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: '',
       email: '',
+      phone: '',
       subject: 'Interesse em Comprar',
       message: '',
     },
@@ -89,6 +104,7 @@ export default function DomusFaleConoscoPage({ broker }: DomusFaleConoscoPagePro
       brokerId: broker.id,
       name: data.name,
       email: data.email,
+      phone: data.phone,
       propertyInterest: data.subject,
       message: data.message,
       source: 'Formulário de Contato Domus',
@@ -116,9 +132,20 @@ export default function DomusFaleConoscoPage({ broker }: DomusFaleConoscoPagePro
     '--primary': broker.primaryColor || '80 99% 49%',
     '--secondary': broker.secondaryColor || '110 16% 8%',
     '--accent': broker.accentColor || '97 78% 56%',
+    '--cta-button-bg': content.ctaButtonBgColor ? `hsl(${content.ctaButtonBgColor})` : 'hsl(var(--primary))',
+    '--cta-button-text': content.ctaButtonTextColor ? `hsl(${content.ctaButtonTextColor})` : 'hsl(var(--secondary))',
+    '--cta-section-bg': content.ctaSectionBgColor ? `hsl(${content.ctaSectionBgColor})` : 'hsl(var(--secondary))',
+    '--cta-section-title': content.ctaSectionTitleColor ? `hsl(${content.ctaSectionTitleColor})` : '#fff',
+    '--cta-section-subtitle': content.ctaSectionSubtitleColor ? `hsl(${content.ctaSectionSubtitleColor})` : 'rgba(255,255,255,0.6)',
+    '--cta-section-button-bg': content.ctaSectionButtonBgColor ? `hsl(${content.ctaSectionButtonBgColor})` : 'hsl(var(--primary))',
+    '--cta-section-button-text': content.ctaSectionButtonTextColor ? `hsl(${content.ctaSectionButtonTextColor})` : 'hsl(var(--secondary))',
   } as React.CSSProperties;
 
-  const whatsappLink = broker.whatsappUrl ? broker.whatsappUrl.replace('wa.me.com.br', 'wa.me') : '#';
+  const whatsappLink = broker.whatsappUrl ? 
+    (broker.whatsappUrl.includes('wa.me/') && !broker.whatsappUrl.includes('wa.me/55') ? 
+      broker.whatsappUrl.replace('wa.me/', 'wa.me/55') : 
+      broker.whatsappUrl.replace('wa.me.com.br', 'wa.me')) 
+    : '#';
 
   return (
     <div style={dynamicStyles} className="domus-theme font-display bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 min-h-screen transition-colors duration-300">
@@ -127,8 +154,8 @@ export default function DomusFaleConoscoPage({ broker }: DomusFaleConoscoPagePro
             box-shadow: 0 0 20px rgba(0, 255, 0, 0.4);
         }
         .bg-mesh {
-            background-image: radial-gradient(at 0% 0%, rgba(0, 255, 0, 0.05) 0%, transparent 50%),
-                              radial-gradient(at 100% 100%, rgba(0, 255, 0, 0.05) 0%, transparent 50%);
+            background-image: radial-gradient(at 0% 0%, hsl(var(--secondary) / 0.05) 0%, transparent 50%),
+                              radial-gradient(at 100% 100%, hsl(var(--secondary) / 0.05) 0%, transparent 50%);
         }
       `}</style>
       
@@ -197,7 +224,7 @@ export default function DomusFaleConoscoPage({ broker }: DomusFaleConoscoPagePro
           </div>
 
           <div className="lg:col-span-7">
-            <div className="bg-white dark:bg-card-dark p-8 md:p-12 rounded-2xl shadow-xl shadow-slate-200/50 dark:shadow-none border border-slate-100 dark:border-slate-800">
+            <div className="bg-white dark:bg-slate-900 p-8 md:p-12 rounded-2xl shadow-xl shadow-slate-200/50 dark:shadow-none border border-slate-100 dark:border-slate-800">
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <FormField
@@ -207,7 +234,7 @@ export default function DomusFaleConoscoPage({ broker }: DomusFaleConoscoPagePro
                       <FormItem className="md:col-span-1">
                         <FormLabel className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Nome Completo</FormLabel>
                         <FormControl>
-                          <Input className="w-full bg-slate-50 dark:bg-background-dark border-transparent focus:border-primary focus:ring-0 rounded-xl px-4 py-3.5 transition-all outline-none" placeholder="Seu nome" {...field} />
+                          <Input className="w-full bg-slate-50 dark:bg-background-dark border-transparent focus:border-primary focus:ring-0 rounded-xl px-4 py-3.5 transition-all outline-none font-bold" placeholder="Seu nome" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -220,7 +247,20 @@ export default function DomusFaleConoscoPage({ broker }: DomusFaleConoscoPagePro
                       <FormItem className="md:col-span-1">
                         <FormLabel className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">E-mail</FormLabel>
                         <FormControl>
-                          <Input className="w-full bg-slate-50 dark:bg-background-dark border-transparent focus:border-primary focus:ring-0 rounded-xl px-4 py-3.5 transition-all outline-none" placeholder="seu@email.com" type="email" {...field} />
+                          <Input className="w-full bg-slate-50 dark:bg-background-dark border-transparent focus:border-primary focus:ring-0 rounded-xl px-4 py-3.5 transition-all outline-none font-bold" placeholder="seu@email.com" type="email" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="phone"
+                    render={({ field }) => (
+                      <FormItem className="md:col-span-2">
+                        <FormLabel className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Telefone / WhatsApp</FormLabel>
+                        <FormControl>
+                          <Input className="w-full bg-slate-50 dark:bg-background-dark border-transparent focus:border-primary focus:ring-0 rounded-xl px-4 py-3.5 transition-all outline-none font-bold" placeholder="(00) 00000-0000" type="tel" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -233,7 +273,7 @@ export default function DomusFaleConoscoPage({ broker }: DomusFaleConoscoPagePro
                       <FormItem className="md:col-span-2">
                         <FormLabel className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Assunto</FormLabel>
                         <FormControl>
-                          <select {...field} className="w-full bg-slate-50 dark:bg-background-dark border-transparent focus:border-primary focus:ring-0 rounded-xl px-4 py-3.5 transition-all outline-none appearance-none">
+                          <select {...field} className="w-full bg-slate-50 dark:bg-background-dark border-transparent focus:border-primary focus:ring-0 rounded-xl px-4 py-3.5 transition-all outline-none appearance-none font-bold">
                             <option>Interesse em Comprar</option>
                             <option>Quero Vender meu Imóvel</option>
                             <option>Dúvidas Jurídicas</option>
@@ -251,14 +291,14 @@ export default function DomusFaleConoscoPage({ broker }: DomusFaleConoscoPagePro
                       <FormItem className="md:col-span-2">
                         <FormLabel className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Sua Mensagem</FormLabel>
                         <FormControl>
-                          <Textarea className="w-full bg-slate-50 dark:bg-background-dark border-transparent focus:border-primary focus:ring-0 rounded-xl px-4 py-3.5 transition-all outline-none" placeholder="Como podemos te ajudar?" rows={5} {...field} />
+                          <Textarea className="w-full bg-slate-50 dark:bg-background-dark border-transparent focus:border-primary focus:ring-0 rounded-xl px-4 py-3.5 transition-all outline-none font-bold" placeholder="Como podemos te ajudar?" rows={5} {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
                   <div className="md:col-span-2">
-                    <Button disabled={isSubmitting} className="w-full bg-primary text-black py-4 rounded-xl font-bold uppercase tracking-widest text-sm neon-glow transition-all h-14" type="submit">
+                    <Button disabled={isSubmitting} className="w-full bg-primary text-secondary py-4 rounded-xl font-bold uppercase tracking-widest text-sm neon-glow transition-all h-14" type="submit" style={{ color: 'var(--secondary)' }}>
                       {isSubmitting ? 'Enviando...' : 'Enviar Mensagem'}
                     </Button>
                   </div>
@@ -270,66 +310,33 @@ export default function DomusFaleConoscoPage({ broker }: DomusFaleConoscoPagePro
 
         <section className="max-w-7xl mx-auto px-6 pb-24">
           <div className="relative w-full h-[400px] rounded-2xl overflow-hidden bg-slate-100 dark:bg-slate-800 grayscale dark:invert-[0.1] border border-slate-200 dark:border-slate-800 shadow-inner">
-            <Image alt="Mapa de localização estilizado" className="w-full h-full object-cover opacity-60" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC9jIqlBLWu9qrIWJ6BONR9ntQVmCNgWN6yWXZJlwXZWiPqIbFk6fDnHexDAj2x_2gRSU8IsH0AkcAcrE0yAIyp_J7101y5fIUhuxv_kRm64pGfmCQZhlSt7QAJsLFpjVW8VD4xjNqgm0hU6yxQ6z04c0JBXMmBv2Cqi52QFBtoP8fg5ydLi3BM1dgBm-gvjbqjec4FkAtn_orLkpjK5dDAhd5fWAXZQI4VeGL6FUS_0lPZn8NkV8uSsV1g-pTB7J8foZMLH_tq9kg" fill />
+            <Image alt="Mapa de localização estilizado" className="w-full h-full object-cover opacity-60" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC9jIqlBLWu9qrIWJ6BONR9ntQVmCNgWN6yWXZJlwXZWiPqIbFk6fDnHexDAj2x_2gRSU8IsH0AkcAcrE0yAIyp_J7101y5fIUhuxv_kRm64pGfmCQZhlSt7QAJsLFpjVW8VD4xjNqgm0hU6yxQ6z04c0JBXMmBv2Cqi52QFBtoP8fg5ydLi3BM1dgBm-gvjbqjec4FkAtn_orLkpjK5dDAhd5fWAXZQI4VeGL6FUS_0lPZn8NkV8uSsV1g-pTB7J8foZMLH_tT9kg" fill />
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="relative">
-                <div className="absolute -top-12 -left-1/2 -translate-x-1/2 bg-white dark:bg-card-dark px-4 py-2 rounded-lg shadow-lg border border-slate-100 dark:border-slate-700 whitespace-nowrap">
-                  <span className="text-sm font-bold">{broker.brandName} Office</span>
+                <div className="absolute -top-12 -left-1/2 -translate-x-1/2 bg-white dark:bg-slate-900 px-4 py-2 rounded-lg shadow-lg border border-slate-100 dark:border-slate-700 whitespace-nowrap">
+                  <span className="text-sm font-bold text-black dark:text-white">{broker.brandName} Office</span>
                 </div>
-                <div className="w-8 h-8 bg-primary rounded-full border-4 border-white dark:border-background-dark shadow-xl animate-bounce"></div>
+                <div className="w-8 h-8 bg-primary rounded-full border-4 border-white dark:border-slate-900 shadow-xl animate-bounce"></div>
               </div>
             </div>
-          </div>
-        </section>
-
-        <section className="max-w-3xl mx-auto px-6 pb-24">
-          <h2 className="text-3xl font-extrabold mb-10 text-center">Perguntas Frequentes</h2>
-          <div className="space-y-4">
-            <details className="group bg-white dark:bg-card-dark rounded-2xl border border-slate-100 dark:border-slate-800 p-6 cursor-pointer overflow-hidden transition-all duration-300">
-              <summary className="flex items-center justify-between font-bold text-lg list-none">
-                <span>Como agendar uma visita técnica?</span>
-                <span className="material-symbols-outlined text-primary transition-transform group-open:rotate-180">expand_more</span>
-              </summary>
-              <div className="mt-4 text-slate-500 dark:text-slate-400 leading-relaxed text-sm">
-                Você pode agendar diretamente pelo nosso formulário de contato acima ou clicando no botão do WhatsApp. Um consultor entrará em contato em menos de 2 horas.
-              </div>
-            </details>
-            <details className="group bg-white dark:bg-card-dark rounded-2xl border border-slate-100 dark:border-slate-800 p-6 cursor-pointer overflow-hidden transition-all duration-300">
-              <summary className="flex items-center justify-between font-bold text-lg list-none">
-                <span>Quais os documentos necessários para compra?</span>
-                <span className="material-symbols-outlined text-primary transition-transform group-open:rotate-180">expand_more</span>
-              </summary>
-              <div className="mt-4 text-slate-500 dark:text-slate-400 leading-relaxed text-sm">
-                Nossa assessoria jurídica cuida de tudo. Basicamente solicitamos documentos de identificação, comprovante de residência e renda. O restante da burocracia é por nossa conta.
-              </div>
-            </details>
-            <details className="group bg-white dark:bg-card-dark rounded-2xl border border-slate-100 dark:border-slate-800 p-6 cursor-pointer overflow-hidden transition-all duration-300">
-              <summary className="flex items-center justify-between font-bold text-lg list-none">
-                <span>Como funciona o tour virtual 360°?</span>
-                <span className="material-symbols-outlined text-primary transition-transform group-open:rotate-180">expand_more</span>
-              </summary>
-              <div className="mt-4 text-slate-500 dark:text-slate-400 leading-relaxed text-sm">
-                Utilizamos tecnologia de ponta para que você possa conhecer cada detalhe do imóvel sem sair de casa. Após o primeiro contato, enviamos o link exclusivo do tour.
-              </div>
-            </details>
           </div>
         </section>
 
         <section className="max-w-7xl mx-auto px-6 pb-24">
-          <div className="bg-[#040809] rounded-2xl md:rounded-[40px] p-12 md:p-24 text-center relative overflow-hidden border border-slate-800">
-            <div className="relative z-10">
-              <h2 className="text-4xl md:text-6xl font-extrabold text-white mb-6">Pronto para encontrar seu <br/> próximo lar?</h2>
-              <p className="text-slate-400 text-lg mb-10">Agende uma consultoria personalizada agora mesmo via WhatsApp.</p>
-              {whatsappLink && (
-                <a href={whatsappLink} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-3 bg-primary text-black px-8 py-4 rounded-full font-bold mx-auto neon-glow transition-all">
-                  <span className="material-symbols-outlined">chat_bubble</span>
-                  Falar no WhatsApp
-                </a>
-              )}
+            <div className="rounded-[2.5rem] p-12 md:p-20 text-center relative overflow-hidden" style={{ backgroundColor: 'var(--cta-section-bg)' }}>
+                <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 blur-[100px] rounded-full"></div>
+                <div className="absolute bottom-0 left-0 w-64 h-64 bg-primary/5 blur-[100px] rounded-full"></div>
+                <div className="relative z-10 max-w-[800px] mx-auto flex flex-col gap-8 items-center">
+                    <h2 className="text-4xl md:text-6xl font-bold leading-tight tracking-tight" style={{ color: 'var(--cta-section-title)' }}>{content.ctaTitle || 'Pronto para encontrar seu próximo lar?'}</h2>
+                    <p className="text-xl" style={{ color: 'var(--cta-section-subtitle)' }}>{content.ctaSubtitle || 'Agende uma consultoria personalizada agora mesmo via WhatsApp.'}</p>
+                    <div className="flex flex-col sm:flex-row gap-4 mt-4">
+                        <a href={whatsappLink} target="_blank" rel="noopener noreferrer" className="flex min-w-[240px] items-center justify-center gap-3 rounded-full h-16 px-10 text-lg font-black shadow-lg hover:scale-[1.05] transition-transform uppercase tracking-widest" style={{ backgroundColor: 'var(--cta-section-button-bg)', color: 'var(--cta-section-button-text)' }}>
+                            <span className="material-symbols-outlined font-bold">chat</span>
+                            FALAR NO WHATSAPP
+                        </a>
+                    </div>
+                </div>
             </div>
-            <div className="absolute top-0 right-0 w-96 h-96 bg-primary/10 blur-[100px] -mr-48 -mt-48"></div>
-            <div className="absolute bottom-0 left-0 w-96 h-96 bg-primary/10 blur-[100px] -ml-48 -mb-48"></div>
-          </div>
         </section>
       </main>
       <DomusFooter broker={broker} />

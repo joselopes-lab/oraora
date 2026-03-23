@@ -1,3 +1,4 @@
+
 'use client';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +15,7 @@ import {
     AlertDialogFooter,
     AlertDialogHeader,
     AlertDialogTitle,
+    AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 
@@ -47,13 +49,13 @@ export default function ClientListPage() {
 
   const leadsQuery = useMemoFirebase(
     () => {
-      if (!firestore || !user) return null;
+      if (!firestore || !user?.uid) return null;
       if (userProfile?.userType === 'admin') {
         return query(collection(firestore, 'leads'), orderBy('createdAt', 'desc'));
       }
       return query(collection(firestore, 'leads'), where('brokerId', '==', user.uid), orderBy('createdAt', 'desc'));
     },
-    [firestore, user, userProfile]
+    [firestore, user?.uid, userProfile?.userType]
   );
   
   const { data: clients, isLoading, error } = useCollection<Lead>(leadsQuery);
@@ -85,7 +87,7 @@ export default function ClientListPage() {
   }
 
   return (
-    <>
+    <AlertDialog>
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
         <div>
           <h1 className="text-3xl font-bold text-text-main tracking-tight">Listagem de Clientes</h1>
@@ -219,9 +221,11 @@ export default function ClientListPage() {
                         <span className="material-symbols-outlined text-[20px]">visibility</span>
                       </Link>
                     </Button>
-                    <button onClick={() => setLeadToDelete(client)} className="p-2 text-text-secondary hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer" title="Excluir">
-                        <span className="material-symbols-outlined text-[20px]">delete</span>
-                    </button>
+                    <AlertDialogTrigger asChild>
+                        <button onClick={() => setLeadToDelete(client)} className="p-2 text-text-secondary hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer" title="Excluir">
+                            <span className="material-symbols-outlined text-[20px]">delete</span>
+                        </button>
+                    </AlertDialogTrigger>
                   </div>
                 </td>
               </tr>
@@ -238,22 +242,20 @@ export default function ClientListPage() {
           </div>
         </div>
       </div>
-      <AlertDialog open={!!leadToDelete} onOpenChange={(open) => !open && setLeadToDelete(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta ação não pode ser desfeita. Isso excluirá permanentemente o lead de <span className="font-bold">{leadToDelete?.name}</span>.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setLeadToDelete(null)}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteLead} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Sim, excluir
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Esta ação não pode ser desfeita. Isso excluirá permanentemente o lead de <span className="font-bold">{leadToDelete?.name}</span>.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel onClick={() => setLeadToDelete(null)}>Cancelar</AlertDialogCancel>
+          <AlertDialogAction onClick={handleDeleteLead} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            Sim, excluir
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }

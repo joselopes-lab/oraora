@@ -1,4 +1,3 @@
-
 'use client';
 /**
  * @fileOverview Página de Detalhes do Imóvel exclusiva para o template Domus.
@@ -16,12 +15,13 @@ import { createLead } from '@/app/sites/actions';
 import { useToast } from '@/hooks/use-toast';
 import { useUser, useDoc, useFirestore, useMemoFirebase, setDocumentNonBlocking } from '@/firebase';
 import { arrayRemove, arrayUnion, doc } from 'firebase/firestore';
-import { useRouter } from 'next/navigation';
+import { useRouter, notFound } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { WhatsAppWidget } from '@/layouts/urban-padrao/components/WhatsAppWidget';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 
 type Broker = {
   id: string;
@@ -33,22 +33,43 @@ type Broker = {
   backgroundColor?: string;
   foregroundColor?: string;
   slug: string;
+  whatsappUrl?: string;
+  homepage?: {
+    ctaButtonBgColor?: string;
+    ctaButtonTextColor?: string;
+    ctaButtonText?: string;
+    ctaButtonIcon?: string;
+    ctaTitle?: string;
+    ctaSubtitle?: string;
+    ctaSectionBgColor?: string;
+    ctaSectionTitleColor?: string;
+    ctaSectionSubtitleColor?: string;
+    ctaSectionButtonBgColor?: string;
+    ctaSectionButtonTextColor?: string;
+  };
 };
 
 type Property = {
   id: string;
+  builderId?: string;
+  brokerId?: string;
+  isVisibleOnSite?: boolean;
   informacoesbasicas: {
     nome: string;
     status: string;
     valor?: number;
     descricao?: string;
     slug?: string;
+    condominio?: number;
+    iptu?: number;
   };
   localizacao: {
     bairro: string;
     cidade: string;
     estado: string;
     address?: string;
+    latitude?: number;
+    longitude?: number;
     googleMapsLink?: string;
     googleStreetViewLink?: string;
   };
@@ -60,6 +81,9 @@ type Property = {
     vagas?: string;
   };
   areascomuns?: string[];
+  seoTitle?: string;
+  seoDescription?: string;
+  seoKeywords?: string;
 };
 
 type RadarList = {
@@ -107,6 +131,7 @@ export default function DomusPropertyDetailsPage({ broker, property, similarProp
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGalleryOpen, setIsGalleryOpen] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const content = broker.homepage || {};
 
   const radarListDocRef = useMemoFirebase(
       () => (user ? doc(firestore, 'radarLists', user.uid) : null),
@@ -175,8 +200,10 @@ export default function DomusPropertyDetailsPage({ broker, property, similarProp
 
   const formatQuartos = (quartosData: any): string => {
     if (!quartosData) return 'N/A';
-    if (Array.isArray(quartosData)) return quartosData.join(', ');
-    return String(quartosData);
+    const data = Array.isArray(quartosData) ? quartosData : [String(quartosData)];
+    if (data.length === 0) return 'N/A';
+    if (data.length === 1 && data[0] === '1') return '1';
+    return data.join(', ');
   };
 
   const extractMapSrc = (linkOrIframe: string | undefined): string | null => {
@@ -194,9 +221,16 @@ export default function DomusPropertyDetailsPage({ broker, property, similarProp
     '--primary': broker.primaryColor || '80 99% 49%',
     '--secondary': broker.secondaryColor || '110 16% 8%',
     '--accent': broker.accentColor || '97 78% 56%',
+    '--cta-button-bg': content.ctaButtonBgColor ? `hsl(${content.ctaButtonBgColor})` : 'hsl(var(--primary))',
+    '--cta-button-text': content.ctaButtonTextColor ? `hsl(${content.ctaButtonTextColor})` : 'hsl(var(--secondary))',
+    '--cta-section-bg': content.ctaSectionBgColor ? `hsl(${content.ctaSectionBgColor})` : 'hsl(var(--secondary))',
+    '--cta-section-title': content.ctaSectionTitleColor ? `hsl(${content.ctaSectionTitleColor})` : '#fff',
+    '--cta-section-subtitle': content.ctaSectionSubtitleColor ? `hsl(${content.ctaSectionSubtitleColor})` : 'rgba(255,255,255,0.6)',
+    '--cta-section-button-bg': content.ctaSectionButtonBgColor ? `hsl(${content.ctaSectionButtonBgColor})` : 'hsl(var(--primary))',
+    '--cta-section-button-text': content.ctaSectionButtonTextColor ? `hsl(${content.ctaSectionButtonTextColor})` : 'hsl(var(--secondary))',
   } as React.CSSProperties;
 
-  const whatsappLink = broker.whatsappUrl ? broker.whatsappUrl.replace('wa.me.com.br', 'wa.me') : '#';
+  const whatsappLink = broker.whatsappUrl?.replace('wa.me.com.br', 'wa.me') || '#';
 
   return (
     <div style={dynamicStyles} className="domus-theme font-display bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 min-h-screen transition-colors duration-300">
@@ -207,7 +241,7 @@ export default function DomusPropertyDetailsPage({ broker, property, similarProp
       
       <DomusHeader broker={broker} />
       
-      <main className="max-w-7xl mx-auto px-6 py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
         {/* Navigation Actions */}
         <div className="mb-8 flex items-center justify-between">
           <button onClick={() => router.back()} className="flex items-center gap-2 text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors">
@@ -233,8 +267,8 @@ export default function DomusPropertyDetailsPage({ broker, property, similarProp
         </div>
 
         {/* Gallery Section */}
-        <section className="grid grid-cols-12 gap-4 mb-12 h-[300px] md:h-[550px]">
-          <div onClick={() => openGallery(0)} className="col-span-12 md:col-span-8 relative overflow-hidden rounded-2xl group cursor-pointer shadow-xl">
+        <section className="grid grid-cols-12 gap-4 mb-12 md:h-[550px]">
+          <div onClick={() => openGallery(0)} className="col-span-12 md:col-span-8 relative overflow-hidden rounded-2xl group cursor-pointer shadow-xl aspect-[4/3] md:aspect-auto">
             <Image 
                 alt={property.informacoesbasicas.nome} 
                 src={property.midia?.[0] || 'https://picsum.photos/seed/main/800/600'} 
@@ -242,7 +276,7 @@ export default function DomusPropertyDetailsPage({ broker, property, similarProp
                 className="object-cover transition-transform duration-700 group-hover:scale-105"
             />
             <div className="absolute top-6 left-6 flex gap-2">
-              <span className="bg-primary text-black text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider shadow-sm">Destaque Premium</span>
+              <span className="bg-primary text-secondary text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider shadow-sm">Destaque Premium</span>
               <span className="bg-white/90 backdrop-blur-sm text-black text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider shadow-sm">{property.informacoesbasicas.status}</span>
             </div>
           </div>
@@ -264,62 +298,62 @@ export default function DomusPropertyDetailsPage({ broker, property, similarProp
           </div>
         </section>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
           {/* Main Info Column */}
           <div className="col-span-12 lg:col-span-8">
             <div className="mb-10">
               <div className="flex flex-col md:flex-row items-start justify-between gap-4 mb-6">
-                <div>
-                  <h1 className="text-4xl md:text-5xl font-extrabold mb-2 uppercase tracking-tight">{property.informacoesbasicas.nome}</h1>
+                <div className="max-w-full overflow-hidden">
+                  <h1 className="text-3xl md:text-5xl font-extrabold mb-2 uppercase tracking-tight break-words leading-tight">{property.informacoesbasicas.nome}</h1>
                   <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
                     <span className="material-symbols-outlined text-primary text-xl font-bold">location_on</span>
                     <span className="text-lg">{property.localizacao.bairro}, {property.localizacao.cidade} - {property.localizacao.estado}</span>
                   </div>
                 </div>
-                <div className="md:text-right bg-gray-50 dark:bg-slate-900/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-800">
-                  <span className="block text-slate-500 dark:text-slate-400 text-sm font-bold uppercase tracking-widest mb-1">Valor de Investimento</span>
-                  <span className="text-3xl md:text-4xl font-extrabold text-primary neon-glow">
+                <div className="md:text-right bg-gray-50 dark:bg-slate-900/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 shrink-0 max-w-full">
+                  <span className="block text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-widest mb-1">Investimento</span>
+                  <span className="text-2xl md:text-4xl font-extrabold text-primary neon-glow block truncate">
                     {property.informacoesbasicas.valor?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) || 'Consulte'}
                   </span>
                 </div>
               </div>
 
               {/* Technical Attributes */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 py-8 border-y border-slate-100 dark:border-slate-800">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-slate-50 dark:bg-slate-800 rounded-xl flex items-center justify-center text-primary border border-slate-100 dark:border-slate-700">
-                    <span className="material-symbols-outlined">square_foot</span>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-8 py-8 border-y border-slate-100 dark:border-slate-800">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <div className="size-8 sm:size-10 bg-slate-50 dark:bg-slate-800 rounded-xl flex items-center justify-center text-primary border border-slate-100 dark:border-slate-700 shrink-0">
+                    <span className="material-symbols-outlined text-lg sm:text-xl">square_foot</span>
                   </div>
-                  <div>
-                    <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Área</span>
-                    <span className="font-bold text-sm">{property.caracteristicasimovel.tamanho}</span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-slate-50 dark:bg-slate-800 rounded-xl flex items-center justify-center text-primary border border-slate-100 dark:border-slate-700">
-                    <span className="material-symbols-outlined">bed</span>
-                  </div>
-                  <div>
-                    <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Quartos</span>
-                    <span className="font-bold text-sm">{formatQuartos(property.caracteristicasimovel.quartos)}</span>
+                  <div className="min-w-0">
+                    <span className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider">Área</span>
+                    <span className="font-bold text-xs sm:text-sm truncate block">{property.caracteristicasimovel.tamanho}</span>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-slate-50 dark:bg-slate-800 rounded-xl flex items-center justify-center text-primary border border-slate-100 dark:border-slate-700">
-                    <span className="material-symbols-outlined">directions_car</span>
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <div className="size-8 sm:size-10 bg-slate-50 dark:bg-slate-800 rounded-xl flex items-center justify-center text-primary border border-slate-100 dark:border-slate-700 shrink-0">
+                    <span className="material-symbols-outlined text-lg sm:text-xl">bed</span>
                   </div>
-                  <div>
-                    <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Vagas</span>
-                    <span className="font-bold text-sm">{property.caracteristicasimovel.vagas || 'N/A'}</span>
+                  <div className="min-w-0">
+                    <span className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider">Quartos</span>
+                    <span className="font-bold text-xs sm:text-sm truncate block">{formatQuartos(property.caracteristicasimovel.quartos)}</span>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-slate-50 dark:bg-slate-800 rounded-xl flex items-center justify-center text-primary border border-slate-100 dark:border-slate-700">
-                    <span className="material-symbols-outlined">shower</span>
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <div className="size-8 sm:size-10 bg-slate-50 dark:bg-slate-800 rounded-xl flex items-center justify-center text-primary border border-slate-100 dark:border-slate-700 shrink-0">
+                    <span className="material-symbols-outlined text-lg sm:text-xl">directions_car</span>
                   </div>
-                  <div>
-                    <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Banheiros</span>
-                    <span className="font-bold text-sm">N/A</span>
+                  <div className="min-w-0">
+                    <span className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider">Vagas</span>
+                    <span className="font-bold text-xs sm:text-sm truncate block">{property.caracteristicasimovel.vagas || 'N/A'}</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <div className="size-8 sm:size-10 bg-slate-50 dark:bg-slate-800 rounded-xl flex items-center justify-center text-primary border border-slate-100 dark:border-slate-700 shrink-0">
+                    <span className="material-symbols-outlined text-lg sm:text-xl">shower</span>
+                  </div>
+                  <div className="min-w-0">
+                    <span className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider">Banheiros</span>
+                    <span className="font-bold text-xs sm:text-sm truncate block">N/A</span>
                   </div>
                 </div>
               </div>
@@ -353,7 +387,7 @@ export default function DomusPropertyDetailsPage({ broker, property, similarProp
             {/* Map Section */}
             <div className="mb-12">
               <h3 className="text-2xl font-bold mb-6">Localização</h3>
-              <div className="w-full h-[400px] rounded-3xl bg-slate-200 dark:bg-slate-800 overflow-hidden relative border border-slate-100 dark:border-slate-800 shadow-inner">
+              <div className="w-full h-[300px] sm:h-[400px] rounded-3xl bg-slate-200 dark:bg-slate-800 overflow-hidden relative border border-slate-100 dark:border-slate-800 shadow-inner">
                 {mapSrc ? (
                     <iframe src={mapSrc} width="100%" height="100%" style={{ border: 0 }} allowFullScreen={false} loading="lazy" className="grayscale dark:invert opacity-70" />
                 ) : (
@@ -365,67 +399,75 @@ export default function DomusPropertyDetailsPage({ broker, property, similarProp
                 <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
                   <div className="relative">
                     <div className="w-12 h-12 bg-primary/20 rounded-full animate-ping absolute -top-2 -left-2"></div>
-                    <span className="material-symbols-outlined text-primary text-5xl relative z-10 drop-shadow-xl font-bold">location_on</span>
+                    <span className="material-symbols-outlined text-primary text-5xl relative z-10 font-bold">location_on</span>
                   </div>
                 </div>
               </div>
-              <p className="mt-4 text-xs text-slate-500 flex items-center gap-2 font-medium">
-                <span className="material-symbols-outlined text-sm">info</span>
-                A localização exata será fornecida após o agendamento da visita por questões de segurança.
-              </p>
+              <div className="mt-4 flex items-start gap-2">
+                <span className="material-symbols-outlined text-slate-400 text-sm mt-0.5">info</span>
+                <p className="text-xs text-slate-500 font-medium leading-relaxed">
+                  A localização exata será fornecida após o agendamento da visita.
+                </p>
+              </div>
             </div>
           </div>
 
           {/* Sticky Lead Form Column */}
           <div className="col-span-12 lg:col-span-4">
-            <div className="sticky top-24 space-y-6">
-              <div className="bg-white dark:bg-slate-900 rounded-3xl p-8 shadow-2xl shadow-slate-200/50 dark:shadow-none border border-slate-100 dark:border-slate-800">
+            <div className="sticky-card lg:sticky space-y-6">
+              <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 shadow-2xl border border-slate-100 dark:border-slate-800">
                 <h4 className="text-2xl font-black mb-6 tracking-tight uppercase">Agendar Visita</h4>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                   <div className="space-y-1.5">
                     <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Nome Completo</label>
-                    <Input {...form.register('name')} className="w-full bg-slate-50 dark:bg-slate-800 border-transparent focus:bg-white dark:focus:bg-slate-700 focus:border-primary focus:ring-0 rounded-xl px-4 py-3.5 transition-all outline-none font-medium" placeholder="Seu nome" />
+                    <Input { ...form.register('name') } className="w-full bg-slate-50 dark:bg-slate-800 border-transparent focus:bg-white dark:focus:bg-slate-700 focus:border-primary focus:ring-0 rounded-xl px-4 py-3.5 transition-all outline-none font-medium text-slate-900 dark:text-white" placeholder="Seu nome" />
                     {form.formState.errors.name && <p className="text-xs text-red-500 px-1">{form.formState.errors.name.message}</p>}
                   </div>
                   <div className="space-y-1.5">
                     <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">E-mail</label>
-                    <Input {...form.register('email')} className="w-full bg-slate-50 dark:bg-slate-800 border-transparent focus:bg-white dark:focus:bg-slate-700 focus:border-primary focus:ring-0 rounded-xl px-4 py-3.5 transition-all outline-none font-medium" placeholder="seu@email.com" type="email" />
+                    <Input { ...form.register('email') } className="w-full bg-slate-50 dark:bg-slate-800 border-transparent focus:bg-white dark:focus:bg-slate-700 focus:border-primary focus:ring-0 rounded-xl px-4 py-3.5 transition-all outline-none font-medium text-slate-900 dark:text-white" placeholder="seu@email.com" type="email" />
                     {form.formState.errors.email && <p className="text-xs text-red-500 px-1">{form.formState.errors.email.message}</p>}
                   </div>
                   <div className="space-y-1.5">
                     <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">WhatsApp</label>
-                    <Input {...form.register('phone')} className="w-full bg-slate-50 dark:bg-slate-800 border-transparent focus:bg-white dark:focus:bg-slate-700 focus:border-primary focus:ring-0 rounded-xl px-4 py-3.5 transition-all outline-none font-medium" placeholder="(00) 00000-0000" type="tel" />
+                    <Input { ...form.register('phone') } className="w-full bg-slate-50 dark:bg-slate-800 border-transparent focus:bg-white dark:focus:bg-slate-700 focus:border-primary focus:ring-0 rounded-xl px-4 py-3.5 transition-all outline-none font-medium text-slate-900 dark:text-white" placeholder="(00) 00000-0000" type="tel" />
                     {form.formState.errors.phone && <p className="text-xs text-red-500 px-1">{form.formState.errors.phone.message}</p>}
                   </div>
-                  <Button disabled={isSubmitting} className="w-full bg-black dark:bg-primary text-white dark:text-black font-black py-4 rounded-2xl hover:opacity-90 transition-all mt-4 flex items-center justify-center gap-2 uppercase text-xs tracking-[0.1em] h-14" type="submit">
+                  <button disabled={isSubmitting} className="w-full bg-black dark:bg-primary text-white dark:text-secondary font-black py-4 rounded-2xl hover:opacity-90 transition-all mt-4 flex items-center justify-center gap-2 uppercase text-[10px] sm:text-xs tracking-[0.1em] h-14" type="submit" style={{ color: 'var(--secondary)' }}>
                     <span className="material-symbols-outlined text-lg">calendar_today</span>
                     {isSubmitting ? 'SOLICITANDO...' : 'SOLICITAR AGENDAMENTO'}
-                  </Button>
+                  </button>
                 </form>
                 <div className="relative my-8">
                   <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-100 dark:border-slate-800"></div></div>
                   <div className="relative flex justify-center text-[10px] uppercase font-bold"><span className="bg-white dark:bg-slate-900 px-4 text-slate-400">ou</span></div>
                 </div>
-                <a className="w-full bg-primary text-black font-black py-4 rounded-2xl hover:opacity-90 transition-all flex items-center justify-center gap-2 shadow-lg shadow-primary/20 uppercase text-xs tracking-[0.1em] h-14" href={whatsappLink} target="_blank" rel="noopener noreferrer">
+                <a className="w-full bg-primary text-secondary font-black py-4 rounded-2xl hover:opacity-90 transition-all flex items-center justify-center gap-2 shadow-lg shadow-primary/20 uppercase text-xs tracking-[0.1em] h-14" href={whatsappLink} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--secondary)' }}>
                   <span className="material-symbols-outlined text-lg">chat</span>
                   FALAR NO WHATSAPP
                 </a>
               </div>
-
-              {/* Consultant Card */}
-              <div className="bg-slate-50 dark:bg-slate-900/50 rounded-3xl p-6 border border-slate-100 dark:border-slate-800 flex items-center gap-4 group">
-                <div className="relative size-16 rounded-full overflow-hidden border-2 border-primary group-hover:scale-105 transition-transform duration-300">
-                    <Image alt="Consultor" src="https://i.pravatar.cc/150?u=oniatech" fill className="object-cover" />
-                </div>
-                <div>
-                  <span className="block text-[9px] font-bold text-primary uppercase mb-0.5 tracking-widest">Consultor Especialista</span>
-                  <h5 className="font-bold text-lg leading-tight uppercase">Equipe Onia Tech</h5>
-                  <p className="text-sm text-slate-500 font-medium">Atendimento Premium</p>
-                </div>
-              </div>
             </div>
           </div>
         </div>
+
+        {/* CTA Section */}
+        <section className="py-16 sm:py-20 mt-12 sm:mt-20">
+            <div className="rounded-[2.5rem] p-6 sm:p-12 md:p-20 text-center relative overflow-hidden" style={{ backgroundColor: 'var(--cta-section-bg)' }}>
+                <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 blur-[100px] rounded-full"></div>
+                <div className="absolute bottom-0 left-0 w-64 h-64 bg-primary/5 blur-[100px] rounded-full"></div>
+                <div className="relative z-10 max-w-[800px] mx-auto flex flex-col gap-6 sm:gap-8 items-center">
+                    <h2 className="text-3xl sm:text-4xl md:text-6xl font-bold leading-tight tracking-tight px-2" style={{ color: 'var(--cta-section-title)' }}>{content.ctaTitle || 'Pronto para encontrar seu próximo lar?'}</h2>
+                    <p className="text-base sm:text-xl px-4" style={{ color: 'var(--cta-section-subtitle)' }}>{content.ctaSubtitle || 'Agende uma consultoria personalizada agora mesmo via WhatsApp.'}</p>
+                    <div className="flex flex-col sm:flex-row gap-4 mt-4 w-full sm:w-auto px-4">
+                        <a href={whatsappLink} target="_blank" rel="noopener noreferrer" className="flex w-full items-center justify-center gap-3 rounded-full h-16 px-10 text-lg font-black shadow-lg hover:scale-[1.05] transition-transform uppercase tracking-widest" style={{ backgroundColor: 'var(--cta-section-button-bg)', color: 'var(--cta-section-button-text)' }}>
+                            <span className="material-symbols-outlined font-bold">chat</span>
+                            FALAR NO WHATSAPP
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </section>
       </main>
 
       <DomusFooter broker={broker} />
@@ -435,13 +477,13 @@ export default function DomusPropertyDetailsPage({ broker, property, similarProp
       {isGalleryOpen && (
         <div className="fixed inset-0 z-[100] bg-black flex flex-col animate-in fade-in duration-300">
             <header className="p-6 flex items-center justify-between text-white border-b border-white/10">
-                <h3 className="font-bold text-lg uppercase tracking-tight">{property.informacoesbasicas.nome}</h3>
-                <button onClick={closeGallery} className="size-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors">
+                <h3 className="font-bold text-lg uppercase tracking-tight truncate mr-4">{property.informacoesbasicas.nome}</h3>
+                <button onClick={closeGallery} className="size-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors shrink-0">
                     <span className="material-symbols-outlined">close</span>
                 </button>
             </header>
             <div className="flex-1 relative p-4 flex items-center justify-center">
-                <button onClick={() => setSelectedImageIndex(prev => (prev - 1 + property.midia.length) % property.midia.length)} className="absolute left-6 z-10 p-4 rounded-full bg-white/10 hover:bg-primary hover:text-black transition-all text-white">
+                <button onClick={() => setSelectedImageIndex(prev => (prev - 1 + property.midia.length) % property.midia.length)} className="absolute left-4 z-10 p-3 sm:p-4 rounded-full bg-white/10 hover:bg-primary hover:text-black transition-all text-white">
                     <span className="material-symbols-outlined">chevron_left</span>
                 </button>
                 <div className="relative w-full h-full max-w-5xl max-h-[80vh]">
@@ -453,12 +495,12 @@ export default function DomusPropertyDetailsPage({ broker, property, similarProp
                         priority
                     />
                 </div>
-                <button onClick={() => setSelectedImageIndex(prev => (prev + 1) % property.midia.length)} className="absolute right-6 z-10 p-4 rounded-full bg-white/10 hover:bg-primary hover:text-black transition-all text-white">
+                <button onClick={() => setSelectedImageIndex(prev => (prev + 1) % property.midia.length)} className="absolute right-4 z-10 p-3 sm:p-4 rounded-full bg-white/10 hover:bg-primary hover:text-black transition-all text-white">
                     <span className="material-symbols-outlined">chevron_right</span>
                 </button>
             </div>
             <footer className="p-6 bg-black/80 backdrop-blur-xl border-t border-white/10">
-                <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar justify-center">
+                <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar justify-start sm:justify-center">
                     {property.midia.map((img, idx) => (
                         <div key={idx} onClick={() => setSelectedImageIndex(idx)} className={cn("relative size-16 rounded-lg overflow-hidden cursor-pointer border-2 transition-all shrink-0", selectedImageIndex === idx ? 'border-primary scale-110' : 'border-transparent opacity-50')}>
                             <Image alt="Miniatura" src={img} fill className="object-cover" />

@@ -54,3 +54,76 @@ export const PropertyRecommendationsOutputSchema = z.object({
     .describe('Uma lista de imóveis recomendados, incluindo endereço, preço e uma breve descrição destacando por que eles correspondem às preferências do cliente.'),
 });
 export type PropertyRecommendationsOutput = z.infer<typeof PropertyRecommendationsOutputSchema>;
+
+// --- NEW SCHEMAS FOR SITE CONTENT GENERATION ---
+
+export const OnboardingDataSchema = z.object({
+  name: z.string(),
+  yearsExperience: z.string().optional(),
+  locations: z.array(z.string()).optional(),
+  propertyTypes: z.array(z.string()).optional(), // Changed to array
+  audiences: z.array(z.string()).optional(),
+  differential: z.string().optional(),
+  valueProposition: z.string().optional(),
+  services: z.array(z.string()).optional(),
+  process: z.string().optional(),
+  postSales: z.string().optional(),
+  salesVolume: z.string().optional(),
+  certifications: z.string().optional(),
+  testimonials: z.string().optional(),
+  marketPosition: z.string().optional(),
+  professionalStrength: z.string().optional(),
+  creci: z.string().optional(),
+});
+
+export const GenerateSiteContentOutputSchema = z.object({
+  homepage: z.object({
+    heroTitle: z.string(),
+    heroSubtitle: z.string(),
+    heroTagline: z.string(),
+    statsSold: z.string(),
+    statsExperience: z.string(),
+    statsSatisfaction: z.string(),
+    statsSupport: z.string(),
+    featuredTitle: z.string(),
+    featuredSubtitle: z.string(),
+    aboutTitle: z.string(),
+    aboutText: z.string(),
+  }),
+  urbanPadraoSobre: z.object({
+    brokerName: z.string(),
+    brokerTitle: z.string(),
+    bio: z.string(),
+    statManagedDeals: z.string(),
+    statAssistedFamilies: z.string(),
+    statYearsExperience: z.string(),
+    value1Title: z.string(),
+    value1Description: z.string(),
+    value2Title: z.string(),
+    value2Description: z.string(),
+    value3Title: z.string(),
+    value3Description: z.string(),
+  }),
+  urbanPadraoServicos: z.object({
+    headerTitle: z.string(),
+    headerSubtitle: z.string(),
+    servicesTitle: z.string(),
+    servicesSubtitle: z.string(),
+    serviceItems: z.array(z.object({
+      icon: z.string(),
+      title: z.string(),
+      description: z.string(),
+    })),
+    processTitle: z.string(),
+    processSubtitle: z.string(),
+    processSteps: z.array(z.object({
+      title: z.string(),
+      description: z.string(),
+    })),
+  }),
+  oraoraContato: z.object({
+    headerTitle: z.string(),
+    headerSubtitle: z.string(),
+    headerTagline: z.string(),
+  }),
+});

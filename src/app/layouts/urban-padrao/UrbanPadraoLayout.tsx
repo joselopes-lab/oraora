@@ -107,16 +107,13 @@ function hslToHex(hslStr: string): string {
     if (!parts || parts.length < 3) return '#000000';
 
     const h = parseFloat(parts[0]);
-    const s = parseFloat(parts[1]);
-    const l = parseFloat(parts[2]);
+    const s = parseFloat(parts[1]) / 100;
+    const l = parseFloat(parts[2]) / 100;
 
-    const sNormalized = s / 100;
-    const lNormalized = l / 100;
-
-    const a = sNormalized * Math.min(lNormalized, 1 - lNormalized);
+    const a = s * Math.min(l, 1 - l);
     const f = (n: number) => {
         const k = (n + h / 30) % 12;
-        const color = lNormalized - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+        const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
         return Math.round(255 * color).toString(16).padStart(2, '0');
     };
     return `#${f(0)}${f(8)}${f(4)}`;
@@ -181,15 +178,19 @@ export default function UrbanPadraoLayout({ broker, properties }: UrbanPadraoPag
   const getEmbedUrl = (url: string | undefined): string | null => {
     if (!url) return null;
     let videoId;
-    if (url.includes("youtube.com/watch?v=")) {
-      videoId = url.split("v=")[1]?.split("&")[0];
-      return `https://www.youtube.com/embed/${videoId}?autoplay=1`;
-    } else if (url.includes("youtu.be/")) {
-      videoId = url.split("/").pop()?.split("?")[0];
-      return `https://www.youtube.com/embed/${videoId}?autoplay=1`;
-    } else if (url.includes("vimeo.com/")) {
-      videoId = url.split("/").pop()?.split("?")[0];
-      return `https://player.vimeo.com/video/${videoId}?autoplay=1`;
+    try {
+        if (url.includes("youtube.com/watch?v=")) {
+            videoId = url.split("v=")[1]?.split("&")[0];
+            return `https://www.youtube.com/embed/${videoId}?autoplay=1`;
+        } else if (url.includes("youtu.be/")) {
+            videoId = url.split("/").pop()?.split("?")[0];
+            return `https://www.youtube.com/embed/${videoId}?autoplay=1`;
+        } else if (url.includes("vimeo.com/")) {
+            videoId = url.split("/").pop()?.split("?")[0];
+            return `https://player.vimeo.com/video/${videoId}?autoplay=1`;
+        }
+    } catch (e) {
+        console.error("Invalid URL format for video", e);
     }
     return null;
   };
@@ -288,19 +289,19 @@ export default function UrbanPadraoLayout({ broker, properties }: UrbanPadraoPag
           <section className="w-full py-8 border-b border-[#f0f2f4]" style={{ backgroundColor: statsSectionBgColor }}>
             <div className="layout-container max-w-[1280px] mx-auto px-6">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-8 divide-x divide-gray-100">
-                <div className="flex flex-col items-center justify-center text-center">
+                <div className="flex flex-col items-center justify-center text-center px-4">
                   <span className="text-3xl md:text-4xl font-black" style={{color: statsNumberColor}}>{content.statsSold || '+250'}</span>
                   <span className="text-sm font-medium mt-1" style={{color: statsLabelColor}}>Imóveis Vendidos</span>
                 </div>
-                <div className="flex flex-col items-center justify-center text-center">
+                <div className="flex flex-col items-center justify-center text-center px-4">
                   <span className="text-3xl md:text-4xl font-black" style={{color: statsNumberColor}}>{content.statsExperience || '12'}</span>
                   <span className="text-sm font-medium mt-1" style={{color: statsLabelColor}}>Anos de Mercado</span>
                 </div>
-                <div className="flex flex-col items-center justify-center text-center">
+                <div className="flex flex-col items-center justify-center text-center px-4">
                   <span className="text-3xl md:text-4xl font-black" style={{color: statsNumberColor}}>{content.statsSatisfaction || '98%'}</span>
                   <span className="text-sm font-medium mt-1" style={{color: statsLabelColor}}>Clientes Satisfeitos</span>
                 </div>
-                <div className="flex flex-col items-center justify-center text-center">
+                <div className="flex flex-col items-center justify-center text-center px-4">
                   <span className="text-3xl md:text-4xl font-black" style={{color: statsNumberColor}}>{content.statsSupport || '24/7'}</span>
                   <span className="text-sm font-medium mt-1" style={{color: statsLabelColor}}>Suporte Premium</span>
                 </div>
@@ -320,7 +321,7 @@ export default function UrbanPadraoLayout({ broker, properties }: UrbanPadraoPag
               <Link className="flex items-center gap-2 font-bold text-black border-b-2 border-primary pb-1 hover:text-primary transition-colors" href={`/sites/${broker.slug}/search`}>
                 Ver todos os imóveis
                 <span className="material-symbols-outlined">arrow_forward</span>
-              </a>
+              </Link>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
               {featuredProperties.map((property) => {

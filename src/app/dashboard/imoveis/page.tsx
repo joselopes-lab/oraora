@@ -1,5 +1,3 @@
-
-
 'use client';
 import { Button } from "@/components/ui/button";
 import {
@@ -29,7 +27,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-// Add new imports
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -47,7 +44,7 @@ import {
 
 type Property = {
   id: string;
-  builderId: string; // ID of the 'constructors' collection document
+  builderId: string;
   informacoesbasicas: {
     nome: string;
     status: string;
@@ -84,7 +81,6 @@ type User = {
   planId?: string;
 };
 
-// Type for the data structure in the JSON file
 type PropertyImportData = {
   informacoesbasicas: {
     nome: string;
@@ -149,7 +145,6 @@ export default function ImoveisPage() {
     const { toast } = useToast();
     const [propertyToDelete, setPropertyToDelete] = useState<Property | null>(null);
 
-    // New state for import modal
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
     const [isImporting, setIsImporting] = useState(false);
     const [progress, setProgress] = useState(0);
@@ -158,20 +153,17 @@ export default function ImoveisPage() {
     const [isImportComplete, setIsImportComplete] = useState(false);
     const [importConstructorId, setImportConstructorId] = useState('');
 
-    // State for pre-flight check
     const [importStep, setImportStep] = useState<'select' | 'confirm' | 'progress' | 'complete'>('select');
     const [propertiesToImport, setPropertiesToImport] = useState<PropertyImportData[]>([]);
     const [duplicatePropertyNames, setDuplicatePropertyNames] = useState<string[]>([]);
     const [fileToImport, setFileToImport] = useState<File | null>(null);
 
-    // State for pagination & routing
     const router = useRouter();
     const pathname = usePathname();
     const searchParams = useSearchParams();
     const [currentPage, setCurrentPage] = useState(searchParams.get('page') ? parseInt(searchParams.get('page') as string, 10) : 1);
     const itemsPerPage = 10;
     
-    // State for filters
     const [searchTerm, setSearchTerm] = useState("");
     const [selectedState, setSelectedState] = useState("all");
     const [selectedStatus, setSelectedStatus] = useState("all");
@@ -230,18 +222,17 @@ export default function ImoveisPage() {
         }
         return query(propertiesRef);
       },
-      [firestore, userProfile]
+      [firestore, userProfile?.userType]
     );
 
-    // Query for all constructors to map builderId to a name
     const constructorsQuery = useMemoFirebase(
       () => (firestore ? query(collection(firestore, 'constructors')) : null),
       [firestore]
     );
 
     const portfolioDocRef = useMemoFirebase(
-      () => (firestore && user ? doc(firestore, 'portfolios', user.uid) : null),
-      [firestore, user]
+      () => (firestore && user?.uid ? doc(firestore, 'portfolios', user.uid) : null),
+      [firestore, user?.uid]
     );
     
     const personasQuery = useMemoFirebase(
@@ -335,7 +326,6 @@ export default function ImoveisPage() {
             return;
         }
     
-        // --- LIMIT CHECK ---
         if (userProfile.planId) {
             const planDocRef = doc(firestore, 'plans', userProfile.planId);
             const planDoc = await getDoc(planDocRef);
@@ -344,12 +334,10 @@ export default function ImoveisPage() {
                 const propertyLimit = planDoc.data()?.propertyLimit;
     
                 if (propertyLimit !== undefined && propertyLimit !== null) {
-                    // Get avulso count
                     const brokerPropertiesQuery = query(collection(firestore, 'brokerProperties'), where('brokerId', '==', user.uid));
                     const brokerPropertiesSnapshot = await getDocs(brokerPropertiesQuery);
                     const avulsoCount = brokerPropertiesSnapshot.size;
     
-                    // Get portfolio count by fetching actual properties to avoid counting stale IDs
                     const portfolioDocRef = doc(firestore, 'portfolios', user.uid);
                     const portfolioDoc = await getDoc(portfolioDocRef);
                     const portfolioPropertyIds = portfolioDoc.exists() ? portfolioDoc.data()?.propertyIds || [] : [];
@@ -375,12 +363,11 @@ export default function ImoveisPage() {
                             title: 'Limite Atingido',
                             description: `Você atingiu o limite de ${propertyLimit} imóveis para o seu plano. Faça um upgrade para cadastrar mais.`,
                         });
-                        return; // Stop execution
+                        return;
                     }
                 }
             }
         }
-        // --- END LIMIT CHECK ---
     
         const portfolioDocRef = doc(firestore, 'portfolios', user.uid);
         setDocumentNonBlocking(portfolioDocRef, {
@@ -508,7 +495,6 @@ export default function ImoveisPage() {
       setFileToImport(null);
       setPropertiesToImport([]);
       setDuplicatePropertyNames([]);
-      // Reset file input
       const fileInput = document.getElementById('json-file') as HTMLInputElement;
       if(fileInput) fileInput.value = '';
     }
@@ -581,7 +567,6 @@ export default function ImoveisPage() {
           try {
               const matchingPersonaIds: string[] = [];
 
-              // Auto-matching logic
               allPersonas.forEach(persona => {
                   let isMatch = true;
                   const propertyValue = item.informacoesbasicas.valor || 0;
@@ -831,7 +816,6 @@ export default function ImoveisPage() {
               }
             }
 
-            // Check if the personaIds have actually changed before adding to batch
             const existingPersonaIds = new Set(property.personaIds || []);
             const newPersonaIds = new Set(matchingPersonaIds);
             

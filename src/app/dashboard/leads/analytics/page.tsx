@@ -42,13 +42,13 @@ export default function LeadsAnalyticsPage() {
   const firestore = useFirestore();
 
   const leadsQuery = useMemoFirebase(
-    () => (firestore && user ? query(collection(firestore, 'leads'), where('brokerId', '==', user.uid)) : null),
-    [firestore, user]
+    () => (firestore && user?.uid ? query(collection(firestore, 'leads'), where('brokerId', '==', user.uid)) : null),
+    [firestore, user?.uid]
   );
   
   const funnelColumnsQuery = useMemoFirebase(
-    () => (firestore && user ? query(collection(firestore, 'brokers', user.uid, 'leadFunnels', 'default', 'columns'), orderBy('order')) : null),
-    [firestore, user]
+    () => (firestore && user?.uid ? query(collection(firestore, 'brokers', user.uid, 'leadFunnels', 'default', 'columns'), orderBy('order')) : null),
+    [firestore, user?.uid]
   );
 
   const { data: allLeads, isLoading: areLeadsLoading } = useCollection<Lead>(leadsQuery);

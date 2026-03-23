@@ -1,7 +1,8 @@
+
 'use client';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { TrendingUp, TrendingDown } from "lucide-react";
+import { ArrowUpRight, TrendingUp, TrendingDown } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -15,16 +16,16 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useDoc, useFirebase, useMemoFirebase, useUser } from "@/firebase";
 import Link from "next/link";
 import { doc, collection, query, where, getDocs, orderBy, limit, Timestamp } from "firebase/firestore";
-import { useEffect, useState, useMemo } from "react";
-import { format, subMonths, startOfMonth, endOfMonth, parseISO, isBefore, isEqual } from "date-fns";
+import { useEffect, useState, useMemo, useContext } from "react";
+import { format, addMonths, subMonths, parseISO, startOfMonth, endOfMonth, isBefore, isEqual, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import EventForm, { EventFormData } from './agenda/components/event-form';
 import { cn } from "@/lib/utils";
 import { useCollection, addDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocking as setDocNonBlocking } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious, } from "@/components/ui/carousel";
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious, } from "@/components/ui/carousel"
 import { useRouter } from 'next/navigation';
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuthContext } from "@/firebase/auth-provider";
@@ -36,6 +37,7 @@ import {
   type ChartConfig,
 } from "@/components/ui/chart"
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
+import { OnboardingContext } from './DashboardCore';
 
 type UserProfile = {
     userType: 'admin' | 'broker' | 'constructor' | 'client';
@@ -46,6 +48,11 @@ type UserProfile = {
 type BrokerProfile = {
     slug: string;
     monthlyGoals?: { [key: string]: number };
+    onboardingCompleted?: boolean;
+    logoUrl?: string;
+    layoutId?: string;
+    primaryColor?: string;
+    oralink?: any;
 };
 
 type Property = {
@@ -67,21 +74,6 @@ type Property = {
         tamanho?: string;
         vagas?: string;
     };
-};
-
-type Transaction = {
-    id: string;
-    description: string;
-    date: string;
-    status: string;
-    value: number;
-    categoryIcon: string;
-    category: string;
-    type: 'receita' | 'despesa';
-    clientOrProvider?: string;
-    notes?: string;
-    brokerId: string;
-    isRecurring?: boolean;
 };
 
 type Lead = {
@@ -138,84 +130,92 @@ export default function DashboardPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
+  const onboardingContext = useContext(OnboardingContext);
 
   const brokerDocRef = useMemoFirebase(
-      () => (firestore && user && userProfile?.userType === 'broker' ? doc(firestore, 'brokers', user.uid) : null),
-      [firestore, user, userProfile]
+      () => (firestore && user?.uid && userProfile?.userType === 'broker' ? doc(firestore, 'brokers', user.uid) : null),
+      [firestore, user?.uid, userProfile?.userType]
   );
   const { data: brokerProfile, isLoading: isBrokerLoading } = useDoc<BrokerProfile>(brokerDocRef);
   const isBroker = userProfile?.userType === 'broker';
 
   const transactionsQuery = useMemoFirebase(
-    () => (isReady && user ? query(collection(firestore, 'transactions'), where('brokerId', '==', user.uid)) : null),
-    [isReady, user, firestore]
+    () => (isReady && user?.uid ? query(collection(firestore, 'transactions'), where('brokerId', '==', user.uid)) : null),
+    [isReady, user?.uid, firestore]
   );
-  const { data: allTransactions, isLoading: areTransactionsLoading } = useCollection<Transaction>(transactionsQuery);
+  const { data: allTransactions, isLoading: areTransactionsLoading } = useCollection(transactionsQuery);
 
-  const chartData = useMemo(() => {
-    if (!allTransactions) return [];
-    const data = [];
-    for (let i = 5; i >= 0; i--) {
-      const date = subMonths(new Date(), i);
-      const monthName = format(date, 'MMM', { locale: ptBR });
-      const monthStart = startOfMonth(date);
-      const monthEnd = endOfMonth(date);
-      const monthlyRevenue = allTransactions
-        .filter(t => {
-          const tDate = parseISO(t.date);
-          return tDate >= monthStart && tDate <= monthEnd && t.type === 'receita';
-        })
-        .reduce((acc, curr) => acc + curr.value, 0);
-      data.push({ month: monthName, revenue: monthlyRevenue });
-    }
-    return data;
-  }, [allTransactions]);
-  
-  const { totalRevenue, revenuePercentageChange } = useMemo(() => {
-    if (!allTransactions) return { totalRevenue: 0, revenuePercentageChange: 0 };
+  const portfolioDocRef = useMemoFirebase(
+    () => (firestore && user?.uid ? doc(firestore, 'portfolios', user.uid) : null),
+    [firestore, user?.uid]
+  );
+  const { data: portfolio, isLoading: isPortfolioLoading } = useDoc<{ propertyIds: string[] }>(portfolioDocRef);
+
+  const brokerPropertiesQuery = useMemoFirebase(
+    () => (firestore && user?.uid ? query(collection(firestore, 'brokerProperties'), where('brokerId', '==', user.uid)) : null),
+    [firestore, user?.uid]
+  );
+  const { data: avulsoProperties, isLoading: areAvulsoLoading } = useCollection<Property>(brokerPropertiesQuery);
+
+  const setupSteps = useMemo(() => {
+    const isStepDone = (id: number) => {
+      if (!isBroker || !brokerProfile) return false;
+      switch (id) {
+        case 1: return !!brokerProfile.onboardingCompleted;
+        case 2: return !!brokerProfile.logoUrl;
+        case 3: return !!brokerProfile.layoutId;
+        case 4: return !!brokerProfile.primaryColor && brokerProfile.primaryColor !== '111 89% 50%';
+        case 5: return (portfolio?.propertyIds?.length ?? 0) > 0;
+        case 6: return (avulsoProperties?.length ?? 0) > 0;
+        case 7: return !!brokerProfile.oralink;
+        default: return false;
+      }
+    };
+
+    return [
+      { id: 1, title: 'Onboarding', description: 'Configure seus dados básicos e gere o conteúdo do seu site através da nossa IA.', icon: 'rocket_launch', action: () => onboardingContext?.openOnboarding(), completed: isStepDone(1) },
+      { id: 2, title: 'Minha marca', description: 'Faça o upload da sua logo para o topo e rodapé do seu novo portal imobiliário.', icon: 'branding_watermark', href: '/dashboard/meu-site', completed: isStepDone(2) },
+      { id: 3, title: 'Layout do site', description: 'Escolha entre nossos templates premium o design que melhor representa seu estilo.', icon: 'grid_view', href: '/dashboard/loja', completed: isStepDone(3) },
+      { id: 4, title: 'Cores do site', description: 'Personalize a paleta de cores para alinhar a interface visual com a sua identidade de marca.', icon: 'palette', href: '/dashboard/meu-site/cores', completed: isStepDone(4) },
+      { id: 5, title: 'Imóveis', description: 'Selecione imóveis de construtoras parceiras para compor sua vitrine digital de destaques.', icon: 'apartment', href: '/dashboard/imoveis', completed: isStepDone(5) },
+      { id: 6, title: 'Cadastrar avulso', description: 'Cadastre seus próprios imóveis captados para ter um portfólio único e exclusivo.', icon: 'add_home', href: '/dashboard/avulso', completed: isStepDone(6) },
+      { id: 7, title: 'Oralink', description: 'Configure seu cartão de visitas digital interativo para facilitar o contato com leads.', icon: 'link', href: '/dashboard/oralink', completed: isStepDone(7) },
+    ];
+  }, [isBroker, brokerProfile, portfolio, avulsoProperties, onboardingContext]);
+
+  const allStepsCompleted = useMemo(() => setupSteps.every(s => s.completed), [setupSteps]);
+
+  const { totalRevenue } = useMemo(() => {
+    if (!allTransactions) return { totalRevenue: 0 };
     const dateNow = new Date();
     const currentMonthStart = startOfMonth(dateNow);
     const currentMonthEnd = endOfMonth(dateNow);
-    const prevMonthDate = subMonths(dateNow, 1);
-    const prevMonthStart = startOfMonth(prevMonthDate);
-    const prevMonthEnd = endOfMonth(prevMonthDate);
-    const currentMonthRevenue = allTransactions
-      .filter(t => t.type === 'receita' && parseISO(t.date) >= currentMonthStart && parseISO(t.date) <= currentMonthEnd)
-      .reduce((acc, curr) => acc + curr.value, 0);
-    const prevMonthRevenue = allTransactions
-      .filter(t => t.type === 'receita' && parseISO(t.date) >= prevMonthStart && parseISO(t.date) <= prevMonthEnd)
-      .reduce((acc, curr) => acc + curr.value, 0);
-    const percentageChange = prevMonthRevenue === 0 ? (currentMonthRevenue > 0 ? 100 : 0) : ((currentMonthRevenue - prevMonthRevenue) / prevMonthRevenue) * 100;
-    return { totalRevenue: currentMonthRevenue, revenuePercentageChange: percentageChange };
+    const currentMonthRevenue = (allTransactions as any[])
+      .filter((t: any) => t.type === 'receita' && parseISO(t.date) >= currentMonthStart && parseISO(t.date) <= currentMonthEnd)
+      .reduce((acc: number, curr: any) => acc + curr.value, 0);
+    return { totalRevenue: currentMonthRevenue };
   }, [allTransactions]);
   
-  const chartConfig = {
-    revenue: {
-      label: "Receita",
-      color: "hsl(var(--primary))",
-    },
-  } satisfies ChartConfig;
-
   const clientsQuery = useMemoFirebase(
     () => {
-      if (!isReady || !user || !userProfile) return null;
+      if (!isReady || !user?.uid || !userProfile?.userType) return null;
       if (userProfile.userType === 'admin') return query(collection(firestore, 'leads'), orderBy('createdAt', 'desc'), limit(50));
       if (userProfile.userType === 'broker') return query(collection(firestore, 'leads'), where('brokerId', '==', user.uid), orderBy('createdAt', 'desc'));
       return null;
     },
-    [isReady, user, userProfile, firestore]
+    [isReady, user?.uid, userProfile?.userType, firestore]
   );
   const { data: clients, isLoading: areClientsLoading } = useCollection<Lead>(clientsQuery);
 
   const todayStr = format(new Date(), 'yyyy-MM-dd');
   const eventsQuery = useMemoFirebase(
     () => {
-      if (isReady && user && userProfile?.userType === 'broker') {
+      if (isReady && user?.uid && userProfile?.userType === 'broker') {
         return query(collection(firestore, 'events'), where('brokerId', '==', user.uid), where('date', '>=', todayStr), orderBy('date'), orderBy('time'), limit(4));
       }
       return null;
     },
-    [isReady, user, userProfile, firestore, todayStr]
+    [isReady, user?.uid, userProfile?.userType, firestore, todayStr]
   );
   const { data: upcomingEvents, isLoading: areEventsLoading } = useCollection<Event>(eventsQuery);
   
@@ -223,19 +223,19 @@ export default function DashboardPage() {
   const [isEventDetailOpen, setIsEventDetailOpen] = useState(false);
   
   const brokerMetricsDocRef = useMemoFirebase(
-    () => (firestore && user ? doc(firestore, 'corretorMetrics', user.uid) : null),
-    [firestore, user]
+    () => (firestore && user?.uid ? doc(firestore, 'corretorMetrics', user.uid) : null),
+    [firestore, user?.uid]
   );
   const { data: brokerMetrics, isLoading: areMetricsLoading } = useDoc<BrokerMetrics>(brokerMetricsDocRef);
 
   const recentLeadsQuery = useMemoFirebase(
     () => {
-      if (isReady && user && userProfile?.userType === 'broker') {
+      if (isReady && user?.uid && userProfile?.userType === 'broker') {
         return query(collection(firestore, 'leads'), where('brokerId', '==', user.uid), orderBy('createdAt', 'desc'), limit(5));
       }
       return null;
     },
-    [isReady, user, userProfile, firestore]
+    [isReady, user?.uid, userProfile?.userType, firestore]
   );
   const { data: recentLeads, isLoading: areRecentLeadsLoading } = useCollection<Lead>(recentLeadsQuery);
 
@@ -265,52 +265,117 @@ export default function DashboardPage() {
     else setGreeting('Boa noite');
   }, []);
   
-  const isPageLoading = !isReady || isBrokerLoading || areTransactionsLoading || areClientsLoading || areEventsLoading || areMetricsLoading || areRecentLeadsLoading;
+  const isPageLoading = !isReady || isBrokerLoading || areTransactionsLoading || areClientsLoading || areEventsLoading || areMetricsLoading || areRecentLeadsLoading || isPortfolioLoading || areAvulsoLoading;
 
   if (isPageLoading) return <div className="p-10 text-center">Carregando painel...</div>;
 
   return (
     <>
       <div className="w-full max-w-7xl mx-auto">
-          {showAlert && (
+          {!brokerProfile?.onboardingCompleted && showAlert && (
             <div className="relative w-full bg-white rounded-xl shadow-soft border border-primary/40 overflow-hidden group mb-8 animate-in fade-in slide-in-from-top-4 duration-500">
-              <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between p-1">
-                <div className="flex-1 flex flex-col md:flex-row items-start md:items-center gap-5 p-5">
+              <div className="relative z-10 flex flex-col md:flex-row items-center justify-between p-4 md:p-6 gap-6">
+                <div className="flex items-center gap-5 flex-1">
                   <div className="flex items-center justify-center size-12 rounded-xl bg-primary text-secondary shadow-sm shrink-0 border border-primary-hover/20">
                     <span className="material-symbols-outlined text-[26px]">campaign</span>
                   </div>
-                  <div className="flex flex-col gap-1">
-                    <div className="flex items-center gap-3">
-                      <h3 className="text-lg font-bold text-secondary tracking-tight">Aumente Suas Vendas com Insights de IA</h3>
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-secondary text-white uppercase tracking-wider">Novo Recurso</span>
+                  <div className="flex flex-col gap-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <h3 className="text-lg font-bold text-secondary tracking-tight">Ative sua máquina de vendas</h3>
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-secondary text-white uppercase tracking-wider whitespace-nowrap">Configuração Pendente</span>
                     </div>
-                    <p className="text-gray-500 text-sm leading-relaxed max-w-2xl">Nosso novo motor de IA analisa automaticamente os padrões de interação para destacar seus prospects mais promissores.</p>
+                    <p className="text-gray-500 text-sm leading-relaxed max-w-2xl">O OraOra precisa de algumas informações para construir seu site e começar a gerar oportunidades para você.</p>
                   </div>
                 </div>
-                <div className="w-full md:w-auto flex items-center gap-3 px-5 pb-5 md:pb-0 md:pr-5">
-                  <Button variant="ghost" className="flex-1 md:flex-none h-10 px-4 cursor-pointer" onClick={() => setShowAlert(false)}>Dispensar</Button>
-                  <Button className="flex-1 md:flex-none h-10 px-5 cursor-pointer">Experimente Agora</Button>
+                <div className="flex items-center gap-3 shrink-0 w-full md:w-auto">
+                  <button className="flex-1 md:flex-none h-10 px-4 text-sm font-medium hover:bg-gray-50 rounded-lg cursor-pointer transition-colors" onClick={() => setShowAlert(false)}>Dispensar</button>
+                  <Button 
+                    onClick={() => onboardingContext?.openOnboarding()}
+                    className="flex-1 md:flex-none h-10 px-5 cursor-pointer"
+                  >
+                    Iniciar onboarding
+                  </Button>
                 </div>
               </div>
             </div>
           )}
+
+          {/* Setup Guide */}
+          {isBroker && !allStepsCompleted && (
+            <section className="mb-12">
+              <div className="flex items-center gap-2 mb-6">
+                <span className="material-symbols-outlined text-primary font-bold">checklist</span>
+                <h2 className="text-xl font-bold text-foreground uppercase tracking-tight">Passo a passo para sua ativação</h2>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4">
+                {setupSteps.map((step) => (
+                  <div key={step.id} className={cn(
+                    "p-4 rounded-2xl border transition-all flex flex-col gap-3 group relative",
+                    step.completed ? "border-slate-800 bg-slate-950 shadow-lg" : "bg-white border-slate-100 shadow-soft hover:border-primary/50"
+                  )}>
+                    <div className="flex items-center justify-between">
+                      <div className={cn(
+                        "size-9 rounded-lg flex items-center justify-center transition-colors",
+                        step.completed ? "bg-primary/20 text-primary" : "bg-gray-50 text-primary group-hover:bg-primary group-hover:text-black"
+                      )}>
+                        <span className="material-symbols-outlined text-lg">
+                          {step.completed ? 'check_circle' : step.icon}
+                        </span>
+                      </div>
+                      <span className={cn(
+                        "text-xl font-black transition-colors",
+                        step.completed ? "text-slate-800" : "text-gray-100 group-hover:text-primary/20"
+                      )}>
+                        0{step.id}
+                      </span>
+                    </div>
+                    <div className="min-h-[60px]">
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <h3 className={cn("font-bold text-xs uppercase tracking-tight", step.completed ? "text-white" : "text-text-main")}>{step.title}</h3>
+                        {step.completed && (
+                          <span className="text-[9px] font-black text-green-600 uppercase tracking-widest bg-green-100 px-1.5 py-0.5 rounded">OK</span>
+                        )}
+                      </div>
+                      <p className={cn("text-xs leading-relaxed", step.completed ? "text-slate-200" : "text-slate-500")}>{step.description}</p>
+                    </div>
+                    {step.href ? (
+                      <Button asChild variant={step.completed ? "ghost" : "outline"} size="sm" className={cn(
+                        "mt-auto w-full h-8 text-[10px] uppercase font-black rounded-lg transition-all",
+                        step.completed ? "text-green-600 hover:bg-slate-900" : "border-gray-100 hover:bg-primary hover:border-primary hover:text-black"
+                      )}>
+                        <Link href={step.href}>{step.completed ? 'Revisar' : 'Configurar'}</Link>
+                      </Button>
+                    ) : (
+                      <Button 
+                        onClick={step.action} 
+                        variant={step.completed ? "ghost" : "outline"} 
+                        size="sm" 
+                        className={cn(
+                          "mt-auto w-full h-8 text-[10px] uppercase font-black rounded-lg transition-all",
+                          step.completed ? "text-green-600 hover:bg-slate-900" : "border-gray-100 hover:bg-primary hover:border-primary hover:text-black"
+                        )}
+                      >
+                        {step.completed ? 'Ver Novamente' : 'Iniciar'}
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
           <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-8">
             <div>
               <h2 className="text-3xl font-bold text-foreground tracking-tight">{greeting}, {user?.displayName?.split(' ')[0] || 'usuário'}.</h2>
               <p className="text-gray-500 mt-1 text-base">Aqui está sua visão geral diária para <span className="text-foreground font-semibold">{currentDateDisplay}</span>.</p>
             </div>
-            <div className="flex gap-3">
-               {isBroker && brokerProfile?.slug && (
-                <Button asChild variant="default" className="bg-secondary text-secondary-foreground hover:bg-secondary/90">
-                  <Link href={`/sites/${brokerProfile.slug}`} target="_blank">
-                    <span className="material-symbols-outlined text-[18px] mr-2">public</span>
-                    Ver meu Site
-                  </Link>
-                </Button>
-              )}
+            <div className="flex flex-wrap gap-3">
               <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
                 <DialogTrigger asChild>
-                  <Button><span className="material-symbols-outlined text-[18px] mr-2">add_task</span>Adicionar Tarefa</Button>
+                  <Button className="h-11 rounded-xl font-bold shadow-lg shadow-primary/20 transition-all active:scale-95 flex items-center justify-center gap-2">
+                    <span className="material-symbols-outlined text-[18px]">add_task</span>
+                    Adicionar Tarefa
+                  </Button>
                 </DialogTrigger>
                 <DialogContent className="max-w-3xl p-0 max-h-[90vh] overflow-y-auto">
                   <DialogHeader><VisuallyHidden><DialogTitle>Cadastrar Nova Tarefa</DialogTitle></VisuallyHidden></DialogHeader>
@@ -321,19 +386,19 @@ export default function DashboardPage() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <Card className="shadow-soft hover:border-primary/50 transition-all cursor-default">
-              <CardHeader><p className="text-gray-500 text-sm font-medium">Total de Leads</p></CardHeader>
+              <CardHeader><p className="text-gray-500 text-sm font-medium uppercase tracking-wider">Total de Leads</p></CardHeader>
               <CardContent><h3 className="text-2xl font-bold text-foreground mt-1 tracking-tight">{brokerMetrics?.totalLeads || 0}</h3></CardContent>
             </Card>
             <Card className="shadow-soft hover:border-primary/50 transition-all cursor-default">
-                <CardHeader><p className="text-gray-500 text-sm font-medium">Negócios Fechados</p></CardHeader>
+                <CardHeader><p className="text-gray-500 text-sm font-medium uppercase tracking-wider">Negócios Fechados</p></CardHeader>
                 <CardContent><h3 className="text-2xl font-bold text-foreground mt-1 tracking-tight">{brokerMetrics?.totalClosed || 0}</h3></CardContent>
             </Card>
             <Card className="shadow-soft hover:border-primary/50 transition-all cursor-default">
-              <CardHeader><p className="text-gray-500 text-sm font-medium">Taxa de Conversão</p></CardHeader>
+              <CardHeader><p className="text-gray-500 text-sm font-medium uppercase tracking-wider">Taxa de Conversão</p></CardHeader>
               <CardContent><h3 className="text-2xl font-bold text-foreground mt-1 tracking-tight">{(brokerMetrics?.conversionRate || 0).toFixed(1)}%</h3></CardContent>
             </Card>
              <Card className="shadow-soft hover:border-primary/50 transition-all cursor-default">
-                <CardHeader><p className="text-gray-500 text-sm font-medium">Receita Mensal</p></CardHeader>
+                <CardHeader><p className="text-gray-500 text-sm font-medium uppercase tracking-wider">Receita Mensal</p></CardHeader>
                 <CardContent><h3 className="text-2xl font-bold text-foreground mt-1 tracking-tight">{totalRevenue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</h3></CardContent>
             </Card>
           </div>
@@ -373,7 +438,7 @@ export default function DashboardPage() {
                           );
                       })
                   ) : (
-                      <div className="p-10 text-center text-sm text-gray-400">Nenhuma tarefa para hoje.</div>
+                      <div className="p-10 text-center text-sm text-gray-400 font-body">Nenhuma tarefa para hoje.</div>
                   )}
               </div>
           </div>
@@ -413,13 +478,13 @@ export default function DashboardPage() {
               {selectedEvent && (
                   <>
                   <DialogHeader><DialogTitle>{selectedEvent.title}</DialogTitle><DialogDescription>{selectedEvent.description || 'Nenhuma descrição.'}</DialogDescription></DialogHeader>
-                  <div className="py-4 space-y-2 text-sm">
+                  <div className="py-4 space-y-2 text-sm font-body">
                       <p><strong>Data:</strong> {format(parseISO(selectedEvent.date), "dd/MM/yyyy", { locale: ptBR })} {selectedEvent.time}</p>
                       <p><strong>Tipo:</strong> {eventTypeDetails[selectedEvent.type]?.label}</p>
                   </div>
                   <DialogFooter>
                       <Button variant="destructive" onClick={handleDeleteEvent}>Excluir</Button>
-                      <Button asChild><Link href={`/dashboard/agenda/${selectedEvent.id}`}>Ver Detalhes</Link></Button>
+                      <Button asChild><Link href={`/agenda/${selectedEvent.id}`}>Ver Detalhes</Link></Button>
                   </DialogFooter>
                   </>
               )}

@@ -1,14 +1,13 @@
-
 'use client';
 
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
 import Image from 'next/image';
 import Link from 'next/link';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import {
@@ -24,7 +23,7 @@ import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfi
 import { doc, setDoc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-
+import { cn } from '@/lib/utils';
 
 const formSchema = z
   .object({
@@ -34,7 +33,10 @@ const formSchema = z
       .email({ message: 'Por favor, insira um e-mail válido.' }),
     password: z
       .string()
-      .min(8, { message: 'A senha deve ter no mínimo 8 caracteres.' }),
+      .min(8, { message: 'A senha deve ter no mínimo 8 caracteres.' })
+      .regex(/(?:.*[a-zA-Z]){4,}/, { message: 'A senha deve conter pelo menos 4 letras.' })
+      .regex(/(?=.*[0-9])/, { message: 'A senha deve conter pelo menos um número.' })
+      .regex(/(?=.*[!@#$%^&*(),.?":{}|<>])/, { message: 'A senha deve conter pelo menos um caractere especial.' }),
     confirmPassword: z.string(),
   })
   .refine((data) => data.password === data.confirmPassword, {
@@ -43,6 +45,8 @@ const formSchema = z
   });
 
 export default function RequestAccessPage() {
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const bgImage = PlaceHolderImages.find((p) => p.id === 'login-background');
   const auth = useAuth();
   const firestore = useFirestore();
@@ -65,6 +69,19 @@ export default function RequestAccessPage() {
       confirmPassword: '',
     },
   });
+
+  const password = useWatch({
+    control: form.control,
+    name: "password",
+  }) || "";
+
+  // Validation checks for UI feedback
+  const checks = {
+    length: password.length >= 8,
+    letters: (password.match(/[a-zA-Z]/g) || []).length >= 4,
+    number: /[0-9]/.test(password),
+    special: /[!@#$%^&*(),.?":{}|<>]/.test(password),
+  };
 
   const createFirestoreDocuments = async (user: any, values: z.infer<typeof formSchema>) => {
     if (!firestore) return;
@@ -182,7 +199,6 @@ export default function RequestAccessPage() {
         <div className="w-full max-w-6xl bg-card dark:bg-[#1f2b16] rounded-2xl shadow-xl overflow-hidden flex flex-col lg:flex-row border border-border dark:border-white/10">
           {/* Left Side: Visual / Value Prop */}
           <div className="lg:w-5/12 relative bg-gray-50 dark:bg-black/20 flex flex-col justify-between p-10 overflow-hidden">
-            {/* Background Decoration */}
             <div className="absolute inset-0 z-0">
               {bgImage && (
                 <Image
@@ -261,7 +277,6 @@ export default function RequestAccessPage() {
                   onSubmit={form.handleSubmit(onSubmit)}
                   className="space-y-6"
                 >
-                  {/* Section: Personal Info */}
                   <div className="space-y-4">
                     <FormField
                       control={form.control}
@@ -288,7 +303,6 @@ export default function RequestAccessPage() {
                       )}
                     />
                   </div>
-                  {/* Section: Access Data */}
                   <div className="space-y-4 pt-2">
                     <FormField
                       control={form.control}
@@ -330,11 +344,20 @@ export default function RequestAccessPage() {
                                   </span>
                                 </div>
                                 <Input
-                                  className="pl-10 h-12"
+                                  className="pl-10 pr-10 h-12"
                                   placeholder="••••••••"
-                                  type="password"
+                                  type={showPassword ? 'text' : 'password'}
                                   {...field}
                                 />
+                                <button
+                                  type="button"
+                                  onClick={() => setShowPassword(!showPassword)}
+                                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-primary transition-colors"
+                                >
+                                  <span className="material-symbols-outlined text-[20px]">
+                                    {showPassword ? 'visibility_off' : 'visibility'}
+                                  </span>
+                                </button>
                               </div>
                             </FormControl>
                             <FormMessage />
@@ -355,11 +378,20 @@ export default function RequestAccessPage() {
                                   </span>
                                 </div>
                                 <Input
-                                  className="pl-10 h-12"
+                                  className="pl-10 pr-10 h-12"
                                   placeholder="••••••••"
-                                  type="password"
+                                  type={showConfirmPassword ? 'text' : 'password'}
                                   {...field}
                                 />
+                                <button
+                                  type="button"
+                                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-primary transition-colors"
+                                >
+                                  <span className="material-symbols-outlined text-[20px]">
+                                    {showConfirmPassword ? 'visibility_off' : 'visibility'}
+                                  </span>
+                                </button>
                               </div>
                             </FormControl>
                             <FormMessage />
@@ -367,9 +399,29 @@ export default function RequestAccessPage() {
                         )}
                       />
                     </div>
+                    <div className="bg-gray-50 dark:bg-black/20 p-4 rounded-xl border border-gray-100 dark:border-white/5 space-y-2">
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Regras de Segurança:</p>
+                      <ul className="text-xs space-y-1.5">
+                        <li className={cn("flex items-center gap-2 transition-colors", checks.length ? "text-green-600 font-bold" : "text-gray-400")}>
+                          <span className="material-symbols-outlined text-[16px]">{checks.length ? 'check_circle' : 'circle'}</span>
+                          Mínimo 8 caracteres
+                        </li>
+                        <li className={cn("flex items-center gap-2 transition-colors", checks.letters ? "text-green-600 font-bold" : "text-gray-400")}>
+                          <span className="material-symbols-outlined text-[16px]">{checks.letters ? 'check_circle' : 'circle'}</span>
+                          Mínimo 4 letras
+                        </li>
+                        <li className={cn("flex items-center gap-2 transition-colors", checks.number ? "text-green-600 font-bold" : "text-gray-400")}>
+                          <span className="material-symbols-outlined text-[16px]">{checks.number ? 'check_circle' : 'circle'}</span>
+                          Mínimo 1 número
+                        </li>
+                        <li className={cn("flex items-center gap-2 transition-colors", checks.special ? "text-green-600 font-bold" : "text-gray-400")}>
+                          <span className="material-symbols-outlined text-[16px]">{checks.special ? 'check_circle' : 'circle'}</span>
+                          Mínimo 1 caractere especial
+                        </li>
+                      </ul>
+                    </div>
                   </div>
                   
-                  {/* Submit Button */}
                   <Button
                     className="w-full h-12 text-base font-bold tracking-wider mt-4"
                     type="submit"
@@ -381,7 +433,6 @@ export default function RequestAccessPage() {
                     {form.formState.isSubmitting ? 'Finalizando...' : 'Finalizar Cadastro'}
                   </Button>
                 </form>
-                {/* Social Login / Divider */}
                 <div className="mt-8">
                   <div className="relative">
                     <div className="absolute inset-0 flex items-center">

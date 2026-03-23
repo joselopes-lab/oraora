@@ -111,9 +111,18 @@ service cloud.firestore {
                        request.resource.data.name is string &&
                        request.resource.data.status is string &&
                        (request.resource.data.personaIds is list || !('personaIds' in request.resource.data));
-      allow read, update, delete: if (isSignedIn() && 
-                                   get(/databases/$(database)/documents/users/$(request.auth.uid)).data.userType == 'broker' &&
-                                   resource.data.brokerId == request.auth.uid) || isAdmin();
+      
+      allow read: if isSignedIn() && (
+        isAdmin() || 
+        (resource == null) || 
+        (resource.data.brokerId == request.auth.uid)
+      );
+
+      allow update, delete: if isSignedIn() && resource != null && (
+        isAdmin() || 
+        (resource.data.brokerId == request.auth.uid)
+      );
+
       allow list: if (isSignedIn() && isUserOfType(request.auth.uid, 'broker') && request.query.where.get('brokerId') == request.auth.uid) || isAdmin();
       
       match /statusHistory/{historyId} {
@@ -128,22 +137,16 @@ service cloud.firestore {
 
     match /events/{eventId} {
       allow create: if isOwner(request.resource.data.brokerId);
-      allow get: if isOwner(resource.data.brokerId);
+      allow get: if isOwner(request.resource.data.brokerId);
       allow list: if isSignedIn() && resource.data.brokerId == request.auth.uid;
-      allow update, delete: if isOwner(resource.data.brokerId) || isAdmin();
+      allow update, delete: if isOwner(request.resource.data.brokerId) || isAdmin();
     }
 
     match /transactions/{transactionId} {
       allow create: if isOwner(request.resource.data.brokerId);
-      
-      // Permite buscar um documento específico se for o dono
-      allow get: if isOwner(resource.data.brokerId);
-      
-      // Permite a query (list) correspondente ao seu código frontend
+      allow get: if isOwner(request.resource.data.brokerId);
       allow list: if isSignedIn() && resource.data.brokerId == request.auth.uid;
-      
-      // Correção para resource.data nas atualizações/exclusões
-      allow update, delete: if isOwner(resource.data.brokerId) || isAdmin();
+      allow update, delete: if isOwner(request.resource.data.brokerId) || isAdmin();
     }
 
     match /personas/{personaId} {
@@ -154,9 +157,9 @@ service cloud.firestore {
     
     match /tickets/{ticketId} {
       allow create: if isOwner(request.resource.data.clientId);
-      allow get: if isOwner(resource.data.clientId) || isAdmin();
+      allow get: if isOwner(request.resource.data.clientId) || isAdmin();
       allow list: if (isSignedIn() && resource.data.clientId == request.auth.uid) || isAdmin();
-      allow update: if isOwner(resource.data.clientId) || isAdmin();
+      allow update: if isOwner(request.resource.data.clientId) || isAdmin();
       allow delete: if isAdmin();
     }
 
@@ -173,6 +176,10 @@ service cloud.firestore {
     match /announcements/{announcementId} {
       allow read: if isSignedIn();
       allow write: if isAdmin();
+    }
+
+    match /journeys/{journeyId} {
+      allow read, write: if isSignedIn() && (resource == null || resource.data.brokerId == request.auth.uid || isAdmin());
     }
   }
 }

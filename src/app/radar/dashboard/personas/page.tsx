@@ -70,7 +70,7 @@ export default function MinhaPersonaPage() {
   const { data: personas, isLoading: arePersonasLoading } = useCollection<Persona>(personasQuery);
 
   const handleSelectPersona = async (personaId: string) => {
-    if (!user || !firestore) {
+    if (!user?.uid || !firestore) {
       toast({
         variant: "destructive",
         title: "Erro de Autenticação",

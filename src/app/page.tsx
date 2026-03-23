@@ -334,13 +334,13 @@ export default function BrokerHomePage() {
                     </Sheet>
                 </div>
                 <Link className="hidden lg:flex items-center gap-3" href="/">
-                    <Image src={siteData?.logoUrl || defaultLogo || ""} alt="Oraora Logo" width={120} height={30} className="h-[30px] w-auto" style={{ width: 'auto' }} />
+                    <Image src={siteData?.logoUrl || defaultLogo || ""} alt="Oraora Logo" width={120} height={30} className="h-10 w-auto" style={{ width: 'auto' }} />
                 </Link>
             </div>
 
             <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
                 <Link className="flex items-center gap-3 lg:hidden" href="/">
-                    <Image src={siteData?.logoUrl || defaultLogo || ""} alt="Oraora Logo" width={120} height={30} className="h-[30px] w-auto" style={{ width: 'auto' }} />
+                    <Image src={siteData?.logoUrl || defaultLogo || ""} alt="Oraora Logo" width={120} height={30} className="h-10 w-auto" style={{ width: 'auto' }} />
                 </Link>
                 <nav className="hidden lg:flex items-center gap-8 text-sm font-semibold">
                     <Link className="text-text-main transition hover:text-primary" href="/imoveis">Imóveis</Link>
@@ -455,6 +455,39 @@ export default function BrokerHomePage() {
             </div>
           </div>
         </section>
+
+        {/* New Stats Section */}
+        <section className="w-full py-16 border-y border-[#f0f2f4] bg-white">
+          <div className="layout-container max-w-[1280px] mx-auto px-6">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:divide-x divide-gray-100">
+              <div className="flex flex-col items-center justify-center text-center px-4">
+                <div className="text-2xl md:text-3xl font-bold leading-tight text-[#161811]">
+                  +2 Mi Imóveis<br />Anunciados
+                </div>
+                <span className="text-[10px] font-bold uppercase tracking-[0.2em] mt-2 text-muted-foreground">IMÓVEIS ANUNCIADOS</span>
+              </div>
+              <div className="flex flex-col items-center justify-center text-center px-4">
+                <div className="text-2xl md:text-3xl font-bold leading-tight text-[#161811]">
+                  150k Negócios<br />Fechados
+                </div>
+                <span className="text-[10px] font-bold uppercase tracking-[0.2em] mt-2 text-muted-foreground">NEGÓCIOS FECHADOS</span>
+              </div>
+              <div className="flex flex-col items-center justify-center text-center px-4">
+                <div className="text-2xl md:text-3xl font-bold leading-tight text-[#161811]">
+                  300+ Cidades<br />Atendidas
+                </div>
+                <span className="text-[10px] font-bold uppercase tracking-[0.2em] mt-2 text-muted-foreground">CIDADES ATENDIDAS</span>
+              </div>
+              <div className="flex flex-col items-center justify-center text-center px-4">
+                <div className="text-2xl md:text-3xl font-bold leading-tight text-[#161811]">
+                  Suporte<br />Premium
+                </div>
+                <span className="text-[10px] font-bold uppercase tracking-[0.2em] mt-2 text-muted-foreground">SUPORTE PREMIUM</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <section className="py-12 bg-white">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <Carousel

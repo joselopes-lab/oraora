@@ -1,10 +1,9 @@
 
-
-
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase/index.server';
 import { notFound } from 'next/navigation';
 import MapClientPage from '@/layouts/urban-padrao/explorar-no-mapa/MapClientPage';
+import DomusMapClientPage from '@/app/layouts/domus/explorar-no-mapa/DomusMapClientPage';
 
 // Force dynamic rendering to ensure data is fresh on every request
 export const dynamic = 'force-dynamic';
@@ -16,12 +15,12 @@ type Broker = {
   logoUrl?: string;
   primaryColor?: string;
   secondaryColor?: string;
+  backgroundColor?: string;
+  foregroundColor?: string;
+  accentColor?: string;
   slug: string;
-  layoutId?: string; 
-};
-
-type Portfolio = {
-  propertyIds: string[];
+  layoutId?: string;
+  homepage?: any;
 };
 
 type Property = {
@@ -31,6 +30,7 @@ type Property = {
     status: string;
     valor?: number;
     descricao?: string;
+    slug?: string;
   };
   localizacao: {
     address?: string;
@@ -39,11 +39,13 @@ type Property = {
     estado: string;
     latitude?: number;
     longitude?: number;
+    googleMapsLink?: string;
+    googleStreetViewLink?: string;
   };
   midia: string[];
   caracteristicasimovel: {
     tipo: string;
-    quartos?: string[];
+    quartos?: string[] | string;
     tamanho?: string;
     vagas?: string;
   };
@@ -77,7 +79,6 @@ async function getPortfolioProperties(brokerId: string): Promise<Property[]> {
   const propertiesData: Property[] = [];
   const propertiesRef = collection(firestore, 'properties');
 
-  // Firestore 'in' query is limited to 30 elements, so we batch the requests.
   for (let i = 0; i < propertyIds.length; i += 30) {
     const batch = propertyIds.slice(i, i + 30);
     if (batch.length > 0) {
@@ -116,6 +117,11 @@ export default async function BrokerMapPage({ params }: { params: { slug: string
   ]);
 
   const allProperties = [...portfolioProperties, ...brokerProperties];
+
+  // Router para o componente de mapa correto baseado no layoutId
+  if (broker.layoutId === 'domus') {
+    return <DomusMapClientPage broker={broker} properties={allProperties} />;
+  }
 
   return <MapClientPage broker={broker} properties={allProperties} />;
 }

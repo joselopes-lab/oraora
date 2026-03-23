@@ -1,5 +1,4 @@
 
-      
 'use client';
 import { useDoc, useFirebase, setDocumentNonBlocking, useMemoFirebase } from '@/firebase';
 import { doc } from 'firebase/firestore';
@@ -44,6 +43,8 @@ const customizationSchema = z.object({
   aboutTaglineColor: z.string().optional(),
   aboutTitleColor: z.string().optional(),
   aboutTextColor: z.string().optional(),
+  aboutQuoteBgColor: z.string().optional(),
+  aboutQuoteTextColor: z.string().optional(),
   mapSectionBgColor: z.string().optional(),
   mapTitleColor: z.string().optional(),
   mapTextColor: z.string().optional(),
@@ -52,6 +53,12 @@ const customizationSchema = z.object({
   sobrePageIconColor: z.string().optional(),
   sobrePageCtaBgColor: z.string().optional(),
   sobrePageCtaTextColor: z.string().optional(),
+  // New CTA Section colors for Domus
+  ctaSectionBgColor: z.string().optional(),
+  ctaSectionTitleColor: z.string().optional(),
+  ctaSectionSubtitleColor: z.string().optional(),
+  ctaSectionButtonBgColor: z.string().optional(),
+  ctaSectionButtonTextColor: z.string().optional(),
 });
 
 type CustomizationFormData = z.infer<typeof customizationSchema>;
@@ -87,6 +94,8 @@ type BrokerData = {
       aboutTaglineColor?: string;
       aboutTitleColor?: string;
       aboutTextColor?: string;
+      aboutQuoteBgColor?: string;
+      aboutQuoteTextColor?: string;
       mapSectionBgColor?: string;
       mapTitleColor?: string;
       mapTextColor?: string;
@@ -95,13 +104,17 @@ type BrokerData = {
       sobrePageIconColor?: string;
       sobrePageCtaBgColor?: string;
       sobrePageCtaTextColor?: string;
+      ctaSectionBgColor?: string;
+      ctaSectionTitleColor?: string;
+      ctaSectionSubtitleColor?: string;
+      ctaSectionButtonBgColor?: string;
+      ctaSectionButtonTextColor?: string;
     };
     slug?: string;
 };
 
 function hexToHsl(hex: string): string {
     if (!hex) return '0 0% 0%';
-    // Expand shorthand form (e.g. "03F") to full form (e.g. "0033FF")
     const shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i;
     hex = hex.replace(shorthandRegex, (m, r, g, b) => {
         return r + r + g + g + b + b;
@@ -109,7 +122,7 @@ function hexToHsl(hex: string): string {
 
     const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
     if (!result) {
-        return '0 0% 0%'; // Invalid hex
+        return '0 0% 0%';
     }
 
     let r = parseInt(result[1], 16);
@@ -226,7 +239,6 @@ const ColorInputRow = ({ name, label, sublabel, form }: { name: keyof Customizat
     );
 };
 
-// Define the hardcoded default theme colors
 const defaultThemeColors: CustomizationFormData = {
     primaryColor: '80 99% 49%',
     secondaryColor: '110 16% 8%',
@@ -251,6 +263,8 @@ const defaultThemeColors: CustomizationFormData = {
     aboutTaglineColor: '80 99% 49%',
     aboutTitleColor: '110 16% 8%',
     aboutTextColor: '220 9% 46%',
+    aboutQuoteBgColor: '80 99% 49%',
+    aboutQuoteTextColor: '110 16% 8%',
     mapSectionBgColor: '90 20% 97%',
     mapTitleColor: '0 0% 100%',
     mapTextColor: '0 0% 80%',
@@ -259,6 +273,11 @@ const defaultThemeColors: CustomizationFormData = {
     sobrePageIconColor: '80 99% 49%',
     sobrePageCtaBgColor: '80 99% 49%',
     sobrePageCtaTextColor: '110 16% 8%',
+    ctaSectionBgColor: '110 16% 8%',
+    ctaSectionTitleColor: '0 0% 100%',
+    ctaSectionSubtitleColor: '0 0% 60%',
+    ctaSectionButtonBgColor: '80 99% 49%',
+    ctaSectionButtonTextColor: '110 16% 8%',
 };
 
 const iconOptions = [
@@ -275,8 +294,8 @@ export default function EditSiteColorsPage() {
   const { toast } = useToast();
 
   const brokerDocRef = useMemoFirebase(
-    () => (user ? doc(firestore, 'brokers', user.uid) : null),
-    [firestore, user]
+    () => (firestore && user?.uid ? doc(firestore, 'brokers', user.uid) : null),
+    [firestore, user?.uid]
   );
   
   const { data: brokerData, isLoading } = useDoc<BrokerData>(brokerDocRef);
@@ -288,7 +307,6 @@ export default function EditSiteColorsPage() {
   
   const watchedColors = useWatch({ control: form.control });
 
-  // Add state for collapsible sections
   const [isMarcaOpen, setIsMarcaOpen] = useState(true);
   const [isInterfaceOpen, setIsInterfaceOpen] = useState(true);
   const [isTipografiaOpen, setIsTipografiaOpen] = useState(true);
@@ -300,9 +318,9 @@ export default function EditSiteColorsPage() {
   const [isAboutOpen, setIsAboutOpen] = useState(false);
   const [isMapOpen, setIsMapOpen] = useState(false);
   const [isSobrePageOpen, setIsSobrePageOpen] = useState(false);
+  const [isCtaSectionOpen, setIsCtaSectionOpen] = useState(false);
 
 
-  // When broker data loads, populate the form with saved values, falling back to defaults.
    useEffect(() => {
     if (brokerData) {
       form.reset({
@@ -329,6 +347,8 @@ export default function EditSiteColorsPage() {
         aboutTaglineColor: brokerData.homepage?.aboutTaglineColor || defaultThemeColors.aboutTaglineColor,
         aboutTitleColor: brokerData.homepage?.aboutTitleColor || defaultThemeColors.aboutTitleColor,
         aboutTextColor: brokerData.homepage?.aboutTextColor || defaultThemeColors.aboutTextColor,
+        aboutQuoteBgColor: brokerData.homepage?.aboutQuoteBgColor || defaultThemeColors.aboutQuoteBgColor,
+        aboutQuoteTextColor: brokerData.homepage?.aboutQuoteTextColor || defaultThemeColors.aboutQuoteTextColor,
         mapSectionBgColor: brokerData.homepage?.mapSectionBgColor || defaultThemeColors.mapSectionBgColor,
         mapTitleColor: brokerData.homepage?.mapTitleColor || defaultThemeColors.mapTitleColor,
         mapTextColor: brokerData.homepage?.mapTextColor || defaultThemeColors.mapTextColor,
@@ -337,6 +357,11 @@ export default function EditSiteColorsPage() {
         sobrePageIconColor: brokerData.homepage?.sobrePageIconColor || defaultThemeColors.sobrePageIconColor,
         sobrePageCtaBgColor: brokerData.homepage?.sobrePageCtaBgColor || defaultThemeColors.sobrePageCtaBgColor,
         sobrePageCtaTextColor: brokerData.homepage?.sobrePageCtaTextColor || defaultThemeColors.sobrePageCtaTextColor,
+        ctaSectionBgColor: brokerData.homepage?.ctaSectionBgColor || defaultThemeColors.ctaSectionBgColor,
+        ctaSectionTitleColor: brokerData.homepage?.ctaSectionTitleColor || defaultThemeColors.ctaSectionTitleColor,
+        ctaSectionSubtitleColor: brokerData.homepage?.ctaSectionSubtitleColor || defaultThemeColors.ctaSectionSubtitleColor,
+        ctaSectionButtonBgColor: brokerData.homepage?.ctaSectionButtonBgColor || defaultThemeColors.ctaSectionButtonBgColor,
+        ctaSectionButtonTextColor: brokerData.homepage?.ctaSectionButtonTextColor || defaultThemeColors.ctaSectionButtonTextColor,
       });
     }
   }, [brokerData, form]);
@@ -344,7 +369,6 @@ export default function EditSiteColorsPage() {
  const onSubmit = (data: CustomizationFormData) => {
     if (!user) return;
 
-    // Separate general colors from homepage specific ones
     const { 
       ctaButtonText, 
       ctaButtonBgColor, 
@@ -364,6 +388,8 @@ export default function EditSiteColorsPage() {
       aboutTaglineColor,
       aboutTitleColor,
       aboutTextColor,
+      aboutQuoteBgColor,
+      aboutQuoteTextColor,
       mapSectionBgColor,
       mapTitleColor,
       mapTextColor,
@@ -372,6 +398,11 @@ export default function EditSiteColorsPage() {
       sobrePageIconColor,
       sobrePageCtaBgColor,
       sobrePageCtaTextColor,
+      ctaSectionBgColor,
+      ctaSectionTitleColor,
+      ctaSectionSubtitleColor,
+      ctaSectionButtonBgColor,
+      ctaSectionButtonTextColor,
       ...globalColors 
     } = data;
 
@@ -394,6 +425,8 @@ export default function EditSiteColorsPage() {
         aboutTaglineColor,
         aboutTitleColor,
         aboutTextColor,
+        aboutQuoteBgColor,
+        aboutQuoteTextColor,
         mapSectionBgColor,
         mapTitleColor,
         mapTextColor,
@@ -402,6 +435,11 @@ export default function EditSiteColorsPage() {
         sobrePageIconColor,
         sobrePageCtaBgColor,
         sobrePageCtaTextColor,
+        ctaSectionBgColor,
+        ctaSectionTitleColor,
+        ctaSectionSubtitleColor,
+        ctaSectionButtonBgColor,
+        ctaSectionButtonTextColor,
     };
     
     const sanitizedGlobalColors = JSON.parse(JSON.stringify(globalColors));
@@ -437,7 +475,7 @@ export default function EditSiteColorsPage() {
       '--preview-bg': hslToHex(watchedColors.backgroundColor || ''),
       '--preview-card': hslToHex(watchedColors.accentColor || ''),
       '--preview-text-main': hslToHex(watchedColors.foregroundColor || ''),
-      '--preview-text-support': '#6b7280', // Hardcoded as per layout
+      '--preview-text-support': '#6b7280',
       '--preview-stats-bg': hslToHex(watchedColors.statsSectionBgColor || ''),
       '--preview-stats-number': hslToHex(watchedColors.statsNumberColor || ''),
       '--preview-stats-label': hslToHex(watchedColors.statsLabelColor || ''),
@@ -446,6 +484,13 @@ export default function EditSiteColorsPage() {
       '--preview-card-title': hslToHex(watchedColors.cardTitleColor || ''),
       '--preview-status-tag-bg': hslToHex(watchedColors.statusTagBgColor || ''),
       '--preview-status-tag-text': hslToHex(watchedColors.statusTagTextColor || ''),
+      '--preview-about-quote-bg': hslToHex(watchedColors.aboutQuoteBgColor || ''),
+      '--preview-about-quote-text': hslToHex(watchedColors.aboutQuoteTextColor || ''),
+      '--preview-cta-section-bg': hslToHex(watchedColors.ctaSectionBgColor || ''),
+      '--preview-cta-section-title': hslToHex(watchedColors.ctaSectionTitleColor || ''),
+      '--preview-cta-section-subtitle': hslToHex(watchedColors.ctaSectionSubtitleColor || ''),
+      '--preview-cta-section-button-bg': hslToHex(watchedColors.ctaSectionButtonBgColor || ''),
+      '--preview-cta-section-button-text': hslToHex(watchedColors.ctaSectionButtonTextColor || ''),
   } as React.CSSProperties;
 
   const content = brokerData?.homepage || {};
@@ -457,326 +502,351 @@ export default function EditSiteColorsPage() {
   };
 
   return (
-    <FormProvider {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)}>
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
-          <div>
-            <nav className="flex items-center gap-2 text-xs text-text-secondary mb-2 font-medium">
-              <Link className="hover:text-primary transition-colors" href="/dashboard/meu-site">Meu Site</Link>
-              <span className="material-symbols-outlined text-[10px]">chevron_right</span>
-              <span className="text-text-main">Cores do Site</span>
-            </nav>
-            <h1 className="text-3xl font-bold text-text-main tracking-tight">Cores do Site</h1>
-          </div>
-          <div className="flex items-center gap-3">
-            <Button type="button" variant="outline" className="bg-white border border-gray-200 hover:border-gray-300 text-text-secondary hover:text-text-main font-bold py-2.5 px-6 rounded-lg transition-all duration-300 flex items-center gap-2 text-sm" onClick={handleReset}>
-              <span className="material-symbols-outlined text-[18px]">restart_alt</span>
-              Restaurar Padrão
-            </Button>
-            <Button type="submit" disabled={form.formState.isSubmitting} className="bg-secondary hover:bg-primary text-white hover:text-black font-bold py-2.5 px-6 rounded-lg shadow-sm hover:shadow-glow transition-all duration-300 flex items-center gap-2 text-sm">
-              <span className="material-symbols-outlined text-[18px]">check_circle</span>
-              {form.formState.isSubmitting ? 'Salvando...' : 'Salvar Alterações'}
-            </Button>
-          </div>
-        </div>
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 h-full">
-            <div className="lg:col-span-5 xl:col-span-4 space-y-6">
-                <Collapsible open={isMarcaOpen} onOpenChange={setIsMarcaOpen} className="bg-white rounded-xl shadow-soft border border-gray-100 overflow-hidden">
-                    <CollapsibleTrigger className="p-5 border-b border-gray-50 flex items-center justify-between gap-2 w-full hover:bg-gray-50/50 transition-colors data-[state=open]:bg-gray-50/50">
-                        <div className="flex items-center gap-2">
-                            <span className="material-symbols-outlined text-secondary">branding_watermark</span>
-                            <h3 className="font-bold text-text-main">Cores da Marca</h3>
-                        </div>
-                        <span className="material-symbols-outlined text-gray-400 transition-transform duration-300 data-[state=open]:rotate-180">expand_more</span>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent className="p-6 space-y-6">
-                        <ColorInputRow name="primaryColor" label="Cor Primária" sublabel="primary_color" form={form} />
-                        <ColorInputRow name="secondaryColor" label="Cor Secundária" sublabel="secondary_color" form={form} />
-                    </CollapsibleContent>
-                </Collapsible>
-                <Collapsible open={isInterfaceOpen} onOpenChange={setIsInterfaceOpen} className="bg-white rounded-xl shadow-soft border border-gray-100 overflow-hidden">
-                    <CollapsibleTrigger className="p-5 border-b border-gray-50 flex items-center justify-between gap-2 w-full hover:bg-gray-50/50 transition-colors data-[state=open]:bg-gray-50/50">
-                        <div className="flex items-center gap-2">
-                            <span className="material-symbols-outlined text-secondary">grid_view</span>
-                            <h3 className="font-bold text-text-main">Cores de Interface</h3>
-                        </div>
-                        <span className="material-symbols-outlined text-gray-400 transition-transform duration-300 data-[state=open]:rotate-180">expand_more</span>
-                    </CollapsibleTrigger>
-                     <CollapsibleContent className="p-6 space-y-6">
-                       <ColorInputRow name="backgroundColor" label="Fundo do Site" sublabel="bg_main" form={form} />
-                       <ColorInputRow name="accentColor" label="Fundo de Cards" sublabel="bg_card" form={form} />
-                    </CollapsibleContent>
-                </Collapsible>
-                <Collapsible open={isTipografiaOpen} onOpenChange={setIsTipografiaOpen} className="bg-white rounded-xl shadow-soft border border-gray-100 overflow-hidden">
-                    <CollapsibleTrigger className="p-5 border-b border-gray-50 flex items-center justify-between gap-2 w-full hover:bg-gray-50/50 transition-colors data-[state=open]:bg-gray-50/50">
-                        <div className="flex items-center gap-2">
-                            <span className="material-symbols-outlined text-secondary">text_fields</span>
-                            <h3 className="font-bold text-text-main">Tipografia</h3>
-                        </div>
-                        <span className="material-symbols-outlined text-gray-400 transition-transform duration-300 data-[state=open]:rotate-180">expand_more</span>
-                    </CollapsibleTrigger>
-                     <CollapsibleContent className="p-6 space-y-6">
-                       <ColorInputRow name="foregroundColor" label="Texto Principal" sublabel="text_main" form={form} />
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-4">
-                                <div className="relative size-10 rounded-full border border-gray-200 flex items-center justify-center bg-[#6b7280]"></div>
-                                <div>
-                                    <p className="text-sm font-bold text-text-main">Texto de Apoio</p>
-                                    <p className="text-[10px] text-text-secondary font-medium font-mono uppercase">text_support</p>
-                                </div>
-                            </div>
-                            <div className="w-32">
-                                <Input className="w-full bg-gray-50 border-gray-200 rounded-lg text-sm font-mono text-center" type="text" value="#6B7280" disabled />
-                            </div>
-                        </div>
-                    </CollapsibleContent>
-                </Collapsible>
-                 <Collapsible open={isCtaOpen} onOpenChange={setIsCtaOpen} className="bg-white rounded-xl shadow-soft border border-gray-100 overflow-hidden">
-                    <CollapsibleTrigger className="p-5 border-b border-gray-50 flex items-center justify-between gap-2 w-full hover:bg-gray-50/50 transition-colors data-[state=open]:bg-gray-50/50">
-                        <div className="flex items-center gap-2">
-                            <span className="material-symbols-outlined text-secondary">smart_button</span>
-                            <h3 className="font-bold text-text-main">Botão Principal (CTA)</h3>
-                        </div>
-                        <span className="material-symbols-outlined text-gray-400 transition-transform duration-300 data-[state=open]:rotate-180">expand_more</span>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent className="p-6 space-y-6">
-                        <FormField control={form.control} name="ctaButtonText" render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Texto do Botão</FormLabel>
-                                <FormControl>
-                                    <Input placeholder="Fale Comigo" {...field} value={field.value ?? ''} />
-                                </FormControl>
-                                <FormMessage />
-                            </FormItem>
-                        )}/>
-                        <FormField
-                            control={form.control}
-                            name="ctaButtonIcon"
-                            render={({ field }) => (
-                                <FormItem>
-                                <FormLabel>Ícone do Botão</FormLabel>
-                                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                    <FormControl>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Selecione um ícone" />
-                                    </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                    {iconOptions.map(option => (
-                                        <SelectItem key={option.value} value={option.value}>
-                                        <div className="flex items-center gap-2">
-                                            <span className="material-symbols-outlined text-sm">{option.value}</span>
-                                            <span>{option.label}</span>
-                                        </div>
-                                        </SelectItem>
-                                    ))}
-                                    </SelectContent>
-                                </Select>
-                                <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                        <ColorInputRow name="ctaButtonBgColor" label="Cor de Fundo" sublabel="cta_button_bg" form={form} />
-                        <ColorInputRow name="ctaButtonTextColor" label="Cor do Texto" sublabel="cta_button_text" form={form} />
-                    </CollapsibleContent>
-                </Collapsible>
-                 <Collapsible open={isSearchOpen} onOpenChange={setIsSearchOpen} className="bg-white rounded-xl shadow-soft border border-gray-100 overflow-hidden">
-                    <CollapsibleTrigger className="p-5 border-b border-gray-50 flex items-center justify-between gap-2 w-full hover:bg-gray-50/50 transition-colors data-[state=open]:bg-gray-50/50">
-                        <div className="flex items-center gap-2">
-                            <span className="material-symbols-outlined text-secondary">search</span>
-                            <h3 className="font-bold text-text-main">Botão de Busca</h3>
-                        </div>
-                        <span className="material-symbols-outlined text-gray-400 transition-transform duration-300 data-[state=open]:rotate-180">expand_more</span>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent className="p-6 space-y-6">
-                        <ColorInputRow name="searchButtonBgColor" label="Cor de Fundo" sublabel="search_button_bg" form={form} />
-                        <ColorInputRow name="searchButtonTextColor" label="Cor do Texto" sublabel="search_button_text" form={form} />
-                    </CollapsibleContent>
-                </Collapsible>
-                <Collapsible open={isStatsOpen} onOpenChange={setIsStatsOpen} className="bg-white rounded-xl shadow-soft border border-gray-100 overflow-hidden">
-                    <CollapsibleTrigger className="p-5 border-b border-gray-50 flex items-center justify-between gap-2 w-full hover:bg-gray-50/50 transition-colors data-[state=open]:bg-gray-50/50">
-                        <div className="flex items-center gap-2">
-                            <span className="material-symbols-outlined text-secondary">analytics</span>
-                            <h3 className="font-bold text-text-main">Estatísticas em Números</h3>
-                        </div>
-                        <span className="material-symbols-outlined text-gray-400 transition-transform duration-300 data-[state=open]:rotate-180">expand_more</span>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent className="p-6 space-y-6">
-                        <ColorInputRow name="statsSectionBgColor" label="Cor de Fundo" sublabel="stats_section_bg" form={form} />
-                        <ColorInputRow name="statsNumberColor" label="Cor dos Números" sublabel="stats_number_color" form={form} />
-                        <ColorInputRow name="statsLabelColor" label="Cor dos Rótulos" sublabel="stats_label_color" form={form} />
-                    </CollapsibleContent>
-                </Collapsible>
-                 <Collapsible open={isCardOpen} onOpenChange={setIsCardOpen} className="bg-white rounded-xl shadow-soft border border-gray-100 overflow-hidden">
-                    <CollapsibleTrigger className="p-5 border-b border-gray-50 flex items-center justify-between gap-2 w-full hover:bg-gray-50/50 transition-colors data-[state=open]:bg-gray-50/50">
-                        <div className="flex items-center gap-2">
-                            <span className="material-symbols-outlined text-secondary">grid_on</span>
-                            <h3 className="font-bold text-text-main">Cards de Imóveis</h3>
-                        </div>
-                        <span className="material-symbols-outlined text-gray-400 transition-transform duration-300 data-[state=open]:rotate-180">expand_more</span>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent className="p-6 space-y-6">
-                        <ColorInputRow name="cardIconColor" label="Cor dos Ícones" sublabel="card_icon_color" form={form} />
-                        <ColorInputRow name="cardValueColor" label="Cor do Preço" sublabel="card_value_color" form={form} />
-                        <ColorInputRow name="cardTitleColor" label="Cor do Título" sublabel="card_title_color" form={form} />
-                    </CollapsibleContent>
-                </Collapsible>
-                 <Collapsible open={isStatusTagOpen} onOpenChange={setIsStatusTagOpen} className="bg-white rounded-xl shadow-soft border border-gray-100 overflow-hidden">
-                    <CollapsibleTrigger className="p-5 border-b border-gray-50 flex items-center justify-between gap-2 w-full hover:bg-gray-50/50 transition-colors data-[state=open]:bg-gray-50/50">
-                        <div className="flex items-center gap-2">
-                            <span className="material-symbols-outlined text-secondary">label</span>
-                            <h3 className="font-bold text-text-main">Tag de Status do Imóvel</h3>
-                        </div>
-                        <span className="material-symbols-outlined text-gray-400 transition-transform duration-300 data-[state=open]:rotate-180">expand_more</span>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent className="p-6 space-y-6">
-                        <ColorInputRow name="statusTagBgColor" label="Cor de Fundo" sublabel="status_tag_bg" form={form} />
-                        <ColorInputRow name="statusTagTextColor" label="Cor do Texto" sublabel="status_tag_text" form={form} />
-                    </CollapsibleContent>
-                </Collapsible>
-                 <Collapsible open={isAboutOpen} onOpenChange={setIsAboutOpen} className="bg-white rounded-xl shadow-soft border border-gray-100 overflow-hidden">
-                    <CollapsibleTrigger className="p-5 border-b border-gray-50 flex items-center justify-between gap-2 w-full hover:bg-gray-50/50 transition-colors data-[state=open]:bg-gray-50/50">
-                        <div className="flex items-center gap-2">
-                            <span className="material-symbols-outlined text-secondary">info</span>
-                            <h3 className="font-bold text-text-main">Seção Sobre</h3>
-                        </div>
-                        <span className="material-symbols-outlined text-gray-400 transition-transform duration-300 data-[state=open]:rotate-180">expand_more</span>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent className="p-6 space-y-6">
-                        <ColorInputRow name="aboutSectionBgColor" label="Cor de Fundo" sublabel="about_section_bg" form={form} />
-                        <ColorInputRow name="aboutTaglineColor" label="Cor da Tagline" sublabel="about_tagline" form={form} />
-                        <ColorInputRow name="aboutTitleColor" label="Cor do Título" sublabel="about_title" form={form} />
-                        <ColorInputRow name="aboutTextColor" label="Cor do Texto" sublabel="about_text" form={form} />
-                    </CollapsibleContent>
-                </Collapsible>
-                <Collapsible open={isMapOpen} onOpenChange={setIsMapOpen} className="bg-white rounded-xl shadow-soft border border-gray-100 overflow-hidden">
-                    <CollapsibleTrigger className="p-5 border-b border-gray-50 flex items-center justify-between gap-2 w-full hover:bg-gray-50/50 transition-colors data-[state=open]:bg-gray-50/50">
-                        <div className="flex items-center gap-2">
-                            <span className="material-symbols-outlined text-secondary">map</span>
-                            <h3 className="font-bold text-text-main">Seção Mapa</h3>
-                        </div>
-                        <span className="material-symbols-outlined text-gray-400 transition-transform duration-300 data-[state=open]:rotate-180">expand_more</span>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent className="p-6 space-y-6">
-                        <ColorInputRow name="mapSectionBgColor" label="Cor de Fundo" sublabel="map_section_bg" form={form} />
-                        <ColorInputRow name="mapTitleColor" label="Cor do Título" sublabel="map_title_color" form={form} />
-                        <ColorInputRow name="mapTextColor" label="Cor do Texto" sublabel="map_text_color" form={form} />
-                        <ColorInputRow name="mapButtonBgColor" label="Cor Fundo Botão" sublabel="map_button_bg" form={form} />
-                        <ColorInputRow name="mapButtonTextColor" label="Cor Texto Botão" sublabel="map_button_text" form={form} />
-                    </CollapsibleContent>
-                </Collapsible>
-                <Collapsible open={isSobrePageOpen} onOpenChange={setIsSobrePageOpen} className="bg-white rounded-xl shadow-soft border border-gray-100 overflow-hidden">
-                    <CollapsibleTrigger className="p-5 border-b border-gray-50 flex items-center justify-between gap-2 w-full hover:bg-gray-50/50 transition-colors data-[state=open]:bg-gray-50/50">
-                        <div className="flex items-center gap-2">
-                            <span className="material-symbols-outlined text-secondary">badge</span>
-                            <h3 className="font-bold text-text-main">Página Sobre</h3>
-                        </div>
-                        <span className="material-symbols-outlined text-gray-400 transition-transform duration-300 data-[state=open]:rotate-180">expand_more</span>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent className="p-6 space-y-6">
-                        <ColorInputRow name="sobrePageIconColor" label="Cor dos Ícones" sublabel="sobre_icon_color" form={form} />
-                        <ColorInputRow name="sobrePageCtaBgColor" label="Fundo Botão CTA" sublabel="sobre_cta_bg" form={form} />
-                        <ColorInputRow name="sobrePageCtaTextColor" label="Texto Botão CTA" sublabel="sobre_cta_text" form={form} />
-                    </CollapsibleContent>
-                </Collapsible>
+    <div className="w-full max-w-7xl mx-auto">
+      <FormProvider {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)}>
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
+            <div>
+              <nav className="flex items-center gap-2 text-xs text-text-secondary mb-2 font-medium">
+                <Link className="hover:text-primary transition-colors" href="/dashboard/meu-site">Meu Site</Link>
+                <span className="material-symbols-outlined text-[10px]">chevron_right</span>
+                <span className="text-text-main">Cores do Site</span>
+              </nav>
+              <h1 className="text-3xl font-bold text-text-main tracking-tight">Cores do Site</h1>
             </div>
-            {/* The rest of the page remains the same */}
-            <div className="lg:col-span-7 xl:col-span-8">
-                <div className="bg-white rounded-xl shadow-soft border border-gray-100 h-full flex flex-col overflow-hidden">
-                    <div className="p-5 border-b border-gray-50 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <span className="material-symbols-outlined text-secondary">visibility</span>
-                            <h3 className="font-bold text-text-main">Visualização em Tempo Real</h3>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <div className="size-2 rounded-full bg-green-500 animate-pulse"></div>
-                            <span className="text-[10px] font-bold text-text-secondary uppercase">Live Preview</span>
-                        </div>
-                    </div>
-                    <div className="flex-grow p-8 bg-gray-50/50" style={previewStyle}>
-                        <div className="max-w-3xl mx-auto bg-[var(--preview-bg)] rounded-xl shadow-2xl border border-gray-100 overflow-hidden min-h-[500px] flex flex-col">
-                            {/* Header Preview */}
-                            <div className="p-4 flex items-center justify-between border-b" style={{ borderColor: 'hsl(var(--border))' }}>
-                                <div className="flex items-center gap-2">
-                                    <div className="size-6 rounded" style={{ backgroundColor: 'var(--preview-primary)' }}></div>
-                                    <div className="h-3 w-20 rounded" style={{ backgroundColor: 'var(--preview-secondary)', opacity: 0.8 }}></div>
-                                </div>
-                                <div className="flex gap-4 items-center">
-                                    <div className="h-2 w-10 bg-[var(--preview-text-support)] opacity-30 rounded hidden sm:block"></div>
-                                    <div className="h-2 w-10 bg-[var(--preview-text-support)] opacity-30 rounded hidden sm:block"></div>
-                                     <div style={{
-                                        backgroundColor: watchedColors.ctaButtonBgColor ? hslToHex(watchedColors.ctaButtonBgColor) : 'var(--preview-primary)',
-                                        color: watchedColors.ctaButtonTextColor ? hslToHex(watchedColors.ctaButtonTextColor) : '#000'
-                                    }} className="px-3 py-1 text-xs font-bold rounded-md flex items-center gap-1">
-                                        <span>{watchedColors.ctaButtonText || 'Fale Comigo'}</span>
-                                        <span className="material-symbols-outlined text-[14px]">{watchedColors.ctaButtonIcon || 'chat_bubble'}</span>
-                                    </div>
-                                </div>
-                            </div>
-                            {/* Hero Preview */}
-                            <div
-                                className="relative h-64 flex items-center justify-center overflow-hidden bg-cover bg-center"
-                                style={{
-                                    backgroundImage: `linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.6)), url(${content.heroImageUrl || defaultContent.heroImageUrl})`
-                                }}
-                            >
-                                <div className="relative z-10 text-center px-6">
-                                    <div className="mb-4 inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium uppercase tracking-wider" style={{ backgroundColor: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: 'white' }}>
-                                        {content.heroTagline || defaultContent.heroTagline}
-                                    </div>
-                                    <h4 className="text-3xl font-bold mb-2" style={{ color: 'white' }} dangerouslySetInnerHTML={{ __html: (content.heroTitle || defaultContent.heroTitle).replace('<span class="text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary">', `<span style="color: var(--preview-primary)">`) }}></h4>
-                                    <p className="text-sm max-w-md mx-auto" style={{ color: 'rgba(255,255,255,0.8)' }}>
-                                        {content.heroSubtitle || defaultContent.heroSubtitle}
-                                    </p>
-                                </div>
-                            </div>
-                             {/* Stats Preview */}
-                            <div style={{ backgroundColor: 'var(--preview-stats-bg, white)'}} className="py-4">
-                                <div className="grid grid-cols-2 gap-4 px-4">
-                                    <div className="text-center">
-                                        <span className="text-lg font-bold" style={{ color: 'var(--preview-stats-number)'}}>{content.statsSold || '+250'}</span>
-                                        <span className="text-xs block" style={{ color: 'var(--preview-stats-label)'}}>Imóveis Vendidos</span>
-                                    </div>
-                                    <div className="text-center">
-                                        <span className="text-lg font-bold" style={{ color: 'var(--preview-stats-number)'}}>{content.statsExperience || '12+'}</span>
-                                        <span className="text-xs block" style={{ color: 'var(--preview-stats-label)'}}>Anos de Mercado</span>
-                                    </div>
-                                </div>
-                            </div>
-                            {/* Card Preview */}
-                            <div className="p-8 flex-grow flex items-center justify-center">
-                                <div className="rounded-xl overflow-hidden max-w-sm mx-auto shadow-lg group" style={{ backgroundColor: 'var(--preview-card)', border: '1px solid hsl(var(--border))' }}>
-                                    <div className="h-32 bg-gray-200 relative" style={{ backgroundImage: `url('https://lh3.googleusercontent.com/aida-public/AB6AXuDkXRn_abrq_xKAyoKVmG9rBkNpiH5pbI_8DF3S2P5kicmFjeKjeVv1fjAvIL5GPT8IxW3gAY7aUbywUBvi1UJnHxUHUVwuT5damHsL4vcY8DF1R4C4q16tb28ImYRavBT9wCbFNi_HwakR9tO9FynZWpKb9cjSBRyJ2DCcuQ3WNcEdtkoG2y8e6rZGuD4rCC459eNlGseRJ0mn2eqkbVO4Uk4kdEI-0t918N6Ogssq-n8OREud30-AX0PTTePbp03C1_OEREbHfPRK4ut_S0o')`, backgroundSize: 'cover'}}>
-                                        <div className="absolute top-2 left-2 z-10 px-2 py-0.5 rounded text-[10px] font-bold" style={{ backgroundColor: 'var(--preview-status-tag-bg)', color: 'var(--preview-status-tag-text)' }}>DESTAQUE</div>
-                                    </div>
-                                    <div className="p-4">
-                                        <h5 className="font-bold text-sm mb-1 group-hover:text-primary" style={{ color: 'var(--preview-card-title)' }}>Nome do Imóvel</h5>
-                                        <p className="text-[10px] flex items-center gap-1 mb-3" style={{ color: 'var(--preview-text-support)' }}>
-                                            <span className="material-symbols-outlined text-[12px]">location_on</span>
-                                            Bairro, Cidade
-                                        </p>
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-sm font-bold" style={{ color: 'var(--preview-card-value)' }}>R$ 1.234.567</span>
-                                            <span className="material-symbols-outlined text-[20px]" style={{ color: 'var(--preview-card-icon)' }}>favorite</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div className="mt-6 flex justify-center">
-                            <div className="inline-flex items-center gap-3 px-4 py-2 bg-primary/10 rounded-full border border-primary/20">
-                                <span className="material-symbols-outlined text-secondary text-[18px]">lightbulb</span>
-                                <p className="text-xs font-medium text-text-secondary">O preview acima reflete como seu site aparecerá para os clientes.</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+            <div className="flex items-center gap-3">
+              <Button type="button" variant="outline" className="bg-white border border-gray-200 hover:border-gray-300 text-text-secondary hover:text-text-main font-bold py-2.5 px-6 rounded-lg transition-all duration-300 flex items-center gap-2 text-sm" onClick={handleReset}>
+                <span className="material-symbols-outlined text-[18px]">restart_alt</span>
+                Restaurar Padrão
+              </Button>
+              <Button type="submit" disabled={form.formState.isSubmitting} className="bg-primary hover:bg-primary-hover text-slate-900 font-bold h-11 px-6 rounded-lg shadow-sm hover:shadow-glow transition-all duration-300 flex items-center gap-2 text-sm">
+                <span className="material-symbols-outlined text-[18px]">check_circle</span>
+                {form.formState.isSubmitting ? 'Salvando...' : 'Salvar Alterações'}
+              </Button>
             </div>
-        </div>
-      </form>
-    </FormProvider>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 h-full">
+              <div className="lg:col-span-5 xl:col-span-4 space-y-6">
+                  <Collapsible open={isMarcaOpen} onOpenChange={setIsMarcaOpen} className="bg-white rounded-xl shadow-soft border border-gray-100 overflow-hidden">
+                      <CollapsibleTrigger className="p-5 border-b border-gray-50 flex items-center justify-between gap-2 w-full hover:bg-gray-50/50 transition-colors data-[state=open]:bg-gray-50/50">
+                          <div className="flex items-center gap-2">
+                              <span className="material-symbols-outlined text-secondary">branding_watermark</span>
+                              <h3 className="font-bold text-text-main">Cores da Marca</h3>
+                          </div>
+                          <span className="material-symbols-outlined text-gray-400 transition-transform duration-300 data-[state=open]:rotate-180">expand_more</span>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent className="p-6 space-y-6">
+                          <ColorInputRow name="primaryColor" label="Cor Primária" sublabel="primary_color" form={form} />
+                          <ColorInputRow name="secondaryColor" label="Cor Secundária" sublabel="secondary_color" form={form} />
+                      </CollapsibleContent>
+                  </Collapsible>
+                  <Collapsible open={isInterfaceOpen} onOpenChange={setIsInterfaceOpen} className="bg-white rounded-xl shadow-soft border border-gray-100 overflow-hidden">
+                      <CollapsibleTrigger className="p-5 border-b border-gray-50 flex items-center justify-between gap-2 w-full hover:bg-gray-50/50 transition-colors data-[state=open]:bg-gray-50/50">
+                          <div className="flex items-center gap-2">
+                              <span className="material-symbols-outlined text-secondary">grid_view</span>
+                              <h3 className="font-bold text-text-main">Cores de Interface</h3>
+                          </div>
+                          <span className="material-symbols-outlined text-gray-400 transition-transform duration-300 data-[state=open]:rotate-180">expand_more</span>
+                      </CollapsibleTrigger>
+                       <CollapsibleContent className="p-6 space-y-6">
+                         <ColorInputRow name="backgroundColor" label="Fundo do Site" sublabel="bg_main" form={form} />
+                         <ColorInputRow name="accentColor" label="Fundo de Cards" sublabel="bg_card" form={form} />
+                      </CollapsibleContent>
+                  </Collapsible>
+                  <Collapsible open={isTipografiaOpen} onOpenChange={setIsTipografiaOpen} className="bg-white rounded-xl shadow-soft border border-gray-100 overflow-hidden">
+                      <CollapsibleTrigger className="p-5 border-b border-gray-50 flex items-center justify-between gap-2 w-full hover:bg-gray-50/50 transition-colors data-[state=open]:bg-gray-50/50">
+                          <div className="flex items-center gap-2">
+                              <span className="material-symbols-outlined text-secondary">text_fields</span>
+                              <h3 className="font-bold text-text-main">Tipografia</h3>
+                          </div>
+                          <span className="material-symbols-outlined text-gray-400 transition-transform duration-300 data-[state=open]:rotate-180">expand_more</span>
+                      </CollapsibleTrigger>
+                       <CollapsibleContent className="p-6 space-y-6">
+                         <ColorInputRow name="foregroundColor" label="Texto Principal" sublabel="text_main" form={form} />
+                          <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-4">
+                                  <div className="relative size-10 rounded-full border border-gray-200 flex items-center justify-center bg-[#6b7280]"></div>
+                                  <div>
+                                      <p className="text-sm font-bold text-text-main">Texto de Apoio</p>
+                                      <p className="text-[10px] text-text-secondary font-medium font-mono uppercase">text_support</p>
+                                  </div>
+                              </div>
+                              <div className="w-32">
+                                  <Input className="w-full bg-gray-50 border border-gray-200 rounded-lg text-sm font-mono text-center" type="text" value="#6B7280" disabled />
+                              </div>
+                          </div>
+                      </CollapsibleContent>
+                  </Collapsible>
+                   <Collapsible open={isCtaOpen} onOpenChange={setIsCtaOpen} className="bg-white rounded-xl shadow-soft border border-gray-100 overflow-hidden">
+                      <CollapsibleTrigger className="p-5 border-b border-gray-50 flex items-center justify-between gap-2 w-full hover:bg-gray-50/50 transition-colors data-[state=open]:bg-gray-50/50">
+                          <div className="flex items-center gap-2">
+                              <span className="material-symbols-outlined text-secondary">smart_button</span>
+                              <h3 className="font-bold text-text-main">Botão Principal (CTA)</h3>
+                          </div>
+                          <span className="material-symbols-outlined text-gray-400 transition-transform duration-300 data-[state=open]:rotate-180">expand_more</span>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent className="p-6 space-y-6">
+                          <FormField control={form.control} name="ctaButtonText" render={({ field }) => (
+                              <FormItem>
+                                  <FormLabel>Texto do Botão</FormLabel>
+                                  <FormControl>
+                                      <Input placeholder="Fale Comigo" {...field} value={field.value ?? ''} />
+                                  </FormControl>
+                                  <FormMessage />
+                              </FormItem>
+                          )}/>
+                          <FormField
+                              control={form.control}
+                              name="ctaButtonIcon"
+                              render={({ field }) => (
+                                  <FormItem>
+                                  <FormLabel>Ícone do Botão</FormLabel>
+                                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                      <FormControl>
+                                      <SelectTrigger>
+                                          <SelectValue placeholder="Selecione um ícone" />
+                                      </SelectTrigger>
+                                      </FormControl>
+                                      <SelectContent>
+                                      {iconOptions.map(option => (
+                                          <SelectItem key={option.value} value={option.value}>
+                                          <div className="flex items-center gap-2">
+                                              <span className="material-symbols-outlined text-base">{option.value}</span>
+                                              <span>{option.label}</span>
+                                          </div>
+                                          </SelectItem>
+                                      ))}
+                                      </SelectContent>
+                                  </Select>
+                                  <FormMessage />
+                                  </FormItem>
+                              )}
+                          />
+                          <ColorInputRow name="ctaButtonBgColor" label="Cor de Fundo" sublabel="cta_button_bg" form={form} />
+                          <ColorInputRow name="ctaButtonTextColor" label="Cor do Texto" sublabel="cta_button_text" form={form} />
+                      </CollapsibleContent>
+                  </Collapsible>
+                   <Collapsible open={isSearchOpen} onOpenChange={setIsSearchOpen} className="bg-white rounded-xl shadow-soft border border-gray-100 overflow-hidden">
+                      <CollapsibleTrigger className="p-5 border-b border-gray-50 flex items-center justify-between gap-2 w-full hover:bg-gray-50/50 transition-colors data-[state=open]:bg-gray-50/50">
+                          <div className="flex items-center gap-2">
+                              <span className="material-symbols-outlined text-secondary">search</span>
+                              <h3 className="font-bold text-text-main">Botão de Busca</h3>
+                          </div>
+                          <span className="material-symbols-outlined text-gray-400 transition-transform duration-300 data-[state=open]:rotate-180">expand_more</span>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent className="p-6 space-y-6">
+                          <ColorInputRow name="searchButtonBgColor" label="Cor de Fundo" sublabel="search_button_bg" form={form} />
+                          <ColorInputRow name="searchButtonTextColor" label="Cor do Texto" sublabel="search_button_text" form={form} />
+                      </CollapsibleContent>
+                  </Collapsible>
+                  <Collapsible open={isStatsOpen} onOpenChange={setIsStatsOpen} className="bg-white rounded-xl shadow-soft border border-gray-100 overflow-hidden">
+                      <CollapsibleTrigger className="p-5 border-b border-gray-50 flex items-center justify-between gap-2 w-full hover:bg-gray-50/50 transition-colors data-[state=open]:bg-gray-50/50">
+                          <div className="flex items-center gap-2">
+                              <span className="material-symbols-outlined text-secondary">analytics</span>
+                              <h3 className="font-bold text-text-main">Estatísticas em Números</h3>
+                          </div>
+                          <span className="material-symbols-outlined text-gray-400 transition-transform duration-300 data-[state=open]:rotate-180">expand_more</span>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent className="p-6 space-y-6">
+                          <ColorInputRow name="statsSectionBgColor" label="Cor de Fundo" sublabel="stats_section_bg" form={form} />
+                          <ColorInputRow name="statsNumberColor" label="Cor dos Números" sublabel="stats_number_color" form={form} />
+                          <ColorInputRow name="statsLabelColor" label="Cor dos Rótulos" sublabel="stats_label_color" form={form} />
+                      </CollapsibleContent>
+                  </Collapsible>
+                   <Collapsible open={isCardOpen} onOpenChange={setIsCardOpen} className="bg-white rounded-xl shadow-soft border border-gray-100 overflow-hidden">
+                      <CollapsibleTrigger className="p-5 border-b border-gray-50 flex items-center justify-between gap-2 w-full hover:bg-gray-50/50 transition-colors data-[state=open]:bg-gray-50/50">
+                          <div className="flex items-center gap-2">
+                              <span className="material-symbols-outlined text-secondary">grid_on</span>
+                              <h3 className="font-bold text-text-main">Cards de Imóveis</h3>
+                          </div>
+                          <span className="material-symbols-outlined text-gray-400 transition-transform duration-300 data-[state=open]:rotate-180">expand_more</span>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent className="p-6 space-y-6">
+                          <ColorInputRow name="cardIconColor" label="Cor dos Ícones" sublabel="card_icon_color" form={form} />
+                          <ColorInputRow name="cardValueColor" label="Cor do Preço" sublabel="card_value_color" form={form} />
+                          <ColorInputRow name="cardTitleColor" label="Cor do Título" sublabel="card_title_color" form={form} />
+                      </CollapsibleContent>
+                  </Collapsible>
+                   <Collapsible open={isStatusTagOpen} onOpenChange={setIsStatusTagOpen} className="bg-white rounded-xl shadow-soft border border-gray-100 overflow-hidden">
+                      <CollapsibleTrigger className="p-5 border-b border-gray-50 flex items-center justify-between gap-2 w-full hover:bg-gray-50/50 transition-colors data-[state=open]:bg-gray-50/50">
+                          <div className="flex items-center gap-2">
+                              <span className="material-symbols-outlined text-secondary">label</span>
+                              <h3 className="font-bold text-text-main">Tag de Status do Imóvel</h3>
+                          </div>
+                          <span className="material-symbols-outlined text-gray-400 transition-transform duration-300 data-[state=open]:rotate-180">expand_more</span>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent className="p-6 space-y-6">
+                          <ColorInputRow name="statusTagBgColor" label="Cor de Fundo" sublabel="status_tag_bg" form={form} />
+                          <ColorInputRow name="statusTagTextColor" label="Cor do Texto" sublabel="status_tag_text" form={form} />
+                      </CollapsibleContent>
+                  </Collapsible>
+                   <Collapsible open={isAboutOpen} onOpenChange={setIsAboutOpen} className="bg-white rounded-xl shadow-soft border border-gray-100 overflow-hidden">
+                      <CollapsibleTrigger className="p-5 border-b border-gray-50 flex items-center justify-between gap-2 w-full hover:bg-gray-50/50 transition-colors data-[state=open]:bg-gray-50/50">
+                          <div className="flex items-center gap-2">
+                              <span className="material-symbols-outlined text-secondary">info</span>
+                              <h3 className="font-bold text-text-main">Seção Sobre</h3>
+                          </div>
+                          <span className="material-symbols-outlined text-gray-400 transition-transform duration-300 data-[state=open]:rotate-180">expand_more</span>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent className="p-6 space-y-6">
+                          <ColorInputRow name="aboutSectionBgColor" label="Cor de Fundo" sublabel="about_section_bg" form={form} />
+                          <ColorInputRow name="aboutTaglineColor" label="Cor da Tagline" sublabel="about_tagline" form={form} />
+                          <ColorInputRow name="aboutTitleColor" label="Cor do Título" sublabel="about_title" form={form} />
+                          <ColorInputRow name="aboutTextColor" label="Cor do Texto" sublabel="about_text" form={form} />
+                          <ColorInputRow name="aboutQuoteBgColor" label="Fundo do Balão" sublabel="about_quote_bg" form={form} />
+                          <ColorInputRow name="aboutQuoteTextColor" label="Texto do Balão" sublabel="about_quote_text" form={form} />
+                      </CollapsibleContent>
+                  </Collapsible>
+                  <Collapsible open={isMapOpen} onOpenChange={setIsMapOpen} className="bg-white rounded-xl shadow-soft border border-gray-100 overflow-hidden">
+                      <CollapsibleTrigger className="p-5 border-b border-gray-50 flex items-center justify-between gap-2 w-full hover:bg-gray-50/50 transition-colors data-[state=open]:bg-gray-50/50">
+                          <div className="flex items-center gap-2">
+                              <span className="material-symbols-outlined text-secondary">map</span>
+                              <h3 className="font-bold text-text-main">Seção Mapa</h3>
+                          </div>
+                          <span className="material-symbols-outlined text-gray-400 transition-transform duration-300 data-[state=open]:rotate-180">expand_more</span>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent className="p-6 space-y-6">
+                          <ColorInputRow name="mapSectionBgColor" label="Cor de Fundo" sublabel="map_section_bg" form={form} />
+                          <ColorInputRow name="mapTitleColor" label="Cor do Título" sublabel="map_title_color" form={form} />
+                          <ColorInputRow name="mapTextColor" label="Cor do Texto" sublabel="map_text_color" form={form} />
+                          <ColorInputRow name="mapButtonBgColor" label="Cor Fundo Botão" sublabel="map_button_bg" form={form} />
+                          <ColorInputRow name="mapButtonTextColor" label="Cor Texto Botão" sublabel="map_button_text" form={form} />
+                      </CollapsibleContent>
+                  </Collapsible>
+                  <Collapsible open={isSobrePageOpen} onOpenChange={setIsSobrePageOpen} className="bg-white rounded-xl shadow-soft border border-gray-100 overflow-hidden">
+                      <CollapsibleTrigger className="p-5 border-b border-gray-100 flex items-center justify-between gap-2 w-full hover:bg-gray-50/50 transition-colors data-[state=open]:bg-gray-50/50">
+                          <div className="flex items-center gap-2">
+                              <span className="material-symbols-outlined text-secondary">badge</span>
+                              <h3 className="font-bold text-text-main">Página Sobre</h3>
+                          </div>
+                          <span className="material-symbols-outlined text-gray-400 transition-transform duration-300 data-[state=open]:rotate-180">expand_more</span>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent className="p-6 space-y-6">
+                          <ColorInputRow name="sobrePageIconColor" label="Cor dos Ícones" sublabel="sobre_icon_color" form={form} />
+                          <ColorInputRow name="sobrePageCtaBgColor" label="Fundo Botão CTA" sublabel="sobre_cta_bg" form={form} />
+                          <ColorInputRow name="sobrePageCtaTextColor" label="Texto Botão CTA" sublabel="sobre_cta_text" form={form} />
+                      </CollapsibleContent>
+                  </Collapsible>
+                  <Collapsible open={isCtaSectionOpen} onOpenChange={setIsCtaSectionOpen} className="bg-white rounded-xl shadow-soft border border-gray-100 overflow-hidden">
+                      <CollapsibleTrigger className="p-5 border-b border-gray-50 flex items-center justify-between gap-2 w-full hover:bg-gray-50/50 transition-colors data-[state=open]:bg-gray-50/50">
+                          <div className="flex items-center gap-2">
+                              <span className="material-symbols-outlined text-secondary">campaign</span>
+                              <h3 className="font-bold text-text-main">Seção Chamada Final (CTA)</h3>
+                          </div>
+                          <span className="material-symbols-outlined text-gray-400 transition-transform duration-300 data-[state=open]:rotate-180">expand_more</span>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent className="p-6 space-y-6">
+                          <ColorInputRow name="ctaSectionBgColor" label="Cor de Fundo da Seção" sublabel="cta_section_bg" form={form} />
+                          <ColorInputRow name="ctaSectionTitleColor" label="Cor do Título" sublabel="cta_section_title" form={form} />
+                          <ColorInputRow name="ctaSectionSubtitleColor" label="Cor do Subtítulo" sublabel="cta_section_subtitle" form={form} />
+                          <ColorInputRow name="ctaSectionButtonBgColor" label="Fundo do Botão WhatsApp" sublabel="cta_section_button_bg" form={form} />
+                          <ColorInputRow name="ctaSectionButtonTextColor" label="Texto do Botão WhatsApp" sublabel="cta_section_button_text" form={form} />
+                      </CollapsibleContent>
+                  </Collapsible>
+              </div>
+              <div className="lg:col-span-7 xl:col-span-8">
+                  <div className="bg-white rounded-xl shadow-soft border border-gray-100 h-full flex flex-col overflow-hidden">
+                      <div className="p-5 border-b border-gray-50 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                              <span className="material-symbols-outlined text-secondary">visibility</span>
+                              <h3 className="font-bold text-text-main">Visualização em Tempo Real</h3>
+                          </div>
+                          <div className="flex items-center gap-2">
+                              <div className="size-2 rounded-full bg-green-500 animate-pulse"></div>
+                              <span className="text-[10px] font-bold text-text-secondary uppercase">Live Preview</span>
+                          </div>
+                      </div>
+                      <div className="flex-grow p-8 bg-gray-50/50" style={previewStyle}>
+                          <div className="max-w-3xl mx-auto bg-[var(--preview-bg)] rounded-xl shadow-2xl border border-gray-100 overflow-hidden min-h-[500px] flex flex-col">
+                              <div className="p-4 flex items-center justify-between border-b" style={{ borderColor: 'hsl(var(--border))' }}>
+                                  <div className="flex items-center gap-2">
+                                      <div className="size-6 rounded" style={{ backgroundColor: 'var(--preview-primary)' }}></div>
+                                      <div className="h-3 w-20 rounded" style={{ backgroundColor: 'var(--preview-secondary)', opacity: 0.8 }}></div>
+                                  </div>
+                                  <div className="flex gap-4 items-center">
+                                      <div className="h-2 w-10 bg-[var(--preview-text-support)] opacity-30 rounded hidden sm:block"></div>
+                                      <div className="h-2 w-10 bg-[var(--preview-text-support)] opacity-30 rounded hidden sm:block"></div>
+                                       <div style={{
+                                          backgroundColor: watchedColors.ctaButtonBgColor ? hslToHex(watchedColors.ctaButtonBgColor) : 'var(--preview-primary)',
+                                          color: watchedColors.ctaButtonTextColor ? hslToHex(watchedColors.ctaButtonTextColor) : '#000'
+                                      }} className="px-3 py-1 text-xs font-bold rounded-md flex items-center gap-1">
+                                          <span>{watchedColors.ctaButtonText || 'Fale Comigo'}</span>
+                                          <span className="material-symbols-outlined text-[14px]">{watchedColors.ctaButtonIcon || 'chat_bubble'}</span>
+                                      </div>
+                                  </div>
+                              </div>
+                              <div
+                                  className="relative h-64 flex items-center justify-center overflow-hidden bg-cover bg-center"
+                                  style={{
+                                      backgroundImage: `linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.6)), url(${content.heroImageUrl || defaultContent.heroImageUrl})`
+                                  }}
+                              >
+                                  <div className="relative z-10 text-center px-6">
+                                      <div className="mb-4 inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium uppercase tracking-wider" style={{ backgroundColor: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: 'white' }}>
+                                          {content.heroTagline || defaultContent.heroTagline}
+                                      </div>
+                                      <h4 className="text-3xl font-bold mb-2" style={{ color: 'white' }} dangerouslySetInnerHTML={{ __html: (content.heroTitle || defaultContent.heroTitle).replace('<span class="text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary">', `<span style="color: var(--preview-primary)">`) }}></h4>
+                                      <p className="text-sm max-w-md mx-auto" style={{ color: 'rgba(255,255,255,0.8)' }}>
+                                          {content.heroSubtitle || defaultContent.heroSubtitle}
+                                      </p>
+                                  </div>
+                              </div>
+                              <div style={{ backgroundColor: 'var(--preview-stats-bg, white)'}} className="py-4">
+                                  <div className="grid grid-cols-2 gap-4 px-4">
+                                      <div className="text-center">
+                                          <span className="text-lg font-bold" style={{ color: 'var(--preview-stats-number)'}}>{content.statsSold || '+250'}</span>
+                                          <span className="text-xs block" style={{ color: 'var(--preview-stats-label)'}}>Imóveis Vendidos</span>
+                                      </div>
+                                      <div className="text-center">
+                                          <span className="text-lg font-bold" style={{ color: 'var(--preview-stats-number)'}}>{content.statsExperience || '12+'}</span>
+                                          <span className="text-xs block" style={{ color: 'var(--preview-stats-label)'}}>Anos de Mercado</span>
+                                      </div>
+                                  </div>
+                              </div>
+                              <div className="p-8 flex-grow flex flex-col gap-8 items-center justify-center">
+                                  <div className="rounded-xl overflow-hidden max-w-sm mx-auto shadow-lg group" style={{ backgroundColor: 'var(--preview-card)', border: '1px solid hsl(var(--border))' }}>
+                                      <div className="h-32 bg-gray-200 relative" style={{ backgroundImage: `url('https://picsum.photos/seed/1/400/300')`, backgroundSize: 'cover'}}>
+                                          <div className="absolute top-2 left-2 z-10 px-2 py-0.5 rounded text-[10px] font-bold" style={{ backgroundColor: 'var(--preview-status-tag-bg)', color: 'var(--preview-status-tag-text)' }}>DESTAQUE</div>
+                                      </div>
+                                      <div className="p-4">
+                                          <h5 className="font-bold text-sm mb-1 group-hover:text-primary" style={{ color: 'var(--preview-card-title)' }}>Nome do Imóvel</h5>
+                                          <p className="text-[10px] flex items-center gap-1 mb-3" style={{ color: 'var(--preview-text-support)' }}>
+                                              <span className="material-symbols-outlined text-[12px]">location_on</span>
+                                              Bairro, Cidade
+                                          </p>
+                                          <div className="flex items-center justify-between">
+                                              <span className="text-sm font-bold" style={{ color: 'var(--preview-card-value)' }}>R$ 1.234.567</span>
+                                              <span className="material-symbols-outlined text-[20px]" style={{ color: 'var(--preview-card-icon)' }}>favorite</span>
+                                          </div>
+                                      </div>
+                                  </div>
+                                  <div className="p-6 rounded-2xl shadow-xl max-w-[240px] border relative" style={{ backgroundColor: 'var(--preview-about-quote-bg)', color: 'var(--preview-about-quote-text)', borderColor: 'rgba(255,255,255,0.1)' }}>
+                                      <span className="material-symbols-outlined text-2xl mb-2 opacity-50">format_quote</span>
+                                      <p className="font-bold text-sm leading-snug">"O balão de citação agora segue suas cores personalizadas."</p>
+                                  </div>
+                              </div>
+                              <div className="p-8 mt-auto" style={{ backgroundColor: 'var(--preview-cta-section-bg)' }}>
+                                <div className="text-center space-y-4">
+                                    <h4 className="text-xl font-bold" style={{ color: 'var(--preview-cta-section-title)' }}>Chamada Final</h4>
+                                    <p className="text-xs" style={{ color: 'var(--preview-cta-section-subtitle)' }}>Subtítulo da seção de contato.</p>
+                                    <div className="px-4 py-2 rounded-full font-bold text-xs inline-block" style={{ backgroundColor: 'var(--preview-cta-section-button-bg)', color: 'var(--preview-cta-section-button-text)' }}>
+                                        Botão WhatsApp
+                                    </div>
+                                </div>
+                              </div>
+                          </div>
+                          <div className="mt-6 flex justify-center">
+                              <div className="inline-flex items-center gap-3 px-4 py-2 bg-primary/10 rounded-full border border-primary/20">
+                                  <span className="material-symbols-outlined text-secondary text-[18px]">lightbulb</span>
+                                  <p className="text-xs font-medium text-text-secondary">O preview acima reflete como seu site aparecerá para os clientes.</p>
+                              </div>
+                          </div>
+                      </div>
+                  </div>
+              </div>
+          </div>
+        </form>
+      </FormProvider>
+    </div>
   );
 }
-      
-    
-    

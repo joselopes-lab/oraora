@@ -1,4 +1,3 @@
-
 'use client';
 import { DomusHeader } from '../components/DomusHeader';
 import { DomusFooter } from '../components/DomusFooter';
@@ -23,15 +22,26 @@ type Broker = {
   foregroundColor?: string;
   slug: string;
   layoutId?: string;
-  // Conteúdo da Homepage (compartilhado)
   homepage?: {
     aboutImageUrl?: string;
     aboutTitle?: string;
     aboutText?: string;
     aboutTagline?: string;
     aboutQuote?: string;
+    ctaButtonBgColor?: string;
+    ctaButtonTextColor?: string;
+    ctaButtonText?: string;
+    ctaButtonIcon?: string;
+    aboutQuoteBgColor?: string;
+    aboutQuoteTextColor?: string;
+    ctaTitle?: string;
+    ctaSubtitle?: string;
+    ctaSectionBgColor?: string;
+    ctaSectionTitleColor?: string;
+    ctaSectionSubtitleColor?: string;
+    ctaSectionButtonBgColor?: string;
+    ctaSectionButtonTextColor?: string;
   };
-  // Conteúdo do Corretor
   urbanPadraoSobre?: {
     profileImageUrl?: string;
     brokerName?: string;
@@ -47,7 +57,6 @@ type Broker = {
     value3Title?: string;
     value3Description?: string;
   };
-  // Conteúdo do Portal Principal (Admin)
   oraoraSobre?: {
     headerTagline?: string;
     headerTitle?: string;
@@ -84,26 +93,7 @@ type Broker = {
   linkedinUrl?: string;
 };
 
-function hslToHex(hslStr: string): string {
-    if (!hslStr || typeof hslStr !== 'string') return '#000000';
-    const parts = hslStr.match(/(\d+(\.\d+)?)/g);
-    if (!parts || parts.length < 3) return '#000000';
-
-    const h = parseFloat(parts[0]);
-    const s = parseFloat(parts[1]) / 100;
-    const l = parseFloat(parts[2]) / 100;
-
-    const a = s * Math.min(l, 1 - l);
-    const f = (n: number) => {
-        const k = (n + h / 30) % 12;
-        const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
-        return Math.round(255 * color).toString(16).padStart(2, '0');
-    };
-    return `#${f(0)}${f(8)}${f(4)}`;
-}
-
 export default function DomusSobrePage({ broker }: { broker: Broker }) {
-  // Prioriza o conteúdo da homepage (para manter paridade com a index), depois o do corretor, portal e defaults
   const homeContent = broker.homepage || {};
   const brokerContent = broker.urbanPadraoSobre || {};
   const adminContent = broker.oraoraSobre || {};
@@ -112,8 +102,7 @@ export default function DomusSobrePage({ broker }: { broker: Broker }) {
     headerTagline: adminContent.headerTagline || 'Nossa História',
     headerTitle: adminContent.headerTitle || (brokerContent.brokerName ? `Conheça a trajetória de <span class="text-primary italic">${brokerContent.brokerName}</span>` : 'Transformando a forma como você encontra <span class="text-primary italic">seu lugar.</span>'),
     headerSubtitle: adminContent.headerSubtitle || brokerContent.bio || 'Fundada sob o pilar da tecnologia e atendimento personalizado, nascemos para quebrar paradigmas no mercado imobiliário premium. Não entregamos apenas chaves; entregamos o cenário dos seus melhores momentos.',
-    // A imagem deve ser a mesma da index (aboutImageUrl da homepage)
-    videoImageUrl: homeContent.aboutImageUrl || brokerContent.profileImageUrl || adminContent.videoImageUrl || 'https://lh3.googleusercontent.com/aida-public/AB6AXuDr691TGrolLX_UNGmZey0eomt-NArAur-FCyrPxmhqeT6MTn8ydKzZTkwSHykN9gnmBnhE6UuVr4iBQz9Y3_dyRkQI2bpgSU-q4dSRqJMX4hhbjO_xwFpkFgm6RUq4tCEYOV2SrIho8Te-Z1soy-JI4Fowdl3h1pIenTpcjkV63dE6hvTTSDeg0y1xdoJBaYSqbgwlKtL7DLW6Y99HEO5F75tZ8-46D5-r8e7A35uYNTZkR_7RaKIN-O6IIkxpN170bO3jR9Qc0-k',
+    videoImageUrl: homeContent.aboutImageUrl || brokerContent.profileImageUrl || adminContent.videoImageUrl || 'https://picsum.photos/seed/about/800/600',
     statAnunciados: adminContent.statAnunciados || brokerContent.statYearsExperience || '15+',
     statNegocios: adminContent.statNegocios || brokerContent.statManagedDeals || 'R$ 1Bi',
     statCidades: adminContent.statCidades || brokerContent.statAssistedFamilies || '2.5k',
@@ -122,7 +111,7 @@ export default function DomusSobrePage({ broker }: { broker: Broker }) {
     pilaresSubtitle: adminContent.pilaresSubtitle || 'Nossos fundamentos guiam cada interação e decisão estratégica no mercado imobiliário de alto padrão.',
     pilar1Icon: adminContent.pilar1Icon || 'rocket_launch',
     pilar1Title: adminContent.pilar1Title || brokerContent.value1Title || 'Missão',
-    pilar1Description: adminContent.pilar1Description || brokerContent.value1Description || 'Inovação constante para simplificar o mercado imobiliário, oferecendo uma experiência premium baseada em transparência e resultados.',
+    pilar1Description: adminContent.pilar1Description || brokerContent.value1Description || 'Inovação constante para simplificar o mercado imobiliário, oferecendo uma experiênciapremium baseada em transparência e resultados.',
     pilar2Icon: adminContent.pilar2Icon || 'visibility',
     pilar2Title: adminContent.pilar2Title || brokerContent.value2Title || 'Visão',
     pilar2Description: adminContent.pilar2Description || brokerContent.value2Description || 'Ser a maior referência em inteligência imobiliária e atendimento de alto padrão no país até 2030.',
@@ -139,16 +128,24 @@ export default function DomusSobrePage({ broker }: { broker: Broker }) {
     '--primary': broker.primaryColor || '80 99% 49%',
     '--secondary': broker.secondaryColor || '110 16% 8%',
     '--accent': broker.accentColor || '97 78% 56%',
+    '--cta-button-bg': homeContent.ctaButtonBgColor ? `hsl(${homeContent.ctaButtonBgColor})` : 'hsl(var(--primary))',
+    '--cta-button-text': homeContent.ctaButtonTextColor ? `hsl(${homeContent.ctaButtonTextColor})` : 'hsl(var(--secondary))',
+    '--about-quote-bg': homeContent.aboutQuoteBgColor ? `hsl(${homeContent.aboutQuoteBgColor})` : 'hsl(var(--primary))',
+    '--about-quote-text': homeContent.aboutQuoteTextColor ? `hsl(${homeContent.aboutQuoteTextColor})` : 'hsl(var(--secondary))',
+    '--cta-section-bg': homeContent.ctaSectionBgColor ? `hsl(${homeContent.ctaSectionBgColor})` : 'hsl(var(--secondary))',
+    '--cta-section-title': homeContent.ctaSectionTitleColor ? `hsl(${homeContent.ctaSectionTitleColor})` : '#fff',
+    '--cta-section-subtitle': homeContent.ctaSectionSubtitleColor ? `hsl(${content.ctaSectionSubtitleColor})` : 'rgba(255,255,255,0.6)',
+    '--cta-section-button-bg': homeContent.ctaSectionButtonBgColor ? `hsl(${homeContent.ctaSectionButtonBgColor})` : 'hsl(var(--primary))',
+    '--cta-section-button-text': homeContent.ctaSectionButtonTextColor ? `hsl(${homeContent.ctaSectionButtonTextColor})` : 'hsl(var(--secondary))',
   } as React.CSSProperties;
+
+  const whatsappLink = broker.whatsappUrl?.replace('wa.me.com.br', 'wa.me') || '#';
 
   return (
     <div style={dynamicStyles} className="domus-theme font-display bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 min-h-screen transition-colors duration-300">
       <style jsx>{`
-        .neon-glow {
-            text-shadow: 0 0 20px rgba(0, 255, 0, 0.4);
-        }
         .hero-gradient {
-            background: radial-gradient(circle at top right, rgba(0, 255, 0, 0.05) 0%, transparent 70%);
+            background: radial-gradient(circle at top right, hsl(var(--secondary) / 0.05) 0%, transparent 70%);
         }
       `}</style>
       
@@ -169,9 +166,9 @@ export default function DomusSobrePage({ broker }: { broker: Broker }) {
                   />
                 )}
               </div>
-              <div className="absolute -bottom-8 -right-8 z-20 bg-primary p-8 max-w-xs rounded-2xl shadow-xl transform rotate-2">
-                <span className="material-symbols-outlined text-black text-4xl mb-2">format_quote</span>
-                <p className="text-black font-bold text-lg leading-tight">
+              <div className="absolute -bottom-8 -right-8 z-20 p-8 max-w-xs rounded-2xl shadow-xl transform rotate-2" style={{ backgroundColor: 'var(--about-quote-bg)', color: 'var(--about-quote-text)' }}>
+                <span className="material-symbols-outlined text-4xl mb-2">format_quote</span>
+                <p className="font-bold text-lg leading-tight">
                   {homeContent.aboutQuote || brokerContent.brokerTitle || "Minha missão é transformar a busca pelo seu imóvel em uma jornada de realização e segurança."}
                 </p>
               </div>
@@ -204,19 +201,19 @@ export default function DomusSobrePage({ broker }: { broker: Broker }) {
           <div className="max-w-7xl mx-auto px-6">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-12 text-center">
               <div className="space-y-2">
-                <h3 className="text-5xl md:text-6xl font-bold text-primary neon-glow">{defaultContent.statAnunciados}</h3>
+                <h3 className="text-4xl md:text-5xl font-bold text-primary">{defaultContent.statAnunciados}</h3>
                 <p className="text-sm font-medium uppercase tracking-widest text-slate-500">{brokerContent.statYearsExperience ? 'Anos de Mercado' : 'Anos de História'}</p>
               </div>
               <div className="space-y-2">
-                <h3 className="text-5xl md:text-6xl font-bold text-primary neon-glow">{defaultContent.statNegocios}</h3>
+                <h3 className="text-4xl md:text-5xl font-bold text-primary">{defaultContent.statNegocios}</h3>
                 <p className="text-sm font-medium uppercase tracking-widest text-slate-500">{brokerContent.statManagedDeals ? 'Negócios Geridos' : 'Em Vendas'}</p>
               </div>
               <div className="space-y-2">
-                <h3 className="text-5xl md:text-6xl font-bold text-primary neon-glow">{defaultContent.statCidades}</h3>
+                <h3 className="text-4xl md:text-5xl font-bold text-primary">{defaultContent.statCidades}</h3>
                 <p className="text-sm font-medium uppercase tracking-widest text-slate-500">{brokerContent.statAssistedFamilies ? 'Famílias Assessoradas' : 'Famílias Felizes'}</p>
               </div>
               <div className="space-y-2">
-                <h3 className="text-5xl md:text-6xl font-bold text-primary neon-glow">{defaultContent.statAvaliacao}</h3>
+                <h3 className="text-4xl md:text-5xl font-bold text-primary">{defaultContent.statAvaliacao}</h3>
                 <p className="text-sm font-medium uppercase tracking-widest text-slate-500">Prêmios Setoriais</p>
               </div>
             </div>
@@ -230,21 +227,21 @@ export default function DomusSobrePage({ broker }: { broker: Broker }) {
           </div>
           <div className="grid md:grid-cols-3 gap-8">
             <div className="p-10 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 group hover:border-primary/50 transition-all duration-300">
-              <div className="w-14 h-14 bg-primary/10 rounded-xl flex items-center justify-center mb-6 group-hover:bg-primary transition-colors text-primary group-hover:text-black">
+              <div className="w-14 h-14 bg-primary/10 rounded-xl flex items-center justify-center mb-6 group-hover:bg-primary transition-colors text-primary group-hover:text-secondary">
                 <span className="material-symbols-outlined text-3xl">{defaultContent.pilar1Icon}</span>
               </div>
               <h4 className="text-2xl font-bold mb-4">{defaultContent.pilar1Title}</h4>
               <p className="text-slate-600 dark:text-slate-400 leading-relaxed">{defaultContent.pilar1Description}</p>
             </div>
             <div className="p-10 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 group hover:border-primary/50 transition-all duration-300">
-              <div className="w-14 h-14 bg-primary/10 rounded-xl flex items-center justify-center mb-6 group-hover:bg-primary transition-colors text-primary group-hover:text-black">
+              <div className="w-14 h-14 bg-primary/10 rounded-xl flex items-center justify-center mb-6 group-hover:bg-primary transition-colors text-primary group-hover:text-secondary">
                 <span className="material-symbols-outlined text-3xl">{defaultContent.pilar2Icon}</span>
               </div>
               <h4 className="text-2xl font-bold mb-4">{defaultContent.pilar2Title}</h4>
               <p className="text-slate-600 dark:text-slate-400 leading-relaxed">{defaultContent.pilar2Description}</p>
             </div>
             <div className="p-10 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 group hover:border-primary/50 transition-all duration-300">
-              <div className="w-14 h-14 bg-primary/10 rounded-xl flex items-center justify-center mb-6 group-hover:bg-primary transition-colors text-primary group-hover:text-black">
+              <div className="w-14 h-14 bg-primary/10 rounded-xl flex items-center justify-center mb-6 group-hover:bg-primary transition-colors text-primary group-hover:text-secondary">
                 <span className="material-symbols-outlined text-3xl">{defaultContent.pilar3Icon}</span>
               </div>
               <h4 className="text-2xl font-bold mb-4">{defaultContent.pilar3Title}</h4>
@@ -254,16 +251,18 @@ export default function DomusSobrePage({ broker }: { broker: Broker }) {
         </section>
 
         <section className="px-6 mb-24">
-          <div className="max-w-7xl mx-auto bg-slate-950 rounded-2xl p-12 md:p-24 relative overflow-hidden text-center text-white">
-            <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1512917774080-9991f1c4c750?q=80&w=2000&auto=format&fit=crop')] opacity-10 bg-cover bg-center"></div>
+          <div className="max-w-7xl mx-auto rounded-2xl md:rounded-[40px] p-12 md:p-24 relative overflow-hidden text-center text-white border border-slate-800" style={{ backgroundColor: 'var(--cta-section-bg)' }}>
+            <div className="absolute inset-0 bg-[url('https://picsum.photos/seed/cta/1600/900')] opacity-10 bg-cover bg-center"></div>
             <div className="relative z-10 flex flex-col items-center">
-              <h2 className="text-4xl md:text-6xl font-bold mb-8">{defaultContent.ctaTitle}</h2>
-              <p className="text-slate-400 text-lg mb-12 max-w-xl mx-auto">{defaultContent.ctaSubtitle}</p>
-              <a href={broker.whatsappUrl || '#'} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-3 bg-primary text-black px-10 py-5 rounded-full font-bold text-lg hover:scale-105 transition-transform">
-                <span className="material-symbols-outlined">chat</span>
-                Falar no WhatsApp
+              <h2 className="text-4xl md:text-6xl font-bold mb-8" style={{ color: 'var(--cta-section-title)' }}>{defaultContent.ctaTitle}</h2>
+              <p className="text-lg mb-12 max-w-xl mx-auto" style={{ color: 'var(--cta-section-subtitle)' }}>{defaultContent.ctaSubtitle}</p>
+              <a href={whatsappLink} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-3 px-10 py-5 rounded-full font-black text-lg hover:scale-105 transition-transform uppercase tracking-widest shadow-lg" style={{ backgroundColor: 'var(--cta-section-button-bg)', color: 'var(--cta-section-button-text)' }}>
+                <span className="material-symbols-outlined font-bold">chat</span>
+                FALAR NO WHATSAPP
               </a>
             </div>
+            <div className="absolute top-0 right-0 w-96 h-96 bg-primary/10 blur-[100px] -mr-48 -mt-48"></div>
+            <div className="absolute bottom-0 left-0 w-96 h-96 bg-primary/10 blur-[100px] -ml-48 -mb-48"></div>
           </div>
         </section>
       </main>

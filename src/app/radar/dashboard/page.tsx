@@ -146,14 +146,12 @@ const getStatusBadgeClass = (status: string) => {
 }
 
 
-// This is the main dashboard page, rendered within the layout.
 export default function RadarDashboardPage() {
   const { user, userProfile, isReady } = useAuthContext();
   const [currentDate, setCurrentDate] = useState('');
   const [greeting, setGreeting] = useState('Bom dia');
   
   const { firestore } = useFirebase();
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
 
@@ -187,10 +185,10 @@ export default function RadarDashboardPage() {
   const newOpportunities = useMemo(() => allRecommendedProperties.slice(0, 4), [allRecommendedProperties]);
   
   const radarListDocRef = useMemoFirebase(
-      () => (user ? doc(firestore, 'radarLists', user.uid) : null),
-      [user, firestore]
+      () => (user?.uid && firestore ? doc(firestore, 'radarLists', user.uid) : null),
+      [user?.uid, firestore]
   );
-  const { data: radarList } = useDoc<RadarList>(radarListDocRef);
+  const { data: radarList } = useDoc<{propertyIds: string[]}>(radarListDocRef);
   const savedPropertyIds = radarList?.propertyIds || [];
   
   const [recommendedCurrentPage, setRecommendedCurrentPage] = useState(1);
@@ -436,5 +434,3 @@ export default function RadarDashboardPage() {
     </>
   );
 }
-
-    

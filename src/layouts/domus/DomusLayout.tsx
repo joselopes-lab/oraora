@@ -175,8 +175,14 @@ export default function DomusLayout({ broker, properties }: DomusLayoutProps) {
 
   const featuredProperties = properties?.slice(0, 6) || [];
 
+  const whatsappLink = broker.whatsappUrl ? 
+    (broker.whatsappUrl.includes('wa.me/') && !broker.whatsappUrl.includes('wa.me/55') ? 
+      broker.whatsappUrl.replace('wa.me/', 'wa.me/55') : 
+      broker.whatsappUrl.replace('wa.me.com.br', 'wa.me')) 
+    : '#';
+
   return (
-    <div className="domus-theme font-display bg-background-light dark:bg-background-dark text-[#161811] dark:text-white transition-colors duration-300">
+    <div className="domus-theme font-display bg-background-light dark:bg-background-dark text-[#161811] dark:text-white transition-colors duration-300 min-h-screen">
       <style jsx global>{`
         .price-slider::-webkit-slider-thumb {
             -webkit-appearance: none;
@@ -234,9 +240,9 @@ export default function DomusLayout({ broker, properties }: DomusLayoutProps) {
                     </DialogContent>
                   </Dialog>
                 )}
-                <button className="flex min-w-[200px] items-center justify-center rounded-xl h-14 px-8 bg-white dark:bg-white/5 border border-[#e3e5dc] dark:border-white/10 text-[#161811] dark:text-white text-base font-bold hover:bg-gray-50 dark:hover:bg-white/10 transition-all">
+                <Link href={`/sites/${broker.slug}/search`} className="flex min-w-[200px] items-center justify-center rounded-xl h-14 px-8 bg-white dark:bg-white/5 border border-[#e3e5dc] dark:border-white/10 text-[#161811] dark:text-white text-base font-bold hover:bg-gray-50 dark:hover:bg-white/10 transition-all">
                     Ver Catálogo
-                </button>
+                </Link>
               </div>
             </div>
             <div className="w-full flex-1">
@@ -347,21 +353,25 @@ export default function DomusLayout({ broker, properties }: DomusLayoutProps) {
         <section className="bg-white dark:bg-background-dark py-16 border-y border-[#f3f4f0] dark:border-white/5">
             <div className="max-w-[1280px] mx-auto px-6">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:divide-x divide-gray-100 dark:divide-white/10">
-                    <div className="flex flex-col items-center justify-center text-center">
-                        <span className="text-primary tracking-tight text-5xl font-bold leading-tight">{content.statsSold || defaultContent.statsSold}</span>
-                        <span className="text-[#161811]/70 dark:text-white/70 text-xs font-medium uppercase tracking-widest mt-2">Imóveis Vendidos</span>
+                    <div className="flex flex-col items-center justify-center text-center px-4">
+                        <div className="text-2xl md:text-3xl font-bold text-[#161811] dark:text-white leading-tight">
+                            {content.statsSold || defaultContent.statsSold} Imóveis
+                        </div>
                     </div>
-                    <div className="flex flex-col items-center justify-center text-center">
-                        <span className="text-primary tracking-tight text-5xl font-bold leading-tight">{content.statsExperience || defaultContent.statsExperience}</span>
-                        <span className="text-[#161811]/70 dark:text-white/70 text-xs font-medium uppercase tracking-widest mt-2">Anos de Mercado</span>
+                    <div className="flex flex-col items-center justify-center text-center px-4">
+                        <div className="text-2xl md:text-3xl font-bold text-[#161811] dark:text-white leading-tight">
+                            {content.statsExperience || defaultContent.statsExperience} Anos
+                        </div>
                     </div>
-                    <div className="flex flex-col items-center justify-center text-center">
-                        <span className="text-primary tracking-tight text-5xl font-bold leading-tight">{content.statsSatisfaction || defaultContent.statsSatisfaction}</span>
-                        <span className="text-[#161811]/70 dark:text-white/70 text-xs font-medium uppercase tracking-widest mt-2">Clientes Satisfeitos</span>
+                    <div className="flex flex-col items-center justify-center text-center px-4">
+                        <div className="text-2xl md:text-3xl font-bold text-[#161811] dark:text-white leading-tight">
+                            {content.statsSatisfaction || defaultContent.statsSatisfaction} Satisfação
+                        </div>
                     </div>
-                    <div className="flex flex-col items-center justify-center text-center">
-                        <span className="text-primary tracking-tight text-5xl font-bold leading-tight">{content.statsSupport || defaultContent.statsSupport}</span>
-                        <span className="text-[#161811]/70 dark:text-white/70 text-xs font-medium uppercase tracking-widest mt-2">Suporte Premium</span>
+                    <div className="flex flex-col items-center justify-center text-center px-4">
+                        <div className="text-2xl md:text-3xl font-bold text-[#161811] dark:text-white leading-tight">
+                            Suporte Premium
+                        </div>
                     </div>
                 </div>
             </div>
@@ -468,9 +478,9 @@ export default function DomusLayout({ broker, properties }: DomusLayoutProps) {
 <h2 className="text-white text-4xl md:text-6xl font-bold leading-tight tracking-tight">{content.ctaTitle || defaultContent.ctaTitle}</h2>
 <p className="text-white/60 text-xl">{content.ctaSubtitle || defaultContent.ctaSubtitle}</p>
 <div className="flex flex-col sm:flex-row gap-4 mt-4">
-<Link href={`/sites/${broker.slug}/fale-conosco`} className="flex min-w-[240px] items-center justify-center gap-3 rounded-full h-16 px-10 bg-primary text-background-dark text-lg font-bold shadow-lg hover:scale-[1.05] transition-transform">
-<span className="material-symbols-outlined font-bold">chat</span>
-                        Falar no WhatsApp
+<Link href={`/sites/${broker.slug}/search`} className="flex min-w-[240px] items-center justify-center gap-3 rounded-full h-16 px-10 bg-primary text-background-dark text-lg font-bold shadow-lg hover:scale-[1.05] transition-transform">
+<span className="material-symbols-outlined font-bold">shopping_cart</span>
+                        Ver Catálogo
                     </Link>
 </div>
 </div>

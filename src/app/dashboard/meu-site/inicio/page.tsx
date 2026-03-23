@@ -1,3 +1,4 @@
+
 'use client';
 import { useDoc, useFirebase, setDocumentNonBlocking, useMemoFirebase, useCollection } from '@/firebase';
 import { doc, collection, query, where, getDocs } from 'firebase/firestore';
@@ -87,21 +88,21 @@ export default function EditHomepagePage() {
   const [heroImageUploadState, setHeroImageUploadState] = useState<UploadState>({ progress: 0, isUploading: false, error: null });
 
   const brokerDocRef = useMemoFirebase(
-    () => (user ? doc(firestore, 'brokers', user.uid) : null),
-    [firestore, user]
+    () => (firestore && user?.uid ? doc(firestore, 'brokers', user.uid) : null),
+    [firestore, user?.uid]
   );
   const { data: brokerData, isLoading: isBrokerLoading } = useDoc<BrokerData>(brokerDocRef);
 
   // --- Fetching Available Properties for Selection ---
   const brokerPropertiesQuery = useMemoFirebase(
-    () => (user ? query(collection(firestore, 'brokerProperties'), where('brokerId', '==', user.uid)) : null),
-    [user, firestore]
+    () => (firestore && user?.uid ? query(collection(firestore, 'brokerProperties'), where('brokerId', '==', user.uid)) : null),
+    [firestore, user?.uid]
   );
   const { data: avulsoProperties, isLoading: areAvulsoLoading } = useCollection<Property>(brokerPropertiesQuery);
 
   const portfolioDocRef = useMemoFirebase(
-    () => (user ? doc(firestore, 'portfolios', user.uid) : null),
-    [user, firestore]
+    () => (firestore && user?.uid ? doc(firestore, 'portfolios', user.uid) : null),
+    [firestore, user?.uid]
   );
   const { data: portfolio, isLoading: isPortfolioLoading } = useDoc<Portfolio>(portfolioDocRef);
 

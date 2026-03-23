@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, ReactNode, useMemo } from 'react';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { doc, onSnapshot, Firestore } from 'firebase/firestore';
 import { useFirebase } from '@/firebase/provider'; 
@@ -29,7 +29,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
-  const [profileLoading, setProfileLoading] = useState(true); // Começa como true
+  const [profileLoading, setProfileLoading] = useState(true);
 
   useEffect(() => {
     if (!auth || !firestore) {
@@ -44,7 +44,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(firebaseUser);
       setAuthLoading(false);
       
-      // Cleanup previous profile listener if user changes
       if (profileUnsubscribe) {
         profileUnsubscribe();
       }
@@ -58,7 +57,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             if (userDoc.exists()) {
               setUserProfile({ id: userDoc.id, ...userDoc.data() } as UserProfile);
             } else {
-              console.warn(`Perfil não encontrado no Firestore para o usuário: ${firebaseUser.uid}`);
               setUserProfile(null);
             }
             setProfileLoading(false);
@@ -83,10 +81,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
   }, [auth, firestore]);
 
-  // isReady é verdadeiro apenas quando as duas etapas (auth e perfil) terminarem.
   const isReady = !authLoading && !profileLoading;
 
-  const value = { user, userProfile, authLoading, profileLoading, isReady };
+  const value = useMemo(() => ({ 
+    user, 
+    userProfile, 
+    authLoading, 
+    profileLoading, 
+    isReady 
+  }), [user, userProfile, authLoading, profileLoading, isReady]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

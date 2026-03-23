@@ -56,8 +56,8 @@ export default function EditUrbanPadraoServicosPage() {
   const { toast } = useToast();
 
   const brokerDocRef = useMemoFirebase(
-    () => (user ? doc(firestore, 'brokers', user.uid) : null),
-    [firestore, user]
+    () => (firestore && user?.uid ? doc(firestore, 'brokers', user.uid) : null),
+    [firestore, user?.uid]
   );
   
   const { data: brokerData, isLoading } = useDoc<BrokerData>(brokerDocRef);

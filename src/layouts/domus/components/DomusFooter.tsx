@@ -16,6 +16,8 @@ type Broker = {
 };
 
 export function DomusFooter({ broker }: { broker: Broker }) {
+  const whatsappLink = broker.whatsappUrl ? broker.whatsappUrl.replace('wa.me.com.br', 'wa.me') : '#';
+
   return (
     <footer className="bg-white dark:bg-background-dark border-t border-[#f3f4f0] dark:border-white/5 py-16">
       <div className="max-w-[1280px] mx-auto px-6">
@@ -73,10 +75,10 @@ export function DomusFooter({ broker }: { broker: Broker }) {
                   </svg>
                 </a>
               )}
-              {broker.whatsappUrl && (
+              {whatsappLink && (
                 <a 
                   className="w-10 h-10 rounded-full border border-slate-200 dark:border-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400 hover:bg-primary hover:border-primary hover:text-black transition-all" 
-                  href={broker.whatsappUrl} 
+                  href={whatsappLink} 
                   target="_blank" 
                   rel="noopener noreferrer"
                   aria-label="WhatsApp"
@@ -90,10 +92,29 @@ export function DomusFooter({ broker }: { broker: Broker }) {
           </div>
         </div>
         <div className="border-t border-[#f3f4f0] dark:border-white/5 pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-center md:text-left">
-          <p className="text-[#161811]/40 dark:text-white/40 text-xs">© 2024 {broker.brandName}. Todos os direitos reservados. {broker.creci && `| ${broker.creci}`}</p>
-          <div className="flex gap-6 text-xs font-medium text-[#161811]/60 dark:text-white/60">
-            <Link className="hover:text-primary transition-colors" href="/termos-de-uso">Termos de Uso</Link>
-            <Link className="hover:text-primary transition-colors" href="/politica-de-privacidade">Privacidade</Link>
+          <div className="flex flex-col gap-1">
+            <p className="text-[#161811]/40 dark:text-white/40 text-xs">© 2024 {broker.brandName}. Todos os direitos reservados. {broker.creci && `| ${broker.creci}`}</p>
+            <div className="flex gap-6 text-xs font-medium text-[#161811]/60 dark:text-white/60">
+              <Link className="hover:text-primary transition-colors" href="/termos-de-uso">Termos de Uso</Link>
+              <Link className="hover:text-primary transition-colors" href="/politica-de-privacidade">Privacidade</Link>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 text-[#161811]/40 dark:text-white/40 text-xs">
+            <span>Criado por:</span>
+            <a 
+              href="https://6000-firebase-studio-1767094630353.cluster-l2bgochoazbomqgfmlhuvdvgiy.cloudworkstations.dev/corretor" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="hover:opacity-80 transition-opacity"
+            >
+              <Image 
+                src="https://dotestudio.com.br/wp-content/uploads/2025/08/oraora.png" 
+                alt="Oraora" 
+                width={80} 
+                height={20} 
+                className="h-4 w-auto grayscale opacity-60 dark:invert" 
+              />
+            </a>
           </div>
         </div>
       </div>

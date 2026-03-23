@@ -181,18 +181,18 @@ export default function LeadsPage() {
 
     const leadsQuery = useMemoFirebase(
       () => {
-        if (!firestore || !user) return null;
+        if (!firestore || !user?.uid) return null;
         if (userProfile?.userType === 'admin') {
           return query(collection(firestore, 'leads'));
         }
         return query(collection(firestore, 'leads'), where('brokerId', '==', user.uid));
       },
-      [firestore, user, userProfile]
+      [firestore, user?.uid, userProfile?.userType]
     );
 
     const funnelColumnsQuery = useMemoFirebase(
-        () => (firestore && user ? query(collection(firestore, 'brokers', user.uid, 'leadFunnels', 'default', 'columns'), orderBy('order')) : null),
-        [firestore, user]
+        () => (firestore && user?.uid ? query(collection(firestore, 'brokers', user.uid, 'leadFunnels', 'default', 'columns'), orderBy('order')) : null),
+        [firestore, user?.uid]
     );
 
     const { data: leads, isLoading: areLeadsLoading } = useCollection<Lead>(leadsQuery);
@@ -200,7 +200,6 @@ export default function LeadsPage() {
 
     const isLoading = areLeadsLoading || areColumnsLoading;
 
-    // Effect to populate editable columns when modal opens or original columns change
     useEffect(() => {
         if (columns) {
             setEditableColumns([...columns]);
@@ -208,9 +207,8 @@ export default function LeadsPage() {
     }, [columns]);
 
 
-    // Effect to create default columns if none exist for a user
     useEffect(() => {
-        if (!areColumnsLoading && user && firestore && !hasCheckedForDefaultColumns && columns?.length === 0) {
+        if (!areColumnsLoading && user?.uid && firestore && !hasCheckedForDefaultColumns && columns?.length === 0) {
             setHasCheckedForDefaultColumns(true);
             const defaultColumns: LeadFunnelColumn[] = [
                 { id: 'new', title: 'Novos Leads', color: 'bg-blue-500', bgColor: 'bg-gray-50/50', order: 1 },
@@ -234,11 +232,11 @@ export default function LeadsPage() {
         } else if (!areColumnsLoading && (columns?.length ?? 0) > 0) {
              setHasCheckedForDefaultColumns(true);
         }
-    }, [areColumnsLoading, columns, user, firestore, toast, hasCheckedForDefaultColumns]);
+    }, [areColumnsLoading, columns, user?.uid, firestore, toast, hasCheckedForDefaultColumns]);
 
     const handleMoveLead = async (leadId: string, direction: 'prev' | 'next' | LeadStatus) => {
         const leadToMove = leads?.find(l => l.id === leadId);
-        if (!leadToMove || !firestore || !user || !columns) return;
+        if (!leadToMove || !firestore || !user?.uid || !columns) return;
     
         const fromStatus = leadToMove.status;
         let toStatus: LeadStatus;
@@ -341,7 +339,7 @@ export default function LeadsPage() {
             description: `O lead "${leadToDelete.name}" foi removido com sucesso.`,
         });
 
-        setLeadToDelete(null); // Fecha o diálogo
+        setLeadToDelete(null);
     };
     
     const handleColumnTitleChange = (index: number, newTitle: string) => {
@@ -353,7 +351,7 @@ export default function LeadsPage() {
     const handleAddColumn = () => {
         const newOrder = editableColumns.length > 0 ? Math.max(...editableColumns.map(c => c.order)) + 1 : 1;
         const newColumn: LeadFunnelColumn = {
-            id: `new-${Date.now()}`, // Temporary ID for new columns
+            id: `new-${Date.now()}`,
             title: 'Nova Etapa',
             color: 'bg-gray-400',
             bgColor: 'bg-gray-50/50',
@@ -364,7 +362,6 @@ export default function LeadsPage() {
     
     const handleDeleteColumn = (id: string, index: number) => {
         setEditableColumns(prev => prev.filter((_, i) => i !== index));
-        // If it's not a newly created column, add its ID to the delete list
         if (!id.startsWith('new-')) {
             setColumnsToDelete(prev => [...prev, id]);
         }
@@ -372,29 +369,27 @@ export default function LeadsPage() {
 
 
     const handleSaveChanges = async () => {
-        if (!firestore || !user) return;
+        if (!firestore || !user?.uid) return;
         
         const batch = writeBatch(firestore);
         let changesMade = false;
 
-        // Process deletions
         columnsToDelete.forEach(columnId => {
             const columnRef = doc(firestore, 'brokers', user.uid, 'leadFunnels', 'default', 'columns', columnId);
             batch.delete(columnRef);
             changesMade = true;
         });
 
-        // Process updates and additions
         editableColumns.forEach((column, index) => {
             const originalColumn = columns?.find(c => c.id === column.id);
             
-            if (column.id.startsWith('new-')) { // It's a new column
+            if (column.id.startsWith('new-')) {
                 const newId = column.title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
                 const columnRef = doc(firestore, 'brokers', user.uid, 'leadFunnels', 'default', 'columns', newId);
                 const newColumnData = { ...column, id: newId, order: index + 1 };
                 batch.set(columnRef, newColumnData);
                 changesMade = true;
-            } else if (originalColumn && (originalColumn.title !== column.title || originalColumn.order !== index + 1)) { // It's an existing column with changes
+            } else if (originalColumn && (originalColumn.title !== column.title || originalColumn.order !== index + 1)) {
                 const columnRef = doc(firestore, 'brokers', user.uid, 'leadFunnels', 'default', 'columns', column.id);
                 batch.update(columnRef, { title: column.title, order: index + 1 });
                 changesMade = true;
@@ -422,7 +417,7 @@ export default function LeadsPage() {
                 description: "Não foi possível salvar as alterações no funil.",
             });
         } finally {
-            setColumnsToDelete([]); // Reset deletion list
+            setColumnsToDelete([]);
             setIsFunnelEditorOpen(false);
         }
     };

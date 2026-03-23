@@ -1,3 +1,4 @@
+
 'use client';
 import { UrbanPadraoHeader } from '../components/UrbanPadraoHeader';
 import { UrbanPadraoFooter } from '../components/UrbanPadraoFooter';
@@ -34,6 +35,7 @@ type Broker = {
     finalCtaSubtitle?: string;
   },
   homepage?: {
+    sobrePageIconColor?: string;
     sobrePageCtaBgColor?: string;
     sobrePageCtaTextColor?: string;
   }
@@ -63,6 +65,20 @@ export default function ServicosClientPage({ broker }: ServicosPageProps) {
       { title: 'Fechamento e Pós-Venda', description: 'Suporte jurídico até a assinatura e acompanhamento contínuo após a entrega das chaves.' },
     ];
 
+    const getSafeIcon = (iconName: string | undefined) => {
+        if (!iconName) return 'star';
+        const mapping: Record<string, string> = {
+            'ICONE-VENDA': 'real_estate_agent',
+            'ICONE-CAPTACAO': 'travel_explore',
+            'ICONE-AVALIACAO': 'analytics',
+            'ICONE-CONSULTORIA': 'support_agent',
+            'ICONE-GESTAO': 'key',
+            'ICONE-MARKETING': 'photo_camera'
+        };
+        const upperIcon = iconName.toUpperCase();
+        return mapping[upperIcon] || iconName;
+    };
+
     const serviceItems = (content.serviceItems && content.serviceItems.length > 0 ? content.serviceItems : defaultServiceItems)
         .filter(item => item.isVisible !== false);
         
@@ -88,7 +104,7 @@ export default function ServicosClientPage({ broker }: ServicosPageProps) {
                     <span className="text-secondary font-bold tracking-widest uppercase text-xs mb-3 block">{content.headerTagline || 'Excelência em Cada Detalhe'}</span>
                     <h1 className="text-4xl lg:text-6xl font-black text-text-main tracking-tight mb-6" dangerouslySetInnerHTML={{ __html: content.headerTitle || 'Soluções Imobiliárias <br/><span class="text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary">Sob Medida</span>' }}></h1>
                     <p className="text-text-muted text-lg max-w-2xl mx-auto mb-8">
-                        {content.headerSubtitle || 'Combinamos expertise de mercado, tecnologia de ponta e atendimento personalizado para oferecer uma experiÊncia única na gestão do seu patrimônio.'}
+                        {content.headerSubtitle || 'Combinamos expertise de mercado, tecnologia de ponta e atendimento personalizado para oferecer uma experiência única na gestão do seu patrimônio.'}
                     </p>
                     <button className="inline-flex items-center justify-center h-12 px-8 rounded-full bg-primary hover:bg-primary-hover text-black text-sm font-bold shadow-lg shadow-primary/20 transition-all transform hover:scale-105">
                         Solicitar Consultoria
@@ -105,13 +121,15 @@ export default function ServicosClientPage({ broker }: ServicosPageProps) {
                             <p className="text-text-muted">{content.servicesSubtitle || 'Explore como podemos ajudar você a atingir seus objetivos imobiliários com segurança e eficiência.'}</p>
                         </div>
                         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-                        {serviceItems.map((item, index) => (
+                        {serviceItems.map((item, index) => {
+                            const icon = getSafeIcon(item.icon);
+                            return (
                             <div key={index} className="bg-white p-8 rounded-2xl shadow-soft hover:shadow-card transition-all duration-300 border border-transparent hover:border-primary/30 group relative overflow-hidden">
                                 <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                                    <span className="material-symbols-outlined text-8xl text-primary">{item.icon || 'star'}</span>
+                                    <span className="material-symbols-outlined text-8xl text-primary">{icon}</span>
                                 </div>
                                 <div className="size-14 rounded-xl bg-background-light border border-gray-100 flex items-center justify-center mb-6 group-hover:bg-primary group-hover:text-black transition-colors duration-300 text-primary relative z-10">
-                                    <span className="material-symbols-outlined text-3xl">{item.icon || 'star'}</span>
+                                    <span className="material-symbols-outlined text-3xl">{icon}</span>
                                 </div>
                                 <h3 className="text-xl font-bold text-text-main mb-3 relative z-10">{item.title}</h3>
                                 <p className="text-text-muted leading-relaxed mb-6 relative z-10 text-sm">
@@ -121,7 +139,7 @@ export default function ServicosClientPage({ broker }: ServicosPageProps) {
                                     Saiba mais <span className="material-symbols-outlined text-base ml-1">chevron_right</span>
                                 </a>
                             </div>
-                        ))}
+                        )})}
                         </div>
                     </div>
                 </section>
@@ -132,11 +150,14 @@ export default function ServicosClientPage({ broker }: ServicosPageProps) {
                     <div className="layout-container max-w-[1280px] mx-auto px-6">
                         <div className="flex flex-col lg:flex-row gap-16 items-center">
                             <div className="lg:w-1/2">
-                                <span className="text-secondary font-bold tracking-widest uppercase text-xs mb-3 block">{content.processTagline || 'Metodologia'}</span>
-                                <h2 className="text-3xl md:text-5xl font-bold text-text-main mb-6 leading-tight">{content.processTitle || 'Como Funciona Nosso Processo'}</h2>
+                                <span className="text-secondary font-bold tracking-widest uppercase text-xs mb-3 block">{content.processTagline || 'METODOLOGIA'}</span>
+                                <h2 
+                                    className="text-3xl md:text-5xl font-bold text-text-main mb-6 leading-tight"
+                                    dangerouslySetInnerHTML={{ __html: content.processTitle || "Nosso Processo: <span class='text-primary'>Certeza</span> em Cada Etapa" }}
+                                />
                                 <p className="text-text-muted text-lg mb-10">
-                                {content.processSubtitle || 'Desenvolvemos um fluxo de trabalho transparente e eficiente para que você tenha tranquilidade em todas as etapas da negociação.'}
-                            </p>
+                                    {content.processSubtitle || 'Uma jornada transparente e segura do primeiro contato à concretização do seu sonho.'}
+                                </p>
                                 <div className="space-y-8 relative">
                                     <div className="absolute left-[19px] top-4 bottom-4 w-0.5 bg-gray-100 -z-10"></div>
                                     {processSteps.map((step, index) => (

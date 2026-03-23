@@ -1,4 +1,3 @@
-
 'use client';
 /**
  * @fileOverview Página de Catálogo de Imóveis exclusiva para o template Domus.
@@ -30,7 +29,21 @@ type Broker = {
     cardIconColor?: string;
     statusTagBgColor?: string;
     statusTagTextColor?: string;
+    searchButtonBgColor?: string;
+    searchButtonTextColor?: string;
+    ctaButtonBgColor?: string;
+    ctaButtonTextColor?: string;
+    ctaButtonText?: string;
+    ctaButtonIcon?: string;
+    ctaTitle?: string;
+    ctaSubtitle?: string;
+    ctaSectionBgColor?: string;
+    ctaSectionTitleColor?: string;
+    ctaSectionSubtitleColor?: string;
+    ctaSectionButtonBgColor?: string;
+    ctaSectionButtonTextColor?: string;
   }
+  whatsappUrl?: string;
 };
 
 type Property = {
@@ -157,11 +170,22 @@ export default function DomusSearchPage({ broker, properties }: DomusSearchPageP
         '--secondary': broker.secondaryColor || '110 16% 8%',
         '--accent': broker.accentColor || '97 78% 56%',
         '--card-title': content.cardTitleColor ? `hsl(${content.cardTitleColor})` : 'inherit',
-        '--card-value': content.cardValueColor ? `hsl(${content.cardValueColor})` : 'var(--primary)',
-        '--card-icon': content.cardIconColor ? `hsl(${content.cardIconColor})` : 'var(--primary)',
+        '--card-value': content.cardValueColor ? `hsl(${content.cardValueColor})` : 'hsl(var(--primary))',
+        '--card-icon': content.cardIconColor ? `hsl(${content.cardIconColor})` : 'hsl(var(--primary))',
         '--status-tag-bg': content.statusTagBgColor ? `hsl(${content.statusTagBgColor})` : 'rgba(255,255,255,0.9)',
         '--status-tag-text': content.statusTagTextColor ? `hsl(${content.statusTagTextColor})` : '#000',
+        '--search-button-bg': content.searchButtonBgColor ? `hsl(${content.searchButtonBgColor})` : 'hsl(var(--primary))',
+        '--search-button-text': content.searchButtonTextColor ? `hsl(${content.searchButtonTextColor})` : 'hsl(var(--secondary))',
+        '--cta-button-bg': content.ctaButtonBgColor ? `hsl(${content.ctaButtonBgColor})` : 'hsl(var(--primary))',
+        '--cta-button-text': content.ctaButtonTextColor ? `hsl(${content.ctaButtonTextColor})` : 'hsl(var(--secondary))',
+        '--cta-section-bg': content.ctaSectionBgColor ? `hsl(${content.ctaSectionBgColor})` : 'hsl(var(--secondary))',
+        '--cta-section-title': content.ctaSectionTitleColor ? `hsl(${content.ctaSectionTitleColor})` : '#fff',
+        '--cta-section-subtitle': content.ctaSectionSubtitleColor ? `hsl(${content.ctaSectionSubtitleColor})` : 'rgba(255,255,255,0.6)',
+        '--cta-section-button-bg': content.ctaSectionButtonBgColor ? `hsl(${content.ctaSectionButtonBgColor})` : 'hsl(var(--primary))',
+        '--cta-section-button-text': content.ctaSectionButtonTextColor ? `hsl(${content.ctaSectionButtonTextColor})` : 'hsl(var(--secondary))',
     } as React.CSSProperties;
+
+    const whatsappLink = broker.whatsappUrl?.replace('wa.me.com.br', 'wa.me') || '#';
 
     return (
         <div style={dynamicStyles} className="domus-theme font-sans bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 transition-colors duration-300 min-h-screen">
@@ -169,14 +193,27 @@ export default function DomusSearchPage({ broker, properties }: DomusSearchPageP
                 .neon-glow {
                     box-shadow: 0 0 15px rgba(0, 255, 0, 0.3);
                 }
+                .price-slider {
+                    accent-color: hsl(var(--primary));
+                }
                 .price-slider::-webkit-slider-thumb {
                     -webkit-appearance: none;
                     height: 18px;
                     width: 18px;
                     border-radius: 50%;
-                    background: #00FF00;
+                    background: hsl(var(--primary)) !important;
                     cursor: pointer;
                     border: 2px solid white;
+                    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+                }
+                .price-slider::-moz-range-thumb {
+                    height: 18px;
+                    width: 18px;
+                    border-radius: 50%;
+                    background: hsl(var(--primary)) !important;
+                    cursor: pointer;
+                    border: 2px solid white;
+                    box-shadow: 0 0 10px rgba(0,0,0,0.1);
                 }
             `}</style>
             
@@ -199,7 +236,7 @@ export default function DomusSearchPage({ broker, properties }: DomusSearchPageP
                             <select 
                                 value={filterType}
                                 onChange={(e) => setFilterType(e.target.value)}
-                                className="w-full bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded-xl py-2.5 px-4 text-sm focus:ring-primary focus:border-primary text-slate-900 dark:text-white"
+                                className="w-full bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded-xl py-2.5 px-4 text-sm font-bold focus:ring-primary focus:border-primary text-slate-900 dark:text-white"
                             >
                                 <option value="all">Todos os tipos</option>
                                 <option value="Apartamento">Apartamentos</option>
@@ -215,7 +252,7 @@ export default function DomusSearchPage({ broker, properties }: DomusSearchPageP
                                 <input 
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
-                                    className="w-full bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded-xl py-2.5 pl-10 pr-4 text-sm focus:ring-primary focus:border-primary text-slate-900 dark:text-white transition-all outline-none" 
+                                    className="w-full h-11 bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded-xl py-2.5 pl-10 pr-4 text-sm focus:ring-primary focus:border-primary text-slate-900 dark:text-white transition-all outline-none" 
                                     placeholder="Ex: João Pessoa, Manaíra" 
                                     type="text"
                                 />
@@ -248,7 +285,7 @@ export default function DomusSearchPage({ broker, properties }: DomusSearchPageP
                             )}
                             <button onClick={handleClearFilters} className="text-xs font-semibold text-slate-500 hover:text-primary transition-colors underline underline-offset-4 cursor-pointer">Limpar filtros</button>
                         </div>
-                        <button onClick={handleApplyFilters} className="bg-black dark:bg-primary dark:text-black text-white px-8 py-3 rounded-xl font-bold text-sm flex items-center gap-2 hover:opacity-90 transition-all cursor-pointer">
+                        <button onClick={handleApplyFilters} style={{ backgroundColor: 'var(--search-button-bg)', color: 'var(--search-button-text)' }} className="px-8 py-3 rounded-xl font-bold text-sm flex items-center gap-2 hover:opacity-90 transition-all cursor-pointer shadow-lg">
                             <span className="material-symbols-outlined text-lg">filter_alt</span>
                             Aplicar Filtros
                         </button>
@@ -266,12 +303,12 @@ export default function DomusSearchPage({ broker, properties }: DomusSearchPageP
                         >
                             <option value="recent">Mais recentes</option>
                             <option value="price_asc">Menor preço</option>
-                            <option value="price_desc">Maior preço</option>
+                            <option value="price_desc">Major preço</option>
                         </select>
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-20">
                     {paginatedProperties.map((property) => (
                         <Link href={`/sites/${broker.slug}/imovel/${property.informacoesbasicas.slug || property.id}`} key={property.id} className="group bg-white dark:bg-slate-900 rounded-3xl overflow-hidden border border-slate-100 dark:border-slate-800 hover:shadow-2xl hover:shadow-primary/5 transition-all duration-300">
                             <div className="relative overflow-hidden h-[240px]">
@@ -310,7 +347,7 @@ export default function DomusSearchPage({ broker, properties }: DomusSearchPageP
                 </div>
 
                 {totalPages > 1 && (
-                    <div className="mt-16 flex justify-center items-center gap-2">
+                    <div className="mt-16 mb-20 flex justify-center items-center gap-2">
                         <button 
                             onClick={() => router.push(`${pathname}?page=${currentPage - 1}`)}
                             disabled={currentPage === 1}
@@ -336,12 +373,24 @@ export default function DomusSearchPage({ broker, properties }: DomusSearchPageP
                         </button>
                     </div>
                 )}
-            </main>
 
-            <Link href={`/sites/${broker.slug}/explorar-no-mapa`} className="fixed bottom-10 right-10 bg-black text-white dark:bg-primary dark:text-black neon-glow px-6 py-4 rounded-full flex items-center gap-3 font-bold shadow-2xl z-40 transition-transform hover:scale-105 active:scale-95 group cursor-pointer">
-                <span className="material-symbols-outlined group-hover:rotate-12 transition-transform">map</span>
-                Ver no Mapa
-            </Link>
+                <section className="py-20">
+                    <div className="rounded-[2.5rem] p-12 md:p-20 text-center relative overflow-hidden" style={{ backgroundColor: 'var(--cta-section-bg)' }}>
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 blur-[100px] rounded-full"></div>
+                        <div className="absolute bottom-0 left-0 w-64 h-64 bg-primary/5 blur-[100px] rounded-full"></div>
+                        <div className="relative z-10 max-w-[800px] mx-auto flex flex-col gap-8 items-center">
+                            <h2 className="text-4xl md:text-6xl font-bold leading-tight tracking-tight" style={{ color: 'var(--cta-section-title)' }}>{content.ctaTitle || 'Pronto para encontrar seu próximo lar?'}</h2>
+                            <p className="text-xl" style={{ color: 'var(--cta-section-subtitle)' }}>{content.ctaSubtitle || 'Agende uma consultoria personalizada agora mesmo via WhatsApp.'}</p>
+                            <div className="flex flex-col sm:flex-row gap-4 mt-4">
+                                <a href={whatsappLink} target="_blank" rel="noopener noreferrer" className="flex min-w-[240px] items-center justify-center gap-3 rounded-full h-16 px-10 text-lg font-black shadow-lg hover:scale-[1.05] transition-transform uppercase tracking-widest" style={{ backgroundColor: 'var(--cta-section-button-bg)', color: 'var(--cta-section-button-text)' }}>
+                                    <span className="material-symbols-outlined font-bold">chat</span>
+                                    FALAR NO WHATSAPP
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </main>
 
             <DomusFooter broker={broker} />
             <WhatsAppWidget brokerId={broker.id} />

@@ -75,8 +75,8 @@ export default function FinancialPage() {
   }, []);
 
   const transactionsQuery = useMemoFirebase(
-    () => (user && firestore ? query(collection(firestore, 'transactions'), where('brokerId', '==', user.uid)) : null),
-    [user, firestore]
+    () => (user?.uid && firestore ? query(collection(firestore, 'transactions'), where('brokerId', '==', user.uid)) : null),
+    [user?.uid, firestore]
   );
   const { data: allTransactions, isLoading } = useCollection<Transaction>(transactionsQuery);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -206,14 +206,14 @@ export default function FinancialPage() {
   const { isUserLoading: isAuthLoading } = useUser();
 
   const userDocRef = useMemoFirebase(
-    () => (firestore && user ? doc(firestore, 'users', user.uid) : null),
-    [firestore, user]
+    () => (firestore && user?.uid ? doc(firestore, 'users', user.uid) : null),
+    [firestore, user?.uid]
   );
   const { data: userProfile, isLoading: isUserLoading } = useDoc<UserProfile>(userDocRef);
 
   const brokerDocRef = useMemoFirebase(
-      () => (firestore && user && userProfile?.userType === 'broker' ? doc(firestore, 'brokers', user.uid) : null),
-      [firestore, user, userProfile]
+      () => (firestore && user?.uid && userProfile?.userType === 'broker' ? doc(firestore, 'brokers', user.uid) : null),
+      [firestore, user?.uid, userProfile?.userType]
   );
   const { data: brokerProfile, isLoading: isBrokerLoading } = useDoc<BrokerProfile>(brokerDocRef);
 
@@ -613,7 +613,7 @@ export default function FinancialPage() {
           <div className="bg-card text-card-foreground rounded-xl shadow-soft border border-gray-100 p-6">
             <h3 className="text-sm font-bold uppercase tracking-wider mb-4">Ações Rápidas</h3>
             <div className="space-y-3">
-              <Button onClick={() => openTransactionModal('receita')} className="w-full justify-between p-4 h-auto bg-white hover:bg-gray-50 text-black rounded-xl shadow-sm transition-all group border border-gray-200">
+              <button onClick={() => openTransactionModal('receita')} className="w-full justify-between p-4 h-auto bg-white hover:bg-gray-50 text-black rounded-xl shadow-sm transition-all group border border-gray-200">
                 <div className="flex items-center gap-3">
                   <div className="bg-gray-100 p-1.5 rounded-lg group-hover:scale-110 transition-transform">
                     <span className="material-symbols-outlined text-[20px] text-black">add</span>
@@ -621,8 +621,8 @@ export default function FinancialPage() {
                   <span className="font-bold text-left text-black" dangerouslySetInnerHTML={{ __html: 'Registrar<br>Receitas' }}></span>
                 </div>
                 <span className="material-symbols-outlined text-[18px] text-black">chevron_right</span>
-              </Button>
-              <Button onClick={() => openTransactionModal('despesa')} variant="outline" className="w-full justify-between p-4 h-auto bg-white border border-gray-200 hover:border-red-200 hover:bg-red-50 text-foreground rounded-xl shadow-sm transition-all group">
+              </button>
+              <button onClick={() => openTransactionModal('despesa')} className="w-full justify-between p-4 h-auto bg-white border border-gray-200 hover:border-red-200 hover:bg-red-50 text-foreground rounded-xl shadow-sm transition-all group">
                 <div className="flex items-center gap-3">
                   <div className="bg-red-100 p-1.5 rounded-lg text-red-600 group-hover:scale-110 transition-transform">
                     <span className="material-symbols-outlined text-[20px]">remove</span>
@@ -630,8 +630,8 @@ export default function FinancialPage() {
                   <span className="font-bold text-left text-black" dangerouslySetInnerHTML={{ __html: 'Registrar<br>Despesas' }}></span>
                 </div>
                 <span className="material-symbols-outlined text-[18px] text-gray-400 group-hover:text-red-400">chevron_right</span>
-              </Button>
-               <Button asChild variant="outline" className="w-full justify-between p-4 h-auto bg-white border border-gray-200 hover:border-secondary hover:bg-gray-50 text-foreground rounded-xl shadow-sm transition-all group">
+              </button>
+               <button className="w-full justify-between p-4 h-auto bg-white border border-gray-200 hover:border-secondary hover:bg-gray-50 text-foreground rounded-xl shadow-sm transition-all group">
                 <Link href="/dashboard/financeiro/relatorios">
                     <div className="flex items-center gap-3">
                     <div className="bg-gray-100 p-1.5 rounded-lg text-text-main group-hover:scale-110 transition-transform">
@@ -641,7 +641,7 @@ export default function FinancialPage() {
                     </div>
                     <span className="material-symbols-outlined text-[18px] text-gray-400 group-hover:text-secondary">chevron_right</span>
                 </Link>
-              </Button>
+              </button>
             </div>
           </div>
           <Dialog open={isGoalModalOpen} onOpenChange={setIsGoalModalOpen}>
