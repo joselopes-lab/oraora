@@ -1,5 +1,3 @@
-
-
 'use client';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -371,8 +369,8 @@ export default function PropertyDetailsComponent() {
   }
 
   const videoEmbedUrl = getYoutubeEmbedUrl(youtubeVideoUrl);
-  const mapSrc = extractSrcFromIframe(localizacao?.googleMapsLink);
-  const streetViewSrc = extractSrcFromIframe(localizacao?.googleStreetViewLink);
+  const mapSrc = extractMapSrc(localizacao?.googleMapsLink);
+  const streetViewSrc = extractMapSrc(localizacao?.googleStreetViewLink);
 
   const isSaved = savedPropertyIds.includes(property.id);
 
@@ -559,7 +557,7 @@ export default function PropertyDetailsComponent() {
                       </div>
                        <Dialog open={isWhatsappModalOpen} onOpenChange={setIsWhatsappModalOpen}>
                         <div className="flex flex-col gap-3">
-                            <button disabled={isSubmitting} className="w-full h-12 rounded-lg bg-black text-primary font-bold hover:bg-gray-900 transition-all shadow-lg flex items-center justify-center gap-2 group" type="submit">
+                            <button disabled={isSubmitting} className="w-full h-12 rounded-lg bg-black text-white font-bold hover:bg-gray-900 transition-all shadow-lg flex items-center justify-center gap-2 group" type="submit">
                                <span className="material-symbols-outlined">send</span>
                                {isSubmitting ? 'Enviando...' : 'Quero saber mais'}
                             </button>
@@ -629,7 +627,7 @@ export default function PropertyDetailsComponent() {
                                     <li>Hub de visibilidade, curadoria e conexão entre corretores, construtoras e o público final.</li>
                                 </ul>
                                 <p>O OraOra não é imobiliária, não intermedeia negócios imobiliários, não participa de negociações, não recebe comissões e não firma contratos de compra, venda, locação ou promessa de imóveis.</p>
-                                <p>Toda e qualquer relação comercial ocorre diretamente entre usuários (corretores, construtoras e público final).</p>
+                                <p>Toda e qualquer relation comercial ocorre diretamente entre usuários (corretores, construtoras e público final).</p>
                                 <h2>4. USUÁRIOS DA PLATAFORMA</h2>
                                 <p>A plataforma pode ser utilizada por:</p>
                                 <h3>4.1 Público Final</h3>

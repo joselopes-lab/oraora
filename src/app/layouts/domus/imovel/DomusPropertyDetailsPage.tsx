@@ -17,7 +17,7 @@ import { useUser, useDoc, useFirestore, useMemoFirebase, setDocumentNonBlocking 
 import { arrayRemove, arrayUnion, doc } from 'firebase/firestore';
 import { useRouter, notFound } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { WhatsAppWidget } from '@/layouts/urban-padrao/components/WhatsAppWidget';
+import { WhatsAppWidget } from '@/app/sites/urban-padrao/components/WhatsAppWidget';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -239,7 +239,7 @@ export default function DomusPropertyDetailsPage({ broker, property, similarProp
         .neon-glow:hover { box-shadow: 0 0 20px rgba(0, 255, 0, 0.4); }
       `}</style>
       
-      <DomusHeader broker={broker} />
+      <DomusHeader broker={broker as any} />
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
         {/* Navigation Actions */}
@@ -470,7 +470,7 @@ export default function DomusPropertyDetailsPage({ broker, property, similarProp
         </section>
       </main>
 
-      <DomusFooter broker={broker} />
+      <DomusFooter broker={broker as any} />
       <WhatsAppWidget brokerId={broker.id} />
 
       {/* Gallery Modal */}

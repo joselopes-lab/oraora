@@ -1,3 +1,4 @@
+
 'use client';
 import { UrbanPadraoHeader } from '../components/UrbanPadraoHeader';
 import { UrbanPadraoFooter } from '../components/UrbanPadraoFooter';
@@ -85,6 +86,20 @@ export default function SobreClientPage({ broker }: SobrePageProps) {
     ]
   };
 
+  const getYoutubeId = (url: string | undefined) => {
+    if (!url) return null;
+    try {
+        const urlObj = new URL(url);
+        if (urlObj.hostname === 'youtu.be') return urlObj.pathname.slice(1);
+        if (urlObj.hostname.includes('youtube.com')) return urlObj.searchParams.get('v');
+    } catch (e) {
+        return null;
+    }
+    return null;
+  };
+
+  const videoId = getYoutubeId(content.videoUrl);
+
   const dynamicStyles: React.CSSProperties = {
     '--background': broker.backgroundColor,
     '--foreground': broker.foregroundColor,
@@ -124,7 +139,7 @@ export default function SobreClientPage({ broker }: SobrePageProps) {
               {content.brokerTitle || defaultValues.brokerTitle}
             </p>
             <div className="max-w-3xl mx-auto text-text-muted text-lg leading-relaxed mb-12 space-y-4">
-              {(content.bio || defaultValues.bio).split('\n').map((paragraph, index) => (
+              {String(content.bio || defaultValues.bio).split('\n').map((paragraph, index) => (
                   <p key={index}>{paragraph}</p>
               ))}
             </div>
@@ -158,8 +173,8 @@ export default function SobreClientPage({ broker }: SobrePageProps) {
                 <h2 className="text-3xl font-bold text-text-main">{content.videoTitle || defaultValues.videoTitle}</h2>
                 </div>
                 <div className="relative w-full max-w-5xl mx-auto aspect-video rounded-3xl overflow-hidden shadow-2xl bg-black group cursor-pointer border-4 border-white ring-1 ring-gray-200 transform hover:scale-[1.01] transition-transform duration-500">
-                    {content.videoUrl ? (
-                        <iframe src={`https://www.youtube.com/embed/${new URL(content.videoUrl).searchParams.get('v')}`} title={content.videoTitle || ''} className="absolute inset-0 w-full h-full" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen></iframe>
+                    {videoId ? (
+                        <iframe src={`https://www.youtube.com/embed/${videoId}`} title={content.videoTitle || ''} className="absolute inset-0 w-full h-full" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen></iframe>
                     ) : (
                         <>
                             <div className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105" style={{ backgroundImage: `url("${defaultValues.videoImageUrl}")` }}></div>

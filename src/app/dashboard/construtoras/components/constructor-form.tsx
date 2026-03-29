@@ -9,6 +9,7 @@ import { z } from "zod";
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -17,7 +18,8 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { useEffect, useState } from "react";
 import locationData from '@/lib/location-data.json';
-
+import { cn } from "@/lib/utils";
+import { firebaseConfig } from "@/firebase/config";
 
 const constructorSchema = z.object({
   name: z.string().min(1, "O nome da construtora é obrigatório."),
@@ -32,31 +34,32 @@ const constructorSchema = z.object({
   instagram: z.string().optional(),
   website: z.string().url("Insira uma URL válida.").optional().or(z.literal('')),
   publicEmail: z.string().email("Insira um e-mail público válido.").optional().or(z.literal('')),
+  accessEmail: z.string().email("Insira um e-mail de acesso válido.").min(1, "E-mail de acesso é obrigatório."),
   isVisibleOnSite: z.boolean().default(true),
   logoUrl: z.string().optional(),
   newPassword: z.string().optional(),
   confirmPassword: z.string().optional(),
 }).refine(data => {
     if (data.newPassword) {
-        return data.newPassword === data.confirmPassword;
+        if (data.newPassword !== data.confirmPassword) return false;
     }
     return true;
 }, {
-    message: "As novas senhas não coincidem.",
+    message: "As senhas não coincidem.",
     path: ["confirmPassword"],
 });
-
 
 export type ConstructorFormData = z.infer<typeof constructorSchema>;
 
 type ConstructorFormProps = {
-    constructorData?: Partial<ConstructorFormData & { accessEmail?: string }>;
+    constructorData?: Partial<ConstructorFormData>;
     onSave: (data: ConstructorFormData) => void;
     isEditing: boolean;
     isSubmitting?: boolean;
+    onResetPassword?: (email: string) => void;
 };
 
-export default function ConstructorForm({ constructorData, onSave, isEditing, isSubmitting }: ConstructorFormProps) {
+export default function ConstructorForm({ constructorData, onSave, isEditing, isSubmitting, onResetPassword }: ConstructorFormProps) {
     const form = useForm<ConstructorFormData>({
         resolver: zodResolver(constructorSchema),
         defaultValues: {
@@ -72,6 +75,7 @@ export default function ConstructorForm({ constructorData, onSave, isEditing, is
             instagram: '',
             website: '',
             publicEmail: '',
+            accessEmail: '',
             isVisibleOnSite: true,
             logoUrl: '',
             ...constructorData,
@@ -82,6 +86,7 @@ export default function ConstructorForm({ constructorData, onSave, isEditing, is
     const [cities, setCities] = useState<{ name: string; neighborhoods: string[] }[]>([]);
     
     const selectedState = form.watch('state');
+    const projectId = firebaseConfig.projectId;
 
     useEffect(() => {
         const stateToLoad = selectedState || constructorData?.state;
@@ -136,12 +141,12 @@ export default function ConstructorForm({ constructorData, onSave, isEditing, is
                             <div className="flex flex-col md:flex-row gap-8 items-start mb-8">
                                 <div className="w-full md:w-auto flex flex-col items-center gap-3">
                                     <div className="relative size-32 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300 flex flex-col items-center justify-center overflow-hidden hover:border-primary transition-colors group cursor-pointer">
-                                        {constructorData?.logoUrl && <img alt="Logo Preview" className="absolute inset-0 w-full h-full object-cover opacity-50 group-hover:opacity-30 transition-opacity" src={constructorData.logoUrl} />}
+                                        {form.watch('logoUrl') && <img alt="Logo Preview" className="absolute inset-0 w-full h-full object-cover opacity-50 group-hover:opacity-30 transition-opacity" src={form.watch('logoUrl')} />}
                                         <span className="material-symbols-outlined text-gray-400 group-hover:text-primary z-10 text-[32px]">cloud_upload</span>
                                         <span className="text-xs text-gray-400 font-medium z-10 group-hover:text-text-main mt-1">Alterar Logo</span>
-                                        <Input accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" type="file" />
+                                        <input accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" type="file" />
                                     </div>
-                                    <p className="text-[10px] text-text-secondary text-center max-w-[128px]">JPG ou PNG até 2MB</p>
+                                    <p className="text-[10px] text-text-secondary text-center max-w-[1280px]">JPG ou PNG até 2MB</p>
                                 </div>
                                 <div className="flex-1 w-full space-y-5">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -236,44 +241,77 @@ export default function ConstructorForm({ constructorData, onSave, isEditing, is
                                 Credenciais de Acesso
                             </h3>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                {isEditing && (
                                 <div className="col-span-1 md:col-span-2">
-                                    <FormItem>
-                                        <FormLabel>Email de Acesso (Login)</FormLabel>
-                                        <FormControl>
-                                            <div className="relative">
-                                                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">mail</span>
-                                                <Input type="email" value={constructorData?.accessEmail || ''} disabled className="cursor-not-allowed pl-10"/>
-                                            </div>
-                                        </FormControl>
-                                    </FormItem>
+                                    <FormField control={form.control} name="accessEmail" render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>E-mail de Acesso (Login)</FormLabel>
+                                            <FormControl>
+                                                <div className="relative">
+                                                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">mail</span>
+                                                    <Input type="email" placeholder="email@acesso.com" className="pl-10" {...field} />
+                                                </div>
+                                            </FormControl>
+                                            <FormDescription>
+                                                Este e-mail será usado para o login da construtora e para receber o link de redefinição de senha.
+                                            </FormDescription>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )} />
                                 </div>
+                                {!isEditing ? (
+                                    <>
+                                        <FormField control={form.control} name="newPassword" render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Senha</FormLabel>
+                                                <FormControl>
+                                                    <div className="relative">
+                                                        <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">key</span>
+                                                        <Input type="password" placeholder="********" className="pl-10" {...field} value={field.value ?? ''} />
+                                                    </div>
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}/>
+                                        <FormField control={form.control} name="confirmPassword" render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Confirmar Senha</FormLabel>
+                                                <FormControl>
+                                                    <div className="relative">
+                                                        <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">lock_reset</span>
+                                                        <Input type="password" placeholder="********" className="pl-10" {...field} value={field.value ?? ''} />
+                                                    </div>
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}/>
+                                    </>
+                                ) : (
+                                    <div className="col-span-full pt-2">
+                                        <div className="bg-blue-50 p-6 rounded-xl border border-blue-100 space-y-4">
+                                            <div className="flex items-start gap-3">
+                                                <span className="material-symbols-outlined text-blue-600 mt-0.5">info</span>
+                                                <div className="space-y-2">
+                                                    <p className="text-sm font-bold text-blue-900">Gestão de Senha e E-mail</p>
+                                                    <p className="text-xs text-blue-800 leading-relaxed">
+                                                        Se a construtora perdeu o acesso ao e-mail original, você deve primeiro alterar o e-mail no 
+                                                        <strong> Console do Firebase</strong> para que o link de redefinição funcione.
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="flex flex-col sm:flex-row gap-3">
+                                                <Button onClick={() => onResetPassword?.(form.getValues('accessEmail'))} type="button" variant="outline" className="flex-1 text-blue-700 border-blue-200 bg-white hover:bg-blue-50 h-11">
+                                                    Disparar E-mail de Senha
+                                                </Button>
+                                                <Button asChild variant="secondary" className="flex-1 h-11 bg-blue-600 text-white hover:bg-blue-700">
+                                                    <a href={`https://console.firebase.google.com/project/${projectId}/authentication/users`} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-2">
+                                                        <span className="material-symbols-outlined text-lg">open_in_new</span>
+                                                        Abrir Console Firebase
+                                                    </a>
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    </div>
                                 )}
-                                <FormField control={form.control} name="newPassword" render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Nova Senha</FormLabel>
-                                        <FormControl>
-                                            <div className="relative">
-                                                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">key</span>
-                                                <Input type="password" placeholder="********" className="pl-10" {...field} value={field.value ?? ''} />
-                                            </div>
-                                        </FormControl>
-                                        {isEditing && <p className="text-xs text-text-secondary mt-1">Preencha apenas para alterar.</p>}
-                                        <FormMessage />
-                                    </FormItem>
-                                )}/>
-                                <FormField control={form.control} name="confirmPassword" render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Confirmar Nova Senha</FormLabel>
-                                        <FormControl>
-                                            <div className="relative">
-                                                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">lock_reset</span>
-                                                <Input type="password" placeholder="********" className="pl-10" {...field} value={field.value ?? ''} />
-                                            </div>
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}/>
                             </div>
                         </div>
                     </div>

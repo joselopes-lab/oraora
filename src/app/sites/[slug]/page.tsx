@@ -1,4 +1,3 @@
-
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase/index.server';
 import { notFound } from 'next/navigation';
@@ -148,8 +147,8 @@ async function getBrokerProperties(brokerId: string): Promise<Property[]> {
   return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Property));
 }
 
-export default async function BrokerSitePage({ params }: { params: { slug: string } }) {
-  const { slug } = params;
+export default async function BrokerSitePage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
   const broker = await getBrokerData(slug);
 
   if (!broker) {
@@ -173,9 +172,6 @@ export default async function BrokerSitePage({ params }: { params: { slug: strin
       const match = allProperties.find(p => p.id === id);
       if (match) featuredProperties.push(match);
     });
-    
-    // If less than 6 selected, and we have more, we can optionally fill or just leave as is.
-    // User requested specifically to prioritize selection.
   }
 
   // If no manual selection or selection was empty, do random shuffle
@@ -190,13 +186,13 @@ export default async function BrokerSitePage({ params }: { params: { slug: strin
 
   switch (broker.layoutId) {
     case 'urban-padrao':
-      return <UrbanPadraoLayout broker={broker} properties={sortedProperties} />;
+      return <UrbanPadraoLayout broker={broker as any} properties={sortedProperties} />;
     case 'living':
-        return <LivingLayout broker={broker} properties={sortedProperties} />;
+        return <LivingLayout broker={broker as any} properties={sortedProperties} />;
     case 'domus':
-        return <DomusLayout broker={broker} properties={sortedProperties} />;
+        return <DomusLayout broker={broker as any} properties={sortedProperties} />;
     default:
-      return <UrbanPadraoLayout broker={broker} properties={sortedProperties} />;
+      return <UrbanPadraoLayout broker={broker as any} properties={sortedProperties} />;
   }
 }
 

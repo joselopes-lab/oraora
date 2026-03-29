@@ -181,5 +181,10 @@ service cloud.firestore {
     match /journeys/{journeyId} {
       allow read, write: if isSignedIn() && (resource == null || resource.data.brokerId == request.auth.uid || isAdmin());
     }
+
+    match /inviteRequests/{inviteId} {
+      allow create: if true;
+      allow read, write: if isAdmin();
+    }
   }
 }

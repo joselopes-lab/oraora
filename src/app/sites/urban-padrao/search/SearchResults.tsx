@@ -20,6 +20,15 @@ type Broker = {
   foregroundColor?: string;
   slug: string;
   layoutId?: string;
+  homepage?: {
+    searchButtonBgColor?: string;
+    searchButtonTextColor?: string;
+    cardTitleColor?: string;
+    cardValueColor?: string;
+    cardIconColor?: string;
+    statusTagBgColor?: string;
+    statusTagTextColor?: string;
+  }
 };
 
 type Property = {
@@ -41,6 +50,7 @@ type Property = {
     quartos?: string[] | string;
     tamanho?: string;
     vagas?: string;
+    tipo: string;
   };
 };
 
@@ -49,6 +59,26 @@ type SearchResultsPageProps = {
   properties: Property[];
 }
 
+function hslToHex(hslStr: string): string {
+    if (!hslStr || typeof hslStr !== 'string') return '#000000';
+    const parts = hslStr.match(/(\d+(\.\d+)?)/g);
+    if (!parts || parts.length < 3) return '#000000';
+
+    const h = parseFloat(parts[0]);
+    const s = parseFloat(parts[1]);
+    const l = parseFloat(parts[2]);
+
+    const sNormalized = s / 100;
+    const lNormalized = l / 100;
+
+    const a = sNormalized * Math.min(lNormalized, 1 - lNormalized);
+    const f = (n: number) => {
+        const k = (n + h / 30) % 12;
+        const color = lNormalized - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+        return Math.round(255 * color).toString(16).padStart(2, '0');
+    };
+    return `#${f(0)}${f(8)}${f(4)}`;
+}
 
 export default function SearchResults({ broker, properties }: SearchResultsPageProps) {
     const router = useRouter();
@@ -147,11 +177,19 @@ export default function SearchResults({ broker, properties }: SearchResultsPageP
     
     const formatQuartos = (quartosData: any): string => {
         if (!quartosData) return 'N/A';
-        if (Array.isArray(quartosData)) {
-            return quartosData.join(', ');
-        }
-        return String(quartosData);
+        const data = Array.isArray(quartosData) ? quartosData : [String(quartosData)];
+        if (data.length === 0) return 'N/A';
+        if (data.length === 1 && data[0] === '1') return '1 Quarto';
+        return `${data.join(', ')} Quartos`;
     };
+
+    const content = broker.homepage || {};
+
+    const statusTagBgColor = content.statusTagBgColor ? hslToHex(content.statusTagBgColor) : undefined;
+    const statusTagTextColor = content.statusTagTextColor ? hslToHex(content.statusTagTextColor) : undefined;
+    const cardTitleColor = content.cardTitleColor ? hslToHex(content.cardTitleColor) : undefined;
+    const cardValueColor = content.cardValueColor ? hslToHex(content.cardValueColor) : undefined;
+    const cardIconColor = content.cardIconColor ? hslToHex(content.cardIconColor) : undefined;
 
     const dynamicStyles = {
         '--background': broker.backgroundColor,
@@ -159,7 +197,14 @@ export default function SearchResults({ broker, properties }: SearchResultsPageP
         '--primary': broker.primaryColor,
         '--secondary': broker.secondaryColor,
         '--accent': broker.accentColor,
-      } as React.CSSProperties;
+        '--search-button-bg': content.searchButtonBgColor ? `hsl(${content.searchButtonBgColor})` : 'hsl(var(--secondary))',
+        '--search-button-text': content.searchButtonTextColor ? `hsl(${content.searchButtonTextColor})` : 'hsl(var(--primary))',
+        '--card-title': content.cardTitleColor ? `hsl(${content.cardTitleColor})` : 'inherit',
+        '--card-value': content.cardValueColor ? `hsl(${content.cardValueColor})` : 'hsl(var(--primary))',
+        '--card-icon': content.cardIconColor ? `hsl(${content.cardIconColor})` : 'hsl(var(--primary))',
+        '--status-tag-bg': content.statusTagBgColor ? `hsl(${content.statusTagBgColor})` : 'rgba(255,255,255,0.9)',
+        '--status-tag-text': content.statusTagTextColor ? `hsl(${content.statusTagTextColor})` : '#000',
+    } as React.CSSProperties;
 
     return (
         <div style={dynamicStyles} className="urban-padrao-theme bg-background-light text-text-main font-display antialiased overflow-x-hidden selection:bg-primary selection:text-black">
@@ -201,7 +246,18 @@ export default function SearchResults({ broker, properties }: SearchResultsPageP
                                {paginatedProperties.map((property) => (
                                 <Link key={property.id} href={`/sites/${broker.slug}/imovel/${property.informacoesbasicas.slug || property.id}`} className="group relative flex flex-col rounded-2xl bg-white border border-transparent shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-[0_12px_24px_rgba(0,0,0,0.08)] hover:border-primary/50 transition-all duration-300 overflow-hidden">
                                     <div className="relative aspect-[4/3] w-full overflow-hidden bg-gray-100">
-                                        <span className="absolute top-3 left-3 z-10 rounded-md bg-primary px-2 py-1 text-xs font-bold text-black uppercase tracking-wide shadow-sm">{property.informacoesbasicas.status}</span>
+                                        <div 
+                                            className={cn(
+                                                "absolute top-3 left-3 z-10 rounded-md px-2 py-1 text-xs font-bold uppercase tracking-wide shadow-sm",
+                                                !statusTagBgColor && "bg-primary text-black"
+                                            )}
+                                            style={{
+                                                backgroundColor: statusTagBgColor,
+                                                color: statusTagTextColor
+                                            }}
+                                        >
+                                            {property.informacoesbasicas.status}
+                                        </div>
                                         <button className="absolute top-3 right-3 z-10 flex size-8 items-center justify-center rounded-full bg-white/80 backdrop-blur-sm text-gray-500 hover:text-red-500 hover:bg-white transition-colors">
                                             <span className="material-symbols-outlined text-[20px]">favorite</span>
                                         </button>
@@ -216,7 +272,7 @@ export default function SearchResults({ broker, properties }: SearchResultsPageP
                                     </div>
                                     <div className="flex flex-col p-5 gap-3">
                                         <div>
-                                            <h3 className="text-lg font-bold text-text-main group-hover:text-primary transition-colors line-clamp-1">{property.informacoesbasicas.nome}</h3>
+                                            <h3 className="text-lg font-bold text-text-main group-hover:text-primary transition-colors line-clamp-1" style={{color: cardTitleColor}}>{property.informacoesbasicas.nome}</h3>
                                             <p className="text-sm text-text-muted mt-1 flex items-center gap-1">
                                                 <span className="material-symbols-outlined text-[16px]">location_on</span>
                                                 {property.localizacao.bairro}, {property.localizacao.cidade}
@@ -225,21 +281,21 @@ export default function SearchResults({ broker, properties }: SearchResultsPageP
                                         <div className="flex items-center justify-between border-y border-gray-100 py-3 mt-1">
                                             {property.caracteristicasimovel.quartos && (
                                                 <div className="flex items-center gap-1.5">
-                                                    <span className="material-symbols-outlined text-primary text-[20px]">bed</span>
+                                                    <span className="material-symbols-outlined text-primary text-[20px]" style={{color: cardIconColor}}>bed</span>
                                                     <span className="text-sm font-semibold text-[#111418]">{formatQuartos(property.caracteristicasimovel.quartos)}</span>
                                                 </div>
                                             )}
                                             <div className="w-px h-4 bg-gray-200"></div>
                                              {property.caracteristicasimovel.vagas && (
                                                 <div className="flex items-center gap-1.5">
-                                                    <span className="material-symbols-outlined text-primary text-[20px]">shower</span>
+                                                    <span className="material-symbols-outlined text-primary text-[20px]" style={{color: cardIconColor}}>shower</span>
                                                     <span className="text-sm font-semibold text-[#111418]">{property.caracteristicasimovel.vagas}</span>
                                                 </div>
                                              )}
                                              <div className="w-px h-4 bg-gray-200"></div>
                                             {property.caracteristicasimovel.tamanho && (
                                                 <div className="flex items-center gap-1.5">
-                                                    <span className="material-symbols-outlined text-primary text-[20px]">square_foot</span>
+                                                    <span className="material-symbols-outlined text-primary text-[20px]" style={{color: cardIconColor}}>square_foot</span>
                                                     <span className="text-sm font-semibold text-[#111418]">{property.caracteristicasimovel.tamanho}</span>
                                                 </div>
                                             )}

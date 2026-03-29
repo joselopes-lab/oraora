@@ -1,4 +1,3 @@
-
 import { collection, query, where, getDocs, doc, getDoc, limit } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase/index.server';
 import { notFound } from 'next/navigation';
@@ -143,7 +142,8 @@ async function getSimilarProperties(property: Property): Promise<Property[]> {
 }
 
 // Generate Metadata for SEO
-export async function generateMetadata({ params: { id: propertyIdentifier } }: { params: { id: string } }): Promise<Metadata> {
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id: propertyIdentifier } = await params;
   const property = await getPropertyData(propertyIdentifier);
 
   if (!property) {
@@ -172,7 +172,8 @@ export async function generateMetadata({ params: { id: propertyIdentifier } }: {
 
 
 // A página principal que atua como roteador de layouts
-export default async function BrokerPropertyDetailsPage({ params: { slug, id: propertyIdentifier } }: { params: { slug: string, id: string } }) {
+export default async function BrokerPropertyDetailsPage({ params }: { params: Promise<{ slug: string, id: string }> }) {
+  const { slug, id: propertyIdentifier } = await params;
   const broker = await getBrokerData(slug);
   const property = await getPropertyData(propertyIdentifier);
 
@@ -185,11 +186,11 @@ export default async function BrokerPropertyDetailsPage({ params: { slug, id: pr
   // Lógica para escolher qual layout renderizar
   switch (broker.layoutId) {
     case 'urban-padrao':
-        return <PropertyDetailsPage broker={broker} property={property} similarProperties={similarProperties} />;
+        return <PropertyDetailsPage broker={broker as any} property={property as any} similarProperties={similarProperties as any} />;
     case 'domus':
-        return <DomusPropertyDetailsPage broker={broker} property={property} similarProperties={similarProperties} />;
+        return <DomusPropertyDetailsPage broker={broker as any} property={property as any} similarProperties={similarProperties as any} />;
     default:
       // Renderiza o layout padrão se nenhum for selecionado ou se o ID for inválido
-      return <PropertyDetailsPage broker={broker} property={property} similarProperties={similarProperties} />;
+      return <PropertyDetailsPage broker={broker as any} property={property as any} similarProperties={similarProperties as any} />;
   }
 }

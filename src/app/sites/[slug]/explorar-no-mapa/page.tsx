@@ -1,4 +1,3 @@
-
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase/index.server';
 import { notFound } from 'next/navigation';
@@ -103,8 +102,8 @@ async function getBrokerProperties(brokerId: string): Promise<Property[]> {
 }
 
 
-export default async function BrokerMapPage({ params }: { params: { slug: string } }) {
-  const { slug } = params;
+export default async function BrokerMapPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
   const broker = await getBrokerData(slug);
 
   if (!broker) {
@@ -120,8 +119,8 @@ export default async function BrokerMapPage({ params }: { params: { slug: string
 
   // Router para o componente de mapa correto baseado no layoutId
   if (broker.layoutId === 'domus') {
-    return <DomusMapClientPage broker={broker} properties={allProperties} />;
+    return <DomusMapClientPage broker={broker as any} properties={allProperties} />;
   }
 
-  return <MapClientPage broker={broker} properties={allProperties} />;
+  return <MapClientPage broker={broker as any} properties={allProperties} />;
 }

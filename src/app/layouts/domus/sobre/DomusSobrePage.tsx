@@ -1,6 +1,12 @@
 'use client';
+/**
+ * @fileOverview Página Sobre exclusiva para o template Domus.
+ * Corrigido: Adicionadas funções auxiliares e verificações de segurança para evitar erros de cliente.
+ */
+
 import { DomusHeader } from '../components/DomusHeader';
 import { DomusFooter } from '../components/DomusFooter';
+import { WhatsAppWidget } from '@/app/sites/urban-padrao/components/WhatsAppWidget';
 import Image from 'next/image';
 import React from 'react';
 
@@ -93,6 +99,18 @@ type Broker = {
   linkedinUrl?: string;
 };
 
+const getYoutubeId = (url: string | undefined) => {
+  if (!url) return null;
+  try {
+      const urlObj = new URL(url);
+      if (urlObj.hostname === 'youtu.be') return urlObj.pathname.slice(1);
+      if (urlObj.hostname.includes('youtube.com')) return urlObj.searchParams.get('v');
+  } catch (e) {
+      return null;
+  }
+  return null;
+};
+
 export default function DomusSobrePage({ broker }: { broker: Broker }) {
   const homeContent = broker.homepage || {};
   const brokerContent = broker.urbanPadraoSobre || {};
@@ -111,7 +129,7 @@ export default function DomusSobrePage({ broker }: { broker: Broker }) {
     pilaresSubtitle: adminContent.pilaresSubtitle || 'Nossos fundamentos guiam cada interação e decisão estratégica no mercado imobiliário de alto padrão.',
     pilar1Icon: adminContent.pilar1Icon || 'rocket_launch',
     pilar1Title: adminContent.pilar1Title || brokerContent.value1Title || 'Missão',
-    pilar1Description: adminContent.pilar1Description || brokerContent.value1Description || 'Inovação constante para simplificar o mercado imobiliário, oferecendo uma experiênciapremium baseada em transparência e resultados.',
+    pilar1Description: adminContent.pilar1Description || brokerContent.value1Description || 'Inovação constante para simplificar o mercado imobiliário, oferecendo uma experiência premium baseada em transparência e resultados.',
     pilar2Icon: adminContent.pilar2Icon || 'visibility',
     pilar2Title: adminContent.pilar2Title || brokerContent.value2Title || 'Visão',
     pilar2Description: adminContent.pilar2Description || brokerContent.value2Description || 'Ser a maior referência em inteligência imobiliária e atendimento de alto padrão no país até 2030.',
@@ -134,7 +152,7 @@ export default function DomusSobrePage({ broker }: { broker: Broker }) {
     '--about-quote-text': homeContent.aboutQuoteTextColor ? `hsl(${homeContent.aboutQuoteTextColor})` : 'hsl(var(--secondary))',
     '--cta-section-bg': homeContent.ctaSectionBgColor ? `hsl(${homeContent.ctaSectionBgColor})` : 'hsl(var(--secondary))',
     '--cta-section-title': homeContent.ctaSectionTitleColor ? `hsl(${homeContent.ctaSectionTitleColor})` : '#fff',
-    '--cta-section-subtitle': homeContent.ctaSectionSubtitleColor ? `hsl(${content.ctaSectionSubtitleColor})` : 'rgba(255,255,255,0.6)',
+    '--cta-section-subtitle': homeContent.ctaSectionSubtitleColor ? `hsl(${homeContent.ctaSectionSubtitleColor})` : 'rgba(255,255,255,0.6)',
     '--cta-section-button-bg': homeContent.ctaSectionButtonBgColor ? `hsl(${homeContent.ctaSectionButtonBgColor})` : 'hsl(var(--primary))',
     '--cta-section-button-text': homeContent.ctaSectionButtonTextColor ? `hsl(${homeContent.ctaSectionButtonTextColor})` : 'hsl(var(--secondary))',
   } as React.CSSProperties;
@@ -149,7 +167,7 @@ export default function DomusSobrePage({ broker }: { broker: Broker }) {
         }
       `}</style>
       
-      <DomusHeader broker={broker} />
+      <DomusHeader broker={broker as any} />
       
       <main className="pt-20">
         <section className="relative min-h-[80vh] flex items-center overflow-hidden">
@@ -197,7 +215,7 @@ export default function DomusSobrePage({ broker }: { broker: Broker }) {
           </div>
         </section>
 
-        <section className="bg-white/50 dark:bg-card-dark py-24 border-y border-slate-100 dark:border-slate-800">
+        <section className="bg-white/50 dark:bg-slate-900/50 py-24 border-y border-slate-100 dark:border-slate-800">
           <div className="max-w-7xl mx-auto px-6">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-12 text-center">
               <div className="space-y-2">
@@ -266,7 +284,8 @@ export default function DomusSobrePage({ broker }: { broker: Broker }) {
           </div>
         </section>
       </main>
-      <DomusFooter broker={broker} />
+      <DomusFooter broker={broker as any} />
+      <WhatsAppWidget brokerId={broker.id} />
     </div>
   );
 }

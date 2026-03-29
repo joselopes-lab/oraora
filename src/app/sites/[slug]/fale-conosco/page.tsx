@@ -41,8 +41,8 @@ async function getBrokerData(slug: string): Promise<Broker | null> {
   return { id: brokerDoc.id, ...brokerDoc.data() } as Broker;
 }
 
-export default async function BrokerContactPage({ params }: { params: { slug: string } }) {
-  const { slug } = params;
+export default async function BrokerContactPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
   const broker = await getBrokerData(slug);
 
   if (!broker) {
@@ -51,8 +51,8 @@ export default async function BrokerContactPage({ params }: { params: { slug: st
 
   // Lógica de seleção de layout
   if (broker.layoutId === 'domus') {
-    return <DomusFaleConoscoPage broker={broker} />;
+    return <DomusFaleConoscoPage broker={broker as any} />;
   }
   
-  return <FaleConoscoClientPage broker={broker} />;
+  return <FaleConoscoClientPage broker={broker as any} />;
 }

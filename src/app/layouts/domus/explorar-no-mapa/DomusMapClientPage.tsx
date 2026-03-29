@@ -1,4 +1,3 @@
-
 'use client';
 /**
  * @fileOverview Página de "Explorar no Mapa" exclusiva para o template Domus.
@@ -8,7 +7,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { DomusHeader } from '../components/DomusHeader';
-import { WhatsAppWidget } from '@/layouts/urban-padrao/components/WhatsAppWidget';
+import { WhatsAppWidget } from '@/app/sites/urban-padrao/components/WhatsAppWidget';
 import { GoogleMap, useJsApiLoader, Marker, InfoWindow } from '@react-google-maps/api';
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { cn } from '@/lib/utils';
@@ -325,6 +324,10 @@ export default function DomusMapClientPage({ broker, properties }: { broker: Bro
       });
     }, [activePoiTypes, isLoaded]);
 
+  if (loadError) {
+      return <div className="p-4">Erro ao carregar o mapa. Por favor, recarregue a página.</div>;
+  }
+
   const content = broker.homepage || {};
 
   const dynamicStyles = {
@@ -403,7 +406,7 @@ export default function DomusMapClientPage({ broker, properties }: { broker: Bro
         
         <div className={cn("absolute top-6 left-6 z-30 w-full max-w-sm flex flex-col gap-4 transition-transform duration-300 ease-in-out", !isFilterOpen && "-translate-x-[calc(100%+32px)]")}>
             <div className="bg-white/80 backdrop-blur-md rounded-2xl shadow-float border border-gray-100 p-[5px]">
-                <form onSubmit={handleSearchSubmit} className="p-4">
+                <form onSubmit={handleSearchSubmit} className="p-4" style={{ padding: '5px' }}>
                     <div className="relative mb-4">
                         <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">search</span>
                         <input 
@@ -416,7 +419,7 @@ export default function DomusMapClientPage({ broker, properties }: { broker: Bro
                     </div>
                     <div className="grid grid-cols-2 gap-4 mb-5">
                         <div className="flex-1 min-w-[100px] cursor-pointer">
-                            <span className="text-[10px] text-gray-500 font-bold block mb-1 uppercase tracking-widest">Tipo</span>
+                            <span className="text-[10px] text-gray-500 font-bold block mb-1">Tipo</span>
                             <select 
                               value={filterType}
                               onChange={(e) => setFilterType(e.target.value)}
@@ -431,7 +434,7 @@ export default function DomusMapClientPage({ broker, properties }: { broker: Bro
                             </select>
                         </div>
                         <div className="flex-1 min-w-[80px] cursor-pointer">
-                            <span className="text-[10px] text-gray-500 font-bold block mb-1 uppercase tracking-widest">Quartos</span>
+                            <span className="text-[10px] text-gray-500 font-bold block mb-1">Quartos</span>
                             <select 
                               value={filterRooms}
                               onChange={(e) => setFilterRooms(e.target.value)}
@@ -445,30 +448,30 @@ export default function DomusMapClientPage({ broker, properties }: { broker: Bro
                             </select>
                         </div>
                         <div className="flex-1 min-w-[100px] cursor-pointer">
-                            <span className="text-[10px] text-gray-500 font-bold block mb-1 uppercase tracking-widest">Preço Mín</span>
+                            <span className="text-[10px] text-gray-500 font-bold block mb-1">Preço Mínimo</span>
                              <select 
                               value={filterMinPrice}
                               onChange={(e) => setFilterMinPrice(e.target.value)}
                               className="w-full h-11 border border-gray-200 rounded-xl p-2 text-xs font-bold focus:ring-primary focus:border-primary"
                              >
                               <option value="0">R$ 0</option>
-                              <option value="500000">R$ 500k</option>
-                              <option value="1000000">R$ 1M</option>
-                              <option value="2000000">R$ 2M</option>
+                              <option value="500000">R$ 500.000</option>
+                              <option value="1000000">R$ 1.000.000</option>
+                              <option value="2000000">R$ 2.000.000</option>
                             </select>
                         </div>
                         <div className="flex-1 min-w-[100px] cursor-pointer">
-                            <span className="text-[10px] text-gray-500 font-bold block mb-1 uppercase tracking-widest">Preço Máx</span>
+                            <span className="text-[10px] text-gray-500 font-bold block mb-1">Preço Máximo</span>
                              <select 
                               value={filterMaxPrice}
                               onChange={(e) => setFilterMaxPrice(e.target.value)}
                               className="w-full h-11 border border-gray-200 rounded-xl p-2 text-xs font-bold focus:ring-primary focus:border-primary"
                              >
-                              <option value="unlimited">Ilimitado</option>
-                              <option value="1000000">R$ 1M</option>
-                              <option value="2000000">R$ 2M</option>
-                              <option value="5000000">R$ 5M</option>
-                              <option value="10000000">R$ 10M</option>
+                              <option value="unlimited">Sem limite</option>
+                              <option value="1000000">R$ 1.000.000</option>
+                              <option value="2000000">R$ 2.000.000</option>
+                              <option value="5000000">R$ 5.000.000</option>
+                              <option value="10000000">R$ 10.000.000</option>
                             </select>
                         </div>
                     </div>
@@ -482,8 +485,7 @@ export default function DomusMapClientPage({ broker, properties }: { broker: Bro
                         </button>
                         <button 
                           type="submit" 
-                          style={{ backgroundColor: 'var(--search-button-bg)', color: 'var(--search-button-text)' }}
-                          className="h-12 rounded-xl font-bold hover:opacity-90 transition-all shadow-lg flex-1 flex items-center justify-center gap-2"
+                          className="h-12 bg-black text-white rounded-xl font-bold hover:bg-gray-800 transition-all shadow-lg flex-1 flex items-center justify-center gap-2"
                         >
                             Buscar
                         </button>

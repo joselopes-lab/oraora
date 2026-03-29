@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useCallback, useEffect, useRef } from 'react';
@@ -283,9 +284,10 @@ export default function SearchFilters({ onSearch, vertical = false, className }:
 
           <Button 
             type="submit" 
-            className="w-full h-12 bg-black hover:bg-gray-900 text-primary font-bold rounded-xl shadow-lg flex items-center justify-center gap-2 transition-transform active:scale-[0.98]"
+            style={{ backgroundColor: 'var(--search-button-bg)', color: 'var(--search-button-text)' }}
+            className="w-full h-12 font-bold rounded-xl shadow-lg flex items-center justify-center gap-2 transition-all hover:opacity-90 active:scale-[0.98] text-white"
           >
-            <span className="material-symbols-outlined font-bold">search</span>
+            <span className="material-symbols-outlined font-bold text-inherit">search</span>
             Buscar Imóveis
           </Button>
         </form>
@@ -401,8 +403,12 @@ export default function SearchFilters({ onSearch, vertical = false, className }:
                 </div>
               </div>
               <div className="w-full flex items-end">
-                <Button className="h-12 w-full px-8 rounded-lg bg-black text-primary font-bold hover:bg-gray-900 transition-colors shadow-lg flex items-center justify-center gap-2" type="submit">
-                    <span className="material-symbols-outlined font-bold">search</span>
+                <Button 
+                  type="submit"
+                  style={{ backgroundColor: 'var(--search-button-bg)', color: 'var(--search-button-text)' }}
+                  className="h-12 w-full px-8 rounded-lg font-bold transition-all shadow-lg flex items-center justify-center gap-2 hover:opacity-90 text-white" 
+                >
+                    <span className="material-symbols-outlined font-bold text-inherit">search</span>
                     Buscar
                 </Button>
               </div>

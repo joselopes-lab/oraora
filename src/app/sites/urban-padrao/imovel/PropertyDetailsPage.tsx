@@ -211,7 +211,7 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
     });
 
     if (result.success) {
-      const message = encodeURIComponent(`Olá, me chamo ${data.whatsappName} e gostaria de saber mais sobre o empreendimento ${informacoesbasicas.nome}`);
+      const message = encodeURIComponent(`Olá, me chamo ${data.whatsappName} e gostaria de saber mais sobre o empreendimento ${informacoesbasicas?.nome}`);
       window.open(`https://wa.me/${brokerPhoneNumber}?text=${message}`, '_blank');
       whatsappForm.reset();
       setIsWhatsappModalOpen(false);
@@ -307,13 +307,13 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
   const hasLocationInfo = !isAvulso || (!!mapSrc && !!streetViewSrc);
 
 
-  const dynamicStyles = {
+  const dynamicStyles: React.CSSProperties = {
     '--background': broker.backgroundColor,
     '--foreground': broker.foregroundColor,
     '--primary': broker.primaryColor,
     '--secondary': broker.secondaryColor,
     '--accent': broker.accentColor,
-  } as React.CSSProperties;
+  } as any;
 
   return (
     <div style={dynamicStyles} className="urban-padrao-theme relative flex min-h-screen w-full flex-col group/design-root bg-background-light text-text-main font-display antialiased overflow-x-hidden selection:bg-primary selection:text-black">
@@ -546,7 +546,7 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
                   </div>
                    <Dialog open={isWhatsappModalOpen} onOpenChange={setIsWhatsappModalOpen}>
                     <div className="flex flex-col gap-3">
-                        <button disabled={isSubmitting} className="w-full h-12 rounded-lg bg-black text-primary font-bold hover:bg-gray-900 transition-all shadow-lg flex items-center justify-center gap-2 group" type="submit">
+                        <button disabled={isSubmitting} className="w-full h-12 rounded-lg bg-black text-white font-bold hover:bg-gray-900 transition-all shadow-lg flex items-center justify-center gap-2 group" type="submit">
                            <span className="material-symbols-outlined">send</span>
                            {isSubmitting ? 'Enviando...' : 'Quero saber mais'}
                         </button>

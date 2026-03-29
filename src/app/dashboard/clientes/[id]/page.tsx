@@ -1,4 +1,3 @@
-
 'use client';
 import { useRouter, useParams } from 'next/navigation';
 import { useDoc, useFirestore, useMemoFirebase, useCollection, useUser } from '@/firebase';
@@ -7,6 +6,9 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import ClientDetailView from '../components/client-detail-view';
 import { useEffect, useState, useMemo } from 'react';
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
+import Image from "next/image";
 
 const ClientSideDate = ({ date }: { date: Date }) => {
     const [formattedDate, setFormattedDate] = useState<string | null>(null);
@@ -41,6 +43,7 @@ type Lead = {
         city?: string;
         state?: string;
     };
+    potentialValue?: number;
     personaIds?: string[];
     notes?: Note[];
 };
@@ -190,18 +193,6 @@ export default function ClientDetailPage() {
     }, [linkedPropsFromInventory, linkedPropsFromAvulso, propertyIds]);
 
 
-    const getStatusBadge = (status: string) => {
-        switch (status) {
-            case 'new':
-                return <span className="bg-green-100 text-green-800 text-xs font-bold px-2.5 py-1 rounded-full border border-green-200 uppercase tracking-wider">Ativo</span>;
-            case 'contacted':
-                return <span className="bg-yellow-100 text-yellow-800 text-xs font-bold px-2.5 py-1 rounded-full border border-yellow-200 uppercase tracking-wider">Em Contato</span>;
-            default:
-                return <span className="bg-gray-100 text-gray-800 text-xs font-bold px-2.5 py-1 rounded-full border border-gray-200 uppercase tracking-wider">{status}</span>;
-        }
-    }
-
-
     if (isLoading || arePersonasLoading || isGlobalRecLoading || isAvulsoRecLoading || isPortfolioLoading || isAuthLoading || isInventoryLoading || isAvulsoLoading) {
         return (
              <main className="flex-grow flex flex-col py-8 px-4 md:px-10 max-w-[1440px] mx-auto w-full">
@@ -245,13 +236,67 @@ export default function ClientDetailPage() {
                     </Button>
                 </div>
             </div>
-            <ClientDetailView 
-                client={client} 
-                personas={personas || []} 
-                recommendedProperties={recommendedProperties} 
-                linkedProperties={linkedProperties}
-                brokerSlug={brokerProfile?.slug}
-            />
+            <div className="flex flex-col gap-6">
+                <div className="bg-white dark:bg-slate-900 p-8 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                    <div className="flex flex-col md:flex-row gap-8 items-center md:items-start">
+                        <div className="relative h-32 w-32 rounded-full border-4 border-primary/20 overflow-hidden bg-slate-100 flex-shrink-0">
+                            <Image 
+                                src={`https://i.pravatar.cc/150?u=${client.id}`} 
+                                alt={client.name} 
+                                fill 
+                                className="object-cover"
+                            />
+                        </div>
+                        <div className="flex-1 text-center md:text-left space-y-4">
+                            <div>
+                                <h2 className="text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tight">{client.name}</h2>
+                                <p className="text-slate-500 font-medium">{client.email} • {client.phone}</p>
+                            </div>
+                            <div className="flex flex-wrap justify-center md:justify-start gap-3">
+                                <Badge variant="outline" className="px-4 py-1.5 rounded-lg border-primary/30 bg-primary/5 text-green-700 font-bold uppercase tracking-wider text-[10px]">
+                                    {client.clientType || 'Comprador'}
+                                </Badge>
+                                <Badge variant="outline" className={cn("px-4 py-1.5 rounded-lg font-bold uppercase tracking-wider text-[10px]", getStatusBadgeClass(client.status))}>
+                                    Status: {client.status}
+                                </Badge>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4">
+                                <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800">
+                                    <span className="text-[10px] font-black text-slate-400 uppercase block mb-1">Ticket Médio</span>
+                                    <span className="text-lg font-bold">{client.potentialValue?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2 }) || 'R$ 850.000,00'}</span>
+                                </div>
+                                <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800">
+                                    <span className="text-[10px] font-black text-slate-400 uppercase block mb-1">Interesse</span>
+                                    <span className="text-lg font-bold truncate block">{client.propertyInterest || 'Apartamento'}</span>
+                                </div>
+                                <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800">
+                                    <span className="text-[10px] font-black text-slate-400 uppercase block mb-1">Origem</span>
+                                    <span className="text-lg font-bold">{client.source || 'Site'}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <ClientDetailView 
+                    client={client} 
+                    personas={personas || []} 
+                    recommendedProperties={recommendedProperties} 
+                    linkedProperties={linkedProperties}
+                    brokerSlug={brokerProfile?.slug}
+                />
+            </div>
         </>
     );
+}
+
+function getStatusBadgeClass(status: string) {
+    switch (status) {
+        case 'new': return 'bg-blue-100 text-blue-800 border-blue-200';
+        case 'contacted': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+        case 'qualified': return 'bg-purple-100 text-purple-800 border-purple-200';
+        case 'proposal': return 'bg-orange-100 text-orange-800 border-orange-200';
+        case 'converted': return 'bg-green-100 text-green-800 border-green-200';
+        case 'lost': return 'bg-red-100 text-red-800 border-red-200';
+        default: return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
 }

@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from "next/link";
@@ -368,6 +369,11 @@ export default function DashboardCore({
                       <span className="material-symbols-outlined text-[20px]">grid_view</span>
                       Dashboard
                     </Link>
+
+                    <Link className={cn(navLinkClasses("/ora-ia"), "text-primary-hover")} href="/ora-ia" target="_blank">
+                      <span className="material-symbols-outlined text-[20px]">psychology</span>
+                      Ora IA
+                    </Link>
                     
                     <div onMouseEnter={() => handleMouseEnter('clientes')} onMouseLeave={handleMouseLeave} className="h-full">
                       <DropdownMenu open={openMenu === 'clientes'} onOpenChange={(open) => setOpenMenu(open ? 'clientes' : null)}>
@@ -453,13 +459,14 @@ export default function DashboardCore({
 
                     <div onMouseEnter={() => handleMouseEnter('rede')} onMouseLeave={handleMouseLeave} className="h-full">
                       <DropdownMenu open={openMenu === 'rede'} onOpenChange={(open) => setOpenMenu(open ? 'rede' : null)}>
-                        <DropdownMenuTrigger className={dropdownTriggerClasses(["/dashboard/admin/users", "/dashboard/construtoras"])}>
+                        <DropdownMenuTrigger className={dropdownTriggerClasses(["/dashboard/admin/users", "/dashboard/construtoras", "/dashboard/admin/convites"])}>
                           <span className="material-symbols-outlined text-[20px]">lan</span>
                           Rede
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="start" className="w-56" onMouseEnter={() => handleMouseEnter('rede')} onMouseLeave={handleMouseLeave}>
                           <DropdownMenuItem asChild><Link href="/dashboard/admin/users">Usuários</Link></DropdownMenuItem>
                           <DropdownMenuItem asChild><Link href="/dashboard/construtoras">Construtoras</Link></DropdownMenuItem>
+                          <DropdownMenuItem asChild><Link href="/dashboard/admin/convites">Solicitações de Convite</Link></DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
@@ -519,15 +526,7 @@ export default function DashboardCore({
                   if(!open) setOnboardingStep(1);
                 }
               }}>
-                {!personalBrokerData?.onboardingCompleted && (
-                  <DialogTrigger asChild>
-                    <Button variant="outline" className="bg-white border-gray-200 hover:bg-primary hover:border-primary group/onboarding font-bold py-2.5 px-6 rounded-lg transition-all duration-300 flex items-center gap-2">
-                      <span className="material-symbols-outlined text-[18px] text-text-secondary group-hover/onboarding:text-white transition-colors">rocket_launch</span>
-                      <span className="text-text-secondary group-hover/onboarding:text-white transition-colors">Onboarding</span>
-                    </Button>
-                  </DialogTrigger>
-                )}
-                <DialogContent className="max-w-2xl p-0 border-none shadow-2xl flex flex-col h-[90vh] max-h-[90vh] bg-white overflow-hidden">
+                <DialogContent className="max-w-2xl p-0 max-h-[90vh] flex flex-col bg-white overflow-hidden">
                   <VisuallyHidden>
                     <DialogHeader>
                       <DialogTitle>Onboarding Oraora</DialogTitle>
@@ -1080,7 +1079,7 @@ export default function DashboardCore({
                           </div>
                           <p className="text-slate-500 dark:text-slate-400 text-xs font-medium uppercase tracking-wider">Finalizando seu perfil</p>
                         </div>
-                        <div className="flex-1 overflow-y-auto min-h-0 flex flex-col gap-6 p-6 text-left">
+                        <div className="flex-1 overflow-y-auto min-h-0 p-6 space-y-8 text-left">
                           <div className="flex flex-col gap-2">
                             <h1 className="text-slate-900 dark:text-slate-100 text-2xl font-bold leading-tight">Informações Finais</h1>
                             <p className="text-slate-500 dark:text-slate-400 text-sm">Confirme seus dados de contato e credenciais profissionais para ativar sua conta.</p>
@@ -1134,7 +1133,7 @@ export default function DashboardCore({
                             <label className="flex flex-col gap-2">
                               <span className="text-slate-900 dark:text-slate-100 text-sm font-semibold">WhatsApp</span>
                               <div className="relative">
-                                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xl">chat</span>
+                                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-green-600 text-xl">chat</span>
                                 <input 
                                   className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 pl-10 pr-4 py-3 text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" 
                                   placeholder="(00) 00000-0000"

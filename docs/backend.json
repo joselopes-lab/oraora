@@ -130,6 +130,23 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["clientId", "clientName", "stage", "brokerId", "createdAt"]
+    },
+    "InviteRequest": {
+      "title": "InviteRequest",
+      "description": "A request for invitation from a broker.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "whatsapp": { "type": "string" },
+        "city": { "type": "string" },
+        "experience": { "type": "string" },
+        "specialty": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "email", "whatsapp", "city", "experience", "specialty", "status", "createdAt"]
     }
   },
   "auth": {
@@ -138,6 +155,7 @@
   "firestore": {
     "/users/{userId}": { "schema": { "$ref": "#/backend/entities/User" }, "description": "Users of the platform." },
     "/brokers/{brokerId}": { "schema": { "$ref": "#/backend/entities/Broker" }, "description": "Broker details and site settings." },
-    "/journeys/{journeyId}": { "schema": { "$ref": "#/backend/entities/Journey" }, "description": "Sales journeys for leads." }
+    "/journeys/{journeyId}": { "schema": { "$ref": "#/backend/entities/Journey" }, "description": "Sales journeys for leads." },
+    "/inviteRequests/{inviteId}": { "schema": { "$ref": "#/backend/entities/InviteRequest" }, "description": "Requests for invitations from the public site." }
   }
 }

@@ -2,24 +2,11 @@
 'use client';
 import { useRouter } from 'next/navigation';
 import ConstructorForm, { ConstructorFormData } from '../components/constructor-form';
-import { useAuth, useFirestore, setDocumentNonBlocking, useMemoFirebase } from '@/firebase';
+import { useAuth, useFirestore, setDocumentNonBlocking } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { doc } from 'firebase/firestore';
 import { useState } from 'react';
-
-// Function to format constructor name into an email-friendly string
-const formatNameToEmail = (name: string) => {
-    return name
-        .toLowerCase()
-        .normalize("NFD") // Decompose accented characters
-        .replace(/[\u0300-\u036f]/g, "") // Remove diacritical marks
-        .replace(/[^a-z0-9\s-]/g, '') // Remove special characters except spaces and hyphens
-        .trim()
-        .replace(/\s+/g, '-') // Replace spaces with hyphens
-        .replace(/-+/g, '-'); // Replace multiple hyphens with a single one
-};
-
 
 export default function NewConstructorPage() {
     const router = useRouter();
@@ -36,11 +23,9 @@ export default function NewConstructorPage() {
 
         setIsSubmitting(true);
         
-        const email = `${formatNameToEmail(data.name)}@oraora.com.br`;
-
         try {
-            // 1. Create user in Auth
-            const userCredential = await createUserWithEmailAndPassword(auth, email, data.newPassword || 'defaultPassword123');
+            // 1. Create user in Auth using the provided email and password
+            const userCredential = await createUserWithEmailAndPassword(auth, data.accessEmail, data.newPassword || 'defaultPassword123');
             const user = userCredential.user;
 
             // 2. Update Auth profile
@@ -51,10 +36,10 @@ export default function NewConstructorPage() {
             const userData = {
                 id: user.uid,
                 username: data.name,
-                email: email,
+                email: data.accessEmail,
                 userType: 'constructor',
-                isActive: true, // New constructors are active by default
-                planId: 'constructor-default', // Or some initial plan
+                isActive: true,
+                planId: 'constructor-default',
             };
             setDocumentNonBlocking(userDocRef, userData, { merge: true });
 
@@ -76,7 +61,8 @@ export default function NewConstructorPage() {
                 instagram: data.instagram || '',
                 publicEmail: data.publicEmail || '',
                 logoUrl: data.logoUrl || '',
-                isVisibleOnSite: data.isVisibleOnSite
+                isVisibleOnSite: data.isVisibleOnSite,
+                accessEmail: data.accessEmail
             };
             setDocumentNonBlocking(constructorDocRef, constructorData, { merge: true });
 

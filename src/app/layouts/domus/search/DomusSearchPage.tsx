@@ -7,7 +7,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { DomusHeader } from '../components/DomusHeader';
 import { DomusFooter } from '../components/DomusFooter';
-import { WhatsAppWidget } from '@/layouts/urban-padrao/components/WhatsAppWidget';
+import { WhatsAppWidget } from '@/app/sites/urban-padrao/components/WhatsAppWidget';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { useState, useMemo } from 'react';
 import { cn } from '@/lib/utils';
@@ -217,7 +217,7 @@ export default function DomusSearchPage({ broker, properties }: DomusSearchPageP
                 }
             `}</style>
             
-            <DomusHeader broker={broker} />
+            <DomusHeader broker={broker as any} />
             
             <main className="max-w-7xl mx-auto px-6 py-12">
                 <div className="mb-10">
@@ -337,7 +337,7 @@ export default function DomusSearchPage({ broker, properties }: DomusSearchPageP
                                 </div>
                                 <div className="flex items-center justify-between">
                                     <span className="text-xl font-extrabold" style={{ color: 'var(--card-value)' }}>{property.informacoesbasicas.valor?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) || 'Consulte'}</span>
-                                    <button className="bg-slate-100 dark:bg-slate-800 p-2 rounded-lg hover:bg-primary hover:text-black transition-colors">
+                                    <button className="bg-slate-100 dark:bg-slate-800 p-2 rounded-lg hover:bg-primary hover:text-white transition-colors">
                                         <span className="material-symbols-outlined">arrow_forward</span>
                                     </button>
                                 </div>
@@ -351,7 +351,7 @@ export default function DomusSearchPage({ broker, properties }: DomusSearchPageP
                         <button 
                             onClick={() => router.push(`${pathname}?page=${currentPage - 1}`)}
                             disabled={currentPage === 1}
-                            className="w-10 h-10 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center justify-center hover:bg-primary hover:text-black transition-colors group disabled:opacity-50"
+                            className="w-10 h-10 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center justify-center hover:bg-primary hover:text-white transition-colors group disabled:opacity-50"
                         >
                             <span className="material-symbols-outlined text-lg">chevron_left</span>
                         </button>
@@ -359,7 +359,7 @@ export default function DomusSearchPage({ broker, properties }: DomusSearchPageP
                             <button 
                                 key={page}
                                 onClick={() => router.push(`${pathname}?page=${page}`)}
-                                className={cn("w-10 h-10 rounded-xl border flex items-center justify-center transition-all", currentPage === page ? "bg-primary text-black font-bold border-primary shadow-sm" : "border-slate-200 dark:border-slate-800 hover:bg-primary hover:text-black")}
+                                className={cn("w-10 h-10 rounded-xl border flex items-center justify-center transition-all", currentPage === page ? "bg-primary text-white font-bold border-primary shadow-sm" : "border-slate-200 dark:border-slate-800 hover:bg-primary hover:text-white")}
                             >
                                 {page}
                             </button>
@@ -367,7 +367,7 @@ export default function DomusSearchPage({ broker, properties }: DomusSearchPageP
                         <button 
                             onClick={() => router.push(`${pathname}?page=${currentPage + 1}`)}
                             disabled={currentPage === totalPages}
-                            className="w-10 h-10 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center justify-center hover:bg-primary hover:text-black transition-colors group disabled:opacity-50"
+                            className="w-10 h-10 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center justify-center hover:bg-primary hover:text-white transition-colors group disabled:opacity-50"
                         >
                             <span className="material-symbols-outlined text-lg">chevron_right</span>
                         </button>
@@ -392,7 +392,7 @@ export default function DomusSearchPage({ broker, properties }: DomusSearchPageP
                 </section>
             </main>
 
-            <DomusFooter broker={broker} />
+            <DomusFooter broker={broker as any} />
             <WhatsAppWidget brokerId={broker.id} />
         </div>
     );

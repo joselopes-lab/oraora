@@ -6,7 +6,7 @@ import { useFirestore, useDoc, useMemoFirebase, setDocumentNonBlocking, useAuth 
 import { doc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
-import { updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
+import { sendPasswordResetEmail } from 'firebase/auth';
 
 type ConstructorDoc = {
     id: string;
@@ -75,32 +75,20 @@ export default function EditConstructorPage() {
                 publicEmail: data.publicEmail || '',
                 logoUrl: data.logoUrl || '',
                 isVisibleOnSite: data.isVisibleOnSite,
+                accessEmail: data.accessEmail
             };
             setDocumentNonBlocking(constructorDocRef!, constructorDataToUpdate, { merge: true });
 
-            // Update user document
+            // Update user document (The contact/display email in Firestore)
             const userDataToUpdate = {
                 username: data.name,
+                email: data.accessEmail
             };
             setDocumentNonBlocking(userDocRef!, userDataToUpdate, { merge: true });
 
-            // Update password if provided
-            if (data.newPassword && auth?.currentUser) {
-                // This part is tricky because it might require reauthentication.
-                // For admin-driven password changes, this would typically be done with Admin SDK.
-                // A client-side re-auth flow is complex for an admin editing a user.
-                // For this example, we'll assume the currently logged-in user is the one being edited,
-                // which is not the case in an admin panel. A proper solution requires a backend function.
-                // We'll show a toast to indicate this limitation.
-                toast({
-                    title: 'Aviso sobre senha',
-                    description: 'A alteração de senha de outros usuários requer um fluxo de reautenticação complexo e não está implementada nesta demonstração.',
-                });
-            }
-
             toast({
-                title: 'Construtora Atualizada!',
-                description: `Os dados de "${data.name}" foram atualizados.`,
+                title: 'Dados Atualizados!',
+                description: `As informações de "${data.name}" foram salvas no banco de dados.`,
             });
             router.push('/dashboard/construtoras');
 
@@ -115,13 +103,47 @@ export default function EditConstructorPage() {
             setIsSubmitting(false);
         }
     };
+
+    const handleResetPassword = async (email: string) => {
+        if (!email || !auth) {
+            toast({
+                variant: "destructive",
+                title: "Dados insuficientes",
+                description: "O serviço de autenticação não está pronto ou o e-mail está vazio.",
+            });
+            return;
+        }
+        
+        try {
+            await sendPasswordResetEmail(auth, email);
+            toast({
+                title: "Comando enviado!",
+                description: `Um link de redefinição de senha foi disparado para ${email}. Peça para verificarem a caixa de entrada.`,
+            });
+        } catch (error: any) {
+            console.error("Erro ao enviar e-mail de redefinição:", error);
+            let description = "Não foi possível disparar o e-mail agora. Tente novamente mais tarde.";
+            
+            if (error.code === 'auth/user-not-found') {
+                description = "Este e-mail não existe no sistema de login. Se você trocou o e-mail acima, deve primeiro alterá-lo manualmente no Console do Firebase para que a redefinição funcione.";
+            } else if (error.code === 'auth/invalid-email') {
+                description = "O e-mail digitado não é um formato válido.";
+            }
+
+            toast({
+                variant: "destructive",
+                title: "Erro de Sincronização",
+                description: description,
+            });
+        }
+    };
     
     const isLoading = isConstructorLoading || isUserLoading;
 
     if (isLoading) {
         return (
              <main className="flex-grow flex flex-col py-8 px-4 md:px-10 max-w-[1440px] mx-auto w-full">
-                <p>Carregando dados da construtora...</p>
+                <p className="text-center py-20 text-slate-400 italic">Carregando dossiê da construtora...</p>
              </main>
         )
     }
@@ -144,7 +166,13 @@ export default function EditConstructorPage() {
 
     return (
         <main className="flex-grow flex flex-col py-8 px-4 md:px-10 max-w-[1440px] mx-auto w-full">
-            <ConstructorForm onSave={handleSave} isEditing={true} constructorData={formData} isSubmitting={isSubmitting}/>
+            <ConstructorForm 
+                onSave={handleSave} 
+                isEditing={true} 
+                constructorData={formData} 
+                isSubmitting={isSubmitting}
+                onResetPassword={handleResetPassword}
+            />
         </main>
     );
 }

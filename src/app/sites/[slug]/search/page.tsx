@@ -1,11 +1,10 @@
-
 'use client';
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
 import { notFound, useParams } from 'next/navigation';
 import SearchResults from '@/layouts/urban-padrao/search/SearchResults';
 import DomusSearchPage from '@/app/layouts/domus/search/DomusSearchPage';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, use } from 'react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 
@@ -48,9 +47,8 @@ type Property = {
   };
 };
 
-export default function BrokerSearchPage() {
-  const params = useParams();
-  const slug = params.slug as string;
+export default function BrokerSearchPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = use(params);
   const [broker, setBroker] = useState<Broker | null>(null);
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
@@ -65,7 +63,8 @@ export default function BrokerSearchPage() {
         const querySnapshot = await getDocs(q);
 
         if (querySnapshot.empty) {
-          notFound();
+          setBroker(null);
+          setLoading(false);
           return;
         }
 
@@ -104,7 +103,7 @@ export default function BrokerSearchPage() {
         
       } catch (error) {
         console.error("Error fetching data:", error);
-        notFound();
+        setBroker(null);
       } finally {
         setLoading(false);
       }
@@ -125,8 +124,8 @@ export default function BrokerSearchPage() {
   }
 
   if (broker.layoutId === 'domus') {
-    return <DomusSearchPage broker={broker} properties={properties} />;
+    return <DomusSearchPage broker={broker as any} properties={properties} />;
   }
 
-  return <SearchResults broker={broker} properties={properties} />;
+  return <SearchResults broker={broker as any} properties={properties} />;
 }

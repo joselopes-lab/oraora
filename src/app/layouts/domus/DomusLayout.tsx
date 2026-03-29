@@ -1,3 +1,4 @@
+
 'use client';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -5,8 +6,8 @@ import { DomusHeader } from './components/DomusHeader';
 import { DomusFooter } from './components/DomusFooter';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
-import { useState, useEffect, useMemo } from 'react';
-import { WhatsAppWidget } from '@/layouts/urban-padrao/components/WhatsAppWidget';
+import { useState, useEffect } from 'react';
+import { WhatsAppWidget } from '@/app/sites/urban-padrao/components/WhatsAppWidget';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 
@@ -54,12 +55,11 @@ type Broker = {
     value4Description?: string;
     aboutQuote?: string;
     aboutTagline?: string; 
-    cardIconColor?: string;
-    cardValueColor?: string;
     cardTitleColor?: string;
+    cardValueColor?: string;
+    cardIconColor?: string;
     statusTagBgColor?: string;
     statusTagTextColor?: string;
-    searchQuery?: string;
     searchButtonBgColor?: string;
     searchButtonTextColor?: string;
     ctaButtonBgColor?: string;
@@ -245,7 +245,7 @@ export default function DomusLayout({ broker, properties }: DomusLayoutProps) {
     '--status-tag-bg': content.statusTagBgColor ? `hsl(${content.statusTagBgColor})` : 'rgba(255,255,255,0.9)',
     '--status-tag-text': content.statusTagTextColor ? `hsl(${content.statusTagTextColor})` : '#000',
     '--search-button-bg': content.searchButtonBgColor ? `hsl(${content.searchButtonBgColor})` : 'hsl(var(--primary))',
-    '--search-button-text': content.searchButtonTextColor ? `hsl(${content.searchButtonTextColor})` : 'hsl(var(--secondary))',
+    '--search-button-text': '#ffffff',
     '--cta-button-bg': content.ctaButtonBgColor ? `hsl(${content.ctaButtonBgColor})` : 'hsl(var(--primary))',
     '--cta-button-text': content.ctaButtonTextColor ? `hsl(${content.ctaButtonTextColor})` : 'hsl(var(--secondary))',
     '--about-quote-bg': content.aboutQuoteBgColor ? `hsl(${content.aboutQuoteBgColor})` : 'hsl(var(--primary))',
@@ -294,7 +294,7 @@ export default function DomusLayout({ broker, properties }: DomusLayoutProps) {
             box-shadow: 0 0 10px rgba(0,0,0,0.1);
         }
       `}</style>
-      <DomusHeader broker={broker} />
+      <DomusHeader broker={broker as any} />
       <main>
         <section className="max-w-[1280px] mx-auto px-6 pt-12 md:pt-20 pb-10">
           <div className="flex flex-col lg:flex-row gap-12 items-center mb-16 lg:mb-24">
@@ -417,8 +417,8 @@ export default function DomusLayout({ broker, properties }: DomusLayoutProps) {
                     </div>
                 </div>
                 
-                <button type="submit" style={{ backgroundColor: 'var(--search-button-bg)', color: 'var(--search-button-text)' }} className="w-full lg:w-auto min-w-[200px] font-black h-14 rounded-2xl shadow-lg hover:shadow-primary/20 hover:scale-[1.05] transition-all flex items-center justify-center gap-2 uppercase text-xs tracking-[0.1em] group">
-                    <span className="material-symbols-outlined transition-transform group-hover:rotate-12">search</span>
+                <button type="submit" style={{ backgroundColor: 'var(--search-button-bg)', color: '#ffffff' }} className="w-full lg:w-auto min-w-[200px] font-black h-14 rounded-2xl shadow-lg hover:shadow-primary/20 hover:scale-[1.05] transition-all flex items-center justify-center gap-2 uppercase text-xs tracking-[0.1em] group text-white">
+                    <span className="material-symbols-outlined transition-transform group-hover:rotate-12 text-inherit">search</span>
                     Buscar Imóveis
                 </button>
             </form>
@@ -470,7 +470,7 @@ export default function DomusLayout({ broker, properties }: DomusLayoutProps) {
                 <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden shadow-lg">
                   <div className="absolute inset-0 bg-center bg-no-repeat bg-cover group-hover:scale-110 transition-transform duration-700" style={{ backgroundImage: 'url(' + (property.midia?.[0] || 'https://picsum.photos/400/300') + ')' }}></div>
                   <div className="absolute top-4 left-4" style={{ backgroundColor: 'var(--status-tag-bg)', color: 'var(--status-tag-text)' }}>
-                    <span className="backdrop-blur-sm text-[10px] font-bold px-3 py-1 rounded-lg uppercase tracking-widest">{property.informacoesbasicas.status}</span>
+                    <span className="backdrop-blur-sm text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest">{property.informacoesbasicas.status}</span>
                   </div>
                 </div>
                 <div className="flex flex-col gap-2">
@@ -481,7 +481,7 @@ export default function DomusLayout({ broker, properties }: DomusLayoutProps) {
 </div>
 <div className="flex gap-4 py-2 border-y border-[#f3f4f0] dark:border-white/5 mt-2">
 <div className="flex items-center gap-1 text-[#161811]/60 dark:text-white/60 text-sm">
-<span className="material-symbols-outlined text-lg" style={{ color: 'var(--card-icon)' }}>bed</span> {formatQuartos(property.caracteristicasimovel.quartos)}
+<span className="material-symbols-outlined text-lg" style={{ color: 'var(--card-icon)' }}>bed</span> {Array.isArray(property.caracteristicasimovel.quartos) ? property.caracteristicasimovel.quartos.join(', ') : property.caracteristicasimovel.quartos}
                     </div>
 <div className="flex items-center gap-1 text-[#161811]/60 dark:text-white/60 text-sm">
 <span className="material-symbols-outlined text-lg" style={{ color: 'var(--card-icon)' }}>directions_car</span> {property.caracteristicasimovel.vagas}
@@ -573,8 +573,8 @@ export default function DomusLayout({ broker, properties }: DomusLayoutProps) {
                 <div className="relative z-10 max-w-[800px] mx-auto flex flex-col gap-8 items-center">
                     <h2 className="text-4xl md:text-6xl font-bold leading-tight tracking-tight" style={{ color: 'var(--cta-section-title)' }}>{content.ctaTitle || 'Pronto para encontrar seu próximo lar?'}</h2>
                     <p className="text-xl" style={{ color: 'var(--cta-section-subtitle)' }}>{content.ctaSubtitle || 'Agende uma consultoria personalizada agora mesmo via WhatsApp.'}</p>
-                    <div className="flex flex-col sm:flex-row gap-4 mt-4">
-                        <a href={whatsappLink} target="_blank" rel="noopener noreferrer" className="flex min-w-[240px] items-center justify-center gap-3 rounded-full h-16 px-10 text-lg font-black shadow-lg hover:scale-[1.05] transition-transform uppercase tracking-widest" style={{ backgroundColor: 'var(--cta-section-button-bg)', color: 'var(--cta-section-button-text)' }}>
+                    <div className="flex flex-col sm:flex-row gap-4 mt-4 w-full sm:w-auto px-4">
+                        <a href={whatsappLink} target="_blank" rel="noopener noreferrer" className="flex w-full items-center justify-center gap-3 rounded-full h-16 px-10 text-lg font-black shadow-lg hover:scale-[1.05] transition-transform uppercase tracking-widest" style={{ backgroundColor: 'var(--cta-section-button-bg)', color: 'var(--cta-section-button-text)' }}>
                             <span className="material-symbols-outlined font-bold">chat</span>
                             FALAR NO WHATSAPP
                         </a>
@@ -583,7 +583,7 @@ export default function DomusLayout({ broker, properties }: DomusLayoutProps) {
             </div>
 </section>
 </main>
-<DomusFooter broker={broker} />
+<DomusFooter broker={broker as any} />
 <WhatsAppWidget brokerId={broker.id} />
 </div>
   );

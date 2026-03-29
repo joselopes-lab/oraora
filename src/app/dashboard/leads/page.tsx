@@ -1,7 +1,6 @@
-
 'use client';
 import { useState, useEffect, useMemo } from 'react';
-import { useCollection, useFirestore, useMemoFirebase, useAuthContext, setDocumentNonBlocking, deleteDocumentNonBlocking, addDocumentNonBlocking } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase, useAuthContext, setDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { collection, query, where, doc, orderBy, writeBatch, serverTimestamp, getDocs, getDoc, Timestamp, limit } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -15,7 +14,7 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Input } from '@/components/ui/input';
@@ -428,8 +427,8 @@ export default function LeadsPage() {
         <Dialog open={isFunnelEditorOpen} onOpenChange={setIsFunnelEditorOpen}>
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-6">
                 <div>
-                    <h1 className="text-3xl font-bold text-text-main tracking-tight">Gestão de Leads</h1>
-                    <p className="text-text-secondary mt-1">Acompanhe seu funil de vendas e mova os cards para atualizar o status.</p>
+                    <h1 className="text-3xl font-bold text-text-main tracking-tight">Funil de Vendas</h1>
+                    <p className="text-text-secondary mt-1">Acompanhe seus leads e mova os cards para atualizar o status do atendimento.</p>
                 </div>
                 <div className="flex gap-3">
                     <Button asChild variant="outline" className="bg-white border border-gray-200 hover:bg-gray-50 text-text-main font-medium py-2.5 px-4 rounded-lg transition-all duration-300 flex items-center gap-2">
@@ -440,8 +439,8 @@ export default function LeadsPage() {
                     </Button>
                     <DialogTrigger asChild>
                       <Button variant="outline" className="bg-white border border-gray-200 hover:bg-gray-50 text-text-main font-medium py-2.5 px-4 rounded-lg transition-all duration-300 flex items-center gap-2">
-                        <span className="material-symbols-outlined text-[18px]">edit</span>
-                        Editar Funil
+                        <span className="material-symbols-outlined text-[18px]">edit_note</span>
+                        Editar Etapas
                       </Button>
                     </DialogTrigger>
                     <Button asChild className="bg-secondary text-white hover:text-black font-bold py-2.5 px-5 rounded-lg shadow-sm hover:shadow-glow transition-all duration-300 flex items-center gap-2 group">
@@ -476,12 +475,11 @@ export default function LeadsPage() {
                             </div>
                         </div>
                         <div>
-                            <label className="block text-xs font-medium text-text-secondary mb-1.5 uppercase tracking-wide">Corretor Responsável</label>
+                            <label className="block text-xs font-medium text-text-secondary mb-1.5 uppercase tracking-wide">Responsável</label>
                             <div className="relative">
                                 <select className="appearance-none w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-text-main focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all cursor-pointer">
                                     <option value="">Todos</option>
-                                    <option value="me">Ana Silva (Eu)</option>
-                                    <option value="joao">João Souza</option>
+                                    <option value="me">Minha Carteira</option>
                                 </select>
                                 <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-text-secondary text-[20px]">expand_more</span>
                             </div>
@@ -528,16 +526,25 @@ export default function LeadsPage() {
                                             <div className={`size-2 rounded-full ${column.color}`}></div>
                                             <h3 className="font-bold text-text-main text-sm uppercase tracking-wide">{column.title}</h3>
                                         </div>
-                                        <span className="bg-gray-200 text-text-secondary text-xs font-bold px-2 py-0.5 rounded-full">{leadsInColumn.length}</span>
+                                        <div className="flex items-center gap-2">
+                                            <span className="bg-gray-200 text-text-secondary text-xs font-bold px-2 py-0.5 rounded-full">{leadsInColumn.length}</span>
+                                            <button 
+                                                onClick={() => setIsFunnelEditorOpen(true)}
+                                                className="text-gray-400 hover:text-primary transition-colors cursor-pointer"
+                                                title="Editar Etapa"
+                                            >
+                                                <span className="material-symbols-outlined text-[16px]">edit</span>
+                                            </button>
+                                        </div>
                                     </div>
-                                    <div className={`kanban-col ${column.bgColor} rounded-xl p-2 flex flex-col gap-3 border border-gray-100/50 transition-colors`}>
+                                    <div className={`kanban-col ${column.bgColor} rounded-xl p-2 flex flex-col gap-3 border border-gray-100/50 transition-colors h-full min-h-[400px]`}>
                                         {isLoading && <p className="text-center text-xs text-text-secondary p-4">Carregando...</p>}
                                         {!isLoading && leadsInColumn.map(lead => (
                                             <LeadCard key={lead.id} lead={lead} columns={columns} onMove={handleMoveLead} onDragStart={handleDragStart} onDeleteClick={setLeadToDelete}/>
                                         ))}
                                         {!isLoading && leadsInColumn.length === 0 && (
-                                            <div className="text-center text-xs text-text-secondary p-4 h-24 flex items-center justify-center">
-                                                Arraste os cards para cá
+                                            <div className="text-center text-xs text-text-secondary p-4 h-24 flex items-center justify-center border-2 border-dashed border-gray-200/50 rounded-xl">
+                                                Nenhum lead aqui
                                             </div>
                                         )}
                                     </div>
@@ -631,32 +638,41 @@ export default function LeadsPage() {
                     </AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>
-             <DialogContent className="sm:max-w-[600px]">
-                <DialogHeader>
-                    <DialogTitle>Editar Funil de Vendas</DialogTitle>
+             <DialogContent className="sm:max-w-[600px] p-0 overflow-hidden border-none shadow-2xl">
+                <DialogHeader className="p-6 border-b border-slate-100 bg-white">
+                    <DialogTitle className="text-xl font-bold tracking-tight">Configurar Etapas do Funil</DialogTitle>
                     <DialogDescription>
-                        Personalize as colunas do seu funil de vendas. Arraste para reordenar.
+                        Personalize os nomes das etapas para que o funil reflita exatamente o seu processo de vendas.
                     </DialogDescription>
                 </DialogHeader>
-                <div className="py-4">
+                <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
                     {editableColumns?.map((column, index) => (
-                         <div key={column.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50">
-                            <span className="material-symbols-outlined text-gray-400 cursor-grab">drag_indicator</span>
-                            <div className={`w-3 h-6 rounded-sm ${column.color}`}></div>
+                         <div key={column.id} className="flex items-center gap-3 p-3 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-white hover:border-primary/30 transition-all group">
+                            <span className="material-symbols-outlined text-slate-300 cursor-grab active:cursor-grabbing">drag_indicator</span>
+                            <div className={cn("size-3 rounded-full shrink-0", column.color)}></div>
                              <Input
                                 value={column.title}
                                 onChange={(e) => handleColumnTitleChange(index, e.target.value)}
-                                className="flex-1"
+                                className="flex-1 bg-transparent border-none focus-visible:ring-0 font-bold text-slate-900 placeholder:text-slate-400 h-8 p-0"
+                                placeholder="Nome da etapa..."
                             />
-                             <Button variant="ghost" size="icon" className="text-gray-400 hover:text-red-500" onClick={() => handleDeleteColumn(column.id, index)}>
+                             <Button variant="ghost" size="icon" className="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all" onClick={() => handleDeleteColumn(column.id, index)}>
                                 <span className="material-symbols-outlined text-lg">delete</span>
                             </Button>
                         </div>
                     ))}
+                    <Button type="button" variant="outline" onClick={handleAddColumn} className="w-full border-dashed py-6 rounded-xl text-slate-500 hover:text-primary hover:border-primary transition-all">
+                        <span className="material-symbols-outlined mr-2">add_circle</span>
+                        Adicionar Nova Etapa
+                    </Button>
                 </div>
-                 <DialogFooter>
-                    <Button type="button" variant="outline" onClick={handleAddColumn}>Adicionar Coluna</Button>
-                     <Button type="button" onClick={handleSaveChanges}>Salvar Alterações</Button>
+                 <DialogFooter className="p-6 border-t border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row gap-3">
+                    <DialogClose asChild>
+                        <Button type="button" variant="ghost" className="flex-1">Descartar</Button>
+                    </DialogClose>
+                    <Button type="button" onClick={handleSaveChanges} className="flex-1 bg-primary text-slate-900 font-bold shadow-lg shadow-primary/20 border-none">
+                        Salvar Alterações
+                    </Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>

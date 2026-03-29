@@ -314,67 +314,24 @@ export default function ClientDetailView({ client, personas, recommendedProperti
 
         <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
             <div className="xl:col-span-3 space-y-6">
-                
-                {/* Main Client Profile Data */}
-                <div className="bg-white dark:bg-slate-900 p-8 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-                    <div className="flex flex-col md:flex-row gap-8 items-center md:items-start">
-                        <div className="relative h-32 w-32 rounded-full border-4 border-primary/20 overflow-hidden bg-slate-100 flex-shrink-0">
-                            <Image 
-                                src={`https://i.pravatar.cc/150?u=${client.id}`} 
-                                alt={client.name} 
-                                fill 
-                                className="object-cover"
-                            />
-                        </div>
-                        <div className="flex-1 text-center md:text-left space-y-4">
-                            <div>
-                                <h2 className="text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tight">{client.name}</h2>
-                                <p className="text-slate-500 font-medium">{client.email} • {client.phone}</p>
-                            </div>
-                            <div className="flex flex-wrap justify-center md:justify-start gap-3">
-                                <Badge variant="outline" className="px-4 py-1.5 rounded-lg border-primary/30 bg-primary/5 text-primary-hover font-bold uppercase tracking-wider text-[10px]">
-                                    {client.clientType || 'Comprador'}
-                                </Badge>
-                                <Badge variant="outline" className={cn("px-4 py-1.5 rounded-lg font-bold uppercase tracking-wider text-[10px]", getStatusBadgeClass(client.status))}>
-                                    Status: {client.status}
-                                </Badge>
-                            </div>
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4">
-                                <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800">
-                                    <span className="text-[10px] font-black text-slate-400 uppercase block mb-1">Ticket Médio</span>
-                                    <span className="text-lg font-bold">{client.potentialValue?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }) || 'R$ 850.000'}</span>
-                                </div>
-                                <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800">
-                                    <span className="text-[10px] font-black text-slate-400 uppercase block mb-1">Interesse</span>
-                                    <span className="text-lg font-bold truncate block">{client.propertyInterest || 'Apartamento'}</span>
-                                </div>
-                                <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800">
-                                    <span className="text-[10px] font-black text-slate-400 uppercase block mb-1">Origem</span>
-                                    <span className="text-lg font-bold">{client.source || 'Site'}</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* Persona Detail Card */}
                     <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm h-full flex flex-col">
                         <div className="flex items-center justify-between mb-6">
                             <div className="flex items-center gap-3">
-                                <div className="size-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary">
+                                <div className="size-10 bg-primary/10 rounded-xl flex items-center justify-center text-green-700">
                                     <span className="material-symbols-outlined font-bold">psychology</span>
                                 </div>
                                 <h3 className="font-black text-slate-900 dark:text-white uppercase tracking-tight">Perfil (Persona)</h3>
                             </div>
                             {currentPersona && (
-                                <button onClick={() => setIsPersonaPickerOpen(true)} className="text-[10px] font-black text-primary hover:underline uppercase tracking-widest cursor-pointer">Trocar Perfil</button>
+                                <button onClick={() => setIsPersonaPickerOpen(true)} className="text-[10px] font-black text-green-700 hover:underline uppercase tracking-widest cursor-pointer">Trocar Perfil</button>
                             )}
                         </div>
                         {currentPersona ? (
                             <div className="flex-1 space-y-6">
                                 <div className="bg-primary/5 p-5 rounded-2xl border border-primary/10">
-                                    <p className="text-primary-hover font-black text-xl mb-2">{currentPersona.name}</p>
+                                    <p className="text-green-700 font-black text-xl mb-2">{currentPersona.name}</p>
                                     <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed">{currentPersona.description}</p>
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
@@ -384,7 +341,7 @@ export default function ClientDetailView({ client, personas, recommendedProperti
                                     </div>
                                     <div className="space-y-1 text-right">
                                         <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Frequência</span>
-                                        <p className="text-xs font-bold text-primary">Alta Atividade</p>
+                                        <p className="text-xs font-bold text-green-700">Alta Atividade</p>
                                     </div>
                                 </div>
                             </div>
@@ -394,7 +351,7 @@ export default function ClientDetailView({ client, personas, recommendedProperti
                                 <p className="text-xs text-slate-400 font-medium">Nenhuma persona vinculada.</p>
                                 <Dialog open={isPersonaPickerOpen} onOpenChange={setIsPersonaPickerOpen}>
                                     <DialogTrigger asChild>
-                                        <Button variant="link" className="text-xs font-bold text-primary mt-2">Definir Perfil</Button>
+                                        <Button variant="link" className="text-xs font-bold text-green-700 mt-2">Definir Perfil</Button>
                                     </DialogTrigger>
                                     <DialogContent className="max-w-3xl max-h-[80vh] flex flex-col p-0">
                                         <DialogHeader className="p-6 border-b border-slate-100">
@@ -413,7 +370,7 @@ export default function ClientDetailView({ client, personas, recommendedProperti
                                                             <div className={cn("size-8 rounded-lg flex items-center justify-center", p.iconBackgroundColor)}>
                                                                 <span className="material-symbols-outlined text-sm">{p.icon}</span>
                                                             </div>
-                                                            <h4 className="font-bold text-slate-900 group-hover:text-primary-hover transition-colors">{p.name}</h4>
+                                                            <h4 className="font-bold text-slate-900 group-hover:text-green-700 transition-colors">{p.name}</h4>
                                                         </div>
                                                         <p className="text-xs text-slate-500 line-clamp-2">{p.description}</p>
                                                     </div>
@@ -435,7 +392,7 @@ export default function ClientDetailView({ client, personas, recommendedProperti
                     <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm h-full flex flex-col">
                         <div className="flex items-center justify-between mb-6">
                             <div className="flex items-center gap-3">
-                                <div className="size-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary">
+                                <div className="size-10 bg-primary/10 rounded-xl flex items-center justify-center text-green-700">
                                     <span className="material-symbols-outlined font-bold">apartment</span>
                                 </div>
                                 <h3 className="font-black text-slate-900 dark:text-white uppercase tracking-tight">Imóveis de Interesse</h3>
@@ -445,13 +402,13 @@ export default function ClientDetailView({ client, personas, recommendedProperti
                         <div className="space-y-3 flex-1">
                             {linkedProperties.length > 0 ? (
                                 paginatedLinkedProps.map((prop) => (
-                                    <div key={prop.id} className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800 group hover:border-primary/50 transition-all shadow-sm">
+                                    <div key={prop.id} className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-800 group hover:border-primary/50 transition-all shadow-sm">
                                         <div className="h-12 w-12 rounded-lg bg-cover bg-center shrink-0 border border-slate-200" style={{ backgroundImage: `url('${prop.midia?.[0] || 'https://placehold.co/100x100'}')` }}></div>
                                         <div className="flex-1 overflow-hidden min-w-0">
                                             <p className="text-xs font-black text-slate-900 dark:text-white truncate">{prop.informacoesbasicas.nome}</p>
-                                            <p className="text-[10px] text-primary font-bold mt-0.5">{prop.informacoesbasicas.valor?.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL', maximumFractionDigits: 0})}</p>
+                                            <p className="text-[10px] text-green-700 font-bold mt-0.5">{prop.informacoesbasicas.valor?.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL', maximumFractionDigits: 0})}</p>
                                         </div>
-                                        <Link href={`/dashboard/imoveis/${prop.id}`} className="p-1.5 rounded-lg text-slate-300 group-hover:text-primary transition-colors">
+                                        <Link href={`/dashboard/imoveis/${prop.id}`} className="p-1.5 rounded-lg text-slate-300 group-hover:text-green-700 transition-colors">
                                             <span className="material-symbols-outlined text-lg">open_in_new</span>
                                         </Link>
                                     </div>
@@ -464,8 +421,8 @@ export default function ClientDetailView({ client, personas, recommendedProperti
                         </div>
                         {totalLinkedPages > 1 && (
                             <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-100 dark:border-slate-800">
-                                <button onClick={() => setLinkedPropsPage(p => Math.max(1, p - 1))} disabled={linkedPropsPage === 1} className="text-[10px] font-black text-slate-400 hover:text-primary disabled:opacity-20 uppercase tracking-widest flex items-center gap-1 cursor-pointer"><span className="material-symbols-outlined text-sm">chevron_left</span> Anterior</button>
-                                <button onClick={() => setLinkedPropsPage(p => Math.min(totalLinkedPages, p + 1))} disabled={linkedPropsPage === totalLinkedPages} className="text-[10px] font-black text-slate-400 hover:text-primary disabled:opacity-20 uppercase tracking-widest flex items-center gap-1 cursor-pointer">Próximo <span className="material-symbols-outlined text-sm">chevron_right</span></button>
+                                <button onClick={() => setLinkedPropsPage(p => Math.max(1, p - 1))} disabled={linkedPropsPage === 1} className="text-[10px] font-black text-slate-400 hover:text-green-700 disabled:opacity-20 uppercase tracking-widest flex items-center gap-1 cursor-pointer transition-colors"><span className="material-symbols-outlined text-sm">chevron_left</span> Anterior</button>
+                                <button onClick={() => setLinkedPropsPage(p => Math.min(totalLinkedPages, p + 1))} disabled={linkedPropsPage === totalLinkedPages} className="text-[10px] font-black text-slate-400 hover:text-green-700 disabled:opacity-20 uppercase tracking-widest flex items-center gap-1 cursor-pointer transition-colors">Próximo <span className="material-symbols-outlined text-sm">chevron_right</span></button>
                             </div>
                         )}
                     </div>
@@ -475,7 +432,7 @@ export default function ClientDetailView({ client, personas, recommendedProperti
                 <div id="ai-suggestions" className="bg-white dark:bg-slate-900 p-8 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm scroll-mt-20 relative">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
                         <div className="flex items-center gap-3">
-                            <div className="size-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary shadow-sm">
+                            <div className="size-12 bg-primary/10 rounded-2xl flex items-center justify-center text-green-700 shadow-sm">
                                 <span className="material-symbols-outlined text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>auto_awesome</span>
                             </div>
                             <div>
@@ -518,7 +475,7 @@ export default function ClientDetailView({ client, personas, recommendedProperti
                                             <button 
                                                 onClick={(e) => { e.stopPropagation(); handleLinkProperty(prop.id); }}
                                                 disabled={isSavingLink === prop.id}
-                                                className="size-8 bg-white dark:bg-slate-800 rounded-lg flex items-center justify-center text-slate-400 hover:text-primary hover:scale-110 transition-all shadow-sm cursor-pointer disabled:opacity-50"
+                                                className="size-8 bg-white dark:bg-slate-800 rounded-lg flex items-center justify-center text-slate-400 hover:text-green-700 hover:scale-110 transition-all shadow-sm cursor-pointer disabled:opacity-50"
                                                 title="Vincular ao Interesse"
                                             >
                                                 {isSavingLink === prop.id ? (
@@ -557,7 +514,7 @@ export default function ClientDetailView({ client, personas, recommendedProperti
                                     </Button>
                                     <Button 
                                         onClick={handleShareSelection}
-                                        className="bg-primary hover:bg-primary-hover text-slate-900 font-black h-11 px-6 rounded-xl flex items-center gap-2 shadow-glow"
+                                        className="bg-primary text-slate-900 font-black h-11 px-6 rounded-xl flex items-center gap-2 shadow-glow"
                                     >
                                         <span className="material-symbols-outlined">send</span>
                                         Compartilhar Seleção
@@ -614,7 +571,7 @@ export default function ClientDetailView({ client, personas, recommendedProperti
                 {/* Internal Notes Section */}
                 <div className="bg-slate-950 text-white p-6 rounded-2xl shadow-xl flex flex-col h-[500px]">
                     <div className="flex items-center gap-2 mb-6 border-b border-white/10 pb-4">
-                        <span className="material-symbols-outlined text-primary">sticky_note_2</span>
+                        <span className="material-symbols-outlined text-green-700">sticky_note_2</span>
                         <h3 className="font-bold uppercase text-xs tracking-widest">Notas do Corretor</h3>
                     </div>
                     <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-4 mb-4">
@@ -622,7 +579,7 @@ export default function ClientDetailView({ client, personas, recommendedProperti
                             <div key={note.id} className="p-4 bg-white/5 rounded-xl relative group border border-white/5 shadow-inner">
                                 <p className="text-xs text-slate-300 leading-relaxed">"{note.text}"</p>
                                 <div className="flex justify-between items-center mt-3 pt-3 border-t border-white/5">
-                                    <p className="text-[9px] text-slate-500 font-bold uppercase">{new Date(note.createdAt).toLocaleDateString('pt-BR', {day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'})}</p>
+                                    <p className="text-[9px] text-gray-400 font-bold uppercase">{new Date(note.createdAt).toLocaleDateString('pt-BR', {day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'})}</p>
                                     <button onClick={() => setNoteToDelete(note)} className="opacity-0 group-hover:opacity-100 transition-opacity text-red-400 hover:text-red-600 cursor-pointer">
                                         <span className="material-symbols-outlined text-[16px]">delete</span>
                                     </button>
@@ -630,7 +587,7 @@ export default function ClientDetailView({ client, personas, recommendedProperti
                             </div>
                         ))}
                         {(!client.notes || client.notes.length === 0) && (
-                            <p className="text-xs text-slate-500 text-center py-10 italic">Nenhuma observação interna registrada.</p>
+                            <p className="text-xs text-gray-400 text-center py-10 italic">Nenhuma observação interna registrada.</p>
                         )}
                     </div>
                     <div className="pt-4 border-t border-white/10">
@@ -638,7 +595,7 @@ export default function ClientDetailView({ client, personas, recommendedProperti
                             value={newNote}
                             onChange={(e) => setNewNote(e.target.value)}
                             placeholder="Adicionar nota rápida..."
-                            className="w-full bg-white/5 border-none rounded-xl p-4 text-xs resize-none focus:ring-1 focus:ring-primary h-24 mb-3 text-white placeholder:text-slate-600 shadow-inner"
+                            className="w-full bg-white/5 border-none rounded-xl p-4 text-xs resize-none focus:ring-1 focus:ring-primary h-24 mb-3 text-white placeholder:text-gray-400 shadow-inner"
                         />
                         <Button 
                             onClick={handleAddNote}
@@ -653,7 +610,7 @@ export default function ClientDetailView({ client, personas, recommendedProperti
                 {/* Next Steps / Task Card */}
                 <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
                     <h3 className="font-black text-slate-900 dark:text-white mb-6 uppercase text-xs tracking-widest flex items-center gap-2">
-                        <span className="material-symbols-outlined text-primary">event_note</span>
+                        <span className="material-symbols-outlined text-green-700">event_note</span>
                         Próximas Atividades
                     </h3>
                     <div className="space-y-4">
@@ -661,7 +618,7 @@ export default function ClientDetailView({ client, personas, recommendedProperti
                             clientEvents.filter(e => !e.completed).slice(0, 2).map(event => (
                                 <div key={event.id} className="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-800">
                                     <div className="flex justify-between items-start mb-1">
-                                        <span className="text-[9px] font-black text-primary uppercase">{event.type}</span>
+                                        <span className="text-[9px] font-black text-green-700 uppercase">{event.type}</span>
                                         <span className="text-[9px] text-slate-400 font-bold">{format(parseISO(event.date), 'dd/MM')}</span>
                                     </div>
                                     <p className="text-xs font-bold text-slate-900 dark:text-white truncate">{event.title}</p>
@@ -671,7 +628,7 @@ export default function ClientDetailView({ client, personas, recommendedProperti
                             <p className="text-xs text-slate-400 text-center py-4 italic">Nenhuma atividade pendente.</p>
                         )}
                     </div>
-                    <Button asChild variant="outline" className="w-full mt-6 h-10 rounded-xl font-bold text-[10px] uppercase tracking-widest border-slate-200 hover:bg-primary hover:text-slate-900 hover:border-primary transition-all">
+                    <Button asChild variant="outline" className="w-full mt-6 h-10 rounded-xl font-bold text-[10px] uppercase tracking-widest border-slate-200 hover:bg-primary hover:text-slate-950 hover:border-primary transition-all">
                         <Link href="/dashboard/agenda">Gerenciar Agenda</Link>
                     </Button>
                 </div>

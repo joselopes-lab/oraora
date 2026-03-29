@@ -89,6 +89,7 @@ type Property = {
     quartos?: string[] | string;
     tamanho?: string;
     vagas?: string;
+    tipo: string;
   };
 };
 
@@ -107,13 +108,16 @@ function hslToHex(hslStr: string): string {
     if (!parts || parts.length < 3) return '#000000';
 
     const h = parseFloat(parts[0]);
-    const s = parseFloat(parts[1]) / 100;
-    const l = parseFloat(parts[2]) / 100;
+    const s = parseFloat(parts[1]);
+    const l = parseFloat(parts[2]);
 
-    const a = s * Math.min(l, 1 - l);
+    const sNormalized = s / 100;
+    const lNormalized = l / 100;
+
+    const a = sNormalized * Math.min(lNormalized, 1 - lNormalized);
     const f = (n: number) => {
         const k = (n + h / 30) % 12;
-        const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+        const color = lNormalized - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
         return Math.round(255 * color).toString(16).padStart(2, '0');
     };
     return `#${f(0)}${f(8)}${f(4)}`;
@@ -169,10 +173,10 @@ export default function UrbanPadraoLayout({ broker, properties }: UrbanPadraoPag
 
   const formatQuartos = (quartosData: any): string => {
     if (!quartosData) return 'N/A';
-    if (Array.isArray(quartosData)) {
-      return quartosData.join(', ');
-    }
-    return String(quartosData);
+    const data = Array.isArray(quartosData) ? quartosData : [String(quartosData)];
+    if (data.length === 0) return 'N/A';
+    if (data.length === 1 && data[0] === '1') return '1 Quarto';
+    return `${data.join(', ')} Quartos`;
   };
   
   const getEmbedUrl = (url: string | undefined): string | null => {
@@ -202,6 +206,8 @@ export default function UrbanPadraoLayout({ broker, properties }: UrbanPadraoPag
     '--primary': broker.primaryColor,
     '--secondary': broker.secondaryColor,
     '--accent': broker.accentColor,
+    '--search-button-bg': content.searchButtonBgColor ? `hsl(${content.searchButtonBgColor})` : 'hsl(var(--secondary))',
+    '--search-button-text': content.searchButtonTextColor ? `hsl(${content.searchButtonTextColor})` : 'hsl(var(--primary))',
   } as React.CSSProperties;
 
   const statsSectionBgColor = broker.homepage?.statsSectionBgColor ? hslToHex(broker.homepage.statsSectionBgColor) : '#ffffff';
@@ -286,24 +292,32 @@ export default function UrbanPadraoLayout({ broker, properties }: UrbanPadraoPag
         </section>
         
         {!content.hideStats && (
-          <section className="w-full py-8 border-b border-[#f0f2f4]" style={{ backgroundColor: statsSectionBgColor }}>
+          <section className="w-full py-16 border-b border-[#f0f2f4]" style={{ backgroundColor: statsSectionBgColor }}>
             <div className="layout-container max-w-[1280px] mx-auto px-6">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-8 divide-x divide-gray-100">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:divide-x divide-gray-100">
                 <div className="flex flex-col items-center justify-center text-center px-4">
-                  <span className="text-3xl md:text-4xl font-black" style={{color: statsNumberColor}}>{content.statsSold || '+250'}</span>
-                  <span className="text-sm font-medium mt-1" style={{color: statsLabelColor}}>Imóveis Vendidos</span>
+                  <div className="text-2xl md:text-3xl font-bold leading-tight" style={{color: statsNumberColor}}>
+                    {content.statsSold || '+250'} Imóveis<br />Vendidos
+                  </div>
+                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] mt-2" style={{color: statsLabelColor}}>Imóveis Vendidos</span>
                 </div>
                 <div className="flex flex-col items-center justify-center text-center px-4">
-                  <span className="text-3xl md:text-4xl font-black" style={{color: statsNumberColor}}>{content.statsExperience || '12'}</span>
-                  <span className="text-sm font-medium mt-1" style={{color: statsLabelColor}}>Anos de Mercado</span>
+                  <div className="text-2xl md:text-3xl font-bold leading-tight" style={{color: statsNumberColor}}>
+                    {content.statsExperience || '12'} Anos de<br />Experiência
+                  </div>
+                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] mt-2" style={{color: statsLabelColor}}>Anos de Mercado</span>
                 </div>
                 <div className="flex flex-col items-center justify-center text-center px-4">
-                  <span className="text-3xl md:text-4xl font-black" style={{color: statsNumberColor}}>{content.statsSatisfaction || '98%'}</span>
-                  <span className="text-sm font-medium mt-1" style={{color: statsLabelColor}}>Clientes Satisfeitos</span>
+                  <div className="text-2xl md:text-3xl font-bold leading-tight" style={{color: statsNumberColor}}>
+                    {content.statsSatisfaction || '98%'} Satisfação<br />Comprovada
+                  </div>
+                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] mt-2" style={{color: statsLabelColor}}>Clientes Satisfeitos</span>
                 </div>
                 <div className="flex flex-col items-center justify-center text-center px-4">
-                  <span className="text-3xl md:text-4xl font-black" style={{color: statsNumberColor}}>{content.statsSupport || '24/7'}</span>
-                  <span className="text-sm font-medium mt-1" style={{color: statsLabelColor}}>Suporte Premium</span>
+                  <div className="text-2xl md:text-3xl font-bold leading-tight" style={{color: statsNumberColor}}>
+                    Suporte<br />24/7
+                  </div>
+                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] mt-2" style={{color: statsLabelColor}}>Suporte Premium</span>
                 </div>
               </div>
             </div>
@@ -327,7 +341,7 @@ export default function UrbanPadraoLayout({ broker, properties }: UrbanPadraoPag
               {featuredProperties.map((property) => {
                 const isSaved = savedPropertyIds.includes(property.id);
                 return (
-                <Link href={`/sites/${broker.slug}/imovel/${property.id}`} key={property.id} className="flex flex-col bg-white rounded-2xl overflow-hidden shadow-soft hover:shadow-card transition-all duration-300 group">
+                <Link href={`/sites/${broker.slug}/imovel/${property.informacoesbasicas.slug || property.id}`} key={property.id} className="flex flex-col bg-white rounded-2xl overflow-hidden shadow-soft hover:shadow-card transition-all duration-300 group">
                   <div className="relative h-60 w-full overflow-hidden">
                     <div
                       className={cn(

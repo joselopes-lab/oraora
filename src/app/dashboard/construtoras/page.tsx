@@ -1,3 +1,4 @@
+
 'use client';
 import {
   Table,
@@ -132,7 +133,11 @@ export default function ConstructorsPage() {
   const filteredConstructors = useMemo(() => {
     if (!constructors) return [];
     return constructors.filter(constructor => {
-        const matchesSearchTerm = constructor.name.toLowerCase().includes(searchTerm.toLowerCase());
+        const searchLower = searchTerm.toLowerCase();
+        const matchesSearchTerm = 
+            constructor.name.toLowerCase().includes(searchLower) || 
+            (constructor.publicEmail && constructor.publicEmail.toLowerCase().includes(searchLower));
+            
         const matchesState = selectedState === 'all' || constructor.state === selectedState;
         return matchesSearchTerm && matchesState;
     });
@@ -357,12 +362,12 @@ export default function ConstructorsPage() {
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
-                <Label className="block text-xs font-medium text-text-secondary mb-1.5 uppercase tracking-wide">Nome da Construtora</Label>
+                <Label className="block text-xs font-medium text-text-secondary mb-1.5 uppercase tracking-wide">Nome ou E-mail</Label>
                 <div className="relative">
                 <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[18px]">search</span>
                 <Input
                     className="w-full pl-9 bg-gray-50 border border-gray-200 rounded-lg px-4 py-2 text-sm text-text-main focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all placeholder-gray-400"
-                    placeholder="Buscar por nome..."
+                    placeholder="Buscar por nome ou e-mail..."
                     type="text"
                     value={searchTerm}
                     onChange={(e) => {
@@ -416,7 +421,7 @@ export default function ConstructorsPage() {
                   paginatedConstructors?.map((constructor) => {
                     const allInPortfolio = isBroker && checkAllInPortfolio(constructor.id);
                     return (
-                  <TableRow key={constructor.id} className="group hover:bg-background-light/50 transition-colors">
+                  <TableRow key={constructor.id} className="hover:bg-background-light/50 transition-colors group">
                     <TableCell className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-3">
                         <div className="size-10 rounded-lg bg-white border border-gray-100 p-1 flex items-center justify-center flex-shrink-0">
@@ -528,7 +533,7 @@ export default function ConstructorsPage() {
             </DialogHeader>
             <div className="grid gap-4 py-4">
                 {!isImporting && !isImportComplete && (
-                  <div className="grid w-full max-w-sm items-center gap-1.5">
+                  <div className="grid w-full max-sm items-center gap-1.5">
                       <Label htmlFor="json-file">Arquivo JSON</Label>
                       <Input id="json-file" type="file" accept=".json" onChange={handleFileImport} />
                   </div>

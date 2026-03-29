@@ -16,7 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { WhatsAppWidget } from '@/layouts/urban-padrao/components/WhatsAppWidget';
+import { WhatsAppWidget } from '@/app/sites/urban-padrao/components/WhatsAppWidget';
 import Image from 'next/image';
 
 type Broker = {
@@ -159,7 +159,7 @@ export default function DomusFaleConoscoPage({ broker }: DomusFaleConoscoPagePro
         }
       `}</style>
       
-      <DomusHeader broker={broker} />
+      <DomusHeader broker={broker as any} />
       
       <main className="bg-mesh min-h-screen pt-20">
         <section className="max-w-7xl mx-auto px-6 pt-16 pb-12">
@@ -184,7 +184,7 @@ export default function DomusFaleConoscoPage({ broker }: DomusFaleConoscoPagePro
                 </div>
                 <div>
                   <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-1">E-mail</h3>
-                  <p className="text-xl font-semibold">{broker.footerContactEmail || 'contato@oniatech.com.br'}</p>
+                  <p className="text-xl font-semibold">{broker.footerContactEmail || 'contato@oraora.com.br'}</p>
                 </div>
               </div>
               <div className="flex gap-6 group">
@@ -339,7 +339,7 @@ export default function DomusFaleConoscoPage({ broker }: DomusFaleConoscoPagePro
             </div>
         </section>
       </main>
-      <DomusFooter broker={broker} />
+      <DomusFooter broker={broker as any} />
       <WhatsAppWidget brokerId={broker.id} />
     </div>
   );
