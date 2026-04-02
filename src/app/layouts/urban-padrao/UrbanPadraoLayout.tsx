@@ -7,13 +7,17 @@ import { UrbanPadraoFooter } from './components/UrbanPadraoFooter';
 import { WhatsAppWidget } from './components/WhatsAppWidget';
 import { useRouter } from 'next/navigation';
 import { useUser, useDoc, useFirestore, useMemoFirebase, setDocumentNonBlocking } from '@/firebase';
-import { arrayRemove, arrayUnion, doc } from 'firebase/firestore';
+import { arrayRemove, arrayUnion, doc, collection, query, where, getDocs, getDoc, writeBatch } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { useState, useEffect, Suspense } from 'react';
 import SearchFilters from '@/components/SearchFilters';
+
+
+// NOTE: This is now a regular component, not a default page export.
+// It will be imported and used by the main [slug]/page.tsx.
 
 type Broker = {
   id: string;
@@ -48,26 +52,15 @@ type Broker = {
     ctaSubtitle?: string;
     aboutAwardTitle?: string;
     aboutAwardText?: string;
-    aboutQuote?: string;
+    aboutQuote?: string; // Added from Domus
     searchButtonBgColor?: string;
     searchButtonTextColor?: string;
-    statsSectionBgColor?: string;
-    statsNumberColor?: string;
-    statsLabelColor?: string;
-    cardIconColor?: string;
-    cardValueColor?: string;
-    cardTitleColor?: string;
     statusTagBgColor?: string;
     statusTagTextColor?: string;
-    aboutSectionBgColor?: string;
-    aboutTaglineColor?: string;
-    aboutTitleColor?: string;
-    aboutTextColor?: string;
-    mapSectionBgColor?: string;
-    mapTitleColor?: string;
-    mapTextColor?: string;
-    mapButtonBgColor?: string;
-    mapButtonTextColor?: string;
+    cardTitleColor?: string;
+    cardValueColor?: string;
+    cardIconColor?: string;
+    statsNumberColor?: string;
   }
 };
 
@@ -78,7 +71,6 @@ type Property = {
     status: string;
     valor?: number;
     descricao?: string;
-    slug?: string;
   };
   localizacao: {
     bairro: string;
@@ -88,8 +80,6 @@ type Property = {
   caracteristicasimovel: {
     quartos?: string[] | string;
     tamanho?: string;
-    vagas?: string;
-    tipo: string;
   };
 };
 
@@ -172,29 +162,25 @@ export default function UrbanPadraoLayout({ broker, properties }: UrbanPadraoPag
   };
 
   const formatQuartos = (quartosData: any): string => {
-    if (!quartosData) return 'N/A';
-    const data = Array.isArray(quartosData) ? quartosData : [String(quartosData)];
-    if (data.length === 0) return 'N/A';
-    if (data.length === 1 && data[0] === '1') return '1 Quarto';
-    return `${data.join(', ')} Quartos`;
+    if (!quartosData) return '';
+    if (Array.isArray(quartosData)) {
+      return quartosData.join(', ');
+    }
+    return String(quartosData);
   };
   
   const getEmbedUrl = (url: string | undefined): string | null => {
     if (!url) return null;
     let videoId;
-    try {
-        if (url.includes("youtube.com/watch?v=")) {
-            videoId = url.split("v=")[1]?.split("&")[0];
-            return `https://www.youtube.com/embed/${videoId}?autoplay=1`;
-        } else if (url.includes("youtu.be/")) {
-            videoId = url.split("/").pop()?.split("?")[0];
-            return `https://www.youtube.com/embed/${videoId}?autoplay=1`;
-        } else if (url.includes("vimeo.com/")) {
-            videoId = url.split("/").pop()?.split("?")[0];
-            return `https://player.vimeo.com/video/${videoId}?autoplay=1`;
-        }
-    } catch (e) {
-        console.error("Invalid URL format for video", e);
+    if (url.includes("youtube.com/watch?v=")) {
+      videoId = url.split("v=")[1]?.split("&")[0];
+      return `https://www.youtube.com/embed/${videoId}?autoplay=1`;
+    } else if (url.includes("youtu.be/")) {
+      videoId = url.split("/").pop()?.split("?")[0];
+      return `https://www.youtube.com/embed/${videoId}?autoplay=1`;
+    } else if (url.includes("vimeo.com/")) {
+      videoId = url.split("/").pop()?.split("?")[0];
+      return `https://player.vimeo.com/video/${videoId}?autoplay=1`;
     }
     return null;
   };
@@ -210,23 +196,14 @@ export default function UrbanPadraoLayout({ broker, properties }: UrbanPadraoPag
     '--search-button-text': content.searchButtonTextColor ? `hsl(${content.searchButtonTextColor})` : 'hsl(var(--primary))',
   } as React.CSSProperties;
 
-  const statsSectionBgColor = broker.homepage?.statsSectionBgColor ? hslToHex(broker.homepage.statsSectionBgColor) : '#ffffff';
-  const statsNumberColor = broker.homepage?.statsNumberColor ? hslToHex(broker.homepage.statsNumberColor) : 'hsl(var(--primary))';
-  const statsLabelColor = broker.homepage?.statsLabelColor ? hslToHex(broker.homepage.statsLabelColor) : 'hsl(var(--muted-foreground))';
-  const cardIconColor = broker.homepage?.cardIconColor ? hslToHex(broker.homepage.cardIconColor) : undefined;
-  const cardValueColor = broker.homepage?.cardValueColor ? hslToHex(broker.homepage.cardValueColor) : undefined;
-  const cardTitleColor = broker.homepage?.cardTitleColor ? hslToHex(broker.homepage.cardTitleColor) : undefined;
-  const statusTagBgColor = broker.homepage?.statusTagBgColor ? hslToHex(broker.homepage.statusTagBgColor) : undefined;
-  const statusTagTextColor = broker.homepage?.statusTagTextColor ? hslToHex(broker.homepage.statusTagTextColor) : undefined;
-  const aboutSectionBgColor = broker.homepage?.aboutSectionBgColor ? hslToHex(broker.homepage.aboutSectionBgColor) : '#ffffff';
-  const aboutTaglineColor = broker.homepage?.aboutTaglineColor ? hslToHex(broker.homepage.aboutTaglineColor) : 'hsl(var(--primary))';
-  const aboutTitleColor = broker.homepage?.aboutTitleColor ? hslToHex(broker.homepage.aboutTitleColor) : undefined;
-  const aboutTextColor = broker.homepage?.aboutTextColor ? hslToHex(broker.homepage.aboutTextColor) : undefined;
-  const mapSectionBgColor = broker.homepage?.mapSectionBgColor ? hslToHex(broker.homepage.mapSectionBgColor) : '#f8f9fa';
-  const mapTitleColor = broker.homepage?.mapTitleColor ? hslToHex(broker.homepage.mapTitleColor) : undefined;
-  const mapTextColor = broker.homepage?.mapTextColor ? hslToHex(broker.homepage.mapTextColor) : undefined;
-  const mapButtonBgColor = broker.homepage?.mapButtonBgColor ? hslToHex(broker.homepage.mapButtonBgColor) : undefined;
-  const mapButtonTextColor = broker.homepage?.mapButtonTextColor ? hslToHex(broker.homepage.mapButtonTextColor) : undefined;
+  const cardTitleColor = content.cardTitleColor ? hslToHex(content.cardTitleColor) : undefined;
+  const cardValueColor = content.cardValueColor ? hslToHex(content.cardValueColor) : undefined;
+  const cardIconColor = content.cardIconColor ? hslToHex(content.cardIconColor) : undefined;
+  const statusTagBgColor = content.statusTagBgColor ? hslToHex(content.statusTagBgColor) : undefined;
+  const statusTagTextColor = content.statusTagTextColor ? hslToHex(content.statusTagTextColor) : undefined;
+  const statsNumberColor = content.statsNumberColor ? hslToHex(content.statsNumberColor) : 'hsl(var(--secondary))';
+
+  const hasStats = content.statsSold || content.statsExperience || content.statsSatisfaction || content.statsSupport;
 
   return (
     <div style={dynamicStyles} className="urban-padrao-theme relative flex min-h-screen w-full flex-col group/design-root bg-background-light text-text-main font-display antialiased overflow-x-hidden selection:bg-primary selection:text-black">
@@ -234,7 +211,7 @@ export default function UrbanPadraoLayout({ broker, properties }: UrbanPadraoPag
       {/* Main Content */}
       <main className="flex-1 w-full flex flex-col items-center">
         {/* Hero Section */}
-        <section className="w-full relative z-10 px-4 pt-6 pb-20 md:px-10 lg:px-20 max-w-[1440px]">
+        <section className="w-full relative px-4 pt-6 pb-20 md:px-10 lg:px-20 max-w-[1440px]">
           <div className="relative w-full rounded-2xl overflow-hidden min-h-[500px] lg:min-h-[600px] flex items-center justify-center bg-black group cursor-pointer">
             <div
               className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105"
@@ -249,7 +226,7 @@ export default function UrbanPadraoLayout({ broker, properties }: UrbanPadraoPag
               </div>
               <h1 className="text-white text-4xl md:text-6xl lg:text-7xl font-black leading-tight tracking-tight mb-6" dangerouslySetInnerHTML={{ __html: content.heroTitle || 'Viva a experiência de morar <span class="text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary">bem.</span>' }}></h1>
               <p className="text-gray-200 text-base md:text-lg max-w-2xl mb-10 font-light">
-                {content.heroSubtitle || 'Curadoria de imóveis de alto padrão com atendimento personalizado.'}
+                {content.heroSubtitle || 'Curadoria de imóveis de alto padrão com atendimento personalizado. Encontre o lar dos seus sonhos com tecnologia e sofisticação.'}
               </p>
               {videoEmbedUrl && isMounted && (
                 <Dialog>
@@ -265,7 +242,9 @@ export default function UrbanPadraoLayout({ broker, properties }: UrbanPadraoPag
                      <DialogHeader>
                           <VisuallyHidden>
                               <DialogTitle>Vídeo de Apresentação</DialogTitle>
-                              <DialogDescription>Vídeo de apresentação.</DialogDescription>
+                              <DialogDescription>
+                                  Vídeo de apresentação do corretor ou do imóvel.
+                              </DialogDescription>
                           </VisuallyHidden>
                       </DialogHeader>
                     <div className="aspect-video">
@@ -286,74 +265,81 @@ export default function UrbanPadraoLayout({ broker, properties }: UrbanPadraoPag
           {/* Floating Search Bar */}
           <div className="relative z-20 -mt-16 w-full max-w-5xl mx-auto px-4">
             <Suspense fallback={<div className="h-24 bg-white rounded-2xl animate-pulse shadow-card border border-gray-100" />}>
-              <SearchFilters onSearch={handleSearch} className="shadow-card border border-gray-100" />
+              <SearchFilters onSearch={handleSearch} />
             </Suspense>
           </div>
         </section>
-        
-        {!content.hideStats && (
-          <section className="w-full py-16 border-b border-[#f0f2f4]" style={{ backgroundColor: statsSectionBgColor }}>
+        {/* Stats Bar */}
+        {hasStats && !content.hideStats && (
+          <section className="w-full py-12 border-b border-[#f0f2f4] bg-white">
             <div className="layout-container max-w-[1280px] mx-auto px-6">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:divide-x divide-gray-100">
-                <div className="flex flex-col items-center justify-center text-center px-4">
-                  <div className="text-2xl md:text-3xl font-bold leading-tight" style={{color: statsNumberColor}}>
-                    {content.statsSold || '+250'} Imóveis<br />Vendidos
+              <div className="flex flex-wrap items-center justify-center gap-y-8">
+                {content.statsSold && (
+                  <div className="flex flex-col items-center justify-center text-center px-6 border-gray-100 w-full sm:w-1/2 lg:w-1/4">
+                    <span className="text-base md:text-lg font-black leading-tight uppercase break-words" style={{ color: statsNumberColor }}>
+                      {content.statsSold}
+                    </span>
                   </div>
-                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] mt-2" style={{color: statsLabelColor}}>Imóveis Vendidos</span>
-                </div>
-                <div className="flex flex-col items-center justify-center text-center px-4">
-                  <div className="text-2xl md:text-3xl font-bold leading-tight" style={{color: statsNumberColor}}>
-                    {content.statsExperience || '12'} Anos de<br />Experiência
+                )}
+                {content.statsExperience && (
+                  <div className="flex flex-col items-center justify-center text-center px-6 border-gray-100 md:border-l w-full sm:w-1/2 lg:w-1/4">
+                    <span className="text-base md:text-lg font-black leading-tight uppercase break-words" style={{ color: statsNumberColor }}>
+                      {content.statsExperience}
+                    </span>
                   </div>
-                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] mt-2" style={{color: statsLabelColor}}>Anos de Mercado</span>
-                </div>
-                <div className="flex flex-col items-center justify-center text-center px-4">
-                  <div className="text-2xl md:text-3xl font-bold leading-tight" style={{color: statsNumberColor}}>
-                    {content.statsSatisfaction || '98%'} Satisfação<br />Comprovada
+                )}
+                {content.statsSatisfaction && (
+                  <div className="flex flex-col items-center justify-center text-center px-6 border-gray-100 lg:border-l w-full sm:w-1/2 lg:w-1/4">
+                    <span className="text-base md:text-lg font-black leading-tight uppercase break-words" style={{ color: statsNumberColor }}>
+                      {content.statsSatisfaction}
+                    </span>
                   </div>
-                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] mt-2" style={{color: statsLabelColor}}>Clientes Satisfeitos</span>
-                </div>
-                <div className="flex flex-col items-center justify-center text-center px-4">
-                  <div className="text-2xl md:text-3xl font-bold leading-tight" style={{color: statsNumberColor}}>
-                    Suporte<br />24/7
+                )}
+                {content.statsSupport && (
+                  <div className="flex flex-col items-center justify-center text-center px-6 border-gray-100 md:border-l w-full sm:w-1/2 lg:w-1/4">
+                    <span className="text-base md:text-lg font-black leading-tight uppercase break-words" style={{ color: statsNumberColor }}>
+                      {content.statsSupport}
+                    </span>
                   </div>
-                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] mt-2" style={{color: statsLabelColor}}>Suporte Premium</span>
-                </div>
+                )}
               </div>
             </div>
           </section>
         )}
-
+        {/* Featured Properties */}
         <section className="w-full py-16 lg:py-24 bg-background-light">
           <div className="layout-container max-w-[1280px] mx-auto px-6 flex flex-col gap-12">
             <div className="flex flex-col md:flex-row items-end justify-between gap-6">
               <div className="max-w-2xl">
                 <span className="text-secondary font-bold tracking-wider uppercase text-sm mb-2 block">{content.featuredTagline || 'Destaques'}</span>
                 <h2 className="text-text-main text-3xl md:text-4xl font-bold leading-tight">{content.featuredTitle || 'Imóveis Selecionados'}</h2>
-                <p className="text-text-muted mt-4">{content.featuredSubtitle || 'Oportunidades únicas escolhidas a dedo.'}</p>
+                <p className="text-text-muted mt-4">{content.featuredSubtitle || 'Oportunidades únicas escolhidas a dedo para você viver o extraordinário.'}</p>
               </div>
-              <Link className="flex items-center gap-2 font-bold text-black border-b-2 border-primary pb-1 hover:text-primary transition-colors" href={`/sites/${broker.slug}/search`}>
+              <a className="flex items-center gap-2 font-bold text-black border-b-2 border-primary pb-1 hover:text-primary transition-colors" href={`/sites/${broker.slug}/search`}>
                 Ver todos os imóveis
                 <span className="material-symbols-outlined">arrow_forward</span>
-              </Link>
+              </a>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+            {/* Properties Container */}
+            {properties.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
               {featuredProperties.map((property) => {
                 const isSaved = savedPropertyIds.includes(property.id);
+                const quartos = property.caracteristicasimovel.quartos;
                 return (
-                <Link href={`/sites/${broker.slug}/imovel/${property.informacoesbasicas.slug || property.id}`} key={property.id} className="flex flex-col bg-white rounded-2xl overflow-hidden shadow-soft hover:shadow-card transition-all duration-300 group">
+                <Link href={`/sites/${broker.slug}/imovel/${property.id}`} key={property.id} className="flex flex-col bg-white rounded-2xl overflow-hidden shadow-soft hover:shadow-card transition-all duration-300 group">
                   <div className="relative h-60 w-full overflow-hidden">
-                    <div
-                      className={cn(
-                        "absolute top-3 left-3 z-10 rounded-md px-2 py-1 text-xs font-bold uppercase tracking-wide shadow-sm",
-                        !statusTagBgColor && 'bg-primary text-primary-foreground'
-                      )}
-                      style={{
-                          backgroundColor: statusTagBgColor,
-                          color: statusTagTextColor
-                      }}
+                    <div 
+                        className={cn(
+                            "absolute top-4 left-4 z-10 px-3 py-1 rounded-md text-xs font-bold uppercase tracking-wider shadow-sm",
+                            !statusTagBgColor && "bg-primary text-black"
+                        )}
+                        style={{
+                            backgroundColor: statusTagBgColor,
+                            color: statusTagTextColor
+                        }}
                     >
-                      {property.informacoesbasicas.status}
+                        {property.informacoesbasicas.status}
                     </div>
                     <button onClick={(e) => handleRadarClick(e, property.id)} className={cn("flex size-8 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm text-white hover:bg-white transition-colors group/radar", isSaved ? "text-primary" : "hover:text-primary")}>
                         <span className="material-symbols-outlined text-[20px]">radar</span>
@@ -367,14 +353,11 @@ export default function UrbanPadraoLayout({ broker, properties }: UrbanPadraoPag
                   </div>
                   <div className="flex flex-col p-5 gap-3">
                     <div className="flex justify-between items-start">
-                      <h3 className="text-lg font-bold text-text-main leading-snug group-hover:text-primary transition-colors line-clamp-1" style={{color: cardTitleColor}}>{property.informacoesbasicas.nome}</h3>
+                      <h3 className="text-lg font-bold text-text-main leading-snug line-clamp-1" style={{color: cardTitleColor}}>{property.informacoesbasicas.nome}</h3>
                       {property.informacoesbasicas.valor && (
-                        <div className="text-right flex-shrink-0 ml-4">
-                          <span className="text-xs text-text-muted block">A partir de</span>
-                          <span className="font-black text-lg block" style={{ color: cardValueColor || 'var(--primary)' }}>
-                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0 }).format(property.informacoesbasicas.valor)}
-                          </span>
-                        </div>
+                        <span className="text-primary font-black text-lg" style={{color: cardValueColor}}>
+                          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2 }).format(property.informacoesbasicas.valor)}
+                        </span>
                       )}
                     </div>
                     <p className="text-text-muted text-sm flex items-center gap-1">
@@ -383,18 +366,32 @@ export default function UrbanPadraoLayout({ broker, properties }: UrbanPadraoPag
                     </p>
                     <div className="h-px w-full bg-gray-100 my-1"></div>
                     <div className="flex justify-between text-sm text-text-muted font-medium">
-                      <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[18px]" style={{color: cardIconColor}}>bed</span> {formatQuartos(property.caracteristicasimovel.quartos)} Quartos</span>
-                      <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[18px]" style={{color: cardIconColor}}>square_foot</span> {property.caracteristicasimovel.tamanho}</span>
+                      {quartos && (
+                        <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[18px]" style={{color: cardIconColor}}>bed</span> {formatQuartos(quartos)} Quartos</span>
+                      )}
+                      {property.caracteristicasimovel.tamanho && (
+                        <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[18px]" style={{color: cardIconColor}}>square_foot</span> {property.caracteristicasimovel.tamanho}</span>
+                      )}
                     </div>
                   </div>
                 </Link>
               )})}
+              </div>
+            ) : (
+               <div className="text-center py-16 border-2 border-dashed border-gray-300 rounded-xl bg-white">
+                <span className="material-symbols-outlined text-5xl text-gray-400 mb-4">apartment</span>
+                <h3 className="text-xl font-bold text-gray-700">Nenhum imóvel em destaque</h3>
+                <p className="text-gray-500 mt-2">Este corretor ainda não selecionou imóveis para a carteira.</p>
             </div>
+            )}
+            
           </div>
         </section>
-
-        {/* About Section */}
-        <section className="w-full py-16 lg:py-24" style={{ backgroundColor: aboutSectionBgColor }}>
+        {/* Broker & Presentation Section */}
+        <section className="w-full py-16 lg:py-24 bg-white relative overflow-hidden">
+          {/* Decorative Elements */}
+          <div className="absolute top-0 right-0 w-1/3 h-full bg-[#f8f9fa] skew-x-12 translate-x-20 hidden lg:block"></div>
+          <div className="absolute bottom-20 left-10 size-32 rounded-full border-4 border-primary/20 hidden lg:block"></div>
           <div className="layout-container max-w-[1280px] mx-auto px-6 relative z-10">
             <div className="grid lg:grid-cols-2 gap-12 items-center">
               <div className="order-2 lg:order-1 relative">
@@ -402,31 +399,38 @@ export default function UrbanPadraoLayout({ broker, properties }: UrbanPadraoPag
                   <div
                     className="absolute inset-0 bg-cover bg-center"
                     style={{
-                      backgroundImage: `url("${content.aboutImageUrl || 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?q=80&w=1000&auto=format&fit=crop'}")`,
+                      backgroundImage: `url("${content.aboutImageUrl || 'https://lh3.googleusercontent.com/aida-public/AB6AXuBnnSrwSkNX4VEMzf8v2AibJQp1RcHvNb3_q0wuoHZwhVlAJKqmwIhebGEXD_ehHxVeLXegQhl11I3AK8d7sHOjyX2Ru2QsxLQ7CNKGhMFL1kuVczfW4JlWO-MgFaOLLDGfDt2hXsZyS7t5vdOo90YwN1Cwqcoemknmi74RiulnUXgpEBnQguZIsUxNueG01P_uPnYKeZbzSmXBrfvlrkH_y3PAJxi8hET-_dNaHXrJavIJPjRaZDjfN1aQrROrA0lpueLFt6_FA6I'}")`,
                     }}
                   ></div>
-                  <div className="absolute bottom-6 right-6 bg-white/95 backdrop-blur-md p-4 rounded-xl shadow-lg max-w-[200px]">
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className="bg-primary/20 p-2 rounded-full text-black">
-                        <span className="material-symbols-outlined">award_star</span>
-                      </div>
-                      <div>
-                        <p className="text-xs text-text-muted">{content.aboutAwardTitle || 'Prêmio 2024'}</p>
-                        <p className="text-sm font-bold">{content.aboutAwardText || 'Top Performance'}</p>
-                      </div>
-                    </div>
-                  </div>
                 </div>
               </div>
               <div className="order-1 lg:order-2 flex flex-col gap-6">
                 <div>
-                  <h3 className="font-bold tracking-wider uppercase mb-2" style={{ color: aboutTaglineColor }}>{content.aboutTagline || 'Sobre Mim'}</h3>
-                  <h2 className="text-4xl md:text-5xl font-black text-text-main leading-tight mb-4" style={{ color: aboutTitleColor }}>
+                  <h3 className="text-primary font-bold tracking-wider uppercase mb-2">{content.aboutTagline || 'Sobre Mim'}</h3>
+                  <h2 className="text-4xl md:text-5xl font-black text-text-main leading-tight mb-4">
                     {content.aboutTitle || 'Sua jornada imobiliária com sofisticação.'}
                   </h2>
-                  <p className="text-lg text-text-muted leading-relaxed" style={{ color: aboutTextColor }}>
-                    {content.aboutText || 'Ofereço uma consultoria completa e personalizada no mercado de luxo.'}
+                  <p className="text-lg text-text-muted leading-relaxed">
+                    {content.aboutText || 'Ofereço uma consultoria completa e personalizada no mercado de luxo. Meu objetivo é transformar a busca pelo imóvel ideal em uma jornada tranquila e segura.'}
                   </p>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+                  <div className="flex items-center gap-3 p-4 bg-[#f8f9fa] rounded-lg">
+                    <span className="material-symbols-outlined text-primary text-3xl">verified</span>
+                    <span className="font-bold text-text-main">Avaliação Precisa</span>
+                  </div>
+                  <div className="flex items-center gap-3 p-4 bg-[#f8f9fa] rounded-lg">
+                    <span className="material-symbols-outlined text-primary text-3xl">gavel</span>
+                    <span className="font-bold text-text-main">Assessoria Jurídica</span>
+                  </div>
+                  <div className="flex items-center gap-3 p-4 bg-[#f8f9fa] rounded-lg">
+                    <span className="material-symbols-outlined text-primary text-3xl">camera_outdoor</span>
+                    <span className="font-bold text-text-main">Tour Virtual 360º</span>
+                  </div>
+                  <div className="flex items-center gap-3 p-4 bg-[#f8f9fa] rounded-lg">
+                    <span className="material-symbols-outlined text-primary text-3xl">handshake</span>
+                    <span className="font-bold text-text-main">Negociação Segura</span>
+                  </div>
                 </div>
                 <div className="mt-4">
                   <button className="inline-flex items-center justify-center h-12 px-8 rounded-lg bg-black text-white font-bold hover:bg-gray-800 transition-all shadow-lg hover:shadow-xl">
@@ -437,16 +441,15 @@ export default function UrbanPadraoLayout({ broker, properties }: UrbanPadraoPag
             </div>
           </div>
         </section>
-
         {/* Map / Location Section */}
-        <section className="w-full py-16 hidden lg:block" style={{ backgroundColor: mapSectionBgColor }}>
+        <section className="w-full py-16 bg-background-light">
           <div className="layout-container max-w-[1280px] mx-auto px-6">
             <div className="bg-black rounded-3xl overflow-hidden shadow-2xl text-white relative">
               <div className="grid md:grid-cols-2 min-h-[400px]">
                 <div className="p-10 flex flex-col justify-center gap-6 relative z-10">
-                  <h2 className="text-3xl font-bold" style={{ color: mapTitleColor }}>Encontre imóveis perto de você</h2>
-                  <p className="text-gray-400" style={{ color: mapTextColor }}>Explore as melhores oportunidades nas regiões mais valorizadas.</p>
-                  <Link href={`/sites/${broker.slug}/explorar-no-mapa`} className="w-fit flex items-center gap-2 px-6 py-3 rounded-lg font-bold transition-colors" style={{ backgroundColor: mapButtonBgColor || 'var(--primary)', color: mapButtonTextColor || 'var(--background-dark)' }}>
+                  <h2 className="text-3xl font-bold">Encontre imóveis perto de você</h2>
+                  <p className="text-gray-400">Utilize nosso mapa interativo para explorar as melhores oportunidades nas regiões mais valorizadas da cidade.</p>
+                  <Link href={`/explorar-no-mapa`} className="w-fit flex items-center gap-2 bg-primary text-black px-6 py-3 rounded-lg font-bold hover:bg-primary-hover transition-colors">
                     <span className="material-symbols-outlined">map</span>
                     Explorar no Mapa
                   </Link>
@@ -455,11 +458,12 @@ export default function UrbanPadraoLayout({ broker, properties }: UrbanPadraoPag
                   <div
                     className="absolute inset-0 bg-cover bg-center"
                     style={{
-                      backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuCFSXKPYHVcn6bMCHX6E36kKsWYH-Jrnidp5qgbqRJGbl2tdlfAHRWGgw_BH0FSGiuPAeKoFjGKd4iIxXaS7RDxBjhDpxchyUI6ZBIYy7at-GoSMkswUwLtYY2J431RQH8lRwvQ71Fextok_2cbHyuBu2WkdM3MerdFb1zeCcIMCEPpddgbOA9bubnLDWwsPuexTRzdQSnvapPmcLOzJ-pHK_tWJ-1E5X7glsU1dhw3RJ7oeECQqHntdfmjefwEy47loPNgWOSqzY0")',
+                      backgroundImage: 'url("https://images.unsplash.com/photo-1526778548025-fa2f459cd5c1?q=80&w=2000&auto=format&fit=crop")',
                       filter: 'grayscale(100%) contrast(120%)',
                     }}
                   ></div>
                   <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center animate-bounce">
+                    <span className="text-sm font-black text-primary drop-shadow-xl mb-1 bg-black/50 px-2 py-0.5 rounded backdrop-blur-sm">João Pessoa</span>
                     <span className="material-symbols-outlined text-primary text-5xl drop-shadow-lg">location_on</span>
                   </div>
                 </div>

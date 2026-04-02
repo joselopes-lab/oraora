@@ -1,13 +1,13 @@
 'use client';
 /**
  * @fileOverview Página Sobre exclusiva para o template Domus.
- * Corrigido: Adicionadas funções auxiliares e verificações de segurança para evitar erros de cliente.
  */
 
 import { DomusHeader } from '../components/DomusHeader';
 import { DomusFooter } from '../components/DomusFooter';
 import { WhatsAppWidget } from '@/app/sites/urban-padrao/components/WhatsAppWidget';
 import Image from 'next/image';
+import Link from 'next/link';
 import React from 'react';
 
 type TeamMember = {
@@ -40,6 +40,7 @@ type Broker = {
     ctaButtonIcon?: string;
     aboutQuoteBgColor?: string;
     aboutQuoteTextColor?: string;
+    aboutTaglineColor?: string;
     ctaTitle?: string;
     ctaSubtitle?: string;
     ctaSectionBgColor?: string;
@@ -47,6 +48,11 @@ type Broker = {
     ctaSectionSubtitleColor?: string;
     ctaSectionButtonBgColor?: string;
     ctaSectionButtonTextColor?: string;
+    mapSectionBgColor?: string;
+    mapTitleColor?: string;
+    mapTextColor?: string;
+    mapButtonBgColor?: string;
+    mapButtonTextColor?: string;
   };
   urbanPadraoSobre?: {
     profileImageUrl?: string;
@@ -56,6 +62,7 @@ type Broker = {
     statManagedDeals?: string;
     statAssistedFamilies?: string;
     statYearsExperience?: string;
+    statAwards?: string;
     value1Title?: string;
     value1Description?: string;
     value2Title?: string;
@@ -99,18 +106,6 @@ type Broker = {
   linkedinUrl?: string;
 };
 
-const getYoutubeId = (url: string | undefined) => {
-  if (!url) return null;
-  try {
-      const urlObj = new URL(url);
-      if (urlObj.hostname === 'youtu.be') return urlObj.pathname.slice(1);
-      if (urlObj.hostname.includes('youtube.com')) return urlObj.searchParams.get('v');
-  } catch (e) {
-      return null;
-  }
-  return null;
-};
-
 export default function DomusSobrePage({ broker }: { broker: Broker }) {
   const homeContent = broker.homepage || {};
   const brokerContent = broker.urbanPadraoSobre || {};
@@ -121,10 +116,10 @@ export default function DomusSobrePage({ broker }: { broker: Broker }) {
     headerTitle: adminContent.headerTitle || (brokerContent.brokerName ? `Conheça a trajetória de <span class="text-primary italic">${brokerContent.brokerName}</span>` : 'Transformando a forma como você encontra <span class="text-primary italic">seu lugar.</span>'),
     headerSubtitle: adminContent.headerSubtitle || brokerContent.bio || 'Fundada sob o pilar da tecnologia e atendimento personalizado, nascemos para quebrar paradigmas no mercado imobiliário premium. Não entregamos apenas chaves; entregamos o cenário dos seus melhores momentos.',
     videoImageUrl: homeContent.aboutImageUrl || brokerContent.profileImageUrl || adminContent.videoImageUrl || 'https://picsum.photos/seed/about/800/600',
-    statAnunciados: adminContent.statAnunciados || brokerContent.statYearsExperience || '15+',
-    statNegocios: adminContent.statNegocios || brokerContent.statManagedDeals || 'R$ 1Bi',
-    statCidades: adminContent.statCidades || brokerContent.statAssistedFamilies || '2.5k',
-    statAvaliacao: adminContent.statAvaliacao || '12',
+    statAnunciados: adminContent.statAnunciados || brokerContent.statYearsExperience || '',
+    statNegocios: adminContent.statNegocios || brokerContent.statManagedDeals || '',
+    statCidades: adminContent.statCidades || brokerContent.statAssistedFamilies || '',
+    statAvaliacao: adminContent.statAvaliacao || brokerContent.statAwards || '',
     pilaresTitle: adminContent.pilaresTitle || 'Missão, Visão e Valores',
     pilaresSubtitle: adminContent.pilaresSubtitle || 'Nossos fundamentos guiam cada interação e decisão estratégica no mercado imobiliário de alto padrão.',
     pilar1Icon: adminContent.pilar1Icon || 'rocket_launch',
@@ -138,7 +133,27 @@ export default function DomusSobrePage({ broker }: { broker: Broker }) {
     pilar3Description: adminContent.pilar3Description || brokerContent.value3Description || 'Ética inegociável, obsessão pelo cliente, agilidade tecnológica e compromisso com o luxo sustentável.',
     ctaTitle: adminContent.ctaTitle || 'Pronto para encontrar seu próximo lar?',
     ctaSubtitle: adminContent.ctaSubtitle || 'Agende uma consultoria personalizada agora mesmo via WhatsApp e descubra oportunidades exclusivas.',
+    mapTitle: homeContent.mapTitle || "Encontre imóveis perto de você",
+    mapSubtitle: homeContent.mapSubtitle || "Utilize nosso mapa interativo para explorar as melhores oportunidades nas regiões mais valorizadas.",
   };
+
+  function hslToHex(hslStr: string): string {
+      if (!hslStr || typeof hslStr !== 'string') return '#000000';
+      const parts = hslStr.match(/(\d+(\.\d+)?)/g);
+      if (!parts || parts.length < 3) return '#000000';
+
+      const h = parseFloat(parts[0]);
+      const s = parseFloat(parts[1]) / 100;
+      const l = parseFloat(parts[2]) / 100;
+
+      const a = s * Math.min(l, 1 - l);
+      const f = (n: number) => {
+          const k = (n + h / 30) % 12;
+          const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+          return Math.round(255 * color).toString(16).padStart(2, '0');
+      };
+      return `#${f(0)}${f(8)}${f(4)}`;
+  }
 
   const dynamicStyles = {
     '--background': broker.backgroundColor || '90 20% 97%',
@@ -150,14 +165,22 @@ export default function DomusSobrePage({ broker }: { broker: Broker }) {
     '--cta-button-text': homeContent.ctaButtonTextColor ? `hsl(${homeContent.ctaButtonTextColor})` : 'hsl(var(--secondary))',
     '--about-quote-bg': homeContent.aboutQuoteBgColor ? `hsl(${homeContent.aboutQuoteBgColor})` : 'hsl(var(--primary))',
     '--about-quote-text': homeContent.aboutQuoteTextColor ? `hsl(${homeContent.aboutQuoteTextColor})` : 'hsl(var(--secondary))',
+    '--about-tagline-color': homeContent.aboutTaglineColor ? `hsl(${homeContent.aboutTaglineColor})` : 'hsl(var(--primary))',
     '--cta-section-bg': homeContent.ctaSectionBgColor ? `hsl(${homeContent.ctaSectionBgColor})` : 'hsl(var(--secondary))',
     '--cta-section-title': homeContent.ctaSectionTitleColor ? `hsl(${homeContent.ctaSectionTitleColor})` : '#fff',
     '--cta-section-subtitle': homeContent.ctaSectionSubtitleColor ? `hsl(${homeContent.ctaSectionSubtitleColor})` : 'rgba(255,255,255,0.6)',
     '--cta-section-button-bg': homeContent.ctaSectionButtonBgColor ? `hsl(${homeContent.ctaSectionButtonBgColor})` : 'hsl(var(--primary))',
     '--cta-section-button-text': homeContent.ctaSectionButtonTextColor ? `hsl(${homeContent.ctaSectionButtonTextColor})` : 'hsl(var(--secondary))',
+    '--map-section-bg': homeContent.mapSectionBgColor ? `hsl(${homeContent.mapSectionBgColor})` : '#f3f4f1',
+    '--map-title-color': homeContent.mapTitleColor ? `hsl(${homeContent.mapTitleColor})` : '#111827',
+    '--map-text-color': homeContent.mapTextColor ? `hsl(${homeContent.mapTextColor})` : '#4b5563',
+    '--map-button-bg': homeContent.mapButtonBgColor ? `hsl(${homeContent.mapButtonBgColor})` : '#1e293b',
+    '--map-button-text': homeContent.mapButtonTextColor ? `hsl(${homeContent.mapButtonTextColor})` : '#ffffff',
   } as React.CSSProperties;
 
   const whatsappLink = broker.whatsappUrl?.replace('wa.me.com.br', 'wa.me') || '#';
+
+  const hasStats = defaultContent.statAnunciados || defaultContent.statNegocios || defaultContent.statCidades || defaultContent.statAvaliacao;
 
   return (
     <div style={dynamicStyles} className="domus-theme font-display bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 min-h-screen transition-colors duration-300">
@@ -193,7 +216,7 @@ export default function DomusSobrePage({ broker }: { broker: Broker }) {
               <div className="absolute -top-10 -left-10 w-40 h-40 bg-primary/20 rounded-full blur-3xl"></div>
             </div>
             <div>
-              <span className="inline-block px-4 py-1.5 bg-primary/10 text-primary rounded-full text-xs font-bold tracking-widest uppercase mb-6 border border-primary/20">
+              <span className="inline-block px-4 py-1.5 bg-primary/10 text-primary rounded-full text-xs font-bold tracking-widest uppercase mb-6 border border-primary/20" style={{ color: 'var(--about-tagline-color)', borderColor: 'var(--about-tagline-color)' }}>
                 {defaultContent.headerTagline}
               </span>
               <h1 className="text-5xl md:text-7xl font-bold leading-[1.1] mb-8" dangerouslySetInnerHTML={{ __html: defaultContent.headerTitle }} />
@@ -215,28 +238,38 @@ export default function DomusSobrePage({ broker }: { broker: Broker }) {
           </div>
         </section>
 
-        <section className="bg-white/50 dark:bg-slate-900/50 py-24 border-y border-slate-100 dark:border-slate-800">
-          <div className="max-w-7xl mx-auto px-6">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-12 text-center">
-              <div className="space-y-2">
-                <h3 className="text-4xl md:text-5xl font-bold text-primary">{defaultContent.statAnunciados}</h3>
-                <p className="text-sm font-medium uppercase tracking-widest text-slate-500">{brokerContent.statYearsExperience ? 'Anos de Mercado' : 'Anos de História'}</p>
-              </div>
-              <div className="space-y-2">
-                <h3 className="text-4xl md:text-5xl font-bold text-primary">{defaultContent.statNegocios}</h3>
-                <p className="text-sm font-medium uppercase tracking-widest text-slate-500">{brokerContent.statManagedDeals ? 'Negócios Geridos' : 'Em Vendas'}</p>
-              </div>
-              <div className="space-y-2">
-                <h3 className="text-4xl md:text-5xl font-bold text-primary">{defaultContent.statCidades}</h3>
-                <p className="text-sm font-medium uppercase tracking-widest text-slate-500">{brokerContent.statAssistedFamilies ? 'Famílias Assessoradas' : 'Famílias Felizes'}</p>
-              </div>
-              <div className="space-y-2">
-                <h3 className="text-4xl md:text-5xl font-bold text-primary">{defaultContent.statAvaliacao}</h3>
-                <p className="text-sm font-medium uppercase tracking-widest text-slate-500">Prêmios Setoriais</p>
+        {hasStats && (
+          <section className="bg-white/50 dark:bg-slate-900/50 py-24 border-y border-slate-100 dark:border-slate-800">
+            <div className="max-w-7xl mx-auto px-6">
+              <div className="flex flex-wrap items-center justify-center gap-y-12">
+                {defaultContent.statAnunciados && (
+                  <div className="flex flex-col items-center justify-center text-center px-6 border-slate-100 w-full sm:w-1/2 lg:w-1/4">
+                    <h3 className="text-2xl md:text-3xl font-black text-primary leading-tight uppercase break-words">{defaultContent.statAnunciados}</h3>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mt-1">Anos de Mercado</p>
+                  </div>
+                )}
+                {defaultContent.statNegocios && (
+                  <div className="flex flex-col items-center justify-center text-center px-6 border-slate-100 md:border-l w-full sm:w-1/2 lg:w-1/4">
+                    <h3 className="text-2xl md:text-3xl font-black text-primary leading-tight uppercase break-words">{defaultContent.statNegocios}</h3>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mt-1">Negócios Geridos</p>
+                  </div>
+                )}
+                {defaultContent.statCidades && (
+                  <div className="flex flex-col items-center justify-center text-center px-6 border-slate-100 lg:border-l w-full sm:w-1/2 lg:w-1/4">
+                    <h3 className="text-2xl md:text-3xl font-black text-primary leading-tight uppercase break-words">{defaultContent.statCidades}</h3>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mt-1">Famílias Assessoradas</p>
+                  </div>
+                )}
+                {defaultContent.statAvaliacao && (
+                  <div className="flex flex-col items-center justify-center text-center px-6 border-slate-100 md:border-l w-full sm:w-1/2 lg:w-1/4">
+                    <h3 className="text-2xl md:text-3xl font-black text-primary leading-tight uppercase break-words">{defaultContent.statAvaliacao}</h3>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mt-1">Prêmios Setoriais</p>
+                  </div>
+                )}
               </div>
             </div>
-          </div>
-        </section>
+          </section>
+        )}
 
         <section className="py-24 max-w-7xl mx-auto px-6">
           <div className="mb-12">
@@ -266,6 +299,24 @@ export default function DomusSobrePage({ broker }: { broker: Broker }) {
               <p className="text-slate-600 dark:text-slate-400 leading-relaxed">{defaultContent.pilar3Description}</p>
             </div>
           </div>
+        </section>
+
+        {/* Map Section for Domus Sobre */}
+        <section className="w-full py-20 px-6">
+            <div className="max-w-7xl mx-auto rounded-[2.5rem] p-12 md:p-20 text-center relative overflow-hidden" style={{ backgroundColor: 'var(--map-section-bg)' }}>
+                <div className="relative z-10 max-w-[800px] mx-auto flex flex-col gap-8 items-center">
+                    <h2 className="text-4xl md:text-6xl font-extrabold leading-tight tracking-tight" style={{ color: 'var(--map-title-color)' }}>{defaultContent.mapTitle}</h2>
+                    <p className="text-xl font-medium" style={{ color: 'var(--map-text-color)' }}>{defaultContent.mapSubtitle}</p>
+                    <div className="flex flex-col sm:flex-row gap-4 mt-4">
+                        <Link href={`/sites/${broker.slug}/explorar-no-mapa`} className="flex min-w-[240px] items-center justify-center gap-3 rounded-full h-16 px-10 text-lg font-black shadow-lg hover:scale-[1.05] transition-transform uppercase tracking-widest" style={{ backgroundColor: 'var(--map-button-bg)', color: 'var(--map-button-text)' }}>
+                            <span className="material-symbols-outlined font-bold">map</span>
+                            EXPLORAR NO MAPA
+                        </Link>
+                    </div>
+                </div>
+                <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1526778548025-fa2f459cd5c1?q=80&w=2000&auto=format&fit=crop')] opacity-10 bg-cover bg-center grayscale pointer-events-none"></div>
+                <div className="absolute inset-0 bg-black/5 pointer-events-none"></div>
+            </div>
         </section>
 
         <section className="px-6 mb-24">

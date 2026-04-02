@@ -56,10 +56,15 @@ export default function ServicosPage({ broker }: ServicosPageProps) {
         if (!iconName) return 'star';
         const mapping: Record<string, string> = {
             'ICONE-VENDA': 'real_estate_agent',
+            'ICON-VENDA': 'real_estate_agent',
             'ICONE-CAPTACAO': 'travel_explore',
+            'ICON-CAPTACAO': 'travel_explore',
             'ICONE-AVALIACAO': 'analytics',
+            'ICON-AVALIACAO': 'analytics',
             'ICONE-CONSULTORIA': 'support_agent',
+            'ICON-CONSULTORIA': 'support_agent',
             'ICONE-GESTAO': 'key',
+            'ICON-GESTAO': 'key',
             'ICONE-MARKETING': 'photo_camera'
         };
         const upperIcon = iconName.toUpperCase();
@@ -79,7 +84,7 @@ export default function ServicosPage({ broker }: ServicosPageProps) {
                     <span className="text-secondary font-bold tracking-widest uppercase text-xs mb-3 block">{content.headerTagline || 'Excelência em Cada Detalhe'}</span>
                     <h1 className="text-4xl lg:text-6xl font-black text-text-main tracking-tight mb-6" dangerouslySetInnerHTML={{ __html: content.headerTitle || 'Soluções Imobiliárias <br/><span class="text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary">Sob Medida</span>' }}></h1>
                     <p className="text-text-muted text-lg max-w-2xl mx-auto mb-8">
-                        {content.headerSubtitle || 'Combinamos expertise de mercado, tecnologia de ponta e atendimento personalizado para oferecer uma experiência única na gestão do seu patrimônio.'}
+                        {content.headerSubtitle || 'Combinamos expertise de mercado, tecnologia de ponta e atendimento personalizado para oferecer uma experi\u00eancia \u00fanica na gest\u00e3o do seu patrim\u00f4nio.'}
                     </p>
                     <button className="inline-flex items-center justify-center h-12 px-8 rounded-full bg-primary hover:bg-primary-hover text-black text-sm font-bold shadow-lg shadow-primary/20 transition-all transform hover:scale-105">
                         Solicitar Consultoria
@@ -130,7 +135,7 @@ export default function ServicosPage({ broker }: ServicosPageProps) {
                                 {processSteps.map((step, index) => (
                                 <div key={index} className="flex gap-6 group">
                                     <div className="flex-shrink-0">
-                                        <div className="size-10 rounded-full bg-white border-2 border-primary text-text-main font-bold flex items-center justify-center shadow-sm group-hover:bg-primary group-hover:border-primary transition-all">{index + 1}</div>
+                                        <div className="size-10 rounded-full bg-white border-2 border-primary text-text-main font-bold flex items-center justify-center shadow-sm group-hover:bg-primary group-hover:border-primary group-hover:text-white transition-all">{index + 1}</div>
                                     </div>
                                     <div>
                                         <h4 className="text-lg font-bold text-text-main mb-2">{step.title}</h4>
@@ -148,9 +153,9 @@ export default function ServicosPage({ broker }: ServicosPageProps) {
                                 <div className="absolute bottom-6 left-6 right-6 bg-white/95 backdrop-blur-md p-6 rounded-xl shadow-lg border border-white/50">
                                     <div className="flex items-center gap-3 mb-2">
                                         <span className="material-symbols-outlined text-primary text-2xl">verified_user</span>
-                                        <h4 className="font-bold text-text-main">Compromisso Ético</h4>
+                                        <h4 className="font-bold text-text-main">Compromisso \u00c9tico</h4>
                                     </div>
-                                    <p className="text-sm text-text-muted">Transparência e integridade são os pilares que sustentam cada etapa do nosso trabalho.</p>
+                                    <p className="text-sm text-text-muted">Transpar\u00eancia e integridade s\u00e3o os pilares que sustentam cada etapa do nosso trabalho.</p>
                                 </div>
                             </div>
                         </div>
@@ -162,12 +167,12 @@ export default function ServicosPage({ broker }: ServicosPageProps) {
                 <div className="layout-container max-w-4xl mx-auto px-6 text-center relative z-10">
                     <h2 className="text-3xl md:text-5xl font-black text-black mb-6">{content.finalCtaTitle || 'Pronto para transformar seus planos?'}</h2>
                     <p className="text-gray-400 text-lg mb-10 max-w-2xl mx-auto">
-                        {content.finalCtaSubtitle || 'Agende uma conversa sem compromisso e descubra como nossa assessoria pode fazer a diferença no seu próximo negócio imobiliário.'}
+                        {content.finalCtaSubtitle || 'Agende uma conversa sem compromisso e descubra como nossa assessoria pode fazer a diferen\u00e7a no seu pr\u00f3ximo neg\u00f3cio imobili\u00e1rio.'}
                     </p>
                     <div className="flex flex-col sm:flex-row justify-center gap-4">
                         <button className="h-14 px-8 rounded-full bg-primary hover:bg-primary-hover text-black text-base font-bold shadow-lg shadow-primary/20 transition-all transform hover:scale-105 flex items-center justify-center gap-2">
                             <span className="material-symbols-outlined">calendar_month</span>
-                            Solicitar Serviço
+                            Solicitar Servi\u00e7o
                         </button>
                         <button className="h-14 px-8 rounded-full bg-black text-white hover:bg-gray-800 transition-all flex items-center justify-center gap-2">
                             <span className="material-symbols-outlined">call</span>

@@ -363,28 +363,28 @@ export default function EditHomepagePage() {
         <div className="p-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
           <FormField control={form.control} name="statsSold" render={({ field }) => (
             <FormItem>
-              <FormLabel className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Imóveis Vendidos</FormLabel>
+              <FormLabel className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Box 1</FormLabel>
               <FormControl><Input className="w-full h-auto text-3xl font-black text-primary" {...field} value={field.value ?? ''} /></FormControl>
               <FormMessage />
             </FormItem>
           )}/>
           <FormField control={form.control} name="statsExperience" render={({ field }) => (
             <FormItem>
-              <FormLabel className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Anos de Mercado</FormLabel>
+              <FormLabel className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Box 2</FormLabel>
               <FormControl><Input className="w-full h-auto text-3xl font-black text-primary" {...field} value={field.value ?? ''} /></FormControl>
               <FormMessage />
             </FormItem>
           )}/>
           <FormField control={form.control} name="statsSatisfaction" render={({ field }) => (
             <FormItem>
-              <FormLabel className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Clientes Satisfeitos</FormLabel>
+              <FormLabel className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Box 3</FormLabel>
               <FormControl><Input className="w-full h-auto text-3xl font-black text-primary" {...field} value={field.value ?? ''} /></FormControl>
               <FormMessage />
             </FormItem>
           )}/>
           <FormField control={form.control} name="statsSupport" render={({ field }) => (
             <FormItem>
-              <FormLabel className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Suporte</FormLabel>
+              <FormLabel className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Box 4</FormLabel>
               <FormControl><Input className="w-full h-auto text-3xl font-black text-primary" {...field} value={field.value ?? ''} /></FormControl>
               <FormMessage />
             </FormItem>

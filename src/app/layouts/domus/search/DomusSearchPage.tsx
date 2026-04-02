@@ -42,6 +42,11 @@ type Broker = {
     ctaSectionSubtitleColor?: string;
     ctaSectionButtonBgColor?: string;
     ctaSectionButtonTextColor?: string;
+    mapSectionBgColor?: string;
+    mapTitleColor?: string;
+    mapTextColor?: string;
+    mapButtonBgColor?: string;
+    mapButtonTextColor?: string;
   }
   whatsappUrl?: string;
 };
@@ -175,7 +180,7 @@ export default function DomusSearchPage({ broker, properties }: DomusSearchPageP
         '--status-tag-bg': content.statusTagBgColor ? `hsl(${content.statusTagBgColor})` : 'rgba(255,255,255,0.9)',
         '--status-tag-text': content.statusTagTextColor ? `hsl(${content.statusTagTextColor})` : '#000',
         '--search-button-bg': content.searchButtonBgColor ? `hsl(${content.searchButtonBgColor})` : 'hsl(var(--primary))',
-        '--search-button-text': content.searchButtonTextColor ? `hsl(${content.searchButtonTextColor})` : 'hsl(var(--secondary))',
+        '--search-button-text': '#ffffff',
         '--cta-button-bg': content.ctaButtonBgColor ? `hsl(${content.ctaButtonBgColor})` : 'hsl(var(--primary))',
         '--cta-button-text': content.ctaButtonTextColor ? `hsl(${content.ctaButtonTextColor})` : 'hsl(var(--secondary))',
         '--cta-section-bg': content.ctaSectionBgColor ? `hsl(${content.ctaSectionBgColor})` : 'hsl(var(--secondary))',
@@ -183,6 +188,11 @@ export default function DomusSearchPage({ broker, properties }: DomusSearchPageP
         '--cta-section-subtitle': content.ctaSectionSubtitleColor ? `hsl(${content.ctaSectionSubtitleColor})` : 'rgba(255,255,255,0.6)',
         '--cta-section-button-bg': content.ctaSectionButtonBgColor ? `hsl(${content.ctaSectionButtonBgColor})` : 'hsl(var(--primary))',
         '--cta-section-button-text': content.ctaSectionButtonTextColor ? `hsl(${content.ctaSectionButtonTextColor})` : 'hsl(var(--secondary))',
+        '--map-section-bg': content.mapSectionBgColor ? `hsl(${content.mapSectionBgColor})` : '#f3f4f1',
+        '--map-title-color': content.mapTitleColor ? `hsl(${content.mapTitleColor})` : '#111827',
+        '--map-text-color': content.mapTextColor ? `hsl(${content.mapTextColor})` : '#4b5563',
+        '--map-button-bg': content.mapButtonBgColor ? `hsl(${content.mapButtonBgColor})` : '#1e293b',
+        '--map-button-text': content.mapButtonTextColor ? `hsl(${content.mapButtonTextColor})` : '#ffffff',
     } as React.CSSProperties;
 
     const whatsappLink = broker.whatsappUrl?.replace('wa.me.com.br', 'wa.me') || '#';
@@ -373,6 +383,24 @@ export default function DomusSearchPage({ broker, properties }: DomusSearchPageP
                         </button>
                     </div>
                 )}
+
+                {/* Map Section for Domus Search */}
+                <section className="py-20">
+                    <div className="max-w-7xl mx-auto rounded-[2.5rem] p-12 md:p-20 text-center relative overflow-hidden" style={{ backgroundColor: 'var(--map-section-bg)' }}>
+                        <div className="relative z-10 max-w-[800px] mx-auto flex flex-col gap-8 items-center">
+                            <h2 className="text-4xl md:text-6xl font-extrabold leading-tight tracking-tight" style={{ color: 'var(--map-title-color)' }}>{content.mapTitle || "Encontre imóveis perto de você"}</h2>
+                            <p className="text-xl font-medium" style={{ color: 'var(--map-text-color)' }}>{content.mapSubtitle || "Utilize nosso mapa interativo para explorar as melhores oportunidades nas regiões mais valorizadas."}</p>
+                            <div className="flex flex-col sm:flex-row gap-4 mt-4">
+                                <Link href={`/sites/${broker.slug}/explorar-no-mapa`} className="flex min-w-[240px] items-center justify-center gap-3 rounded-full h-16 px-10 text-lg font-black shadow-lg hover:scale-[1.05] transition-transform uppercase tracking-widest" style={{ backgroundColor: 'var(--map-button-bg)', color: 'var(--map-button-text)' }}>
+                                    <span className="material-symbols-outlined font-bold">map</span>
+                                    EXPLORAR NO MAPA
+                                </Link>
+                            </div>
+                        </div>
+                        <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1526778548025-fa2f459cd5c1?q=80&w=2000&auto=format&fit=crop')] opacity-10 bg-cover bg-center grayscale pointer-events-none"></div>
+                        <div className="absolute inset-0 bg-black/5 pointer-events-none"></div>
+                    </div>
+                </section>
 
                 <section className="py-20">
                     <div className="rounded-[2.5rem] p-12 md:p-20 text-center relative overflow-hidden" style={{ backgroundColor: 'var(--cta-section-bg)' }}>

@@ -10,6 +10,9 @@ type Broker = {
   logoUrl?: string;
   primaryColor?: string;
   secondaryColor?: string;
+  backgroundColor?: string;
+  foregroundColor?: string;
+  accentColor?: string;
   slug: string;
   layoutId?: string;
   urbanPadraoServicos?: {
@@ -52,6 +55,26 @@ export default function ServicosClientPage({ broker }: ServicosPageProps) {
       { title: 'Fechamento e Pós-Venda', description: 'Suporte jurídico até a assinatura e acompanhamento contínuo após a entrega das chaves.' },
     ];
 
+    const getSafeIcon = (iconName: string | undefined) => {
+        if (!iconName) return 'star';
+        const mapping: Record<string, string> = {
+            'ICONE-VENDA': 'real_estate_agent',
+            'ICON-VENDA': 'real_estate_agent',
+            'ICONE-CAPTACAO': 'travel_explore',
+            'ICON-CAPTACAO': 'travel_explore',
+            'ICONE-AVALIACAO': 'analytics',
+            'ICON-AVALIACAO': 'analytics',
+            'ICONE-CONSULTORIA': 'support_agent',
+            'ICON-CONSULTORIA': 'support_agent',
+            'ICONE-GESTAO': 'key',
+            'ICON-GESTAO': 'key',
+            'ICONE-MARKETING': 'photo_camera',
+            'ICON-MARKETING': 'photo_camera'
+        };
+        const upperIcon = iconName.toUpperCase().trim();
+        return mapping[upperIcon] || iconName;
+    };
+
     const serviceItems = content.serviceItems && content.serviceItems.length > 0 ? content.serviceItems : defaultServiceItems;
     const processSteps = content.processSteps && content.processSteps.length > 0 ? content.processSteps : defaultProcessSteps;
 
@@ -67,7 +90,7 @@ export default function ServicosClientPage({ broker }: ServicosPageProps) {
                     <p className="text-text-muted text-lg max-w-2xl mx-auto mb-8">
                         {content.headerSubtitle || 'Combinamos expertise de mercado, tecnologia de ponta e atendimento personalizado para oferecer uma experiência única na gestão do seu patrimônio.'}
                     </p>
-                    <button className="inline-flex items-center justify-center h-12 px-8 rounded-full bg-primary hover:bg-primary-hover text-black text-sm font-bold shadow-lg shadow-primary/20 transition-all transform hover:scale-105">
+                    <button className="inline-flex items-center justify-center h-12 px-8 rounded-full bg-primary hover:bg-primary-hover text-white text-sm font-bold shadow-lg shadow-primary/20 transition-all transform hover:scale-105">
                         Solicitar Consultoria
                         <span className="material-symbols-outlined ml-2 text-[20px]">arrow_forward</span>
                     </button>
@@ -80,13 +103,15 @@ export default function ServicosClientPage({ broker }: ServicosPageProps) {
                         <p className="text-text-muted">{content.servicesSubtitle || 'Explore como podemos ajudar você a atingir seus objetivos imobiliários com segurança e eficiência.'}</p>
                     </div>
                     <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-                       {serviceItems.map((item, index) => (
+                       {serviceItems.map((item, index) => {
+                         const icon = getSafeIcon(item.icon);
+                         return (
                          <div key={index} className="bg-white p-8 rounded-2xl shadow-soft hover:shadow-card transition-all duration-300 border border-transparent hover:border-primary/30 group relative overflow-hidden">
                             <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                                <span className="material-symbols-outlined text-8xl text-primary">{item.icon}</span>
+                                <span className="material-symbols-outlined text-8xl text-primary">{icon}</span>
                             </div>
                             <div className="size-14 rounded-xl bg-background-light border border-gray-100 flex items-center justify-center mb-6 group-hover:bg-primary group-hover:text-black transition-colors duration-300 text-primary relative z-10">
-                                <span className="material-symbols-outlined text-3xl">{item.icon}</span>
+                                <span className="material-symbols-outlined text-3xl">{icon}</span>
                             </div>
                             <h3 className="text-xl font-bold text-text-main mb-3 relative z-10">{item.title}</h3>
                             <p className="text-text-muted leading-relaxed mb-6 relative z-10 text-sm">
@@ -96,7 +121,7 @@ export default function ServicosClientPage({ broker }: ServicosPageProps) {
                                 Saiba mais <span className="material-symbols-outlined text-base ml-1">chevron_right</span>
                             </a>
                         </div>
-                       ))}
+                       )})}
                     </div>
                 </div>
             </section>
@@ -149,7 +174,7 @@ export default function ServicosClientPage({ broker }: ServicosPageProps) {
                         {content.finalCtaSubtitle || 'Agende uma conversa sem compromisso e descubra como nossa assessoria pode fazer a diferença no seu próximo negócio imobiliário.'}
                     </p>
                     <div className="flex flex-col sm:flex-row justify-center gap-4">
-                        <button className="h-14 px-8 rounded-full bg-primary hover:bg-primary-hover text-black text-base font-bold shadow-lg shadow-primary/20 transition-all transform hover:scale-105 flex items-center justify-center gap-2">
+                        <button className="h-14 px-8 rounded-full bg-primary hover:bg-primary-hover text-white text-base font-bold shadow-lg shadow-primary/20 transition-all transform hover:scale-105 flex items-center justify-center gap-2">
                             <span className="material-symbols-outlined">calendar_month</span>
                             Solicitar Serviço
                         </button>

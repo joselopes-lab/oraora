@@ -1,3 +1,4 @@
+
 'use client';
 import { UrbanPadraoHeader } from '../components/UrbanPadraoHeader';
 import { UrbanPadraoFooter } from '../components/UrbanPadraoFooter';
@@ -151,25 +152,25 @@ export default function SobreClientPage({ broker }: SobrePageProps) {
                 <div className="flex flex-wrap justify-center gap-y-12 w-full max-w-4xl border-t border-gray-100 pt-10">
                 {content.statYearsExperience && (
                   <div className="flex flex-col items-center justify-center text-center px-6 border-gray-100 w-full sm:w-1/2 lg:w-1/4 group cursor-default">
-                      <span className="text-base lg:text-lg font-black text-text-main group-hover:text-primary transition-colors duration-300 leading-tight break-words">{content.statYearsExperience}</span>
+                      <span className="text-2xl lg:text-3xl font-black text-text-main group-hover:text-primary transition-colors duration-300 leading-tight break-words">{content.statYearsExperience}</span>
                       <span className="text-[10px] text-text-muted font-bold uppercase tracking-widest text-center mt-1">Anos de Mercado</span>
                   </div>
                 )}
                 {content.statManagedDeals && (
                   <div className="flex flex-col items-center justify-center text-center px-6 border-gray-100 md:border-l w-full sm:w-1/2 lg:w-1/4 group cursor-default">
-                      <span className="text-base lg:text-lg font-black text-text-main group-hover:text-primary transition-colors duration-300 leading-tight break-words">{content.statManagedDeals}</span>
+                      <span className="text-2xl lg:text-3xl font-black text-text-main group-hover:text-primary transition-colors duration-300 leading-tight break-words">{content.statManagedDeals}</span>
                       <span className="text-[10px] text-text-muted font-bold uppercase tracking-widest text-center mt-1">Negócios Geridos</span>
                   </div>
                 )}
                 {content.statAssistedFamilies && (
                   <div className="flex flex-col items-center justify-center text-center px-6 border-gray-100 lg:border-l w-full sm:w-1/2 lg:w-1/4 group cursor-default">
-                      <span className="text-base lg:text-lg font-black text-text-main group-hover:text-primary transition-colors duration-300 leading-tight break-words">{content.statAssistedFamilies}</span>
+                      <span className="text-2xl lg:text-3xl font-black text-text-main group-hover:text-primary transition-colors duration-300 leading-tight break-words">{content.statAssistedFamilies}</span>
                       <span className="text-[10px] text-text-muted font-bold uppercase tracking-widest text-center mt-1">Famílias Assessoradas</span>
                   </div>
                 )}
                 {content.statAwards && (
                   <div className="flex flex-col items-center justify-center text-center px-6 border-gray-100 md:border-l w-full sm:w-1/2 lg:w-1/4 group cursor-default">
-                      <span className="text-base lg:text-lg font-black text-text-main group-hover:text-primary transition-colors duration-300 leading-tight break-words">{content.statAwards}</span>
+                      <span className="text-2xl lg:text-3xl font-black text-text-main group-hover:text-primary transition-colors duration-300 leading-tight break-words">{content.statAwards}</span>
                       <span className="text-[10px] text-text-muted font-bold uppercase tracking-widest text-center mt-1">Prêmios Setoriais</span>
                   </div>
                 )}
@@ -332,7 +333,7 @@ export default function SobreClientPage({ broker }: SobrePageProps) {
               Agende uma conversa sem compromisso e descubra como nossa assessoria pode fazer a diferença no seu próximo negócio imobiliário.
             </p>
             <div className="flex flex-col sm:flex-row justify-center gap-4">
-              <button className="h-14 px-8 rounded-full text-base font-bold shadow-lg shadow-primary/20 transition-all transform hover:scale-105 flex items-center justify-center gap-2 bg-sobre-cta-bg text-white">
+              <button className="h-14 px-8 rounded-full text-base font-bold shadow-lg shadow-primary/20 transition-all transform hover:scale-105 flex items-center justify-center gap-2 bg-sobre-cta-bg text-sobre-cta-text">
                 <span className="material-symbols-outlined">calendar_month</span>
                 Agendar Reunião Pessoal
               </button>

@@ -1,3 +1,4 @@
+
 'use client';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -102,13 +103,13 @@ export function DomusFooter({ broker }: { broker: Broker }) {
           <div className="flex items-center gap-2 text-[#161811]/40 dark:text-white/40 text-xs">
             <span>Criado por:</span>
             <a 
-              href="https://6000-firebase-studio-1767094630353.cluster-l2bgochoazbomqgfmlhuvdvgiy.cloudworkstations.dev/corretor" 
+              href="/corretor" 
               target="_blank" 
               rel="noopener noreferrer"
               className="hover:opacity-80 transition-opacity"
             >
               <Image 
-                src="https://dotestudio.com.br/wp-content/uploads/2025/08/oraora.png" 
+                src="https://firebasestorage.googleapis.com/v0/b/studio-5937631195-8ebfd.firebasestorage.app/o/site-assets%2Flogos%2Fb51a21ec-d89e-4b7e-be51-d741841e8903-logo-oraora-b.png?alt=media&token=a0d87477-f1e3-4637-8b84-0589b49566ff" 
                 alt="Oraora" 
                 width={80} 
                 height={20} 

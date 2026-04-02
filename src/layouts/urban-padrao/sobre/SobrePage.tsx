@@ -1,4 +1,3 @@
-
 'use client';
 import { UrbanPadraoHeader } from '../components/UrbanPadraoHeader';
 import { UrbanPadraoFooter } from '../components/UrbanPadraoFooter';
@@ -69,9 +68,21 @@ export default function SobrePage({ broker }: SobrePageProps) {
       { yearOrEntity: 'CRECI-SP', title: 'Certificado de Honra' },
     ]
   };
+
+  const styles = `
+    .urban-padrao-theme {
+      ${broker.backgroundColor ? `--background: ${broker.backgroundColor};` : ''}
+      ${broker.foregroundColor ? `--foreground: ${broker.foregroundColor};` : ''}
+      ${broker.primaryColor ? `--primary: ${broker.primaryColor};` : ''}
+      ${broker.accentColor ? `--accent: ${broker.accentColor};` : ''}
+    }
+  `;
   
+  const hasStats = content.statYearsExperience || content.statManagedDeals || content.statAssistedFamilies || content.statAwards;
+
   return (
-    <div className="relative flex min-h-screen w-full flex-col group/design-root">
+    <div className="urban-padrao-theme relative flex min-h-screen w-full flex-col group/design-root">
+      <style>{styles}</style>
       <UrbanPadraoHeader broker={broker} />
       <main className="flex-1 w-full flex flex-col items-center">
         <section className="w-full pt-16 pb-12 lg:pt-24 lg:pb-16 bg-white relative overflow-hidden">
@@ -102,20 +113,29 @@ export default function SobrePage({ broker }: SobrePageProps) {
                   <p key={index}>{paragraph}</p>
               ))}
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-12 w-full max-w-4xl border-t border-gray-100 pt-10">
-              <div className="flex flex-col items-center gap-1 group cursor-default">
-                <span className="text-4xl lg:text-5xl font-black text-text-main group-hover:text-primary transition-colors duration-300">{content.statManagedDeals || defaultValues.statManagedDeals}</span>
-                <span className="text-sm text-text-muted font-bold uppercase tracking-wider">em Negócios Geridos</span>
-              </div>
-              <div className="flex flex-col items-center gap-1 group cursor-default">
-                <span className="text-4xl lg:text-5xl font-black text-text-main group-hover:text-primary transition-colors duration-300">{content.statAssistedFamilies || defaultValues.statAssistedFamilies}</span>
-                <span className="text-sm text-text-muted font-bold uppercase tracking-wider">Famílias Assessoradas</span>
-              </div>
-              <div className="flex flex-col items-center gap-1 group cursor-default">
-                <span className="text-4xl lg:text-5xl font-black text-text-main group-hover:text-primary transition-colors duration-300">{content.statYearsExperience || defaultValues.statYearsExperience}</span>
-                <span className="text-sm text-text-muted font-bold uppercase tracking-wider">de Experiência Sólida</span>
-              </div>
-            </div>
+            
+            {hasStats && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 md:gap-16 w-full max-w-4xl border-t border-gray-100 pt-10">
+                {content.statManagedDeals && (
+                  <div className="flex flex-col items-center gap-1 group cursor-default">
+                    <span className="text-4xl lg:text-5xl font-black text-text-main group-hover:text-primary transition-colors duration-300">{content.statManagedDeals || defaultValues.statManagedDeals}</span>
+                    <span className="text-sm text-text-muted font-bold uppercase tracking-wider">em Negócios Geridos</span>
+                  </div>
+                )}
+                {content.statAssistedFamilies && (
+                  <div className="flex flex-col items-center gap-1 group cursor-default lg:border-l border-gray-100">
+                    <span className="text-4xl lg:text-5xl font-black text-text-main group-hover:text-primary transition-colors duration-300">{content.statAssistedFamilies || defaultValues.statAssistedFamilies}</span>
+                    <span className="text-sm text-text-muted font-bold uppercase tracking-wider">Famílias Assessoradas</span>
+                  </div>
+                )}
+                {content.statYearsExperience && (
+                  <div className="flex flex-col items-center gap-1 group cursor-default lg:border-l border-gray-100">
+                    <span className="text-4xl lg:text-5xl font-black text-text-main group-hover:text-primary transition-colors duration-300">{content.statYearsExperience || defaultValues.statYearsExperience}</span>
+                    <span className="text-sm text-text-muted font-bold uppercase tracking-wider">de Experiência Sólida</span>
+                  </div>
+                )}
+                </div>
+            )}
           </div>
         </section>
         <section className="w-full py-12 lg:py-20 bg-background-light">

@@ -22,6 +22,13 @@ type Broker = {
   foregroundColor?: string;
   slug: string;
   layoutId?: string;
+  footerContactEmail?: string;
+  footerContactPhone?: string;
+  footerContactAddress?: string;
+  creci?: string;
+  whatsappUrl?: string;
+  instagramUrl?: string;
+  linkedinUrl?: string;
 };
 
 type FaleConoscoPageProps = {
@@ -92,6 +99,11 @@ export default function FaleConoscoClientPage({ broker }: FaleConoscoPageProps) 
     '--accent': broker.accentColor,
   } as React.CSSProperties;
 
+  const mapAddress = broker.footerContactAddress;
+  const mapUrl = mapAddress 
+    ? `https://www.google.com/maps?q=${encodeURIComponent(mapAddress)}&output=embed`
+    : null;
+
   return (
     <div style={dynamicStyles} className="urban-padrao-theme relative flex min-h-screen w-full flex-col group/design-root">
       <UrbanPadraoHeader broker={broker} />
@@ -121,7 +133,7 @@ export default function FaleConoscoClientPage({ broker }: FaleConoscoPageProps) 
                   </div>
                   <div className="flex-1">
                     <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">WhatsApp</p>
-                    <p className="text-lg font-black text-text-main">(11) 99999-9999</p>
+                    <p className="text-lg font-black text-text-main">{broker.footerContactPhone || '(11) 99999-9999'}</p>
                   </div>
                   <button className="w-full sm:w-auto text-sm font-bold text-white bg-[#25D366] px-5 py-2.5 rounded-lg hover:bg-green-600 transition-colors shadow-sm">
                     Iniciar
@@ -134,7 +146,7 @@ export default function FaleConoscoClientPage({ broker }: FaleConoscoPageProps) 
                   </div>
                   <div>
                     <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">Telefone</p>
-                    <p className="text-base font-bold text-text-main">(11) 3333-3333</p>
+                    <p className="text-base font-bold text-text-main">{broker.footerContactPhone || '(11) 3333-3333'}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-4 p-2 rounded-lg hover:bg-gray-50 transition-colors">
@@ -143,7 +155,7 @@ export default function FaleConoscoClientPage({ broker }: FaleConoscoPageProps) 
                   </div>
                   <div className="break-all">
                     <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">E-mail</p>
-                    <p className="text-base font-bold text-text-main">contato@corretorpremium.com</p>
+                    <p className="text-base font-bold text-text-main">{broker.footerContactEmail || 'contato@broker.com'}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-4 p-2 rounded-lg hover:bg-gray-50 transition-colors">
@@ -152,23 +164,29 @@ export default function FaleConoscoClientPage({ broker }: FaleConoscoPageProps) 
                   </div>
                   <div>
                     <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">Escritório Central</p>
-                    <p className="text-base font-medium text-text-main">Av. Paulista, 1000 - Bela Vista<br />São Paulo - SP</p>
+                    <p className="text-base font-medium text-text-main">{broker.footerContactAddress || 'Endereço não informado'}</p>
                   </div>
                 </div>
               </div>
             </div>
-            <div className="rounded-2xl overflow-hidden h-64 lg:h-80 w-full bg-gray-200 relative shadow-soft group border border-gray-200">
-              <div className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105" style={{ backgroundImage: `url("https://lh3.googleusercontent.com/aida-public/AB6AXuCFSXKPYHVcn6bMCHX6E36kKsWYH-Jrnidp5qgbqRJGbl2tdlfAHRWGgw_BH0FSGiuPAeKoFjGKd4iIxXaS7RDxBjhDpxchyUI6ZBIYy7at-GoSMkswUwLtYY2J431RQH8lRwvQ71Fextok_2cbHyuBu2WkdM3MerdFb1zeCcIMCEPpddgbOA9bubnLDWwsPuexTRzdQSnvapPmcLOzJ-pHK_tWJ-1E5X7glsU1dhw3RJ7oeECQqHntdfmjefwEy47loPNgWOSqzY0")`, filter: 'grayscale(100%) brightness(1.1)' }}></div>
-              <div className="absolute inset-0 bg-black/10 group-hover:bg-black/20 transition-colors"></div>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="bg-white p-4 rounded-xl shadow-float flex flex-col items-center transform transition-transform group-hover:-translate-y-1">
-                  <span className="material-symbols-outlined text-red-500 text-4xl mb-2 animate-bounce">location_on</span>
-                  <span className="font-bold text-text-main text-sm">Visite nosso escritório</span>
-                  <button className="mt-3 text-xs font-bold text-primary bg-black px-4 py-2 rounded-full hover:bg-gray-900 transition-colors shadow-lg shadow-black/20">
-                    Abrir no Google Maps
-                  </button>
+            <div className="rounded-2xl overflow-hidden h-64 lg:h-80 w-full bg-gray-50 relative shadow-soft border border-gray-200">
+              {mapUrl ? (
+                <iframe
+                  src={mapUrl}
+                  width="100%"
+                  height="100%"
+                  style={{ border: 0 }}
+                  allowFullScreen={false}
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                  className="grayscale dark:invert opacity-80"
+                ></iframe>
+              ) : (
+                <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-2 p-8 text-center">
+                  <span className="material-symbols-outlined text-4xl">map</span>
+                  <p className="text-sm font-medium">Localização não informada no cadastro.</p>
                 </div>
-              </div>
+              )}
             </div>
           </div>
           <div className="lg:col-span-7">

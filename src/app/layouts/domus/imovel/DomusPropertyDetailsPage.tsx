@@ -7,7 +7,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { DomusHeader } from '../components/DomusHeader';
 import { DomusFooter } from '../components/DomusFooter';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -22,6 +22,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type Broker = {
   id: string;
@@ -46,6 +47,16 @@ type Broker = {
     ctaSectionSubtitleColor?: string;
     ctaSectionButtonBgColor?: string;
     ctaSectionButtonTextColor?: string;
+    mapSectionBgColor?: string;
+    mapTitleColor?: string;
+    mapTextColor?: string;
+    mapButtonBgColor?: string;
+    mapButtonTextColor?: string;
+    statusTagBgColor?: string;
+    statusTagTextColor?: string;
+    cardTitleColor?: string;
+    cardValueColor?: string;
+    cardIconColor?: string;
   };
 };
 
@@ -172,19 +183,21 @@ export default function DomusPropertyDetailsPage({ broker, property, similarProp
     setIsSubmitting(false);
   };
 
-  const handleRadarToggle = (e: React.MouseEvent) => {
+  const handleRadarToggle = (e: React.MouseEvent, propertyId: string) => {
     e.preventDefault();
+    e.stopPropagation();
     if (!user) {
         router.push('/radar');
         return;
     }
     if (!firestore) return;
     const docRef = doc(firestore, 'radarLists', user.uid);
-    if (isSaved) {
-        setDocumentNonBlocking(docRef, { propertyIds: arrayRemove(property.id) }, { merge: true });
+    const isTargetSaved = savedPropertyIds.includes(propertyId);
+    if (isTargetSaved) {
+        setDocumentNonBlocking(docRef, { propertyIds: arrayRemove(propertyId) }, { merge: true });
         toast({ title: "Removido!", description: "Imóvel removido da sua lista." });
     } else {
-        setDocumentNonBlocking(docRef, { userId: user.uid, propertyIds: arrayUnion(property.id) }, { merge: true });
+        setDocumentNonBlocking(docRef, { userId: user.uid, propertyIds: arrayUnion(propertyId) }, { merge: true });
         toast({ title: "Salvo!", description: "Imóvel adicionado à sua lista." });
     }
   };
@@ -228,7 +241,18 @@ export default function DomusPropertyDetailsPage({ broker, property, similarProp
     '--cta-section-subtitle': content.ctaSectionSubtitleColor ? `hsl(${content.ctaSectionSubtitleColor})` : 'rgba(255,255,255,0.6)',
     '--cta-section-button-bg': content.ctaSectionButtonBgColor ? `hsl(${content.ctaSectionButtonBgColor})` : 'hsl(var(--primary))',
     '--cta-section-button-text': content.ctaSectionButtonTextColor ? `hsl(${content.ctaSectionButtonTextColor})` : 'hsl(var(--secondary))',
+    '--map-section-bg': content.mapSectionBgColor ? `hsl(${content.mapSectionBgColor})` : '#f3f4f1',
+    '--map-title-color': content.mapTitleColor ? `hsl(${content.mapTitleColor})` : '#111827',
+    '--map-text-color': content.mapTextColor ? `hsl(${content.mapTextColor})` : '#4b5563',
+    '--map-button-bg': content.mapButtonBgColor ? `hsl(${content.mapButtonBgColor})` : '#1e293b',
+    '--map-button-text': content.mapButtonTextColor ? `hsl(${content.mapButtonTextColor})` : '#ffffff',
   } as React.CSSProperties;
+
+  const cardTitleColor = content.cardTitleColor ? hslToHex(content.cardTitleColor) : undefined;
+  const cardValueColor = content.cardValueColor ? hslToHex(content.cardValueColor) : undefined;
+  const cardIconColor = content.cardIconColor ? hslToHex(content.cardIconColor) : undefined;
+  const statusTagBgColor = content.statusTagBgColor ? hslToHex(content.statusTagBgColor) : undefined;
+  const statusTagTextColor = content.statusTagTextColor ? hslToHex(content.statusTagTextColor) : undefined;
 
   const whatsappLink = broker.whatsappUrl?.replace('wa.me.com.br', 'wa.me') || '#';
 
@@ -253,7 +277,7 @@ export default function DomusPropertyDetailsPage({ broker, property, similarProp
               <span className="material-symbols-outlined">share</span>
             </button>
             <button 
-                onClick={handleRadarToggle}
+                onClick={(e) => handleRadarToggle(e, property.id)}
                 className={cn(
                     "p-2 border border-slate-200 dark:border-slate-800 rounded-full transition-colors shadow-sm",
                     isSaved ? "bg-primary/10 border-primary text-primary" : "hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-400"
@@ -387,7 +411,7 @@ export default function DomusPropertyDetailsPage({ broker, property, similarProp
             {/* Map Section */}
             <div className="mb-12">
               <h3 className="text-2xl font-bold mb-6">Localização</h3>
-              <div className="w-full h-[300px] sm:h-[400px] rounded-3xl bg-slate-200 dark:bg-slate-800 overflow-hidden relative border border-slate-100 dark:border-slate-800 shadow-inner">
+              <div className="w-full h-[300px] sm:h-[400px] rounded-3xl bg-slate-200 dark:bg-slate-800 overflow-hidden relative border border-slate-100 dark:border-slate-800 shadow-inner" style={{ backgroundColor: 'var(--map-section-bg)' }}>
                 {mapSrc ? (
                     <iframe src={mapSrc} width="100%" height="100%" style={{ border: 0 }} allowFullScreen={false} loading="lazy" className="grayscale dark:invert opacity-70" />
                 ) : (
@@ -396,10 +420,14 @@ export default function DomusPropertyDetailsPage({ broker, property, similarProp
                         <p>Mapa não configurado</p>
                     </div>
                 )}
-                <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-                  <div className="relative">
-                    <div className="w-12 h-12 bg-primary/20 rounded-full animate-ping absolute -top-2 -left-2"></div>
-                    <span className="material-symbols-outlined text-primary text-5xl relative z-10 font-bold">location_on</span>
+                <div className="absolute inset-0 pointer-events-none flex items-center justify-center flex-col gap-4 p-8 text-center">
+                  <h4 className="text-2xl font-extrabold" style={{ color: 'var(--map-title-color)' }}>Encontre imóveis perto de você</h4>
+                  <p className="text-sm max-w-sm font-medium" style={{ color: 'var(--map-text-color)' }}>Utilize nosso mapa interativo para explorar as melhores oportunidades nas regiões mais valorizadas.</p>
+                  <div className="mt-2">
+                    <div className="relative">
+                      <div className="w-12 h-12 bg-primary/20 rounded-full animate-ping absolute -top-2 -left-2"></div>
+                      <span className="material-symbols-outlined text-primary text-5xl relative z-10 font-bold">location_on</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -451,8 +479,88 @@ export default function DomusPropertyDetailsPage({ broker, property, similarProp
           </div>
         </div>
 
+        {/* Similar Properties Section */}
+        <section className="py-16 sm:py-20">
+          <div className="flex flex-col sm:flex-row items-end justify-between gap-6 mb-12">
+            <div className="max-w-2xl">
+              <span className="text-primary font-bold uppercase tracking-widest text-sm mb-2 block">Destaques</span>
+              <h2 className="text-3xl sm:text-4xl font-extrabold">Imóveis Semelhantes</h2>
+              <p className="text-slate-500 dark:text-slate-400 mt-2">Explore outras opções na região que também podem te agradar.</p>
+            </div>
+            <Link href={`/sites/${broker.slug}/search`} className="font-bold text-primary hover:underline flex items-center gap-2">
+              Ver todos <span className="material-symbols-outlined">arrow_forward</span>
+            </Link>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {similarProperties.map(sim => {
+                const isTargetSaved = savedPropertyIds.includes(sim.id);
+                const quartos = sim.caracteristicasimovel.quartos;
+                return (
+                  <Link key={sim.id} href={`/sites/${broker.slug}/imovel/${sim.informacoesbasicas.slug || sim.id}`} className="group relative flex flex-col rounded-2xl bg-white dark:bg-slate-900 border border-transparent shadow-soft hover:shadow-card transition-all duration-300 overflow-hidden">
+                    <div className="relative aspect-[4/3] w-full overflow-hidden bg-gray-100">
+                        <div 
+                            className={cn(
+                                "absolute top-3 left-3 z-10 rounded-md px-2 py-1 text-xs font-bold uppercase tracking-wide shadow-sm",
+                                !statusTagBgColor && "bg-primary text-black"
+                            )}
+                            style={{
+                                backgroundColor: statusTagBgColor,
+                                color: statusTagTextColor
+                            }}
+                        >
+                            {sim.informacoesbasicas.status}
+                        </div>
+                        <button onClick={(e) => handleRadarToggle(e, sim.id)} className={cn("absolute top-3 right-3 z-10 flex size-8 items-center justify-center rounded-full bg-white/80 backdrop-blur-sm text-black hover:text-red-500 hover:bg-white transition-colors", isTargetSaved && "text-primary bg-white")}>
+                            <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: isTargetSaved ? "'FILL' 1" : "" }}>radar</span>
+                        </button>
+                        <Image alt={sim.informacoesbasicas.nome} width={400} height={300} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" src={sim.midia?.[0] || 'https://picsum.photos/seed/prop/400/300'}/>
+                        <div className="absolute bottom-0 left-0 w-full bg-gradient-to-t from-black/60 to-transparent p-4 pt-12">
+                            {sim.informacoesbasicas.valor && (
+                            <p className="text-white font-bold text-2xl tracking-tight">
+                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(sim.informacoesbasicas.valor)}
+                            </p>
+                            )}
+                        </div>
+                    </div>
+                    <div className="flex flex-col p-5 gap-3">
+                        <div>
+                            <h3 className="text-lg font-bold text-text-main group-hover:text-primary transition-colors line-clamp-1" style={{color: cardTitleColor}}>{sim.informacoesbasicas.nome}</h3>
+                            <p className="text-sm text-text-muted mt-1 flex items-center gap-1">
+                                <span className="material-symbols-outlined text-[16px]">location_on</span>
+                                {sim.localizacao.bairro}, {sim.localizacao.cidade}
+                            </p>
+                        </div>
+                        <div className="flex items-center justify-between border-y border-gray-100 py-3 mt-1">
+                            {sim.caracteristicasimovel.quartos && (
+                                <div className="flex items-center gap-1.5">
+                                    <span className="material-symbols-outlined text-primary text-[20px]" style={{color: cardIconColor}}>bed</span>
+                                    <span className="text-sm font-semibold text-[#111418]">{formatQuartos(sim.caracteristicasimovel.quartos)}</span>
+                                </div>
+                            )}
+                            <div className="w-px h-4 bg-gray-200"></div>
+                             {sim.caracteristicasimovel.vagas && (
+                                <div className="flex items-center gap-1.5">
+                                    <span className="material-symbols-outlined text-primary text-[20px]" style={{color: cardIconColor}}>shower</span>
+                                    <span className="text-sm font-semibold text-[#111418]">{sim.caracteristicasimovel.vagas}</span>
+                                </div>
+                             )}
+                             <div className="w-px h-4 bg-gray-200"></div>
+                            {sim.caracteristicasimovel.tamanho && (
+                                <div className="flex items-center gap-1.5">
+                                    <span className="material-symbols-outlined text-primary text-[20px]" style={{color: cardIconColor}}>square_foot</span>
+                                    <span className="text-sm font-semibold text-[#111418]">{sim.caracteristicasimovel.tamanho}</span>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                  </Link>
+                )
+            })}
+          </div>
+        </section>
+
         {/* CTA Section */}
-        <section className="py-16 sm:py-20 mt-12 sm:mt-20">
+        <section className="py-16 sm:py-20">
             <div className="rounded-[2.5rem] p-6 sm:p-12 md:p-20 text-center relative overflow-hidden" style={{ backgroundColor: 'var(--cta-section-bg)' }}>
                 <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 blur-[100px] rounded-full"></div>
                 <div className="absolute bottom-0 left-0 w-64 h-64 bg-primary/5 blur-[100px] rounded-full"></div>
@@ -460,7 +568,7 @@ export default function DomusPropertyDetailsPage({ broker, property, similarProp
                     <h2 className="text-3xl sm:text-4xl md:text-6xl font-bold leading-tight tracking-tight px-2" style={{ color: 'var(--cta-section-title)' }}>{content.ctaTitle || 'Pronto para encontrar seu próximo lar?'}</h2>
                     <p className="text-base sm:text-xl px-4" style={{ color: 'var(--cta-section-subtitle)' }}>{content.ctaSubtitle || 'Agende uma consultoria personalizada agora mesmo via WhatsApp.'}</p>
                     <div className="flex flex-col sm:flex-row gap-4 mt-4 w-full sm:w-auto px-4">
-                        <a href={whatsappLink} target="_blank" rel="noopener noreferrer" className="flex w-full items-center justify-center gap-3 rounded-full h-16 px-10 text-lg font-black shadow-lg hover:scale-[1.05] transition-transform uppercase tracking-widest" style={{ backgroundColor: 'var(--cta-section-button-bg)', color: 'var(--cta-section-button-text)' }}>
+                        <a href={whatsappLink} target="_blank" rel="noopener noreferrer" className="flex w-full items-center justify-center gap-3 rounded-full h-16 px-10 text-lg font-black shadow-lg hover:scale-[1.05] transition-all uppercase tracking-widest" style={{ backgroundColor: 'var(--cta-section-button-bg)', color: 'var(--cta-section-button-text)' }}>
                             <span className="material-symbols-outlined font-bold">chat</span>
                             FALAR NO WHATSAPP
                         </a>

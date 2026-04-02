@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Button } from '@/components/ui/button';
@@ -251,9 +250,15 @@ export default function BrokerHomePage() {
     featuresCard4Icon: 'support_agent',
     featuresCard4Description: 'Sempre prontos para ajudar.',
     ctaTitle: 'Receba as melhores ofertas',
-    ctaSubtitle: 'Cadastre-se para receber alertas de novos imóveis no seu perfil e dicas exclusivas de mercado.'
+    ctaSubtitle: 'Cadastre-se para receber alertas de novos imóveis no seu perfil e dicas exclusivas de mercado.',
+    statsSold: '',
+    statsExperience: '',
+    statsSatisfaction: '',
+    statsSupport: ''
   };
   const finalContent = { ...defaultContent, ...siteData?.homepage };
+
+  const hasStats = finalContent.statsSold || finalContent.statsExperience || finalContent.statsSatisfaction || finalContent.statsSupport;
 
   return (
     <div className="bg-background-light overflow-x-hidden w-full">
@@ -334,13 +339,13 @@ export default function BrokerHomePage() {
                     </Sheet>
                 </div>
                 <Link className="hidden lg:flex items-center gap-3" href="/">
-                    <Image src={siteData?.logoUrl || defaultLogo || ""} alt="Oraora Logo" width={120} height={30} className="h-10 w-auto" style={{ width: 'auto' }} />
+                    <Image src={siteData?.logoUrl || defaultLogo || ""} alt="Oraora Logo" width={120} height={30} className="h-[30px] w-auto" style={{ width: 'auto' }} />
                 </Link>
             </div>
 
             <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
                 <Link className="flex items-center gap-3 lg:hidden" href="/">
-                    <Image src={siteData?.logoUrl || defaultLogo || ""} alt="Oraora Logo" width={120} height={30} className="h-10 w-auto" style={{ width: 'auto' }} />
+                    <Image src={siteData?.logoUrl || defaultLogo || ""} alt="Oraora Logo" width={120} height={30} className="h-[30px] w-auto" style={{ width: 'auto' }} />
                 </Link>
                 <nav className="hidden lg:flex items-center gap-8 text-sm font-semibold">
                     <Link className="text-text-main transition hover:text-primary" href="/imoveis">Imóveis</Link>
@@ -351,6 +356,7 @@ export default function BrokerHomePage() {
                 </nav>
             </div>
 
+            {/* Right side items */}
             <div className="flex items-center justify-end">
                 <div className="hidden lg:flex items-center gap-2 md:gap-4">
                     {!isReady ? (
@@ -362,12 +368,12 @@ export default function BrokerHomePage() {
                         <div className="flex items-center gap-4">
                             <Button asChild>
                                 <Link href={dashboardUrl} className='flex items-center gap-2'>
-                                    <span className="material-symbols-outlined text-base">grid_view</span>
+                                    <span className="material-symbols-outlined text base">grid_view</span>
                                     Acessar Painel
                                 </Link>
                             </Button>
                             <Button variant="outline" onClick={handleLogout} className='flex items-center gap-2'>
-                                <span className="material-symbols-outlined text-base">logout</span>
+                                <span className="material-symbols-outlined text base">logout</span>
                                 Sair
                             </Button>
                         </div>
@@ -375,13 +381,13 @@ export default function BrokerHomePage() {
                         <div className="flex items-center gap-4">
                             <Button asChild variant="ghost" className="text-sm font-medium text-gray-600 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 h-10 rounded-full px-6 transition">
                                 <Link href="/login" className="flex items-center gap-2">
-                                    <span className="material-symbols-outlined text-base">manage_accounts</span>
+                                    <span className="material-symbols-outlined text base">manage_accounts</span>
                                     Corretor
                                 </Link>
                             </Button>
                             <Button asChild className="h-10 rounded-full px-6 text-sm font-bold transition">
                                 <Link href="/radar">
-                                    <span className="material-symbols-outlined text-base mr-2">radar</span>
+                                    <span className="material-symbols-outlined text base mr-2">radar</span>
                                     Meu Radar
                                 </Link>
                             </Button>
@@ -431,7 +437,7 @@ export default function BrokerHomePage() {
                 className="font-display text-4xl lg:text-6xl font-bold leading-[1.1] tracking-tight text-dark-text max-w-4xl"
                 dangerouslySetInnerHTML={{ __html: isSiteDataLoading ? defaultContent.heroTitle : finalContent.heroTitle }}
               />
-               <div className="text-xl text-gray-600 leading-relaxed max-w-3xl mx-auto mt-6">
+               <div className="text-xl text-gray-600 leading-relaxed max-w-2xl mx-auto mt-6">
                 {isSiteDataLoading ? (
                   <div className="space-y-2">
                     <div className="h-6 w-full bg-gray-200 animate-pulse rounded-md"></div>
@@ -449,44 +455,50 @@ export default function BrokerHomePage() {
             </div>
             <div className="mt-[-100px] lg:mt-[-140px] pt-[140px] lg:pt-[180px] pb-12 rounded-3xl overflow-hidden relative mx-4 lg:mx-8">
               <div className="absolute inset-0 bg-gray-200">
-                <Image alt="Modern home exterior" className="w-full h-full object-cover opacity-80" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDrUcIQjre-mjWEvY82yJet1YziViHf-6K07gyI5GqdN9k0PEeIFJCl8njo9KuCo8e67CVWz0MPADdlNj7J6Uhb5NRMT3shJZhRC7ZhEMbm8EWxHYR7B0bJK3eRe0DJoyo9451hiUROdHsBx7ZUX2mgpijEkdudMToadTIm14kdLW9ja4sdWxB_vDypo4bpE6DZ3Hse5xlJHlva2KM9_wf3NxZ_iResrXRYY3okI7TuARQ6F4gYG6-MLst3tFIRXmLfX2zhiguAfww" fill />
+                <Image alt="Modern home exterior" className="w-full h-full object-cover opacity-80" src="https://images.unsplash.com/photo-1524661135-423995f22d0b?q=80&w=2000&auto=format&fit=crop" fill />
                 <div className="absolute inset-0 bg-gradient-to-t from-white via-white/40 to-transparent"></div>
               </div>
             </div>
           </div>
         </section>
 
-        {/* New Stats Section */}
-        <section className="w-full py-16 border-y border-[#f0f2f4] bg-white">
-          <div className="layout-container max-w-[1280px] mx-auto px-6">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:divide-x divide-gray-100">
-              <div className="flex flex-col items-center justify-center text-center px-4">
-                <div className="text-2xl md:text-3xl font-bold leading-tight text-[#161811]">
-                  +2 Mi Imóveis<br />Anunciados
-                </div>
-                <span className="text-[10px] font-bold uppercase tracking-[0.2em] mt-2 text-muted-foreground">IMÓVEIS ANUNCIADOS</span>
-              </div>
-              <div className="flex flex-col items-center justify-center text-center px-4">
-                <div className="text-2xl md:text-3xl font-bold leading-tight text-[#161811]">
-                  150k Negócios<br />Fechados
-                </div>
-                <span className="text-[10px] font-bold uppercase tracking-[0.2em] mt-2 text-muted-foreground">NEGÓCIOS FECHADOS</span>
-              </div>
-              <div className="flex flex-col items-center justify-center text-center px-4">
-                <div className="text-2xl md:text-3xl font-bold leading-tight text-[#161811]">
-                  300+ Cidades<br />Atendidas
-                </div>
-                <span className="text-[10px] font-bold uppercase tracking-[0.2em] mt-2 text-muted-foreground">CIDADES ATENDIDAS</span>
-              </div>
-              <div className="flex flex-col items-center justify-center text-center px-4">
-                <div className="text-2xl md:text-3xl font-bold leading-tight text-[#161811]">
-                  Suporte<br />Premium
-                </div>
-                <span className="text-[10px] font-bold uppercase tracking-[0.2em] mt-2 text-muted-foreground">SUPORTE PREMIUM</span>
+        {/* Stats Section */}
+        {hasStats && (
+          <section className="w-full py-16 border-y border-[#f0f2f4] bg-white">
+            <div className="layout-container max-w-[1280px] mx-auto px-6">
+              <div className="flex flex-wrap items-center justify-center gap-y-8">
+                {finalContent.statsSold && (
+                  <div className="flex flex-col items-center justify-center text-center px-6 border-gray-100 w-full sm:w-1/2 lg:w-1/4">
+                    <span className="text-base md:text-lg font-black leading-tight text-[#161811] uppercase break-words">
+                      {finalContent.statsSold}
+                    </span>
+                  </div>
+                )}
+                {finalContent.statsExperience && (
+                  <div className="flex flex-col items-center justify-center text-center px-6 border-gray-100 md:border-l w-full sm:w-1/2 lg:w-1/4">
+                    <span className="text-base md:text-lg font-black leading-tight text-[#161811] uppercase break-words">
+                      {finalContent.statsExperience}
+                    </span>
+                  </div>
+                )}
+                {finalContent.statsSatisfaction && (
+                  <div className="flex flex-col items-center justify-center text-center px-6 border-gray-100 lg:border-l w-full sm:w-1/2 lg:w-1/4">
+                    <span className="text-base md:text-lg font-black leading-tight text-[#161811] uppercase break-words">
+                      {finalContent.statsSatisfaction}
+                    </span>
+                  </div>
+                )}
+                {finalContent.statsSupport && (
+                  <div className="flex flex-col items-center justify-center text-center px-6 border-gray-100 md:border-l w-full sm:w-1/2 lg:w-1/4">
+                    <span className="text-base md:text-lg font-black leading-tight text-[#161811] uppercase break-words">
+                      {finalContent.statsSupport}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
-          </div>
-        </section>
+          </section>
+        )}
 
         <section className="py-12 bg-white">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -515,7 +527,7 @@ export default function BrokerHomePage() {
                     <CarouselItem key={index} className="pl-4 basis-1/2 lg:basis-1/4">
                         <Link href={`/imoveis?type=${category}`} className="group relative aspect-[3/4] rounded-2xl overflow-hidden shadow-sm border border-gray-100 hover:shadow-lg transition-all duration-300 block">
                         {isSiteDataLoading ? (
-                            <Skeleton className="w-full h-full" />
+                            <Skeleton className="full h-full" />
                         ) : (
                             <Image
                                 alt={category}
@@ -576,9 +588,9 @@ export default function BrokerHomePage() {
                             <h3 className="font-semibold text-lg uppercase text-dark-text group-hover:text-primary transition-colors">{property.informacoesbasicas.nome}</h3>
                             <p className="text-sm text-gray-500 mt-1">{property.localizacao.bairro}, {property.localizacao.cidade}</p>
                             <div className="mt-3 pt-3 border-t border-gray-100 flex items-center gap-4 text-sm text-gray-600">
-                                <span className="flex items-center gap-1.5"><span className="material-symbols-outlined text-base">bed</span> {formatQuartos(quartos)}</span>
-                                <span className="flex items-center gap-1.5"><span className="material-symbols-outlined text-base">shower</span> {property.caracteristicasimovel.vagas}</span>
-                                <span className="flex items-center gap-1.5"><span className="material-symbols-outlined text-base">square_foot</span> {property.caracteristicasimovel.tamanho}</span>
+                                <span className="flex items-center gap-1.5"><span className="material-symbols-outlined text base">bed</span> {formatQuartos(quartos)}</span>
+                                <span className="flex items-center gap-1.5"><span className="material-symbols-outlined text base">shower</span> {property.caracteristicasimovel.vagas}</span>
+                                <span className="flex items-center gap-1.5"><span className="material-symbols-outlined text base">square_foot</span> {property.caracteristicasimovel.tamanho}</span>
                             </div>
                         </div>
                     </Link>
@@ -693,7 +705,7 @@ export default function BrokerHomePage() {
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8 mb-12">
                 <div className="col-span-2 lg:col-span-2">
                     <div className="flex items-center gap-2 mb-4">
-                        <Image src={siteData?.logoUrl || defaultLogo || ""} alt="Oraora Logo" width={120} height={30} className="h-10 w-auto" style={{ width: 'auto' }} />
+                        <Image src={siteData?.logoUrl || defaultLogo || ""} alt="Oraora Logo" width={160} height={40} className="h-8 w-auto" style={{ width: 'auto' }} />
                     </div>
                     {isSiteDataLoading ? (
                       <div className="space-y-2 max-w-xs">

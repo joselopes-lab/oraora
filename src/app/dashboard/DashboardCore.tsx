@@ -94,12 +94,12 @@ const AIChatWidget = () => {
               <header className="p-4 border-b border-gray-100 flex items-center justify-between bg-white">
                 <div className="flex items-center gap-3">
                   <div className="relative">
-                    <div className="w-10 h-10 bg-secondary rounded-full flex items-center justify-center">
-                      <svg className="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <div className="size-10 bg-secondary rounded-full flex items-center justify-center">
+                      <svg className="size-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                         <path d="M13 10V3L4 14h7v7l9-11h-7z" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"></path>
                       </svg>
                     </div>
-                    <span className="absolute bottom-0 right-0 w-3 h-3 bg-primary border-2 border-white rounded-full"></span>
+                    <span className="absolute bottom-0 right-0 size-3 bg-primary border-2 border-white rounded-full"></span>
                   </div>
                   <div>
                     <h2 className="text-sm font-bold text-gray-900">Assistente Oraora AI</h2>
@@ -107,7 +107,7 @@ const AIChatWidget = () => {
                   </div>
                 </div>
                 <button className="p-2 hover:bg-gray-100 rounded-full transition-colors cursor-pointer" onClick={toggleChat}>
-                  <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <svg className="size-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <path d="M6 18L18 6M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"></path>
                   </svg>
                 </button>
@@ -141,7 +141,7 @@ const AIChatWidget = () => {
                     onChange={(e) => setInputValue(e.target.value)}
                   />
                   <button type="submit" className="absolute right-2 p-2 bg-secondary text-primary rounded-lg hover:bg-black transition-colors cursor-pointer">
-                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <svg className="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                       <path d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"></path>
                     </svg>
                   </button>
@@ -156,7 +156,7 @@ const AIChatWidget = () => {
                 )}
                 onClick={toggleChat}
             >
-                <svg className="h-7 w-7 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <svg className="size-7 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <path d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"></path>
                 </svg>
             </button>
@@ -504,12 +504,13 @@ export default function DashboardCore({
 
                     <div onMouseEnter={() => handleMouseEnter('plataforma')} onMouseLeave={handleMouseLeave} className="h-full">
                       <DropdownMenu open={openMenu === 'plataforma'} onOpenChange={(open) => setOpenMenu(open ? 'plataforma' : null)}>
-                        <DropdownMenuTrigger className={dropdownTriggerClasses(["/dashboard/admin/site", "/dashboard/admin/sitemap"])}>
+                        <DropdownMenuTrigger className={dropdownTriggerClasses(["/dashboard/admin/site", "/dashboard/admin/site/pagina-corretor", "/dashboard/admin/sitemap"])}>
                           <span className="material-symbols-outlined text-[20px]">settings_suggest</span>
                           Plataforma
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="start" className="w-56" onMouseEnter={() => handleMouseEnter('plataforma')} onMouseLeave={handleMouseLeave}>
                           <DropdownMenuItem asChild><Link href="/dashboard/admin/site/inicio">Editor do Site</Link></DropdownMenuItem>
+                          <DropdownMenuItem asChild><Link href="/dashboard/admin/site/pagina-corretor">Página do Corretor</Link></DropdownMenuItem>
                           <DropdownMenuItem asChild><Link href="/dashboard/admin/sitemap">Sitemap</Link></DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -787,7 +788,7 @@ export default function DashboardCore({
                               {['Venda', 'Captação', 'Consultoria', 'Avaliação'].map((svc) => (
                                 <label key={svc} className="flex items-center gap-3 p-4 rounded-lg border-2 border-slate-100 dark:border-slate-800 cursor-pointer hover:border-primary/50 transition-colors">
                                   <input 
-                                    className="h-5 w-5 rounded border-slate-300 dark:border-slate-700 text-primary focus:ring-primary bg-transparent" 
+                                    className="size-5 rounded border-slate-300 dark:border-slate-700 text-primary focus:ring-primary bg-transparent" 
                                     type="checkbox" 
                                     checked={briefingData.services.includes(svc)}
                                     onChange={() => toggleService(svc)}
@@ -832,7 +833,7 @@ export default function DashboardCore({
                             <div className="flex flex-col sm:flex-row gap-4">
                               <label className="flex-1 flex items-center justify-center gap-3 p-4 rounded-lg border-2 border-slate-100 dark:border-slate-800 cursor-pointer has-[:checked]:border-primary has-[:checked]:bg-primary/5 transition-all">
                                 <input 
-                                  className="h-5 w-5 border-slate-300 dark:border-slate-700 text-primary focus:ring-primary bg-transparent" 
+                                  className="size-5 border-slate-300 dark:border-slate-700 text-primary focus:ring-primary bg-transparent" 
                                   name="posvenda" 
                                   type="radio" 
                                   value="sim" 
@@ -843,7 +844,7 @@ export default function DashboardCore({
                               </label>
                               <label className="flex-1 flex items-center justify-center gap-3 p-4 rounded-lg border-2 border-slate-100 dark:border-slate-800 cursor-pointer has-[:checked]:border-primary has-[:checked]:bg-primary/5 transition-all">
                                 <input 
-                                  className="h-5 w-5 border-slate-300 dark:border-slate-700 text-primary focus:ring-primary bg-transparent" 
+                                  className="size-5 border-slate-300 dark:border-slate-700 text-primary focus:ring-primary bg-transparent" 
                                   name="posvenda" 
                                   type="radio" 
                                   value="nao" 
@@ -1004,7 +1005,7 @@ export default function DashboardCore({
                               {['Especialista', 'Consultor', 'Corretor Premium', 'Outro'].map((pos) => (
                                 <label key={pos} className="flex cursor-pointer items-center gap-4 rounded-lg border border-slate-200 dark:border-slate-800 p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5">
                                   <input 
-                                    className="h-5 w-5 border-2 border-slate-300 dark:border-slate-700 bg-transparent text-primary focus:ring-primary checked:border-primary" 
+                                    className="size-5 border-2 border-slate-300 dark:border-slate-700 bg-transparent text-primary focus:ring-primary checked:border-primary" 
                                     name="market_position" 
                                     type="radio" 
                                     checked={briefingData.marketPosition === pos}
@@ -1220,7 +1221,7 @@ export default function DashboardCore({
 
                         <div className="relative z-10 flex-1 p-8 md:p-12 flex flex-col items-center justify-center text-center gap-8">
                           <div className="inline-flex items-center justify-center w-20 h-20 bg-primary rounded-full shadow-lg shadow-primary/20 animate-pop">
-                            <svg className="h-10 w-10 text-slate-900" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
+                            <svg className="size-10 text-slate-900" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
                               <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round"></path>
                             </svg>
                           </div>

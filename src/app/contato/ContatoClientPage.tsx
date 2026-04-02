@@ -101,6 +101,13 @@ export default function ContatoClientPage() {
     };
 
     const contactContent = siteData?.oraoraContato || {};
+    const mapAddress = contactContent.addressLine1 && contactContent.addressLine2 
+        ? `${contactContent.addressLine1}, ${contactContent.addressLine2}`
+        : contactContent.addressLine1 || '';
+    
+    const mapUrl = mapAddress 
+        ? `https://www.google.com/maps?q=${encodeURIComponent(mapAddress)}&output=embed`
+        : null;
 
     return (
       <>
@@ -349,6 +356,33 @@ export default function ContatoClientPage() {
             </form>
             </Form>
             </div>
+            </div>
+            <div className="relative rounded-3xl overflow-hidden h-64 lg:h-[500px] w-full bg-gray-50 border border-gray-100 shadow-soft">
+                {mapUrl ? (
+                    <iframe
+                        src={mapUrl}
+                        width="100%"
+                        height="100%"
+                        style={{ border: 0 }}
+                        allowFullScreen={false}
+                        loading="lazy"
+                        referrerPolicy="no-referrer-when-downgrade"
+                        className="grayscale dark:invert opacity-80"
+                    ></iframe>
+                ) : (
+                    <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-2 p-8 text-center">
+                        <span className="material-symbols-outlined text-5xl text-gray-200">map</span>
+                        <p className="text-sm font-medium">Localização não informada no cadastro.</p>
+                    </div>
+                )}
+                {mapUrl && (
+                    <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+                        <div className="relative">
+                            <div className="w-12 h-12 bg-primary/20 rounded-full animate-ping absolute -top-2 -left-2"></div>
+                            <span className="material-symbols-outlined text-primary text-5xl relative z-10 font-bold">location_on</span>
+                        </div>
+                    </div>
+                )}
             </div>
             </div>
             </div>

@@ -1,3 +1,4 @@
+
 'use client';
 import { useDoc, useFirebase, setDocumentNonBlocking, useMemoFirebase } from '@/firebase';
 import { doc } from 'firebase/firestore';
@@ -202,21 +203,21 @@ export default function EditPortalSobrePage() {
                 <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
                     <h2 className="text-lg font-bold flex items-center gap-2 text-gray-800">
                         <span className="material-symbols-outlined text-primary-hover">query_stats</span>
-                        Estatísticas
+                        Destaques Numéricos
                     </h2>
                 </div>
                 <div className="p-6 grid grid-cols-2 md:grid-cols-4 gap-6">
                     <FormField control={form.control} name="statAnunciados" render={({ field }) => (
-                        <FormItem><FormLabel>Imóveis Anunciados</FormLabel><FormControl><Input placeholder="+2 Mi" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
+                        <FormItem><FormLabel>Anos de Mercado</FormLabel><FormControl><Input placeholder="Ex: 2 anos" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
                     )}/>
                     <FormField control={form.control} name="statNegocios" render={({ field }) => (
-                        <FormItem><FormLabel>Negócios Fechados</FormLabel><FormControl><Input placeholder="150k" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
+                        <FormItem><FormLabel>Negócios Geridos</FormLabel><FormControl><Input placeholder="Ex: +200" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
                     )}/>
                     <FormField control={form.control} name="statCidades" render={({ field }) => (
-                        <FormItem><FormLabel>Cidades Atendidas</FormLabel><FormControl><Input placeholder="300+" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
+                        <FormItem><FormLabel>Famílias Assessoradas</FormLabel><FormControl><Input placeholder="Ex: +150" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
                     )}/>
                     <FormField control={form.control} name="statAvaliacao" render={({ field }) => (
-                        <FormItem><FormLabel>Avaliação Média</FormLabel><FormControl><Input placeholder="4.9" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
+                        <FormItem><FormLabel>Prêmios Setoriais</FormLabel><FormControl><Input placeholder="Ex: 12" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
                     )}/>
                 </div>
             </section>

@@ -265,11 +265,11 @@ const defaultThemeColors: CustomizationFormData = {
     aboutTextColor: '220 9% 46%',
     aboutQuoteBgColor: '80 99% 49%',
     aboutQuoteTextColor: '110 16% 8%',
-    mapSectionBgColor: '90 20% 97%',
-    mapTitleColor: '0 0% 100%',
-    mapTextColor: '0 0% 80%',
-    mapButtonBgColor: '80 99% 49%',
-    mapButtonTextColor: '110 16% 8%',
+    mapSectionBgColor: '210 20% 98%',
+    mapTitleColor: '210 20% 10%',
+    mapTextColor: '210 20% 40%',
+    mapButtonBgColor: '224 71% 19%',
+    mapButtonTextColor: '0 0% 100%',
     sobrePageIconColor: '80 99% 49%',
     sobrePageCtaBgColor: '80 99% 49%',
     sobrePageCtaTextColor: '110 16% 8%',
@@ -491,6 +491,11 @@ export default function EditSiteColorsPage() {
       '--preview-cta-section-subtitle': hslToHex(watchedColors.ctaSectionSubtitleColor || ''),
       '--preview-cta-section-button-bg': hslToHex(watchedColors.ctaSectionButtonBgColor || ''),
       '--preview-cta-section-button-text': hslToHex(watchedColors.ctaSectionButtonTextColor || ''),
+      '--preview-map-section-bg': hslToHex(watchedColors.mapSectionBgColor || ''),
+      '--preview-map-title': hslToHex(watchedColors.mapTitleColor || ''),
+      '--preview-map-text': hslToHex(watchedColors.mapTextColor || ''),
+      '--preview-map-btn-bg': hslToHex(watchedColors.mapButtonBgColor || ''),
+      '--preview-map-btn-text': hslToHex(watchedColors.mapButtonTextColor || ''),
   } as React.CSSProperties;
 
   const content = brokerData?.homepage || {};
@@ -714,7 +719,7 @@ export default function EditSiteColorsPage() {
                       </CollapsibleContent>
                   </Collapsible>
                   <Collapsible open={isSobrePageOpen} onOpenChange={setIsSobrePageOpen} className="bg-white rounded-xl shadow-soft border border-gray-100 overflow-hidden">
-                      <CollapsibleTrigger className="p-5 border-b border-gray-100 flex items-center justify-between gap-2 w-full hover:bg-gray-50/50 transition-colors data-[state=open]:bg-gray-50/50">
+                      <CollapsibleTrigger className="p-5 border-b border-gray-50 flex items-center justify-between gap-2 w-full hover:bg-gray-50/50 transition-colors data-[state=open]:bg-gray-50/50">
                           <div className="flex items-center gap-2">
                               <span className="material-symbols-outlined text-secondary">badge</span>
                               <h3 className="font-bold text-text-main">Página Sobre</h3>

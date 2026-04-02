@@ -1,4 +1,3 @@
-
 'use client';
 import { UrbanPadraoHeader } from '@/layouts/urban-padrao/components/UrbanPadraoHeader';
 import { UrbanPadraoFooter } from '@/layouts/urban-padrao/components/UrbanPadraoFooter';
@@ -82,6 +81,8 @@ export default function SobrePage({ broker }: SobrePageProps) {
     }
   `;
   
+  const hasStats = content.statYearsExperience || content.statManagedDeals || content.statAssistedFamilies || content.statAwards;
+
   return (
     <div className="urban-padrao-theme relative flex min-h-screen w-full flex-col group/design-root">
       <style>{styles}</style>
@@ -115,20 +116,35 @@ export default function SobrePage({ broker }: SobrePageProps) {
                   <p key={index}>{paragraph}</p>
               ))}
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-12 w-full max-w-4xl border-t border-gray-100 pt-10">
-              <div className="flex flex-col items-center gap-1 group cursor-default">
-                <span className="text-4xl lg:text-5xl font-black text-text-main group-hover:text-primary transition-colors duration-300">{content.statManagedDeals || defaultValues.statManagedDeals}</span>
-                <span className="text-sm text-text-muted font-bold uppercase tracking-wider">em Negócios Geridos</span>
-              </div>
-              <div className="flex flex-col items-center gap-1 group cursor-default">
-                <span className="text-4xl lg:text-5xl font-black text-text-main group-hover:text-primary transition-colors duration-300">{content.statAssistedFamilies || defaultValues.statAssistedFamilies}</span>
-                <span className="text-sm text-text-muted font-bold uppercase tracking-wider">Famílias Assessoradas</span>
-              </div>
-              <div className="flex flex-col items-center gap-1 group cursor-default">
-                <span className="text-4xl lg:text-5xl font-black text-text-main group-hover:text-primary transition-colors duration-300">{content.statYearsExperience || defaultValues.statYearsExperience}</span>
-                <span className="text-sm text-text-muted font-bold uppercase tracking-wider">de Experiência Sólida</span>
-              </div>
-            </div>
+            
+            {hasStats && (
+                <div className="flex flex-wrap justify-center gap-y-12 w-full max-w-4xl border-t border-gray-100 pt-10">
+                {content.statYearsExperience && (
+                  <div className="flex flex-col items-center justify-center text-center px-6 border-gray-100 w-full sm:w-1/2 lg:w-1/4 group cursor-default">
+                    <span className="text-base lg:text-lg font-black text-text-main group-hover:text-primary transition-colors duration-300 leading-tight break-words">{content.statYearsExperience}</span>
+                    <span className="text-[10px] text-text-muted font-bold uppercase tracking-widest text-center mt-1">Anos de Mercado</span>
+                  </div>
+                )}
+                {content.statManagedDeals && (
+                  <div className="flex flex-col items-center justify-center text-center px-6 border-gray-100 md:border-l w-full sm:w-1/2 lg:w-1/4 group cursor-default">
+                    <span className="text-base lg:text-lg font-black text-text-main group-hover:text-primary transition-colors duration-300 leading-tight break-words">{content.statManagedDeals}</span>
+                    <span className="text-[10px] text-text-muted font-bold uppercase tracking-widest text-center mt-1">Negócios Geridos</span>
+                  </div>
+                )}
+                {content.statAssistedFamilies && (
+                  <div className="flex flex-col items-center justify-center text-center px-6 border-gray-100 lg:border-l w-full sm:w-1/2 lg:w-1/4 group cursor-default">
+                    <span className="text-base lg:text-lg font-black text-text-main group-hover:text-primary transition-colors duration-300 leading-tight break-words">{content.statAssistedFamilies}</span>
+                    <span className="text-[10px] text-text-muted font-bold uppercase tracking-widest text-center mt-1">Famílias Assessoradas</span>
+                  </div>
+                )}
+                {content.statAwards && (
+                  <div className="flex flex-col items-center justify-center text-center px-6 border-gray-100 md:border-l w-full sm:w-1/2 lg:w-1/4 group cursor-default">
+                    <span className="text-base lg:text-lg font-black text-text-main group-hover:text-primary transition-colors duration-300 leading-tight break-words">{content.statAwards}</span>
+                    <span className="text-[10px] text-text-muted font-bold uppercase tracking-widest text-center mt-1">Prêmios Setoriais</span>
+                  </div>
+                )}
+                </div>
+            )}
           </div>
         </section>
         <section className="w-full py-12 lg:py-20 bg-background-light">
@@ -262,7 +278,7 @@ export default function SobrePage({ broker }: SobrePageProps) {
           </div>
         </section>
         <section className="w-full py-20 bg-text-main relative overflow-hidden">
-          <div className="absolute inset-0 bg-primary/5 opacity-10" style={{backgroundImage: "radial-gradient(#c3e738 1px, transparent 1px)", backgroundSize: "20px 20px"}}></div>
+          <div className="absolute inset-0 bg-primary/5 opacity-10" style={{ backgroundImage: 'radial-gradient(#c3e738 1px, transparent 1px)', backgroundSize: '20px 20px' }}></div>
           <div className="layout-container max-w-4xl mx-auto px-6 text-center relative z-10">
             <h2 className="text-3xl md:text-5xl font-black text-black mb-6">Vamos conversar sobre seu futuro?</h2>
             <p className="text-gray-400 text-lg mb-10 max-w-2xl mx-auto">

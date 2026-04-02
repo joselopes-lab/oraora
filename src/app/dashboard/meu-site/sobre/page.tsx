@@ -42,6 +42,7 @@ const sobreSchema = z.object({
   statManagedDeals: z.string().optional(),
   statAssistedFamilies: z.string().optional(),
   statYearsExperience: z.string().optional(),
+  statAwards: z.string().optional(),
   videoUrl: z.string().url().or(z.literal('')).optional(),
   videoTitle: z.string().optional(),
   videoDescription: z.string().optional(),
@@ -85,6 +86,7 @@ export default function EditSobrePage() {
             statManagedDeals: '',
             statAssistedFamilies: '',
             statYearsExperience: '',
+            statAwards: '',
             videoUrl: '',
             videoTitle: '',
             videoDescription: '',
@@ -196,11 +198,20 @@ export default function EditSobrePage() {
                                 </div>
                             )}/>
                         </div>
-                        <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                            <div>
+                                <Label className="block text-sm font-medium text-text-main mb-1.5">Anos de Mercado</Label>
+                                <div className="relative">
+                                    <Input className="pl-10" {...form.register('statYearsExperience')} placeholder="Ex: 2 anos" />
+                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <span className="material-symbols-outlined text-gray-400 text-[20px]">calendar_month</span>
+                                    </div>
+                                </div>
+                            </div>
                             <div>
                                 <Label className="block text-sm font-medium text-text-main mb-1.5">Negócios Geridos</Label>
                                 <div className="relative">
-                                    <Input className="pl-10" {...form.register('statManagedDeals')} />
+                                    <Input className="pl-10" {...form.register('statManagedDeals')} placeholder="Ex: +200" />
                                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                         <span className="material-symbols-outlined text-gray-400 text-[20px]">attach_money</span>
                                     </div>
@@ -209,18 +220,18 @@ export default function EditSobrePage() {
                             <div>
                                 <Label className="block text-sm font-medium text-text-main mb-1.5">Famílias Assessoradas</Label>
                                 <div className="relative">
-                                    <Input className="pl-10" {...form.register('statAssistedFamilies')} />
+                                    <Input className="pl-10" {...form.register('statAssistedFamilies')} placeholder="Ex: +150" />
                                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                         <span className="material-symbols-outlined text-gray-400 text-[20px]">groups</span>
                                     </div>
                                 </div>
                             </div>
                             <div>
-                                <Label className="block text-sm font-medium text-text-main mb-1.5">Anos de Experiência</Label>
+                                <Label className="block text-sm font-medium text-text-main mb-1.5">Prêmios Setoriais</Label>
                                 <div className="relative">
-                                    <Input className="pl-10" {...form.register('statYearsExperience')} />
+                                    <Input className="pl-10" {...form.register('statAwards')} placeholder="Ex: 12" />
                                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                        <span className="material-symbols-outlined text-gray-400 text-[20px]">calendar_month</span>
+                                        <span className="material-symbols-outlined text-gray-400 text-[20px]">military_tech</span>
                                     </div>
                                 </div>
                             </div>

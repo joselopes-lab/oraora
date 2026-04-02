@@ -1,3 +1,4 @@
+
 'use client';
 /**
  * @fileOverview Página de "Explorar no Mapa" exclusiva para o template Domus.
@@ -28,6 +29,11 @@ type Broker = {
     searchButtonTextColor?: string;
     statusTagBgColor?: string;
     statusTagTextColor?: string;
+    mapSectionBgColor?: string;
+    mapTitleColor?: string;
+    mapTextColor?: string;
+    mapButtonBgColor?: string;
+    mapButtonTextColor?: string;
   };
 };
 
@@ -563,7 +569,7 @@ export default function DomusMapClientPage({ broker, properties }: { broker: Bro
         </div>
         
         {!isResultsOpen && (
-             <button onClick={() => setIsResultsOpen(true)} className="absolute top-6 right-6 z-30 flex items-center justify-center size-12 bg-white rounded-full shadow-float border border-gray-200 text-gray-600 hover:text-black hover:scale-105 transition-all">
+             <button onClick={() => setIsResultsOpen(true)} className="absolute top-6 right-6 z-30 flex items-center justify-center size-12 bg-white rounded-full shadow-float border border-gray-100 text-gray-600 hover:text-black hover:scale-105 transition-all">
                 <span className="material-symbols-outlined">list_alt</span>
             </button>
         )}
@@ -619,8 +625,10 @@ export default function DomusMapClientPage({ broker, properties }: { broker: Bro
                                 Ver Detalhes
                                 <span className="material-symbols-outlined text-lg">arrow_forward</span>
                             </Link>
-                        <button className="size-11 flex items-center justify-center rounded-xl border border-gray-200 text-gray-400 hover:border-red-500 hover:text-red-500 hover:bg-red-50 transition-all">
-                            <span className="material-symbols-outlined">favorite</span>
+                        <button onClick={(e) => handleRadarClick(e, selectedProperty.id)} className="size-11 flex items-center justify-center rounded-xl border border-gray-200 text-gray-400 hover:border-red-500 hover:text-red-500 hover:bg-red-50 transition-all">
+                            <span className={cn("material-symbols-outlined", isSaved && "text-red-500")}>
+                                {isSaved ? 'favorite' : 'favorite_border'}
+                            </span>
                         </button>
                         </div>
                     </div>

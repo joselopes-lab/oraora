@@ -18,6 +18,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { WhatsAppWidget } from '@/app/sites/urban-padrao/components/WhatsAppWidget';
 import Image from 'next/image';
+import Link from 'next/link';
 
 type Broker = {
   id: string;
@@ -41,6 +42,11 @@ type Broker = {
     ctaSectionSubtitleColor?: string;
     ctaSectionButtonBgColor?: string;
     ctaSectionButtonTextColor?: string;
+    mapSectionBgColor?: string;
+    mapTitleColor?: string;
+    mapTextColor?: string;
+    mapButtonBgColor?: string;
+    mapButtonTextColor?: string;
   };
   footerContactEmail?: string;
   footerContactPhone?: string;
@@ -139,13 +145,14 @@ export default function DomusFaleConoscoPage({ broker }: DomusFaleConoscoPagePro
     '--cta-section-subtitle': content.ctaSectionSubtitleColor ? `hsl(${content.ctaSectionSubtitleColor})` : 'rgba(255,255,255,0.6)',
     '--cta-section-button-bg': content.ctaSectionButtonBgColor ? `hsl(${content.ctaSectionButtonBgColor})` : 'hsl(var(--primary))',
     '--cta-section-button-text': content.ctaSectionButtonTextColor ? `hsl(${content.ctaSectionButtonTextColor})` : 'hsl(var(--secondary))',
+    '--map-section-bg': content.mapSectionBgColor ? `hsl(${content.mapSectionBgColor})` : '#f3f4f1',
+    '--map-title-color': content.mapTitleColor ? `hsl(${content.mapTitleColor})` : '#111827',
+    '--map-text-color': content.mapTextColor ? `hsl(${content.mapTextColor})` : '#4b5563',
+    '--map-button-bg': content.mapButtonBgColor ? `hsl(${content.mapButtonBgColor})` : '#1e293b',
+    '--map-button-text': content.mapButtonTextColor ? `hsl(${content.mapButtonTextColor})` : '#ffffff',
   } as React.CSSProperties;
 
-  const whatsappLink = broker.whatsappUrl ? 
-    (broker.whatsappUrl.includes('wa.me/') && !broker.whatsappUrl.includes('wa.me/55') ? 
-      broker.whatsappUrl.replace('wa.me/', 'wa.me/55') : 
-      broker.whatsappUrl.replace('wa.me.com.br', 'wa.me')) 
-    : '#';
+  const whatsappLink = broker.whatsappUrl?.replace('wa.me.com.br', 'wa.me') || '#';
 
   return (
     <div style={dynamicStyles} className="domus-theme font-display bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 min-h-screen transition-colors duration-300">
@@ -202,7 +209,7 @@ export default function DomusFaleConoscoPage({ broker }: DomusFaleConoscoPagePro
                 </div>
                 <div>
                   <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-1">Endereço</h3>
-                  <p className="text-xl font-semibold">{broker.footerContactAddress || 'Av. Cabo Branco, 1200 - João Pessoa, PB'}</p>
+                  <p className="text-xl font-semibold">{broker.footerContactAddress || 'Endereço não informado'}</p>
                 </div>
               </div>
             </div>
@@ -309,28 +316,14 @@ export default function DomusFaleConoscoPage({ broker }: DomusFaleConoscoPagePro
         </section>
 
         <section className="max-w-7xl mx-auto px-6 pb-24">
-          <div className="relative w-full h-[400px] rounded-2xl overflow-hidden bg-slate-100 dark:bg-slate-800 grayscale dark:invert-[0.1] border border-slate-200 dark:border-slate-800 shadow-inner">
-            <Image alt="Mapa de localização estilizado" className="w-full h-full object-cover opacity-60" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC9jIqlBLWu9qrIWJ6BONR9ntQVmCNgWN6yWXZJlwXZWiPqIbFk6fDnHexDAj2x_2gRSU8IsH0AkcAcrE0yAIyp_J7101y5fIUhuxv_kRm64pGfmCQZhlSt7QAJsLFpjVW8VD4xjNqgm0hU6yxQ6z04c0JBXMmBv2Cqi52QFBtoP8fg5ydLi3BM1dgBm-gvjbqjec4FkAtn_orLkpjK5dDAhd5fWAXZQI4VeGL6FUS_0lPZn8NkV8uSsV1g-pTB7J8foZMLH_tT9kg" fill />
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="relative">
-                <div className="absolute -top-12 -left-1/2 -translate-x-1/2 bg-white dark:bg-slate-900 px-4 py-2 rounded-lg shadow-lg border border-slate-100 dark:border-slate-700 whitespace-nowrap">
-                  <span className="text-sm font-bold text-black dark:text-white">{broker.brandName} Office</span>
-                </div>
-                <div className="w-8 h-8 bg-primary rounded-full border-4 border-white dark:border-slate-900 shadow-xl animate-bounce"></div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="max-w-7xl mx-auto px-6 pb-24">
             <div className="rounded-[2.5rem] p-12 md:p-20 text-center relative overflow-hidden" style={{ backgroundColor: 'var(--cta-section-bg)' }}>
                 <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 blur-[100px] rounded-full"></div>
                 <div className="absolute bottom-0 left-0 w-64 h-64 bg-primary/5 blur-[100px] rounded-full"></div>
                 <div className="relative z-10 max-w-[800px] mx-auto flex flex-col gap-8 items-center">
                     <h2 className="text-4xl md:text-6xl font-bold leading-tight tracking-tight" style={{ color: 'var(--cta-section-title)' }}>{content.ctaTitle || 'Pronto para encontrar seu próximo lar?'}</h2>
                     <p className="text-xl" style={{ color: 'var(--cta-section-subtitle)' }}>{content.ctaSubtitle || 'Agende uma consultoria personalizada agora mesmo via WhatsApp.'}</p>
-                    <div className="flex flex-col sm:flex-row gap-4 mt-4">
-                        <a href={whatsappLink} target="_blank" rel="noopener noreferrer" className="flex min-w-[240px] items-center justify-center gap-3 rounded-full h-16 px-10 text-lg font-black shadow-lg hover:scale-[1.05] transition-transform uppercase tracking-widest" style={{ backgroundColor: 'var(--cta-section-button-bg)', color: 'var(--cta-section-button-text)' }}>
+                    <div className="flex flex-col sm:flex-row gap-4 mt-4 w-full sm:w-auto px-4">
+                        <a href={whatsappLink} target="_blank" rel="noopener noreferrer" className="flex w-full items-center justify-center gap-3 rounded-full h-16 px-10 text-lg font-black shadow-lg hover:scale-[1.05] transition-all uppercase tracking-widest" style={{ backgroundColor: 'var(--cta-section-button-bg)', color: 'var(--cta-section-button-text)' }}>
                             <span className="material-symbols-outlined font-bold">chat</span>
                             FALAR NO WHATSAPP
                         </a>

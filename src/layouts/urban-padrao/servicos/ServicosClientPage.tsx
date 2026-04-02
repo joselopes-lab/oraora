@@ -69,13 +69,19 @@ export default function ServicosClientPage({ broker }: ServicosPageProps) {
         if (!iconName) return 'star';
         const mapping: Record<string, string> = {
             'ICONE-VENDA': 'real_estate_agent',
+            'ICON-VENDA': 'real_estate_agent',
             'ICONE-CAPTACAO': 'travel_explore',
+            'ICON-CAPTACAO': 'travel_explore',
             'ICONE-AVALIACAO': 'analytics',
+            'ICON-AVALIACAO': 'analytics',
             'ICONE-CONSULTORIA': 'support_agent',
+            'ICON-CONSULTORIA': 'support_agent',
             'ICONE-GESTAO': 'key',
-            'ICONE-MARKETING': 'photo_camera'
+            'ICON-GESTAO': 'key',
+            'ICONE-MARKETING': 'photo_camera',
+            'ICON-MARKETING': 'photo_camera'
         };
-        const upperIcon = iconName.toUpperCase();
+        const upperIcon = iconName.toUpperCase().trim();
         return mapping[upperIcon] || iconName;
     };
 
@@ -106,7 +112,7 @@ export default function ServicosClientPage({ broker }: ServicosPageProps) {
                     <p className="text-text-muted text-lg max-w-2xl mx-auto mb-8">
                         {content.headerSubtitle || 'Combinamos expertise de mercado, tecnologia de ponta e atendimento personalizado para oferecer uma experiência única na gestão do seu patrimônio.'}
                     </p>
-                    <button className="inline-flex items-center justify-center h-12 px-8 rounded-full bg-primary hover:bg-primary-hover text-black text-sm font-bold shadow-lg shadow-primary/20 transition-all transform hover:scale-105">
+                    <button className="inline-flex items-center justify-center h-12 px-8 rounded-full bg-primary hover:bg-primary-hover text-white text-sm font-bold shadow-lg shadow-primary/20 transition-all transform hover:scale-105">
                         Solicitar Consultoria
                         <span className="material-symbols-outlined ml-2 text-[20px]">arrow_forward</span>
                     </button>
@@ -163,7 +169,7 @@ export default function ServicosClientPage({ broker }: ServicosPageProps) {
                                     {processSteps.map((step, index) => (
                                     <div key={index} className="flex gap-6 group">
                                         <div className="flex-shrink-0">
-                                            <div className="size-10 rounded-full bg-white border-2 border-primary text-text-main font-bold flex items-center justify-center shadow-sm group-hover:bg-primary group-hover:border-primary transition-all">{index + 1}</div>
+                                            <div className="size-10 rounded-full bg-white border-2 border-primary text-text-main font-bold flex items-center justify-center shadow-sm group-hover:bg-primary group-hover:border-primary group-hover:text-white transition-all">{index + 1}</div>
                                         </div>
                                         <div>
                                             <h4 className="text-lg font-bold text-text-main mb-2">{step.title}</h4>
@@ -201,7 +207,7 @@ export default function ServicosClientPage({ broker }: ServicosPageProps) {
                             {content.finalCtaSubtitle || 'Agende uma conversa sem compromisso e descubra como nossa assessoria pode fazer a diferença no seu próximo negócio imobiliário.'}
                         </p>
                         <div className="flex flex-col sm:flex-row justify-center gap-4">
-                            <button className="h-14 px-8 rounded-full text-base font-bold shadow-lg shadow-primary/20 transition-all transform hover:scale-105 flex items-center justify-center gap-2 bg-sobre-cta-bg text-sobre-cta-text">
+                            <button className="h-14 px-8 rounded-full text-base font-bold shadow-lg shadow-primary/20 transition-all transform hover:scale-105 flex items-center justify-center gap-2 bg-sobre-cta-bg text-white">
                                 <span className="material-symbols-outlined">calendar_month</span>
                                 Solicitar Serviço
                             </button>

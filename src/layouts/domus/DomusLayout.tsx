@@ -194,7 +194,7 @@ export default function DomusLayout({ broker, properties }: DomusLayoutProps) {
             border: 2px solid white;
         }
       `}</style>
-      <DomusHeader broker={broker} />
+      <DomusHeader broker={broker as any} />
       <main>
         <section className="max-w-[1280px] mx-auto px-6 pt-12 md:pt-20 pb-10">
           <div className="flex flex-col lg:flex-row gap-12 items-center mb-16 lg:mb-24">
@@ -352,27 +352,35 @@ export default function DomusLayout({ broker, properties }: DomusLayoutProps) {
         {!content.hideStats && (
         <section className="bg-white dark:bg-background-dark py-16 border-y border-[#f3f4f0] dark:border-white/5">
             <div className="max-w-[1280px] mx-auto px-6">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:divide-x divide-gray-100 dark:divide-white/10">
-                    <div className="flex flex-col items-center justify-center text-center px-4">
-                        <div className="text-2xl md:text-3xl font-bold text-[#161811] dark:text-white leading-tight">
-                            {content.statsSold || defaultContent.statsSold} Imóveis
-                        </div>
-                    </div>
-                    <div className="flex flex-col items-center justify-center text-center px-4">
-                        <div className="text-2xl md:text-3xl font-bold text-[#161811] dark:text-white leading-tight">
-                            {content.statsExperience || defaultContent.statsExperience} Anos
-                        </div>
-                    </div>
-                    <div className="flex flex-col items-center justify-center text-center px-4">
-                        <div className="text-2xl md:text-3xl font-bold text-[#161811] dark:text-white leading-tight">
-                            {content.statsSatisfaction || defaultContent.statsSatisfaction} Satisfação
-                        </div>
-                    </div>
-                    <div className="flex flex-col items-center justify-center text-center px-4">
-                        <div className="text-2xl md:text-3xl font-bold text-[#161811] dark:text-white leading-tight">
-                            Suporte Premium
-                        </div>
-                    </div>
+                <div className="flex flex-wrap items-center justify-center gap-x-12 gap-y-8">
+                    {content.statsSold && (
+                      <div className="flex flex-col items-center justify-center text-center px-4">
+                          <div className="text-2xl md:text-3xl font-bold text-[#161811] dark:text-white leading-tight whitespace-pre-wrap uppercase">
+                              {content.statsSold}
+                          </div>
+                      </div>
+                    )}
+                    {content.statsExperience && (
+                      <div className="flex flex-col items-center justify-center text-center px-4 md:border-l border-gray-100 dark:border-white/10">
+                          <div className="text-2xl md:text-3xl font-bold text-[#161811] dark:text-white leading-tight whitespace-pre-wrap uppercase">
+                              {content.statsExperience}
+                          </div>
+                      </div>
+                    )}
+                    {content.statsSatisfaction && (
+                      <div className="flex flex-col items-center justify-center text-center px-4 md:border-l border-gray-100 dark:border-white/10">
+                          <div className="text-2xl md:text-3xl font-bold text-[#161811] dark:text-white leading-tight whitespace-pre-wrap uppercase">
+                              {content.statsSatisfaction}
+                          </div>
+                      </div>
+                    )}
+                    {content.statsSupport && (
+                      <div className="flex flex-col items-center justify-center text-center px-4 md:border-l border-gray-100 dark:border-white/10">
+                          <div className="text-2xl md:text-3xl font-bold text-[#161811] dark:text-white leading-tight whitespace-pre-wrap uppercase">
+                              {content.statsSupport}
+                          </div>
+                      </div>
+                    )}
                 </div>
             </div>
         </section>

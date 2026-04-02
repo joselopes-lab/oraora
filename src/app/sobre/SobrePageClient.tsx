@@ -19,10 +19,10 @@ export default function SobrePageClient() {
         headerTitle: 'Conectamos sonhos a <br/><span class="relative inline-block"><span class="relative z-10 text-transparent bg-clip-text bg-gradient-to-r from-primary to-green-600">novos endereços.</span><span class="absolute bottom-2 left-0 w-full h-4 bg-primary/20 -z-10 rotate-1"></span></span>',
         headerSubtitle: 'Nascemos para simplificar a jornada de quem busca o imóvel ideal. Tecnologia de ponta, transparência e segurança em cada metro quadrado.',
         videoImageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBQxx0WPnY7E5TAmKj6xSzXzXv3u6pExJ5cZVShv5PFbocjuhmrwuI1XRocewnwPCV3ePZbAVlm5NlYhULqf7gUOAag1uqAO48ESp87YBgP9ZWIZLXkifTbYsskZyutqDg1ISHkZYF_8aiI_PWiNZq_MskxqYmMqUc4x7ukYKDGzNdqXFTqfwPSwYldn-1Itggd30yjady9fsnJJOGU-uv9cSIXFQ2d-6IFPiE-tTAdBsnLEA4puBWSKKgapeqQcNCBX3UeJUO-jBI',
-        statAnunciados: '+2 Mi',
-        statNegocios: '150k',
-        statCidades: '300+',
-        statAvaliacao: '4.9',
+        statAnunciados: '',
+        statNegocios: '',
+        statCidades: '',
+        statAvaliacao: '',
         pilaresTitle: 'Nossos Pilares',
         pilaresSubtitle: 'Não somos apenas um portal de classificados. Somos uma plataforma de tecnologia que coloca as pessoas no centro de cada decisão. Acreditamos que encontrar um lar deve ser uma experiência inspiradora, não estressante.',
         pilar1Icon: 'verified_user',
@@ -47,6 +47,8 @@ export default function SobrePageClient() {
     };
 
     const finalContent = { ...defaultContent, ...content };
+
+    const hasStats = finalContent.statAnunciados || finalContent.statNegocios || finalContent.statCidades || finalContent.statAvaliacao;
 
     return (
         <main className="flex-grow">
@@ -88,24 +90,34 @@ export default function SobrePageClient() {
                             </div>
                         </div>
                     </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mt-20 border-t border-gray-100 pt-12">
-                        <div className="text-center">
-                            <div className="text-4xl lg:text-5xl font-display font-bold text-dark-text mb-2">{isSiteDataLoading ? <Skeleton className="h-12 w-24 mx-auto" /> : finalContent.statAnunciados}</div>
-                            <p className="text-gray-500 font-medium">Imóveis Anunciados</p>
-                        </div>
-                        <div className="text-center">
-                            <div className="text-4xl lg:text-5xl font-display font-bold text-dark-text mb-2">{isSiteDataLoading ? <Skeleton className="h-12 w-24 mx-auto" /> : finalContent.statNegocios}</div>
-                            <p className="text-gray-500 font-medium">Negócios Fechados</p>
-                        </div>
-                        <div className="text-center">
-                            <div className="text-4xl lg:text-5xl font-display font-bold text-dark-text mb-2">{isSiteDataLoading ? <Skeleton className="h-12 w-24 mx-auto" /> : finalContent.statCidades}</div>
-                            <p className="text-gray-500 font-medium">Cidades Atendidas</p>
-                        </div>
-                        <div className="text-center">
-                            <div className="text-4xl lg:text-5xl font-display font-bold text-dark-text mb-2">{isSiteDataLoading ? <Skeleton className="h-12 w-24 mx-auto" /> : finalContent.statAvaliacao}</div>
-                            <p className="text-gray-500 font-medium">Avaliação Média</p>
-                        </div>
-                    </div>
+                    {hasStats && (
+                      <div className="flex flex-wrap justify-center gap-y-12 mt-20 border-t border-gray-100 pt-12">
+                          {finalContent.statAnunciados && (
+                            <div className="flex flex-col items-center justify-center text-center px-6 border-gray-100 w-full sm:w-1/2 lg:w-1/4">
+                                <div className="text-2xl lg:text-3xl font-display font-bold text-dark-text mb-2 leading-tight break-words">{isSiteDataLoading ? <Skeleton className="h-12 w-24 mx-auto" /> : finalContent.statAnunciados}</div>
+                                <p className="text-gray-500 font-medium uppercase text-[10px] tracking-widest">Anos de Mercado</p>
+                            </div>
+                          )}
+                          {finalContent.statNegocios && (
+                            <div className="flex flex-col items-center justify-center text-center px-6 border-gray-100 md:border-l w-full sm:w-1/2 lg:w-1/4">
+                                <div className="text-2xl lg:text-3xl font-display font-bold text-dark-text mb-2 leading-tight break-words">{isSiteDataLoading ? <Skeleton className="h-12 w-24 mx-auto" /> : finalContent.statNegocios}</div>
+                                <p className="text-gray-500 font-medium uppercase text-[10px] tracking-widest">Negócios Geridos</p>
+                            </div>
+                          )}
+                          {finalContent.statCidades && (
+                            <div className="flex flex-col items-center justify-center text-center px-6 border-gray-100 lg:border-l w-full sm:w-1/2 lg:w-1/4">
+                                <div className="text-2xl lg:text-3xl font-display font-bold text-dark-text mb-2 leading-tight break-words">{isSiteDataLoading ? <Skeleton className="h-12 w-24 mx-auto" /> : finalContent.statCidades}</div>
+                                <p className="text-gray-500 font-medium uppercase text-[10px] tracking-widest">Famílias Assessoradas</p>
+                            </div>
+                          )}
+                          {finalContent.statAvaliacao && (
+                            <div className="flex flex-col items-center justify-center text-center px-6 border-gray-100 md:border-l w-full sm:w-1/2 lg:w-1/4">
+                                <div className="text-2xl lg:text-3xl font-display font-bold text-dark-text mb-2 leading-tight break-words">{isSiteDataLoading ? <Skeleton className="h-12 w-24 mx-auto" /> : finalContent.statAvaliacao}</div>
+                                <p className="text-gray-500 font-medium uppercase text-[10px] tracking-widest">Prêmios Setoriais</p>
+                            </div>
+                          )}
+                      </div>
+                    )}
                 </div>
             </section>
             <section className="py-24 bg-black relative overflow-hidden">
@@ -144,7 +156,6 @@ export default function SobrePageClient() {
                                 </div>
                             </div>
                         </div>
-                        {/* Static content for now */}
                     </div>
                 </div>
             </section>
