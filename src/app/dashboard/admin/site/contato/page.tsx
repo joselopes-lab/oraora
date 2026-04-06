@@ -34,12 +34,12 @@ type BrokerData = {
 }
 
 export default function EditPortalContactPage() {
-  const { firestore } = useFirebase();
+  const { firestore, user } = useFirebase();
   const { toast } = useToast();
 
   const siteContentDocRef = useMemoFirebase(
-    () => (firestore ? doc(firestore, 'brokers', 'oraora-main-site') : null),
-    [firestore]
+    () => (firestore && user?.uid ? doc(firestore, 'brokers', user.uid) : null),
+    [firestore, user?.uid]
   );
   
   const { data: siteData, isLoading } = useDoc<BrokerData>(siteContentDocRef);

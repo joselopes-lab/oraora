@@ -2,7 +2,7 @@
 
 import React from 'react';
 import DashboardCore from './DashboardCore';
-import { useAuthContext } from '@/firebase/auth-provider';
+import { useAuthContext } from '@/firebase';
 import Loading from './loading';
 import { useRouter } from 'next/navigation';
 

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useAuthContext, useDoc, useFirestore, useMemoFirebase, setDocumentNonBlocking, useFirebase, useCollection } from '@/firebase';
 import { collection, query, where, getDocs, doc } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
@@ -33,6 +33,27 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { QRCodeSVG } from 'qrcode.react';
+import { 
+  Layers, 
+  Download, 
+  QrCode, 
+  User, 
+  Palette, 
+  Link as LinkIcon, 
+  Building2, 
+  Trash2, 
+  GripVertical, 
+  PlusCircle, 
+  X, 
+  Save, 
+  Eye, 
+  Loader2,
+  Copy,
+  ExternalLink,
+  Smartphone,
+  Share2
+} from 'lucide-react';
 
 type OralinkLink = {
   id: string;
@@ -132,26 +153,28 @@ function hexToHsl(hex: string): string {
     return `${h} ${s}% ${l}%`;
 }
 
-function hslToHex(hslStr: string): string {
+function hslToHex(hslStr: string | undefined): string {
     if (!hslStr || typeof hslStr !== 'string') return '#000000';
     const parts = hslStr.match(/(\d+(\.\d+)?)/g);
     if (!parts || parts.length < 3) return '#000000';
 
     const h = parseFloat(parts[0]);
-    const s = parseFloat(parts[1]) / 100;
-    const l = parseFloat(parts[2]) / 100;
+    const s = Math.min(100, Math.max(0, parseFloat(parts[1]))) / 100;
+    const l = Math.min(100, Math.max(0, parseFloat(parts[2]))) / 100;
 
     const a = s * Math.min(l, 1 - l);
     const f = (n: number) => {
         const k = (n + h / 30) % 12;
         const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
-        return Math.round(255 * color).toString(16).padStart(2, '0');
+        const channel = Math.round(255 * color);
+        const hex = channel.toString(16);
+        return hex.length === 1 ? "0" + hex : hex;
     };
     return `#${f(0)}${f(8)}${f(4)}`;
 }
 
 const ColorPicker = ({ label, value, onChange }: { label: string, value: string | undefined, onChange: (val: string) => void }) => {
-    const hexValue = value ? hslToHex(value) : '#000000';
+    const hexValue = hslToHex(value);
     return (
         <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100">
             <div className="flex items-center gap-3">
@@ -179,12 +202,20 @@ export default function OralinkManagementPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isPropertyPickerOpen, setIsPropertyPickerOpen] = useState(false);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [oralinkUrl, setOralinkUrl] = useState('');
+  const qrRef = useRef<HTMLDivElement>(null);
 
   const brokerDocRef = useMemoFirebase(
     () => (user ? doc(firestore, 'brokers', user.uid) : null),
     [firestore, user]
   );
   const { data: brokerData, isLoading: isBrokerLoading } = useDoc<any>(brokerDocRef);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && brokerData?.slug) {
+      setOralinkUrl(`${window.location.origin}/sites/${brokerData.slug}/link`);
+    }
+  }, [brokerData?.slug]);
 
   const brokerPropertiesQuery = useMemoFirebase(
     () => (user ? query(collection(firestore, 'brokerProperties'), where('brokerId', '==', user.uid)) : null),
@@ -357,37 +388,128 @@ export default function OralinkManagementPage() {
     return videoId ? `https://www.youtube.com/embed/${videoId}` : null;
   };
 
+  const videoEmbedUrl = getYoutubeEmbedUrl(oralink.videoUrl);
+
+  const downloadQRCode = () => {
+    const svg = qrRef.current?.querySelector('svg');
+    if (!svg) return;
+
+    const svgData = new XMLSerializer().serializeToString(svg);
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const img = new window.Image();
+    
+    const size = 3000;
+    canvas.width = size;
+    canvas.height = size;
+    
+    img.onload = () => {
+      if (ctx) {
+        ctx.clearRect(0, 0, size, size);
+        ctx.fillStyle = "white";
+        ctx.fillRect(0, 0, size, size);
+        ctx.drawImage(img, 0, 0, size, size);
+      }
+      const pngFile = canvas.toDataURL('image/png');
+      const downloadLink = document.createElement('a');
+      downloadLink.download = `oralink-qrcode-hd-${brokerData?.slug}.png`;
+      downloadLink.href = pngFile;
+      downloadLink.click();
+    };
+    
+    img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+  };
+
+  const downloadSVG = () => {
+    const svg = qrRef.current?.querySelector('svg');
+    if (!svg) return;
+    const svgData = new XMLSerializer().serializeToString(svg);
+    const svgBlob = new Blob([svgData], {type: "image/svg+xml;charset=utf-8"});
+    const svgUrl = URL.createObjectURL(svgBlob);
+    const downloadLink = document.createElement('a');
+    downloadLink.href = svgUrl;
+    downloadLink.download = `oralink-qrcode-vetor-${brokerData?.slug}.svg`;
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    document.body.removeChild(downloadLink);
+  };
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(oralinkUrl);
+    toast({ title: "Link Copiado!", description: "O link do seu Oralink agora está na sua área de transferência." });
+  };
+
+  const handleShareWhatsapp = () => {
+    const message = encodeURIComponent(`Olá! Confira meu cartão de visitas digital e meu catálogo de imóveis atualizado: ${oralinkUrl}`);
+    window.open(`https://wa.me/?text=${message}`, '_blank');
+  };
+
   if (isBrokerLoading) return <div className="p-10 text-center">Carregando editor...</div>;
 
-  // Preview Colors
-  const previewBg = oralink.backgroundColor ? hslToHex(oralink.backgroundColor) : '#fcfdfa';
-  const previewText = oralink.textColor ? hslToHex(oralink.textColor) : '#141811';
-  const previewBtnBg = oralink.buttonBgColor ? hslToHex(oralink.buttonBgColor) : '#c3e738';
-  const previewBtnText = oralink.buttonTextColor ? hslToHex(oralink.buttonTextColor) : '#141811';
-  const previewCardText = oralink.cardTextColor ? hslToHex(oralink.cardTextColor) : '#141811';
-  const previewFooterText = oralink.footerTextColor ? hslToHex(oralink.footerTextColor) : '#141811';
-  const previewTagBg = oralink.statusTagBgColor ? hslToHex(oralink.statusTagBgColor) : '#c3e738';
-  const previewTagText = oralink.statusTagTextColor ? hslToHex(oralink.statusTagTextColor) : '#141811';
+  // Preview Colors (Processed)
+  const previewBg = hslToHex(oralink.backgroundColor);
+  const previewText = hslToHex(oralink.textColor);
+  const previewBtnBg = hslToHex(oralink.buttonBgColor);
+  const previewBtnText = hslToHex(oralink.buttonTextColor);
+  const previewCardText = hslToHex(oralink.cardTextColor);
+  const previewFooterText = hslToHex(oralink.footerTextColor);
+  const previewTagBg = hslToHex(oralink.statusTagBgColor);
+  const previewTagText = hslToHex(oralink.statusTagTextColor);
+
+  const dynamicStyles = {
+    '--primary': oralink.buttonBgColor ? `hsl(${oralink.buttonBgColor})` : 'hsl(111 89% 50%)',
+    '--ring': oralink.buttonBgColor ? `hsl(${oralink.buttonBgColor})` : 'hsl(111 89% 50%)',
+  } as React.CSSProperties;
 
   return (
-    <div className="flex flex-col lg:flex-row gap-8">
+    <div style={dynamicStyles} className="relative flex flex-col lg:flex-row gap-8">
       <div className="flex-1 flex flex-col gap-8 max-w-3xl">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-black tracking-tight text-text-main">Gestão do Oralink</h1>
             <p className="text-text-secondary">Sua vitrine digital e links de contato simplificados.</p>
           </div>
-          <Button asChild className="bg-primary hover:bg-primary-hover text-text-main font-bold shadow-sm">
-            <Link href={`/sites/${brokerData?.slug}/link`} target="_blank">
-              <span className="material-symbols-outlined text-lg mr-2">visibility</span>
-              Ver Meu Oralink
-            </Link>
-          </Button>
+          <div className="flex gap-2">
+            <Button asChild variant="outline" className="bg-white border-slate-200">
+              <Link href={`/sites/${brokerData?.slug}/link`} target="_blank">
+                <Eye className="size-4 mr-2" />
+                Ver Oralink
+              </Link>
+            </Button>
+            <Button onClick={handleSave} className="bg-primary hover:bg-primary-hover text-text-main font-bold shadow-sm">
+              <Save className="size-4 mr-2" />
+              Salvar Alterações
+            </Button>
+          </div>
         </div>
+
+        {/* Copy & Share Section */}
+        <section className="bg-slate-900 rounded-2xl p-6 text-white overflow-hidden relative shadow-lg border border-slate-800">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 blur-[80px] -z-0"></div>
+            <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6 text-left">
+                <div className="flex-1 space-y-1">
+                    <h3 className="text-xl font-bold">Link de Divulgação</h3>
+                    <p className="text-slate-400 text-sm">Use este link na bio do seu Instagram ou envie diretamente para seus contatos.</p>
+                    <div className="mt-3 inline-flex items-center px-3 py-1.5 bg-white/10 rounded-lg border border-white/10 text-primary font-mono text-xs">
+                        {oralinkUrl || 'Gerando link...'}
+                    </div>
+                </div>
+                <div className="flex flex-wrap justify-center gap-3 shrink-0">
+                    <Button onClick={handleCopyLink} variant="outline" className="bg-white/5 border-white/10 text-white hover:bg-white/10 h-11 px-6 font-bold">
+                        <Copy className="size-4 mr-2" />
+                        Copiar para Bio
+                    </Button>
+                    <Button onClick={handleShareWhatsapp} className="bg-primary hover:bg-primary-hover text-slate-950 h-11 px-6 font-black shadow-glow border-none">
+                        <Share2 className="size-4 mr-2" />
+                        Divulgar no WhatsApp
+                    </Button>
+                </div>
+            </div>
+        </section>
 
         <section className="bg-white p-6 rounded-xl border border-gray-100 shadow-soft">
           <div className="flex items-center gap-3 mb-6">
-            <span className="material-symbols-outlined text-primary">person</span>
+            <User className="size-5 text-primary" />
             <h2 className="text-xl font-bold text-text-main">1. Informações de Perfil</h2>
           </div>
           <div className="flex flex-col md:flex-row gap-8 items-start">
@@ -397,7 +519,7 @@ export default function OralinkManagementPage() {
                   <Image src={oralink.profileImageUrl} alt="Profile" fill className="object-cover rounded-full" />
                 ) : (
                   <div className="size-full flex items-center justify-center text-gray-300">
-                    <span className="material-symbols-outlined text-5xl">person</span>
+                    <User className="size-12" />
                   </div>
                 )}
               </div>
@@ -411,7 +533,7 @@ export default function OralinkManagementPage() {
                 </div>
               )}
             </div>
-            <div className="flex-1 grid gap-4 w-full">
+            <div className="flex-1 grid gap-4 w-full text-left">
               <div>
                 <label className="text-sm font-bold mb-1.5 block text-text-secondary uppercase tracking-wider">Nome de Exibição</label>
                 <input 
@@ -437,7 +559,7 @@ export default function OralinkManagementPage() {
 
         <section className="bg-white p-6 rounded-xl border border-gray-100 shadow-soft">
           <div className="flex items-center gap-3 mb-6">
-            <span className="material-symbols-outlined text-primary">palette</span>
+            <Palette className="size-5 text-primary" />
             <h2 className="text-xl font-bold text-text-main">2. Personalização de Cores</h2>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -487,27 +609,44 @@ export default function OralinkManagementPage() {
         <section className="bg-white p-6 rounded-xl border border-gray-100 shadow-soft">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
-              <span className="material-symbols-outlined text-primary">play_circle</span>
-              <h2 className="text-xl font-bold text-text-main">3. Vídeo em Destaque</h2>
-            </div>
-            <div className="flex items-center gap-4">
-              <span className="text-xs font-bold text-text-secondary uppercase">Exibir Vídeo</span>
-              <Switch 
-                checked={oralink.showVideo} 
-                onCheckedChange={checked => setOralink(prev => ({ ...prev, showVideo: checked }))} 
-              />
+              <QrCode className="size-5 text-primary" />
+              <h2 className="text-xl font-bold text-text-main">3. QR Code para Impressão</h2>
             </div>
           </div>
-          <div className="space-y-4">
-            <div>
-              <label className="text-sm font-bold mb-1.5 block text-text-secondary uppercase tracking-wider">Link do YouTube</label>
-              <input 
-                value={oralink.videoUrl} 
-                onChange={e => setOralink(prev => ({ ...prev, videoUrl: e.target.value }))}
-                placeholder="https://www.youtube.com/watch?v=..."
-                className="w-full rounded-lg border-slate-200 focus:ring-primary focus:border-primary px-4 py-2"
-              />
-              <p className="text-[10px] text-text-secondary mt-2">O vídeo aparecerá antes dos links de contato no seu Oralink.</p>
+          <div className="flex flex-col md:flex-row items-center gap-10">
+            <div ref={qrRef} className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+              {oralinkUrl ? (
+                <QRCodeSVG 
+                  value={oralinkUrl}
+                  size={180}
+                  level="H"
+                  includeMargin={false}
+                />
+              ) : (
+                <div className="size-44 bg-slate-50 flex items-center justify-center rounded-xl border border-dashed text-black">
+                  <span className="text-xs text-slate-400">Aguardando slug...</span>
+                </div>
+              )}
+            </div>
+            <div className="flex-1 space-y-4 text-center md:text-left">
+              <h3 className="font-bold text-lg text-slate-900 uppercase tracking-tight">QR Code Estático</h3>
+              <p className="text-sm text-slate-500 leading-relaxed">
+                Este código aponta diretamente para o seu Oralink. Você pode imprimi-lo em cartões, placas ou outdoors. 
+                <strong> O destino é fixo, mas você altera o conteúdo quando quiser no painel sem precisar reimprimir.</strong>
+              </p>
+              <div className="flex flex-col gap-3">
+                <div className="flex flex-wrap justify-center md:justify-start gap-3">
+                    <Button onClick={downloadQRCode} className="bg-slate-900 hover:bg-black text-white px-6 font-bold flex-1 sm:flex-none">
+                        <Download className="size-4 mr-2" />
+                        Baixar PNG HD (3000px)
+                    </Button>
+                    <Button onClick={downloadSVG} variant="outline" className="border-primary text-primary hover:bg-primary/5 font-bold flex-1 sm:flex-none">
+                        <Layers className="size-4 mr-2" />
+                        Baixar Vetor (SVG)
+                    </Button>
+                </div>
+                <p className="text-[10px] text-slate-400 font-bold uppercase text-left">* Use o formato Vetor (SVG) para impressões gigantes como outdoors.</p>
+              </div>
             </div>
           </div>
         </section>
@@ -515,11 +654,11 @@ export default function OralinkManagementPage() {
         <section className="bg-white p-6 rounded-xl border border-gray-100 shadow-soft">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
-              <span className="material-symbols-outlined text-primary">link</span>
+              <LinkIcon className="size-5 text-primary" />
               <h2 className="text-xl font-bold text-text-main">4. Meus Links Personalizados</h2>
             </div>
-            <button onClick={handleAddLink} className="text-primary hover:text-primary-hover font-bold text-sm flex items-center gap-1 cursor-pointer">
-              <span className="material-symbols-outlined text-lg">add_circle</span>
+            <button onClick={handleAddLink} className="text-primary hover:text-primary-hover font-bold text-sm flex items-center gap-1 cursor-pointer bg-transparent border-none outline-none">
+              <PlusCircle className="size-4" />
               Novo Link
             </button>
           </div>
@@ -537,9 +676,9 @@ export default function OralinkManagementPage() {
                 )}
               >
                 <div className="cursor-grab active:cursor-grabbing text-gray-300 hover:text-primary">
-                  <span className="material-symbols-outlined">drag_indicator</span>
+                  <GripVertical className="size-5" />
                 </div>
-                <div className="flex-1 grid gap-4">
+                <div className="flex-1 grid gap-4 text-left">
                   <div className="flex items-center gap-3">
                     <Select 
                       value={link.icon || 'link'} 
@@ -564,7 +703,7 @@ export default function OralinkManagementPage() {
                     <input 
                       value={link.title} 
                       onChange={e => handleUpdateLink(link.id, { title: e.target.value })}
-                      className="bg-transparent border-none p-0 font-bold focus:ring-0 w-full"
+                      className="bg-transparent border-none p-0 font-bold focus:ring-0 w-full text-black"
                       placeholder="Título do botão"
                     />
                   </div>
@@ -580,8 +719,8 @@ export default function OralinkManagementPage() {
                     checked={link.active} 
                     onCheckedChange={checked => handleUpdateLink(link.id, { active: checked })}
                   />
-                  <button onClick={() => handleRemoveLink(link.id)} className="p-2 text-gray-300 hover:text-red-500 transition-colors cursor-pointer">
-                    <span className="material-symbols-outlined text-xl">delete</span>
+                  <button onClick={() => handleRemoveLink(link.id)} className="p-2 text-gray-300 hover:text-red-500 transition-colors cursor-pointer bg-transparent border-none outline-none">
+                    <Trash2 className="size-5" />
                   </button>
                 </div>
               </div>
@@ -595,7 +734,7 @@ export default function OralinkManagementPage() {
         <section className="bg-white p-6 rounded-xl border border-gray-100 shadow-soft">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
-              <span className="material-symbols-outlined text-primary">apartment</span>
+              <Building2 className="size-5 text-primary" />
               <h2 className="text-xl font-bold text-text-main">5. Vitrine de Imóveis</h2>
             </div>
             <div className="flex items-center gap-4">
@@ -608,14 +747,14 @@ export default function OralinkManagementPage() {
           </div>
           
           <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <p className="text-sm text-text-secondary">Selecione até 4 imóveis para aparecerem no final da sua página Oralink.</p>
+            <p className="text-sm text-text-secondary text-left">Selecione até 4 imóveis para aparecerem no final da sua página Oralink.</p>
             <Dialog open={isPropertyPickerOpen} onOpenChange={setIsPropertyPickerOpen}>
               <DialogTrigger asChild>
-                <button type="button" className="bg-slate-100 text-sm font-bold px-4 py-2 rounded-lg hover:bg-primary transition-colors cursor-pointer">
+                <button type="button" className="bg-slate-100 text-sm font-bold px-4 py-2 rounded-lg hover:bg-primary transition-colors cursor-pointer text-black border-none outline-none">
                     Gerenciar Seleção
                 </button>
               </DialogTrigger>
-              <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col p-0">
+              <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col p-0 bg-white">
                 <VisuallyHidden>
                   <DialogHeader>
                     <DialogTitle>Selecionar Imóveis para Vitrine</DialogTitle>
@@ -624,14 +763,14 @@ export default function OralinkManagementPage() {
                 </VisuallyHidden>
                 
                 <div className="p-6 border-b border-gray-100">
-                  <h3 className="text-xl font-bold text-text-main mb-4">Selecionar Imóveis</h3>
+                  <h3 className="text-xl font-bold text-text-main mb-4 text-left">Selecionar Imóveis</h3>
                   <div className="relative">
                     <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">search</span>
                     <input 
                       value={searchTerm} 
                       onChange={e => setSearchTerm(e.target.value)} 
                       placeholder="Buscar por nome ou bairro..." 
-                      className="pl-10 h-12 w-full rounded-xl bg-gray-50 border-gray-100 px-4 py-2 focus:ring-primary focus:border-primary"
+                      className="pl-10 h-12 w-full rounded-xl bg-gray-50 border-gray-100 px-4 py-2 focus:ring-primary focus:border-primary outline-none text-black"
                     />
                   </div>
                 </div>
@@ -651,11 +790,11 @@ export default function OralinkManagementPage() {
                         <div className="relative size-14 rounded-lg overflow-hidden bg-gray-100 shrink-0">
                           <Image src={prop.midia?.[0] || 'https://placehold.co/100x100'} alt={prop.informacoesbasicas.nome} fill className="object-cover" />
                         </div>
-                        <div className="flex-1 min-w-0">
+                        <div className="flex-1 min-w-0 text-left">
                           <h4 className="font-bold text-sm truncate">{prop.informacoesbasicas.nome}</h4>
                           <p className="text-xs text-text-secondary">{prop.localizacao.bairro}, {prop.localizacao.cidade}</p>
                         </div>
-                        <div className="px-2">
+                        <div className="px-2 pointer-events-none">
                           <Checkbox checked={isSelected} className="size-5 rounded-md" />
                         </div>
                       </div>
@@ -681,15 +820,15 @@ export default function OralinkManagementPage() {
                 <div className="size-16 rounded-lg overflow-hidden relative shrink-0">
                   <Image src={prop.midia?.[0] || 'https://placehold.co/100x100'} alt={prop.informacoesbasicas.nome} fill className="object-cover" />
                 </div>
-                <div className="flex-1 min-w-0">
+                <div className="flex-1 min-w-0 text-left">
                   <h4 className="font-bold text-sm truncate">{prop.informacoesbasicas.nome}</h4>
                   <p className="text-xs text-text-secondary">{prop.informacoesbasicas.valor?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
                 </div>
                 <button 
                   onClick={() => handlePropertyToggle(prop.id)}
-                  className="absolute top-2 right-2 size-6 rounded-full bg-red-50 text-red-500 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer"
+                  className="absolute top-2 right-2 size-6 rounded-full bg-red-50 text-red-500 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer border-none outline-none"
                 >
-                  <span className="material-symbols-outlined text-sm">close</span>
+                  <X className="size-3" />
                 </button>
               </div>
             ))}
@@ -710,12 +849,12 @@ export default function OralinkManagementPage() {
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-6 bg-slate-950 rounded-b-2xl z-20"></div>
             
             <div className="h-full overflow-y-auto no-scrollbar p-6 flex flex-col items-center">
-              <div className="mt-8 w-24 h-24 flex-shrink-0 rounded-full border-4 p-1 mb-4 overflow-hidden shadow-lg relative bg-gray-100 flex-shrink-0" style={{ borderColor: previewBtnBg }}>
+              <div className="mt-8 w-24 h-24 flex-shrink-0 rounded-full border-4 p-1 mb-4 overflow-hidden shadow-lg relative bg-gray-100" style={{ borderColor: previewBtnBg }}>
                 {oralink.profileImageUrl ? (
                   <Image src={oralink.profileImageUrl} alt="Avatar" fill className="object-cover rounded-full" />
                 ) : (
                   <div className="size-full flex items-center justify-center text-gray-300">
-                    <span className="material-symbols-outlined text-4xl">person</span>
+                    <User className="size-10" />
                   </div>
                 )}
               </div>
@@ -724,9 +863,9 @@ export default function OralinkManagementPage() {
                 {oralink.bio || 'Sua biografia profissional aparecerá aqui.'}
               </p>
 
-              {oralink.showVideo && oralink.videoUrl && getYoutubeEmbedUrl(oralink.videoUrl) && (
+              {oralink.showVideo && videoEmbedUrl && (
                 <div className="w-full mb-6 rounded-2xl overflow-hidden shadow-lg aspect-video bg-black relative">
-                  <iframe src={getYoutubeEmbedUrl(oralink.videoUrl)!} className="absolute inset-0 w-full h-full" allowFullScreen />
+                  <iframe src={videoEmbedUrl} className="absolute inset-0 w-full h-full" allowFullScreen />
                 </div>
               )}
 
@@ -744,7 +883,7 @@ export default function OralinkManagementPage() {
               </div>
 
               {oralink.showPropertyShowcase && allAvailableProperties.length > 0 && (
-                <div className="w-full">
+                <div className="w-full text-left">
                   <h4 className="text-[11px] font-black uppercase tracking-widest mb-6 flex items-center gap-3" style={{ color: previewText + '80' }}>
                     <div className="w-4 h-0.5" style={{ backgroundColor: previewBtnBg }}></div>
                     Imóveis em Destaque
@@ -773,7 +912,7 @@ export default function OralinkManagementPage() {
 
               <footer className="mt-12 mb-6 flex flex-col items-center gap-4 opacity-60 w-full pt-6 border-t border-gray-100/20" style={{ borderColor: previewText + '20' }}>
                 <div className="flex flex-col items-center gap-2">
-                    <Image src="https://dotestudio.com.br/wp-content/uploads/2025/08/oraora.png" alt="Oraora" width={80} height={20} className="h-4 w-auto grayscale" />
+                    <Image src="https://firebasestorage.googleapis.com/v0/b/studio-5937631195-8ebfd.firebasestorage.app/o/site-assets%2Flogos%2Fb51a21ec-d89e-4b7e-be51-d741841e8903-logo-oraora-b.png?alt=media&token=ba675609-9e91-4c12-a5f7-0daf5b9a9ba2" alt="Oraora" width={80} height={20} className="h-4 w-auto grayscale" />
                     <p className="text-[8px] font-black uppercase tracking-[0.2em]" style={{ color: previewFooterText }}>Powered by Oraora</p>
                 </div>
               </footer>

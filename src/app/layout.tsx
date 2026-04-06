@@ -2,8 +2,7 @@ import type { Metadata } from 'next';
 import Script from 'next/script';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
-import { FirebaseClientProvider } from '@/firebase/client-provider';
-import { AuthProvider } from '@/firebase/auth-provider';
+import { FirebaseClientProvider, AuthProvider } from '@/firebase';
 import { initializeFirebase } from '@/firebase/index.server';
 import { doc, getDoc } from 'firebase/firestore';
 
