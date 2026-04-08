@@ -2,9 +2,29 @@
 # https://firebase.google.com/docs/app-hosting/configure
 
 runConfig:
-  # Increase this value if you'd like to automatically spin up
-  # more instances in response to increased traffic.
   maxInstances: 1
-  # Increase the request timeout to allow for longer-running server-side
-  # operations, such as generative AI requests.
   timeoutSeconds: 120
+
+env:
+  # Referência para a GEMINI_API_KEY armazenada no Secret Manager
+  # O nome 'gemini-api-key' deve corresponder ao nome que você deu ao segredo.
+  - variable: GEMINI_API_KEY
+    secret: GEMINI_API_KEY
+    availability:
+      - RUNTIME # Disponível apenas durante o tempo de execução
+
+  # Referência para a NEXT_PUBLIC_GOOGLE_MAPS_API_KEY armazenada no Secret Manager
+  # O nome 'google-maps-api-key' deve corresponder ao nome que você deu ao segredo.
+  # Use o prefixo 'NEXT_PUBLIC_' se for para uma aplicação Next.js no frontend.
+  - variable: NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
+    secret: NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
+    availability:
+      - RUNTIME # Disponível apenas durante o tempo de execução
+      - BUILD   # Se sua aplicação precisar dela durante a fase de build (ex: Next.js SSG)
+
+  # Adicione outras variáveis de ambiente se necessário
+  # - variable: MY_OTHER_VAR
+  #   value: "some-value"
+  #   availability:
+  #     - BUILD
+  #     - RUNTIME
