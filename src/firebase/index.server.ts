@@ -13,8 +13,16 @@ import { GoogleAuth } from 'google-auth-library';
  */
 function initializeAdmin(): App {
   if (!getApps().length) {
-    const credentialPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+    // Se estivermos em produção (App Hosting), usa as credenciais padrão do servidor
+    if (process.env.NODE_ENV === 'production') {
+      return initializeApp({
+        credential: applicationDefault(),
+        projectId: firebaseConfig.projectId,
+      });
+    }
 
+    // Se estivermos rodando LOCALMENTE, usamos o arquivo JSON
+    const credentialPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
     if (credentialPath) {
       const resolvedCredentialPath = resolve(process.cwd(), credentialPath);
       const serviceAccount = JSON.parse(readFileSync(resolvedCredentialPath, 'utf8'));
@@ -25,6 +33,7 @@ function initializeAdmin(): App {
       });
     }
 
+    // Fallback de segurança
     return initializeApp({
       credential: applicationDefault(),
       projectId: firebaseConfig.projectId,
