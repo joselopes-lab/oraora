@@ -1,10 +1,11 @@
 
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
 import { firebaseConfig } from '@/firebase/config';
-import { initializeApp, getApps, getApp, App } from 'firebase-admin/app';
+import { initializeApp, getApps, getApp, App, cert, applicationDefault } from 'firebase-admin/app';
 import { getFirestore, Firestore } from 'firebase-admin/firestore';
 import { getAuth, Auth } from 'firebase-admin/auth';
 import { GoogleAuth } from 'google-auth-library';
-import { applicationDefault } from 'firebase-admin/app';
 
 /**
  * Initializes the Firebase Admin SDK on the server using ADC (Application Default Credentials).
@@ -12,6 +13,18 @@ import { applicationDefault } from 'firebase-admin/app';
  */
 function initializeAdmin(): App {
   if (!getApps().length) {
+    const credentialPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+
+    if (credentialPath) {
+      const resolvedCredentialPath = resolve(process.cwd(), credentialPath);
+      const serviceAccount = JSON.parse(readFileSync(resolvedCredentialPath, 'utf8'));
+
+      return initializeApp({
+        credential: cert(serviceAccount),
+        projectId: firebaseConfig.projectId,
+      });
+    }
+
     return initializeApp({
       credential: applicationDefault(),
       projectId: firebaseConfig.projectId,
