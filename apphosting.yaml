@@ -39,11 +39,6 @@ env:
     - RUNTIME # Disponível apenas durante o tempo de execução
     - BUILD   # Se sua aplicação precisar dela durante a fase de build (ex: Next.js SSG)
 
-- variable: GOOGLE_GENAI_API_KEY
-  secret: GOOGLE_GENAI_API_KEY
-  availability:
-    - RUNTIME # Disponível apenas durante o tempo de execução
-
 - variable: CARTORIO_API_URL
   secret: CARTORIO_API_URL
   availability:
