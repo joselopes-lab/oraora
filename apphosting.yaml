@@ -33,6 +33,12 @@ env:
       - RUNTIME
       - BUILD
 
+  - variable: GOOGLE_CLOUD_PROJECT
+    secret: GOOGLE_CLOUD_PROJECT
+    availability:
+      - RUNTIME
+      - BUILD
+
   - variable: CARTORIO_API_URL
     secret: CARTORIO_API_URL
     availability:
