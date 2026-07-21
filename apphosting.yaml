@@ -21,12 +21,6 @@ env:
 # O nome 'google-maps-api-key' deve corresponder ao nome que você deu ao segredo.
 # Use o prefixo 'NEXT_PUBLIC_' se for para uma aplicação Next.js no frontend.
 
-- variable: APP_HOSTING_LOCATION
-  secret: APP_HOSTING_LOCATION
-  availability:
-    - RUNTIME # Disponível apenas durante o tempo de execução
-    - BUILD   # Se sua aplicação precisar dela durante a fase de build (ex: Next.js SSG)
-
 - variable: NEXT_PUBLIC_APP_HOSTING_BACKEND
   secret: NEXT_PUBLIC_APP_HOSTING_BACKEND
   availability:
