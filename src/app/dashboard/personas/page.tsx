@@ -46,6 +46,7 @@ type User = {
 };
 
 export default function PersonasPage() {
+  console.log('[MOUNT]', 'PersonasPage');
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -64,6 +65,7 @@ export default function PersonasPage() {
     [firestore]
   );
   
+  console.log('[QUERY]', 'PersonasPage', 'coleção', 'personas');
   const { data: personas, isLoading: arePersonasLoading } = useCollection<Persona>(personasQuery);
 
   const isLoading = isUserLoading || arePersonasLoading || isProfileLoading;
@@ -305,4 +307,3 @@ export default function PersonasPage() {
     </>
   );
 }
-

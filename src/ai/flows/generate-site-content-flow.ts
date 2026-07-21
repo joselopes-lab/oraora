@@ -40,7 +40,7 @@ DADOS DE ONBOARDING:
 INSTRUÇÕES POR SEÇÃO:
 1. HOMEPAGE: O Hero Title deve ser impactante. Use <span> para destacar palavras-chave (ex: "Viva o <span class='text-primary'>Luxo</span>"). Os stats devem ser numéricos curtos (ex: "+500", "15 anos").
 2. SOBRE: A bio deve ser uma narrativa envolvente de autoridade. Os "values" (pilares) devem ser baseados no Diferencial e Proposta de Valor.
-3. SERVIÇOS: Transforme os itens da lista de serviços em descrições vendedoras. O processo deve ser claro e profissional.
+3. SERVIÇOS: Transforme os itens da lista de serviços em descrições vendedoras. Para o campo "icon", use EXCLUSIVAMENTE nomes de ícones da biblioteca Lucide React em PascalCase (ex: Handshake, Search, Gavel, Camera, ShieldCheck, Key, TrendingUp, Users). O processo deve ser claro e profissional.
 4. CONTATO: Textos que convidem ao diálogo e passem confiança.
 
 Gere o conteúdo em Português do Brasil.`,

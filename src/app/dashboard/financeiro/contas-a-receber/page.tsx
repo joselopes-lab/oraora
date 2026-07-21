@@ -1,4 +1,3 @@
-
 'use client';
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -6,7 +5,7 @@ import { useState, useMemo, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import TransactionDetail from "../components/transaction-detail";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
-import { useCollection, useFirestore, useMemoFirebase, useUser, deleteDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase";
+import { useCollection, useFirestore, useMemoFirebase, useUser, deleteDocumentNonBlocking, setDocumentNonBlocking, useAuthContext } from "@/firebase";
 import { collection, query, where, doc } from "firebase/firestore";
 import { format, startOfMonth, endOfMonth, parseISO, isBefore, isEqual, addMonths, subMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -31,14 +30,16 @@ type Transaction = {
 
 export default function AccountsReceivablePage() {
     const { user } = useUser();
+    const { isReady } = useAuthContext();
     const firestore = useFirestore();
     const { toast } = useToast();
     const [currentDate, setCurrentDate] = useState(new Date());
 
     const transactionsQuery = useMemoFirebase(
-      () => (firestore && user ? query(collection(firestore, 'transactions'), where('brokerId', '==', user.uid), where('type', '==', 'receita')) : null),
-      [firestore, user]
+      () => (isReady && firestore && user?.uid ? query(collection(firestore, 'transactions'), where('brokerId', '==', user.uid), where('type', '==', 'receita')) : null),
+      [isReady, !!user?.uid, user?.uid, firestore]
     );
+
     const { data: allTransactions, isLoading } = useCollection<Transaction>(transactionsQuery);
 
     const monthlyTransactions = useMemo(() => {
@@ -104,7 +105,7 @@ export default function AccountsReceivablePage() {
 
 
   return (
-    <>
+    <div className="flex flex-col gap-6 animate-in fade-in duration-500 text-left">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
         <div>
           <nav className="flex items-center gap-2 text-xs text-text-secondary mb-2 font-medium">
@@ -113,7 +114,7 @@ export default function AccountsReceivablePage() {
             <span className="text-text-main">Contas a Receber</span>
           </nav>
           <div className="flex items-center gap-4">
-            <h1 className="text-3xl font-bold text-text-main tracking-tight">Contas a Receber</h1>
+            <h1 className="text-3xl font-bold text-text-main tracking-tight uppercase">Contas a Receber</h1>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-4">
@@ -136,7 +137,7 @@ export default function AccountsReceivablePage() {
         </div>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-soft flex flex-col gap-1 relative overflow-hidden group">
+        <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-soft flex flex-col gap-1 relative overflow-hidden group text-left">
           <div className="absolute right-0 top-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
             <span className="material-symbols-outlined text-6xl text-primary">payments</span>
           </div>
@@ -146,7 +147,7 @@ export default function AccountsReceivablePage() {
           </div>
           <p className="text-xs text-text-secondary mt-1">{monthlyTransactions.filter(t => t.status === 'Pendente' || t.status === 'Agendado').length} transações pendentes</p>
         </div>
-        <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-soft flex flex-col gap-1 relative overflow-hidden group">
+        <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-soft flex flex-col gap-1 relative overflow-hidden group text-left">
           <div className="absolute right-0 top-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
             <span className="material-symbols-outlined text-6xl text-status-success-text">check_circle</span>
           </div>
@@ -154,7 +155,7 @@ export default function AccountsReceivablePage() {
           <h3 className="text-2xl font-bold text-text-main">{totalReceived.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</h3>
           <p className="text-xs text-text-secondary mt-1">{monthlyTransactions.filter(t => t.status === 'Recebido').length} transações finalizadas</p>
         </div>
-        <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-soft flex flex-col gap-1 relative overflow-hidden group">
+        <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-soft flex flex-col gap-1 relative overflow-hidden group text-left">
           <div className="absolute right-0 top-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
             <span className="material-symbols-outlined text-6xl text-status-error-text">warning</span>
           </div>
@@ -207,18 +208,18 @@ export default function AccountsReceivablePage() {
                     <tr key={account.id} className="hover:bg-gray-50/80 transition-colors group cursor-pointer" onClick={() => setSelectedAccount(account)}>
                         <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center">
-                                <div className="ml-4">
+                                <div className="ml-4 text-left">
                                     <div className="text-sm font-bold text-text-main">{account.description}</div>
                                 </div>
                             </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-6 py-4 whitespace-nowrap text-left">
                             <div className="text-sm font-medium text-text-main">{account.clientOrProvider || 'N/A'}</div>
                         </td>
-                        <td className={`px-6 py-4 whitespace-nowrap text-sm ${account.status === 'Atrasado' ? 'text-red-600 font-bold' : 'text-text-main'}`}>
+                        <td className={`px-6 py-4 whitespace-nowrap text-sm text-left ${account.status === 'Atrasado' ? 'text-red-600 font-bold' : 'text-text-main'}`}>
                             {format(parseISO(account.date), 'dd/MM/yyyy')}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-6 py-4 whitespace-nowrap text-left">
                             <div className="text-sm font-bold text-text-main">{account.value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-center">
@@ -265,6 +266,6 @@ export default function AccountsReceivablePage() {
           {selectedAccount && <TransactionDetail transaction={selectedAccount} onClose={() => setSelectedAccount(null)} onDelete={handleDeleteTransaction} onStatusChange={handleStatusChange} />}
         </DialogContent>
       </Dialog>
-    </>
+    </div>
   );
 }

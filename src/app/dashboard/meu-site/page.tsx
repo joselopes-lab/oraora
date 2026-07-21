@@ -11,7 +11,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useToast } from "@/hooks/use-toast";
 import { useEffect, useState } from "react";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { Progress } from "@/components/ui/progress";
 import { v4 as uuidv4 } from "uuid";
@@ -57,6 +57,8 @@ const brazilianUFs = [
 const globalSettingsSchema = z.object({
   logoUrl: z.string().optional().or(z.literal('')),
   footerLogoUrl: z.string().optional().or(z.literal('')),
+  faviconUrl: z.string().optional().or(z.literal('')),
+  siteTitle: z.string().optional(),
   footerSlogan: z.string().optional(),
   footerContactEmail: z.string().email("E-mail inválido").or(z.literal('')),
   footerContactPhone: z.string().optional(),
@@ -73,6 +75,8 @@ type GlobalSettingsFormData = z.infer<typeof globalSettingsSchema>;
 type BrokerData = {
     logoUrl?: string;
     footerLogoUrl?: string;
+    faviconUrl?: string;
+    siteTitle?: string;
     footerSlogan?: string;
     footerContactEmail?: string;
     footerContactPhone?: string;
@@ -90,6 +94,15 @@ type UploadState = {
   error: string | null;
 };
 
+const pageEditors = [
+    { title: 'Página Inicial', description: 'Edite o banner, textos e destaques da home.', href: '/dashboard/meu-site/inicio', icon: 'home' },
+    { title: 'Sobre Mim', description: 'Atualize sua biografia, fotos e trajetória.', href: '/dashboard/meu-site/sobre', icon: 'person' },
+    { title: 'Serviços', description: 'Detalhe os diferenciais do seu atendimento.', href: '/dashboard/meu-site/servicos', icon: 'concierge' },
+    { title: 'Cores do Site', description: 'Personalize a paleta de cores da interface.', href: '/dashboard/meu-site/cores', icon: 'palette' },
+    { title: 'Imagens do Layout', description: 'Gerencie as fotos de fundo e banners.', href: '/dashboard/meu-site/imagens', icon: 'image' },
+    { title: 'Negócio Imobiliário', description: 'Defina as modalidades de venda e aluguel.', href: '/dashboard/meu-site/negocio', icon: 'business_center' },
+];
+
 export default function EditUrbanPadraoPage() {
   const { firestore, user, storage } = useFirebase();
   const { toast } = useToast();
@@ -97,6 +110,7 @@ export default function EditUrbanPadraoPage() {
   const [uploads, setUploads] = useState<Record<string, UploadState>>({
     logoUrl: { progress: 0, isUploading: false, error: null },
     footerLogoUrl: { progress: 0, isUploading: false, error: null },
+    faviconUrl: { progress: 0, isUploading: false, error: null },
   });
 
   const brokerDocRef = useMemoFirebase(
@@ -111,6 +125,8 @@ export default function EditUrbanPadraoPage() {
     defaultValues: {
       logoUrl: '',
       footerLogoUrl: '',
+      faviconUrl: '',
+      siteTitle: '',
       footerSlogan: '',
       footerContactEmail: '',
       footerContactPhone: '',
@@ -134,7 +150,7 @@ export default function EditUrbanPadraoPage() {
     }
   }, [brokerData, form]);
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>, fieldName: 'logoUrl' | 'footerLogoUrl') => {
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>, fieldName: 'logoUrl' | 'footerLogoUrl' | 'faviconUrl') => {
     const file = event.target.files?.[0];
     if (!file || !user || !storage) return;
 
@@ -143,7 +159,7 @@ export default function EditUrbanPadraoPage() {
       [fieldName]: { progress: 0, isUploading: true, error: null } 
     }));
 
-    const path = `brokers/${user.uid}/logos`;
+    const path = `brokers/${user.uid}/site-assets`;
     const fileId = uuidv4();
     const sRef = ref(storage, `${path}/${fileId}-${file.name}`);
     const uploadTask = uploadBytesResumable(sRef, file);
@@ -163,7 +179,7 @@ export default function EditUrbanPadraoPage() {
           ...prev, 
           [fieldName]: { progress: 0, isUploading: false, error: 'Falha no upload.' } 
         }));
-        toast({ variant: "destructive", title: "Erro no Upload", description: `Não foi possível enviar o logo (${fieldName === 'logoUrl' ? 'Topo' : 'Rodapé'}).` });
+        toast({ variant: "destructive", title: "Erro no Upload", description: "Não foi possível enviar o arquivo." });
       },
       async () => {
         const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
@@ -172,7 +188,7 @@ export default function EditUrbanPadraoPage() {
           ...prev, 
           [fieldName]: { progress: 100, isUploading: false, error: null } 
         }));
-        toast({ title: 'Upload Concluído!', description: 'A logo foi enviada com sucesso.' });
+        toast({ title: 'Upload Concluído!', description: 'O arquivo foi enviado com sucesso.' });
       }
     );
   };
@@ -187,7 +203,9 @@ export default function EditUrbanPadraoPage() {
         whatsappUrl: formatWhatsApp(data.whatsappUrl),
     };
 
-    setDocumentNonBlocking(brokerDocRef, { ...formattedData, userId: user.uid }, { merge: true });
+    const sanitizedData = JSON.parse(JSON.stringify(formattedData));
+
+    setDocumentNonBlocking(brokerDocRef, { ...sanitizedData, userId: user.uid }, { merge: true });
     toast({
       title: "Configurações Salvas!",
       description: "As configurações globais do seu site foram atualizadas.",
@@ -196,58 +214,93 @@ export default function EditUrbanPadraoPage() {
 
   if (isLoading) {
     return <div className="p-10 text-center text-slate-500 flex flex-col items-center gap-4">
-      <span className="material-symbols-outlined animate-spin text-4xl">progress_activity</span>
-      Carregando configurações do site...
+      <span className="material-symbols-outlined animate-spin text-4xl text-primary">progress_activity</span>
+      <p className="font-medium">Carregando configurações do site...</p>
     </div>;
   }
 
-  const editablePages = [
-    { name: "Home", description: "Página principal e vitrine.", href: "/dashboard/meu-site/inicio", icon: "home" },
-    { name: "Busca", description: "Listagem e filtros de imóveis.", href: "/dashboard/imoveis", icon: "search" },
-    { name: "Serviços", description: "O que sua agência oferece.", href: "/dashboard/meu-site/servicos", icon: "business_center" },
-    { name: "Sobre", description: "História e equipe.", href: "/dashboard/meu-site/sobre", icon: "groups" },
-    { name: "Contato", description: "Formulários e endereços.", href: "/dashboard/admin/site/contato", icon: "call" },
-  ];
-
   return (
-    <div className="w-full max-w-7xl mx-auto space-y-8 pb-20">
+    <div className="w-full max-w-7xl mx-auto space-y-10 pb-20 animate-in fade-in duration-500">
       <FormProvider {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-10">
           
-          {/* Header Section */}
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 text-left">
             <div>
-              <h1 className="text-3xl font-black text-slate-900 tracking-tight">Gerenciar Site</h1>
-              <p className="text-slate-500 mt-1">Gerencie a identidade visual e informações de contato da sua imobiliária.</p>
+              <h1 className="text-3xl font-black text-slate-900 tracking-tight uppercase">Gerenciar Site</h1>
+              <p className="text-slate-500 mt-1">Gerencie a identidade visual, o conteúdo das páginas e as informações de contato.</p>
             </div>
-            <Button 
-              type="submit" 
-              disabled={form.formState.isSubmitting}
-              className="bg-primary hover:bg-primary-hover text-slate-900 px-6 h-11 rounded-xl font-bold flex items-center gap-2 transition-all shadow-lg shadow-primary/20"
-            >
-              <span className="material-symbols-outlined">save</span>
-              {form.formState.isSubmitting ? "Salvando..." : "Salvar Configurações"}
-            </Button>
+            <div className="flex items-center gap-3">
+              <Button asChild variant="outline" className="h-11 px-6 rounded-xl border-slate-200 font-bold">
+                 <Link href={`/sites/${brokerData?.slug}`} target="_blank">
+                    <span className="material-symbols-outlined mr-2">visibility</span>
+                    Ver Site Público
+                 </Link>
+              </Button>
+              <Button 
+                type="submit" 
+                disabled={form.formState.isSubmitting}
+                className="bg-primary hover:bg-primary-hover text-slate-900 px-8 h-11 rounded-xl font-bold flex items-center gap-2 transition-all shadow-lg shadow-primary/20 border-none"
+              >
+                <span className="material-symbols-outlined">save</span>
+                {form.formState.isSubmitting ? "Salvando..." : "Salvar Configurações"}
+              </Button>
+            </div>
           </div>
+
+          {/* Page Editors Navigation */}
+          <section className="space-y-4">
+            <h2 className="text-sm font-black text-slate-400 uppercase tracking-widest ml-1 text-left">Conteúdo e Design das Páginas</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+                {pageEditors.map((page) => (
+                    <Link 
+                        key={page.href} 
+                        href={page.href}
+                        className="group bg-white p-5 rounded-2xl border border-slate-100 shadow-soft hover:border-primary/50 hover:shadow-md transition-all flex flex-col items-start gap-4"
+                    >
+                        <div className="size-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-primary/20 group-hover:text-primary-hover transition-colors">
+                            <span className="material-symbols-outlined text-xl">{page.icon}</span>
+                        </div>
+                        <div className="text-left">
+                            <h3 className="font-bold text-slate-900 group-hover:text-primary-hover transition-colors">{page.title}</h3>
+                            <p className="text-[10px] text-slate-400 font-medium leading-tight mt-1">{page.description}</p>
+                        </div>
+                    </Link>
+                ))}
+            </div>
+          </section>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             
-            {/* Column 1: Brand & Contact */}
             <div className="lg:col-span-2 space-y-8">
               
-              {/* Section 1: Brand & Identity */}
-              <section className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-                <div className="flex items-center gap-2 mb-6">
-                  <span className="material-symbols-outlined text-primary font-bold">palette</span>
-                  <h2 className="text-lg font-bold text-slate-900 uppercase tracking-wider">Brand & Identity</h2>
+              <section className="bg-white rounded-2xl shadow-soft border border-slate-100 p-6 text-left">
+                <div className="flex items-center gap-3 mb-8 border-b border-slate-50 pb-4">
+                  <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary-hover">
+                    <span className="material-symbols-outlined font-bold">palette</span>
+                  </div>
+                  <h2 className="text-lg font-bold text-slate-900 uppercase tracking-tight">Identidade da Marca</h2>
                 </div>
                 
-                <div className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    
+                <div className="space-y-8">
+                  <FormField
+                    control={form.control}
+                    name="siteTitle"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Título da Página (SEO)</FormLabel>
+                        <FormControl>
+                          <Input className="w-full bg-slate-50 border-slate-100 rounded-xl px-4 h-12 focus:ring-primary focus:border-primary font-bold text-slate-900" placeholder="Ex: João Silva | Imóveis de Luxo em João Pessoa" {...field} />
+                        </FormControl>
+                        <FormDescription className="text-[10px] text-slate-400 pl-1 font-medium">Este título aparecerá na aba do navegador e nos resultados de busca.</FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     {/* Logo Topo */}
                     <div className="flex flex-col gap-2">
-                      <label className="text-sm font-bold text-slate-700">Logo do Corretor (Topo)</label>
+                      <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Logo Principal (Topo)</label>
                       <label htmlFor="logo-top-upload" className="relative group cursor-pointer">
                         <div className="mt-1 border-2 border-dashed border-slate-200 rounded-2xl p-8 flex flex-col items-center justify-center bg-slate-50 hover:bg-slate-100 transition-colors">
                           <div className="w-16 h-16 rounded-full bg-white shadow-sm flex items-center justify-center mb-4 group-hover:scale-110 transition-transform relative overflow-hidden">
@@ -257,8 +310,7 @@ export default function EditUrbanPadraoPage() {
                               <span className="material-symbols-outlined text-slate-400 text-3xl pointer-events-none">cloud_upload</span>
                             )}
                           </div>
-                          <p className="text-sm font-bold text-slate-900 text-center pointer-events-none">Clique para fazer upload ou arraste o arquivo</p>
-                          <p className="text-xs text-slate-400 mt-1 pointer-events-none">PNG, JPG ou SVG (Máx. 2MB)</p>
+                          <p className="text-[10px] font-black text-slate-900 uppercase tracking-tighter text-center pointer-events-none">Fazer upload da logo</p>
                           
                           {uploads.logoUrl.isUploading && (
                             <div className="absolute inset-0 bg-white/80 flex items-center justify-center p-6 rounded-2xl">
@@ -270,9 +322,33 @@ export default function EditUrbanPadraoPage() {
                       </label>
                     </div>
 
-                    {/* Logo Rodapé */}
+                    {/* Favicon */}
                     <div className="flex flex-col gap-2">
-                      <label className="text-sm font-bold text-slate-700">Logo do Corretor (Rodapé)</label>
+                      <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Favicon (Ícone da Aba)</label>
+                      <label htmlFor="favicon-upload" className="relative group cursor-pointer">
+                        <div className="mt-1 border-2 border-dashed border-slate-200 rounded-2xl p-8 flex flex-col items-center justify-center bg-slate-50 hover:bg-slate-100 transition-colors">
+                          <div className="w-16 h-16 rounded-lg bg-white shadow-sm flex items-center justify-center mb-4 group-hover:scale-110 transition-transform relative overflow-hidden">
+                            {form.watch('faviconUrl') ? (
+                              <Image src={form.watch('faviconUrl')!} alt="Favicon" fill className="object-contain p-3" />
+                            ) : (
+                              <span className="material-symbols-outlined text-slate-400 text-3xl pointer-events-none">favicon</span>
+                            )}
+                          </div>
+                          <p className="text-[10px] font-black text-slate-900 uppercase tracking-tighter text-center pointer-events-none">Fazer upload do ícone</p>
+                          
+                          {uploads.faviconUrl.isUploading && (
+                            <div className="absolute inset-0 bg-white/80 flex items-center justify-center p-6 rounded-2xl">
+                              <Progress value={uploads.faviconUrl.progress} className="h-2 w-full" />
+                            </div>
+                          )}
+                        </div>
+                        <input id="favicon-upload" type="file" className="sr-only" accept="image/x-icon,image/png,image/svg+xml" onChange={(e) => handleFileUpload(e, 'faviconUrl')} />
+                      </label>
+                    </div>
+
+                    {/* Logo Rodapé */}
+                    <div className="flex flex-col gap-2 md:col-span-2">
+                      <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Logo do Rodapé (Opcional)</label>
                       <label htmlFor="logo-footer-upload" className="relative group cursor-pointer">
                         <div className="mt-1 border-2 border-dashed border-slate-200 rounded-2xl p-8 flex flex-col items-center justify-center bg-slate-50 hover:bg-slate-100 transition-colors">
                           <div className="w-16 h-16 rounded-full bg-white shadow-sm flex items-center justify-center mb-4 group-hover:scale-110 transition-transform relative overflow-hidden">
@@ -282,8 +358,7 @@ export default function EditUrbanPadraoPage() {
                               <span className="material-symbols-outlined text-slate-400 text-3xl pointer-events-none">cloud_upload</span>
                             )}
                           </div>
-                          <p className="text-sm font-bold text-slate-900 text-center pointer-events-none">Clique para fazer upload ou arraste o arquivo</p>
-                          <p className="text-xs text-slate-400 mt-1 pointer-events-none">PNG, JPG ou SVG (Máx. 2MB)</p>
+                          <p className="text-[10px] font-black text-slate-900 uppercase tracking-tighter text-center pointer-events-none">Fazer upload da logo do rodapé</p>
 
                           {uploads.footerLogoUrl.isUploading && (
                             <div className="absolute inset-0 bg-white/80 flex items-center justify-center p-6 rounded-2xl">
@@ -301,9 +376,9 @@ export default function EditUrbanPadraoPage() {
                     name="footerSlogan"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-sm font-bold text-slate-700 uppercase tracking-wider">Slogan do Rodapé</FormLabel>
+                        <FormLabel className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Slogan do Rodapé</FormLabel>
                         <FormControl>
-                          <Input className="w-full bg-slate-50 border-slate-200 rounded-xl px-4 py-6 focus:ring-primary focus:border-primary" placeholder="Ex: Realizando sonhos, construindo o seu futuro." {...field} />
+                          <Input className="w-full bg-slate-50 border-slate-100 rounded-xl px-4 h-12 focus:ring-primary focus:border-primary font-medium" placeholder="Ex: Realizando sonhos, construindo o seu futuro." {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -312,11 +387,12 @@ export default function EditUrbanPadraoPage() {
                 </div>
               </section>
 
-              {/* Section 2: Contact Information */}
-              <section className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-                <div className="flex items-center gap-2 mb-6">
-                  <span className="material-symbols-outlined text-primary font-bold">contact_page</span>
-                  <h2 className="text-lg font-bold text-slate-900 uppercase tracking-wider">Informações de Contato</h2>
+              <section className="bg-white rounded-2xl shadow-soft border border-slate-100 p-6 text-left">
+                <div className="flex items-center gap-3 mb-8 border-b border-slate-50 pb-4">
+                   <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary-hover">
+                    <span className="material-symbols-outlined font-bold">contact_page</span>
+                  </div>
+                  <h2 className="text-lg font-bold text-slate-900 uppercase tracking-tight">Informações de Contato</h2>
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -325,11 +401,11 @@ export default function EditUrbanPadraoPage() {
                     name="footerContactEmail"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-sm font-bold text-slate-700 uppercase tracking-wider">E-mail Comercial</FormLabel>
+                        <FormLabel className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">E-mail Comercial</FormLabel>
                         <FormControl>
                           <div className="relative">
                             <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">mail</span>
-                            <Input className="w-full pl-12 bg-slate-50 border-slate-200 rounded-xl py-6 focus:ring-primary focus:border-primary" placeholder="contato@nextestate.com.br" {...field} />
+                            <Input className="w-full pl-12 bg-slate-50 border-slate-100 rounded-xl h-12 focus:ring-primary focus:border-primary font-bold text-slate-900" placeholder="contato@exemplo.com.br" {...field} />
                           </div>
                         </FormControl>
                         <FormMessage />
@@ -342,11 +418,11 @@ export default function EditUrbanPadraoPage() {
                     name="footerContactPhone"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-sm font-bold text-slate-700 uppercase tracking-wider">Telefone / WhatsApp</FormLabel>
+                        <FormLabel className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Telefone / WhatsApp</FormLabel>
                         <FormControl>
                           <div className="relative">
                             <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">phone</span>
-                            <Input className="w-full pl-12 bg-slate-50 border-slate-200 rounded-xl py-6 focus:ring-primary focus:border-primary" placeholder="(11) 99999-9999" {...field} />
+                            <Input className="w-full pl-12 bg-slate-50 border-slate-100 rounded-xl h-12 focus:ring-primary focus:border-primary font-bold text-slate-900" placeholder="(11) 99999-9999" {...field} />
                           </div>
                         </FormControl>
                         <FormMessage />
@@ -359,11 +435,11 @@ export default function EditUrbanPadraoPage() {
                     name="footerContactAddress"
                     render={({ field }) => (
                       <FormItem className="md:col-span-2">
-                        <FormLabel className="text-sm font-bold text-slate-700 uppercase tracking-wider">Endereço Completo</FormLabel>
+                        <FormLabel className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Endereço Completo</FormLabel>
                         <FormControl>
                           <div className="relative">
                             <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">location_on</span>
-                            <Input className="w-full pl-12 bg-slate-50 border-slate-200 rounded-xl py-6 focus:ring-primary focus:border-primary" placeholder="Av. Paulista, 1000 - Bela Vista, São Paulo - SP" {...field} />
+                            <Input className="w-full pl-12 bg-slate-50 border-slate-100 rounded-xl h-12 focus:ring-primary focus:border-primary font-bold text-slate-900" placeholder="Av. Paulista, 1000 - Bela Vista, São Paulo - SP" {...field} />
                           </div>
                         </FormControl>
                         <FormMessage />
@@ -377,10 +453,10 @@ export default function EditUrbanPadraoPage() {
                       name="creciState"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-sm font-bold text-slate-700 uppercase tracking-wider">Estado (UF)</FormLabel>
+                          <FormLabel className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Estado (UF)</FormLabel>
                           <Select onValueChange={field.onChange} value={field.value}>
                             <FormControl>
-                              <SelectTrigger className="w-full bg-slate-50 border-slate-200 rounded-xl px-4 py-3 focus:ring-primary focus:border-primary h-auto">
+                              <SelectTrigger className="w-full bg-slate-50 border-slate-100 rounded-xl px-4 h-12 focus:ring-primary focus:border-primary font-bold text-slate-900">
                                 <SelectValue placeholder="Selecione o estado" />
                               </SelectTrigger>
                             </FormControl>
@@ -401,9 +477,9 @@ export default function EditUrbanPadraoPage() {
                       name="creci"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-sm font-bold text-slate-700 uppercase tracking-wider">CRECI (Registro)</FormLabel>
+                          <FormLabel className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">CRECI (Registro)</FormLabel>
                           <FormControl>
-                            <Input className="w-full bg-slate-50 border-slate-200 rounded-xl px-4 py-3 focus:ring-primary focus:border-primary h-auto" placeholder="123456-J" {...field} />
+                            <Input className="w-full bg-slate-50 border-slate-100 rounded-xl px-4 h-12 focus:ring-primary focus:border-primary font-bold text-slate-900" placeholder="123456-J" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -414,14 +490,13 @@ export default function EditUrbanPadraoPage() {
               </section>
             </div>
 
-            {/* Column 2: Social & Others */}
             <div className="space-y-8">
-              
-              {/* Section 3: Social Media */}
-              <section className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-                <div className="flex items-center gap-2 mb-6">
-                  <span className="material-symbols-outlined text-primary font-bold">share</span>
-                  <h2 className="text-lg font-bold text-slate-900 uppercase tracking-wider">Redes Sociais</h2>
+              <section className="bg-white rounded-2xl shadow-soft border border-slate-100 p-6 text-left">
+                <div className="flex items-center gap-3 mb-8 border-b border-slate-50 pb-4">
+                  <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary-hover">
+                    <span className="material-symbols-outlined font-bold">share</span>
+                  </div>
+                  <h2 className="text-lg font-bold text-slate-900 uppercase tracking-tight">Redes Sociais</h2>
                 </div>
                 
                 <div className="space-y-4">
@@ -430,11 +505,11 @@ export default function EditUrbanPadraoPage() {
                     name="instagramUrl"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Instagram</FormLabel>
+                        <FormLabel className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Instagram (Usuário)</FormLabel>
                         <FormControl>
                           <div className="flex h-11">
-                            <span className="inline-flex items-center px-3 rounded-l-xl border border-r-0 border-slate-200 bg-slate-50 text-slate-400 text-xs font-semibold">instagram.com/</span>
-                            <Input className="rounded-l-none rounded-r-xl border-slate-200 bg-slate-50 focus:ring-primary focus:border-primary h-full px-4" placeholder="seuusuario" {...field} />
+                            <span className="inline-flex items-center px-3 rounded-l-xl border border-r-0 border-slate-100 bg-slate-50 text-slate-400 text-[10px] font-black">ig/</span>
+                            <Input className="rounded-l-none rounded-r-xl border-slate-100 bg-slate-50 focus:ring-primary focus:border-primary h-full px-4 font-bold text-slate-900" placeholder="seuusuario" {...field} />
                           </div>
                         </FormControl>
                         <FormMessage />
@@ -447,11 +522,11 @@ export default function EditUrbanPadraoPage() {
                     name="linkedinUrl"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">LinkedIn</FormLabel>
+                        <FormLabel className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">LinkedIn (Usuário)</FormLabel>
                         <FormControl>
                           <div className="flex h-11">
-                            <span className="inline-flex items-center px-3 rounded-l-xl border border-r-0 border-slate-200 bg-slate-50 text-slate-400 text-xs font-semibold">linkedin.com/in/</span>
-                            <Input className="rounded-l-none rounded-r-xl border-slate-200 bg-slate-50 focus:ring-primary focus:border-primary h-full px-4" placeholder="usuario" {...field} />
+                            <span className="inline-flex items-center px-3 rounded-l-xl border border-r-0 border-slate-100 bg-slate-50 text-slate-400 text-[10px] font-black">in/</span>
+                            <Input className="rounded-l-none rounded-r-xl border-slate-100 bg-slate-50 focus:ring-primary focus:border-primary h-full px-4 font-bold text-slate-900" placeholder="usuario" {...field} />
                           </div>
                         </FormControl>
                         <FormMessage />
@@ -464,11 +539,11 @@ export default function EditUrbanPadraoPage() {
                     name="whatsappUrl"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">WhatsApp (Apenas Número)</FormLabel>
+                        <FormLabel className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">WhatsApp (Número)</FormLabel>
                         <FormControl>
                           <div className="flex h-11">
-                            <span className="inline-flex items-center px-3 rounded-l-xl border border-r-0 border-slate-200 bg-slate-50 text-slate-400 text-xs font-semibold">wa.me/</span>
-                            <Input className="rounded-l-none rounded-r-xl border-slate-200 bg-slate-50 focus:ring-primary focus:border-primary h-full px-4" placeholder="5511999999999" {...field} />
+                            <span className="inline-flex items-center px-3 rounded-l-xl border border-r-0 border-slate-100 bg-slate-50 text-slate-400 text-[10px] font-black">wa/</span>
+                            <Input className="rounded-l-none rounded-r-xl border-slate-100 bg-slate-50 focus:ring-primary focus:border-primary h-full px-4 font-bold text-slate-900" placeholder="5511999999999" {...field} />
                           </div>
                         </FormControl>
                         <FormMessage />
@@ -478,66 +553,26 @@ export default function EditUrbanPadraoPage() {
                 </div>
               </section>
 
-              {/* Help Card */}
-              <div className="bg-slate-900 rounded-2xl p-6 text-white relative overflow-hidden">
-                <div className="relative z-10">
-                  <h3 className="text-xl font-black mb-2">Dica Pro</h3>
-                  <p className="text-slate-400 text-sm leading-relaxed">Mantenha suas informações de contato sempre atualizadas para não perder leads qualificados vindos do seu portal.</p>
-                  <Link href="/ajuda" className="mt-4 text-primary font-bold text-sm flex items-center gap-1 hover:underline">
-                    Ver Central de Ajuda
-                    <span className="material-symbols-outlined text-sm">open_in_new</span>
-                  </Link>
-                </div>
-                <div className="absolute -right-10 -bottom-10 opacity-10">
-                  <span className="material-symbols-outlined text-[120px]">lightbulb</span>
+              <div className="bg-slate-900 rounded-2xl p-8 text-white relative overflow-hidden shadow-xl border border-slate-800">
+                <div className="absolute top-0 right-0 size-32 bg-primary/10 blur-[60px] opacity-20 pointer-events-none"></div>
+                <div className="relative z-10 text-left">
+                  <h3 className="text-xl font-black mb-3 flex items-center gap-2 text-primary">
+                      <span className="material-symbols-outlined">lightbulb</span>
+                      Dica Profissional
+                  </h3>
+                  <p className="text-slate-400 text-sm leading-relaxed font-medium">As logos e ícones personalizados elevam a percepção de valor da sua marca. Certifique-se de usar imagens de alta qualidade e com fundo transparente (PNG).</p>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Section 4: Páginas Editáveis */}
-          <div className="mt-12">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-primary font-bold">auto_stories</span>
-                <h2 className="text-2xl font-black text-slate-900 tracking-tight uppercase">Páginas Editáveis</h2>
-              </div>
-              <Link href="#" className="text-sm font-bold text-slate-500 hover:text-primary transition-colors">Ver todas as páginas</Link>
-            </div>
-            
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-              {editablePages.map((page) => (
-                <Link 
-                  key={page.name} 
-                  href={page.href}
-                  className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all group flex flex-col"
-                >
-                  <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center mb-4 group-hover:bg-primary transition-colors">
-                    <span className="material-symbols-outlined text-slate-700 font-bold group-hover:text-slate-900">{page.icon}</span>
-                  </div>
-                  <h3 className="font-bold text-slate-900 mb-1">{page.name}</h3>
-                  <p className="text-[10px] text-slate-500 mb-4 line-clamp-1">{page.description}</p>
-                  <div className="mt-auto pt-2">
-                    <span className="text-[10px] font-black text-primary uppercase tracking-wider flex items-center gap-1">
-                      Editar Página
-                      <span className="material-symbols-outlined text-[14px]">edit</span>
-                    </span>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </div>
-
-          {/* Final Action Bar */}
-          <div className="mt-12 pt-8 border-t border-slate-200 flex justify-end">
-            <div className="flex items-center gap-4">
-              <Button type="button" variant="ghost" onClick={() => form.reset()} className="px-6 h-11 rounded-xl font-bold text-slate-500 hover:bg-slate-100 transition-colors">
+          <div className="mt-12 pt-8 border-t border-slate-100 flex justify-end gap-4">
+              <Button type="button" variant="ghost" onClick={() => form.reset()} className="px-6 h-11 rounded-xl font-bold text-slate-400 hover:bg-slate-50 hover:text-slate-600 transition-colors cursor-pointer">
                 Descartar Alterações
               </Button>
-              <Button type="submit" className="bg-primary hover:bg-primary-hover text-slate-900 px-8 h-11 rounded-xl font-black transition-all shadow-lg shadow-primary/20">
-                Salvar Tudo
+              <Button type="submit" className="bg-primary hover:bg-primary-hover text-slate-900 px-10 h-11 rounded-xl font-black transition-all shadow-lg shadow-primary/20 border-none cursor-pointer">
+                Salvar Configurações
               </Button>
-            </div>
           </div>
         </form>
       </FormProvider>

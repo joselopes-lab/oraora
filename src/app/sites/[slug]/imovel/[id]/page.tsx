@@ -1,30 +1,20 @@
-import { collection, query, where, getDocs, doc, getDoc, limit } from 'firebase/firestore';
-import { initializeFirebase } from '@/firebase/index.server';
+
+import { adminDb } from '@/firebase/index.server';
 import { notFound } from 'next/navigation';
-import PropertyDetailsPage from '@/layouts/urban-padrao/imovel/PropertyDetailsPage';
-import DomusPropertyDetailsPage from '@/app/layouts/domus/imovel/DomusPropertyDetailsPage';
+import { getThemePage } from '@/layouts/registry';
 import type { Metadata } from 'next';
+import { getBrokerData, getPropertyData } from '../../../utils.server';
+import { FieldValue } from 'firebase-admin/firestore';
+import { headers } from 'next/headers';
+import { getCanonicalUrl, getRobotsRules, generatePropertyJsonLd, generateBrokerJsonLd } from '@/lib/seo';
+import { JsonLd } from '@/components/JsonLd';
 
-// Force dynamic rendering to ensure data is fresh on every request
 export const dynamic = 'force-dynamic';
-
-// Tipos de dados
-type Broker = {
-  id: string;
-  brandName: string;
-  logoUrl?: string;
-  primaryColor?: string;
-  secondaryColor?: string;
-  accentColor?: string;
-  backgroundColor?: string;
-  foregroundColor?: string;
-  slug: string;
-  layoutId?: string; 
-};
 
 type Property = {
   id: string;
   builderId: string;
+  brokerId?: string;
   isVisibleOnSite?: boolean;
   informacoesbasicas: {
     nome: string;
@@ -39,14 +29,13 @@ type Property = {
     address?: string;
     bairro: string;
     cidade: string;
-    estado: string;
+    state: string;
     latitude?: number;
     longitude?: number;
     googleMapsLink?: string;
     googleStreetViewLink?: string;
   };
   midia: string[];
-  youtubeVideoUrl?: string;
   caracteristicasimovel: {
     tipo: string;
     quartos?: string[] | string;
@@ -55,142 +44,99 @@ type Property = {
     vagas?: string;
   };
   areascomuns?: string[];
-  seoTitle?: string;
-  seoDescription?: string;
-  seoKeywords?: string;
+  seo?: any;
 };
 
-// Funções de busca de dados no servidor
-async function getBrokerData(slug: string): Promise<Broker | null> {
-  const { firestore } = initializeFirebase();
-  const brokersRef = collection(firestore, 'brokers');
-  const q = query(brokersRef, where('slug', '==', slug));
-  const querySnapshot = await getDocs(q);
-
-  if (querySnapshot.empty) {
-    return null;
-  }
-
-  const brokerDoc = querySnapshot.docs[0];
-  return { id: brokerDoc.id, ...brokerDoc.data() } as Broker;
-}
-
-async function getPropertyData(propertySlug: string): Promise<Property | null> {
-    const { firestore } = initializeFirebase();
-    let propData: Property | null = null;
-    
-    // Query 'properties' collection by slug
-    const propertiesRef = collection(firestore, 'properties');
-    let q = query(propertiesRef, where('informacoesbasicas.slug', '==', propertySlug), limit(1));
-    let propertySnap = await getDocs(q);
-
-    if (!propertySnap.empty) {
-        const doc = propertySnap.docs[0];
-        propData = { id: doc.id, ...doc.data() } as Property;
-    } else {
-        // If not found, query 'brokerProperties' collection by slug
-        const brokerPropertiesRef = collection(firestore, 'brokerProperties');
-        q = query(brokerPropertiesRef, where('informacoesbasicas.slug', '==', propertySlug), limit(1));
-        propertySnap = await getDocs(q);
-
-        if (!propertySnap.empty) {
-            const doc = propertySnap.docs[0];
-            propData = { id: doc.id, ...doc.data() } as Property;
-        }
-    }
-    
-    // Fallback to checking by ID if slug search fails (for old URLs)
-    if (!propData) {
-        try {
-            let propertyRef = doc(firestore, 'properties', propertySlug);
-            let docSnap = await getDoc(propertyRef);
-            if (docSnap.exists()) {
-                propData = { id: docSnap.id, ...docSnap.data() } as Property;
-            } else {
-                propertyRef = doc(firestore, 'brokerProperties', propertySlug);
-                docSnap = await getDoc(propertyRef);
-                if (docSnap.exists()) {
-                    propData = { id: docSnap.id, ...docSnap.data() } as Property;
-                }
-            }
-        } catch(e) {
-            console.error("Error fetching document by ID, it might be an invalid slug format for an ID", e);
-        }
-    }
-
-    return propData;
-}
-
 async function getSimilarProperties(property: Property): Promise<Property[]> {
-  const { firestore } = initializeFirebase();
-  const propertiesRef = collection(firestore, 'properties');
+  const snap = await adminDb.collection('properties')
+    .where('isVisibleOnSite', '==', true)
+    .where('localizacao.cidade', '==', property.localizacao.cidade)
+    .limit(5)
+    .get();
   
-  const q = query(
-    propertiesRef, 
-    where('isVisibleOnSite', '==', true),
-    where('localizacao.cidade', '==', property.localizacao.cidade),
-    limit(5)
-  );
-  
-  const querySnapshot = await getDocs(q);
-  
-  const similar = querySnapshot.docs
-    .map(doc => ({ id: doc.id, ...doc.data() } as Property))
-    .filter(p => p.id !== property.id);
-
-  return similar.slice(0, 4);
+  return snap.docs
+    .map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as any))
+    .filter(p => p.id !== property.id)
+    .slice(0, 4);
 }
 
-// Generate Metadata for SEO
-export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
-  const { id: propertyIdentifier } = await params;
-  const property = await getPropertyData(propertyIdentifier);
+export async function generateMetadata({ params }: { params: Promise<{ id: string, slug: string }> }): Promise<Metadata> {
+  const { id: propertyIdentifier, slug } = await params;
+  const broker = await getBrokerData(slug);
+  const property = await getPropertyData(propertyIdentifier) as any;
+  const headersList = await headers();
+  const host = headersList.get('host') || 'oraora.com.br';
 
-  if (!property) {
-    return {
-      title: 'Imóvel não encontrado',
-      description: 'A página que você está procurando não existe ou foi movida.',
-    };
+  if (!property || !broker || property.isVisibleOnSite === false) {
+    return { title: 'Imóvel não encontrado | Oraora' };
   }
 
-  const title = property.seoTitle || property.informacoesbasicas.nome;
-  const description = property.seoDescription || property.informacoesbasicas.descricao?.substring(0, 155) || 'Veja mais detalhes sobre este imóvel.';
-  const keywords = property.seoKeywords || `${property.informacoesbasicas.nome}, ${property.localizacao.bairro}, ${property.localizacao.cidade}`;
-  const imageUrl = property.midia?.[0] || '';
+  const title = property.informacoesbasicas.nome;
+  const description = property.informacoesbasicas.descricao?.replace(/<[^>]*>?/gm, '').substring(0, 160);
+  const canonical = getCanonicalUrl(property, host, broker);
+  const robots = getRobotsRules(property, host);
 
   return {
-    title: `${title} | Oraora`,
+    title: `${title} | ${broker.brandName}`,
     description,
-    keywords,
+    alternates: { canonical },
+    robots,
     openGraph: {
-      title: `${title} | Oraora`,
+      title: `${title} | ${broker.brandName}`,
       description,
-      images: imageUrl ? [{ url: imageUrl }] : [],
+      type: 'website',
+      images: property.midia?.[0] ? [{ url: property.midia[0], width: 1200, height: 630 }] : [],
     },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: property.midia?.[0] ? [property.midia[0]] : [],
+    },
+    keywords: [
+      property.caracteristicasimovel.tipo,
+      property.localizacao.bairro,
+      property.localizacao.cidade,
+      broker.brandName,
+      'imóveis de luxo',
+      'comprar imóvel'
+    ]
   };
 }
 
-
-// A página principal que atua como roteador de layouts
 export default async function BrokerPropertyDetailsPage({ params }: { params: Promise<{ slug: string, id: string }> }) {
   const { slug, id: propertyIdentifier } = await params;
   const broker = await getBrokerData(slug);
-  const property = await getPropertyData(propertyIdentifier);
+  const property = await getPropertyData(propertyIdentifier) as any;
+  const headersList = await headers();
+  const host = headersList.get('host') || 'oraora.com.br';
 
   if (!broker || !property || property.isVisibleOnSite === false) {
     notFound();
   }
 
-  const similarProperties = await getSimilarProperties(property);
+  try {
+    await adminDb.collection('corretorMetrics').doc(broker.id).set({
+      siteHits: FieldValue.increment(1)
+    }, { merge: true });
+  } catch (e) {}
 
-  // Lógica para escolher qual layout renderizar
-  switch (broker.layoutId) {
-    case 'urban-padrao':
-        return <PropertyDetailsPage broker={broker as any} property={property as any} similarProperties={similarProperties as any} />;
-    case 'domus':
-        return <DomusPropertyDetailsPage broker={broker as any} property={property as any} similarProperties={similarProperties as any} />;
-    default:
-      // Renderiza o layout padrão se nenhum for selecionado ou se o ID for inválido
-      return <PropertyDetailsPage broker={broker as any} property={property as any} similarProperties={similarProperties as any} />;
-  }
+  const similarProperties = await getSimilarProperties(property);
+  const propertyJsonLd = generatePropertyJsonLd(property, `https://${host}`);
+  const brokerJsonLd = generateBrokerJsonLd(broker);
+  const layoutId = (broker as any).layoutId;
+
+  const PropertyPage = getThemePage(layoutId, 'property');
+
+  return (
+    <>
+      <JsonLd data={propertyJsonLd} />
+      <JsonLd data={brokerJsonLd} />
+      <PropertyPage 
+        broker={broker as any} 
+        property={property as any} 
+        similarProperties={similarProperties as any} 
+      />
+    </>
+  );
 }

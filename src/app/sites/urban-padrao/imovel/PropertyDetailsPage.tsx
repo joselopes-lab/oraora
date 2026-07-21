@@ -14,11 +14,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { useUser, useDoc, useFirestore, useMemoFirebase, setDocumentNonBlocking } from '@/firebase';
-import { arrayRemove, arrayUnion, doc } from 'firebase/firestore';
-import { useRouter, notFound } from 'next/navigation';
+import { arrayRemove, arrayUnion, doc, getDoc } from 'firebase/firestore';
+import { useRouter, notFound, usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { WhatsAppWidget } from '../components/WhatsAppWidget';
+import { Badge } from '@/components/ui/badge';
 
 
 type Broker = {
@@ -94,13 +95,6 @@ const leadSchema = z.object({
 
 type LeadFormData = z.infer<typeof leadSchema>;
 
-const whatsappLeadSchema = z.object({
-  whatsappName: z.string().min(1, 'O nome é obrigatório'),
-  whatsappPhone: z.string().min(10, 'O telefone é obrigatório'),
-});
-
-type WhatsappLeadFormData = z.infer<typeof whatsappLeadSchema>;
-
 type RadarList = {
   propertyIds: string[];
 };
@@ -111,13 +105,13 @@ function hslToHex(hslStr: string): string {
     if (!parts || parts.length < 3) return '#000000';
 
     const h = parseFloat(parts[0]);
-    const s = parseFloat(parts[1]) / 100;
-    const l = parseFloat(parts[2]) / 100;
+    const s = parseFloat(parts[1]);
+    const l = parseFloat(parts[2]);
 
-    const a = s * Math.min(l, 1 - l);
+    const a = sNormalized * Math.min(lNormalized, 1 - lNormalized);
     const f = (n: number) => {
         const k = (n + h / 30) % 12;
-        const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+        const color = lNormalized - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
         return Math.round(255 * color).toString(16).padStart(2, '0');
     };
     return `#${f(0)}${f(8)}${f(4)}`;
@@ -127,15 +121,17 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
   const { informacoesbasicas, midia, caracteristicasimovel, localizacao, areascomuns, youtubeVideoUrl } = property;
   const [isGalleryOpen, setIsGalleryOpen] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
-  const [isWhatsappModalOpen, setIsWhatsappModalOpen] = useState(false);
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  const brokerPhoneNumber = "5511999999999"; 
   const router = useRouter();
   const { user } = useUser();
   const firestore = useFirestore();
+  const pathname = usePathname();
   
+  const isPortalAccess = pathname.startsWith('/sites');
+  const searchUrl = isPortalAccess ? `/sites/${broker.slug}/search` : '/search';
+
   const radarListDocRef = useMemoFirebase(
       () => (user ? doc(firestore, 'radarLists', user.uid) : null),
       [user, firestore]
@@ -185,15 +181,6 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
     }
   }, [informacoesbasicas?.nome, form]);
   
-  const whatsappForm = useForm<WhatsappLeadFormData>({
-    resolver: zodResolver(whatsappLeadSchema),
-    defaultValues: {
-      whatsappName: '',
-      whatsappPhone: ''
-    }
-  });
-
-
   const onSubmit = async (data: LeadFormData) => {
     setIsSubmitting(true);
     const result = await createLead({
@@ -222,31 +209,6 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
     setIsSubmitting(false);
   };
   
-  const onWhatsappSubmit = async (data: WhatsappLeadFormData) => {
-    const result = await createLead({
-      brokerId: broker.id,
-      name: data.whatsappName,
-      email: `${data.whatsappPhone.replace(/\D/g, '')}@whatsapp.lead`,
-      phone: data.whatsappPhone,
-      propertyInterest: informacoesbasicas.nome,
-      source: 'WhatsApp'
-    });
-
-    if (result.success) {
-      const message = encodeURIComponent(`Olá, me chamo ${data.whatsappName} e gostaria de saber mais sobre o empreendimento ${informacoesbasicas?.nome}`);
-      window.open(`https://wa.me/${brokerPhoneNumber}?text=${message}`, '_blank');
-      whatsappForm.reset();
-      setIsWhatsappModalOpen(false);
-    } else {
-       toast({
-        variant: 'destructive',
-        title: 'Erro ao Enviar',
-        description: 'Não foi possível registrar seu contato. Tente novamente.',
-      });
-    }
-  };
-
-
   const openGallery = (index: number) => {
     setSelectedImageIndex(index);
     setIsGalleryOpen(true);
@@ -294,6 +256,8 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
   const cardValueColor = content.cardValueColor ? hslToHex(content.cardValueColor) : undefined;
   const cardIconColor = content.cardIconColor ? hslToHex(content.cardIconColor) : undefined;
 
+  const isAvulso = !!property.brokerId;
+
   const dynamicStyles: React.CSSProperties = {
     '--background': broker.backgroundColor,
     '--foreground': broker.foregroundColor,
@@ -305,12 +269,12 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
   return (
     <div style={dynamicStyles} className="urban-padrao-theme relative flex min-h-screen w-full flex-col group/design-root bg-background-light text-text-main font-display antialiased overflow-x-hidden selection:bg-primary selection:text-black">
       <UrbanPadraoHeader broker={broker} />
-      <main className="flex-1 w-full flex flex-col items-center pb-20">
+      <main className="flex-1 w-full flex flex-col items-center pb-20 text-left">
         <div className="w-full bg-white py-4 border-b border-[#f0f2f4]">
           <div className="layout-container max-w-[1280px] mx-auto px-6">
             <nav className="flex text-sm text-text-muted mb-4">
               <a className="hover:text-primary mr-2" href={`/sites/${broker.slug}`}>Início</a> /
-              <a className="hover:text-primary mx-2" href={`/sites/${broker.slug}/search`}>Imóveis</a> /
+              <a className="hover:text-primary mx-2" href={searchUrl}>Imóveis</a> /
               <span className="text-text-main font-medium ml-2">{informacoesbasicas.nome}</span>
             </nav>
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -323,9 +287,14 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
               </div>
               <div className="flex flex-col items-end">
                 {informacoesbasicas.valor && (
-                  <span className="text-3xl font-black text-primary drop-shadow-sm">
-                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2 }).format(informacoesbasicas.valor)}
-                  </span>
+                  <div className="flex flex-col items-end">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">
+                        {isAvulso ? 'Investimento' : 'A partir de:'}
+                    </span>
+                    <span className="text-3xl font-black text-primary drop-shadow-sm">
+                      {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2 }).format(informacoesbasicas.valor)}
+                    </span>
+                  </div>
                 )}
               </div>
             </div>
@@ -348,7 +317,7 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
             </div>
             {midia.slice(1, 5).map((img, idx) => (
               <div key={idx} onClick={() => openGallery(idx + 1)} className="hidden md:block relative rounded-2xl overflow-hidden group cursor-pointer shadow-soft">
-                <Image alt="img" src={img} fill className="object-cover transition-transform duration-700 group-hover:scale-105"/>
+                <Image alt="img" src={img} fill className="object-cover transition-transform duration-700 group-hover:scale-105" />
               </div>
             ))}
           </div>
@@ -372,6 +341,11 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
                 <span className="text-2xl font-black text-text-main">{caracteristicasimovel.vagas}</span>
                 <span className="text-xs text-text-muted uppercase tracking-wider font-bold">Vagas</span>
               </div>
+            </div>
+            <div className="flex flex-wrap gap-3">
+                <Badge variant="outline" className="px-4 py-2 bg-gray-50">{formatQuartos(caracteristicasimovel.quartos)} Quartos</Badge>
+                <Badge variant="outline" className="px-4 py-2 bg-gray-50">{caracteristicasimovel.vagas} Vagas</Badge>
+                <Badge variant="outline" className="px-4 py-2 bg-gray-50">{caracteristicasimovel.tamanho} úteis</Badge>
             </div>
             <div>
               <h2 className="text-2xl font-bold text-text-main mb-4">Sobre o Imóvel</h2>
@@ -426,6 +400,16 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
           <div className="lg:col-span-1">
             <div className="sticky top-24 space-y-6">
               <div className="bg-white rounded-2xl shadow-float p-6 border border-gray-100">
+                <div className="mb-6">
+                  <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">
+                    {isAvulso ? 'Investimento' : 'A partir de:'}
+                  </span>
+                  {informacoesbasicas.valor && (
+                    <p className="text-3xl font-black text-primary">
+                      {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2 }).format(informacoesbasicas.valor)}
+                    </p>
+                  )}
+                </div>
                 <h3 className="text-xl font-bold text-text-main mb-4">Agendar Visita</h3>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-4">
                   <input {...form.register('name')} className="w-full h-12 px-4 rounded-lg border-gray-200 bg-gray-50 focus:border-primary focus:ring-primary text-sm" placeholder="Seu nome" />
@@ -449,8 +433,12 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {similarProperties.map(similarProperty => {
                 const isSaved = savedPropertyIds.includes(similarProperty.id);
+                const quartos = similarProperty.caracteristicasimovel.quartos;
+                const propertyUrl = `/sites/${broker.slug}/imovel/${similarProperty.informacoesbasicas.slug || similarProperty.id}`;
+                const isSimAvulso = !!similarProperty.brokerId;
+
                 return (
-                  <Link key={similarProperty.id} href={`/sites/${broker.slug}/imovel/${similarProperty.informacoesbasicas.slug || similarProperty.id}`} className="group relative flex flex-col rounded-2xl bg-white border border-transparent shadow-soft hover:shadow-card transition-all duration-300 overflow-hidden">
+                  <Link key={similarProperty.id} href={propertyUrl} className="group relative flex flex-col rounded-2xl bg-white border border-transparent shadow-soft hover:shadow-card transition-all duration-300 overflow-hidden">
                     <div className="relative aspect-[4/3] w-full overflow-hidden bg-gray-100">
                         <div 
                             className={cn(
@@ -465,14 +453,19 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
                             {similarProperty.informacoesbasicas.status}
                         </div>
                         <button onClick={(e) => handleRadarClick(e, similarProperty.id)} className={cn("absolute top-3 right-3 z-10 flex size-8 items-center justify-center rounded-full bg-white/80 backdrop-blur-sm text-black hover:text-red-500 hover:bg-white transition-colors", isSaved && "text-primary bg-white")}>
-                            <span className="material-symbols-outlined text-[20px]">radar</span>
+                            <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: isSaved ? "'FILL' 1" : "" }}>radar</span>
                         </button>
                         <Image alt={similarProperty.informacoesbasicas.nome} width={400} height={300} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" src={similarProperty.midia?.[0] || 'https://picsum.photos/seed/prop/400/300'}/>
                         <div className="absolute bottom-0 left-0 w-full bg-gradient-to-t from-black/60 to-transparent p-4 pt-12">
                             {similarProperty.informacoesbasicas.valor && (
-                            <p className="text-white font-bold text-2xl tracking-tight">
-                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(similarProperty.informacoesbasicas.valor)}
-                            </p>
+                            <div className="text-white">
+                                <span className="block text-[10px] font-bold text-gray-300 uppercase tracking-widest mb-0.5">
+                                    {isSimAvulso ? '' : 'A partir de:'}
+                                </span>
+                                <p className="text-white font-bold text-2xl tracking-tight leading-none">
+                                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(similarProperty.informacoesbasicas.valor)}
+                                </p>
+                            </div>
                             )}
                         </div>
                     </div>

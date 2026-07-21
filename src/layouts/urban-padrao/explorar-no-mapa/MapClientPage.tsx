@@ -1,11 +1,14 @@
 'use client';
 import Image from 'next/image';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { UrbanPadraoHeader } from '../components/UrbanPadraoHeader';
 import { WhatsAppWidget } from '../components/WhatsAppWidget';
-import { GoogleMap, useJsApiLoader, Marker, InfoWindow } from '@react-google-maps/api';
+import { GoogleMap, useJsApiLoader, Marker, InfoWindow, Libraries } from '@react-google-maps/api';
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { cn } from '@/lib/utils';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
+import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 
 type Broker = {
   id: string;
@@ -62,6 +65,8 @@ type Poi = {
   type: string;
 }
 
+const googleMapsLibraries: Libraries = ['places'];
+
 const containerStyle = {
   width: '100%',
   height: '100%',
@@ -88,14 +93,17 @@ const poiCategories = [
 ];
 
 export default function MapClientPage({ broker, properties }: MapClientPageProps) {
+  const pathname = usePathname();
+  const isPortalAccess = pathname.startsWith('/sites');
+
   const { isLoaded, loadError } = useJsApiLoader({
     id: 'google-map-script',
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || 'AIzaSyCbPxGXZuW0kPodzVnymKb8CbXnAF5Pdkg',
-    libraries: ['places'],
+    libraries: googleMapsLibraries,
     preventGoogleFontsLoading: true, 
   });
   
-  const mapRef = useRef<google.maps.Map | null>(null);
+  const [mapInstance, setMapInstance] = useState<google.maps.Map | null>(null);
   const [selectedProperty, setSelectedProperty] = useState<GeocodedProperty | null>(null);
   const [geocodedProperties, setGeocodedProperties] = useState<GeocodedProperty[]>([]);
   
@@ -124,7 +132,7 @@ export default function MapClientPage({ broker, properties }: MapClientPageProps
   const [zoom, setZoom] = useState(13);
 
   const onMapLoad = useCallback((map: google.maps.Map) => {
-    mapRef.current = map;
+    setMapInstance(map);
   }, []);
 
   const poiIcons: { [key: string]: google.maps.Symbol } = useMemo(() => {
@@ -256,20 +264,23 @@ export default function MapClientPage({ broker, properties }: MapClientPageProps
   };
 
   useEffect(() => {
-      if (!isLoaded || !mapRef.current || !mapRef.current.getCenter()) return;
+      if (!isLoaded || !mapInstance || !mapInstance.getCenter()) return;
 
       if (activePoiTypes.length === 0) {
         setPlaces([]);
         return;
       }
 
-      const service = new window.google.maps.places.PlacesService(mapRef.current);
+      const service = new window.google.maps.places.PlacesService(mapInstance);
       let newPlaces: Poi[] = [];
       let searchesCompleted = 0;
       
       activePoiTypes.forEach(type => {
+        const center = mapInstance.getCenter();
+        if (!center) return;
+
         const request = {
-          location: mapRef.current?.getCenter(),
+          location: center,
           radius: 5000,
           type: type,
         };
@@ -298,7 +309,7 @@ export default function MapClientPage({ broker, properties }: MapClientPageProps
           }
         });
       });
-    }, [activePoiTypes, isLoaded]);
+    }, [activePoiTypes, isLoaded, mapInstance]);
 
   if (loadError) {
       return <div className="p-4">Erro ao carregar o mapa. Por favor, recarregue a página.</div>;
@@ -313,7 +324,7 @@ export default function MapClientPage({ broker, properties }: MapClientPageProps
   } as React.CSSProperties;
 
   return (
-    <div style={dynamicStyles} className="urban-padrao-theme relative flex min-h-screen w-full flex-col group/design-root bg-background-light text-text-main font-display antialiased overflow-x-hidden selection:bg-primary selection:text-black">
+    <div style={dynamicStyles} className="urban-padrao-theme relative flex min-h-screen w-full flex-col group/design-root bg-background-light dark:bg-background-dark text-text-main font-display antialiased overflow-x-hidden selection:bg-primary selection:text-black">
       <UrbanPadraoHeader broker={broker} />
       <main className="flex-1 w-full flex relative h-[calc(100vh-64px)] overflow-hidden">
         <div className="absolute inset-0 z-0 bg-[#f3f4f6] w-full h-full">
@@ -538,70 +549,75 @@ export default function MapClientPage({ broker, properties }: MapClientPageProps
             </button>
         )}
 
-        {selectedProperty && (
-            <div className="absolute inset-0 z-40 flex items-center justify-center p-4 bg-black/20" onClick={handleCloseModal}>
-                <div className="bg-white w-full max-w-[400px] rounded-2xl shadow-float overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200 relative" onClick={(e) => e.stopPropagation()}>
-                    <button onClick={handleCloseModal} className="absolute top-3 right-3 z-20 bg-white/80 backdrop-blur rounded-full p-1.5 text-gray-500 hover:text-black hover:bg-white transition-colors shadow-sm">
-                         <span className="material-symbols-outlined text-xl">close</span>
-                    </button>
-                    <div className="h-56 relative w-full group cursor-pointer">
-                        <div className="absolute top-3 left-3 z-10 flex gap-2">
-                            <span className="bg-primary text-black text-[10px] font-bold px-2.5 py-1 rounded-md shadow-sm">Destaque</span>
-                            <span className="bg-black/70 backdrop-blur text-white text-[10px] font-bold px-2.5 py-1 rounded-md shadow-sm">Venda</span>
+        {selectedProperty && (() => {
+            const propertyUrl = isPortalAccess 
+                ? `/sites/${broker.slug}/imovel/${selectedProperty.informacoesbasicas.slug || selectedProperty.id}` 
+                : `/imovel/${selectedProperty.informacoesbasicas.slug || selectedProperty.id}`;
+
+            return (
+                <div className="absolute inset-0 z-40 flex items-center justify-center p-4 bg-black/20" onClick={handleCloseModal}>
+                    <div className="bg-white w-full max-w-[400px] rounded-2xl shadow-float overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200 relative" onClick={(e) => e.stopPropagation()}>
+                        <div className="h-56 relative w-full group cursor-pointer">
+                            <div className="absolute top-3 left-3 z-10 flex gap-2">
+                                <span className="bg-primary text-white text-[10px] font-bold px-2.5 py-1 rounded-md shadow-sm">Destaque</span>
+                                <span className="bg-black/70 backdrop-blur text-white text-[10px] font-bold px-2.5 py-1 rounded-md shadow-sm">Venda</span>
+                            </div>
+                            <div className="absolute top-3 right-3 z-10 bg-white/30 backdrop-blur-md p-1.5 rounded-full hover:bg-white text-white hover:text-red-500 transition-colors">
+                                <span className="material-symbols-outlined text-[16px]">favorite</span>
+                            </div>
+                            <Image alt={selectedProperty.informacoesbasicas.nome} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" src={selectedProperty.midia?.[0] || 'https://picsum.photos/seed/modal/400/224'} fill/>
                         </div>
-                        <div className="absolute top-3 right-3 z-10 bg-white/30 backdrop-blur-md p-1.5 rounded-full hover:bg-white text-white hover:text-red-500 transition-colors">
-                            <span className="material-symbols-outlined text-[16px]">favorite</span>
-                        </div>
-                        <Image alt={selectedProperty.informacoesbasicas.nome} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" src={selectedProperty.midia?.[0] || 'https://picsum.photos/seed/modal/400/224'} fill/>
-                    </div>
-                    <div className="p-5 flex flex-col gap-3">
-                        <div className="flex justify-between items-start mb-1">
-                        <div>
-                            <h3 className="text-xl font-bold text-text-main leading-tight">{selectedProperty.informacoesbasicas.nome}</h3>
-                            <p className="text-sm text-text-muted mt-1 flex items-center gap-1">
-                                <span className="material-symbols-outlined text-base">location_on</span>
-                                {selectedProperty.localizacao.bairro}, {selectedProperty.localizacao.cidade}
+                        <div className="p-5 flex flex-col gap-3">
+                            <div className="flex justify-between items-start mb-1">
+                            <div>
+                                <h3 className="text-xl font-bold text-text-main leading-tight">{selectedProperty.informacoesbasicas.nome}</h3>
+                                <p className="text-sm text-text-muted mt-1 flex items-center gap-1">
+                                    <span className="material-symbols-outlined text-base">location_on</span>
+                                    {selectedProperty.localizacao.bairro}, {selectedProperty.localizacao.cidade}
+                                </p>
+                            </div>
+                            <div className="text-right">
+                                {selectedProperty.informacoesbasicas.valor && (
+                                <p className="text-xl font-black text-primary-hover">{selectedProperty.informacoesbasicas.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                                )}
+                            </div>
+                            </div>
+                            <div className="grid grid-cols-3 gap-2 py-3 border-y border-gray-100">
+                            <div className="flex flex-col items-center justify-center p-2 bg-gray-50 rounded-lg">
+                                <span className="material-symbols-outlined text-gray-400 mb-1 text-xl">bed</span>
+                                <span className="text-xs font-bold text-text-main">{Array.isArray(selectedProperty.caracteristicasimovel.quartos) ? selectedProperty.caracteristicasimovel.quartos.join(', ') : selectedProperty.caracteristicasimovel.quartos} Quartos</span>
+                            </div>
+                            <div className="flex flex-col items-center justify-center p-2 bg-gray-50 rounded-lg">
+                                <span className="material-symbols-outlined text-gray-400 mb-1 text-xl">shower</span>
+                                <span className="text-xs font-bold text-text-main">{selectedProperty.caracteristicasimovel.vagas || 0} Banheiros</span>
+                            </div>
+                            <div className="flex flex-col items-center justify-center p-2 bg-gray-50 rounded-lg">
+                                <span className="material-symbols-outlined text-gray-400 mb-1 text-xl">square_foot</span>
+                                <span className="text-xs font-bold text-text-main">{selectedProperty.caracteristicasimovel.tamanho}</span>
+                            </div>
+                            </div>
+                            <div>
+                            <p className="text-sm text-text-muted line-clamp-2 leading-relaxed">
+                                {selectedProperty.informacoesbasicas.descricao}
                             </p>
-                        </div>
-                        <div className="text-right">
-                            {selectedProperty.informacoesbasicas.valor && (
-                            <p className="text-xl font-black text-primary-hover">{selectedProperty.informacoesbasicas.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
-                            )}
-                            <p className="text-xs text-text-muted font-medium">Cond: R$ 850</p>
-                        </div>
-                        </div>
-                        <div className="grid grid-cols-3 gap-2 py-3 border-y border-gray-100">
-                        <div className="flex flex-col items-center justify-center p-2 bg-gray-50 rounded-lg">
-                            <span className="material-symbols-outlined text-gray-400 mb-1 text-xl">bed</span>
-                            <span className="text-xs font-bold text-text-main">{Array.isArray(selectedProperty.caracteristicasimovel.quartos) ? selectedProperty.caracteristicasimovel.quartos.join(', ') : selectedProperty.caracteristicasimovel.quartos} Quartos</span>
-                        </div>
-                        <div className="flex flex-col items-center justify-center p-2 bg-gray-50 rounded-lg">
-                            <span className="material-symbols-outlined text-gray-400 mb-1 text-xl">shower</span>
-                            <span className="text-xs font-bold text-text-main">{selectedProperty.caracteristicasimovel.vagas || 0} Banheiros</span>
-                        </div>
-                        <div className="flex flex-col items-center justify-center p-2 bg-gray-50 rounded-lg">
-                            <span className="material-symbols-outlined text-gray-400 mb-1 text-xl">square_foot</span>
-                            <span className="text-xs font-bold text-text-main">{selectedProperty.caracteristicasimovel.tamanho}</span>
-                        </div>
-                        </div>
-                        <div>
-                        <p className="text-sm text-text-muted line-clamp-2 leading-relaxed">
-                            {selectedProperty.informacoesbasicas.descricao}
-                        </p>
-                        </div>
-                        <div className="flex gap-3 mt-2">
-                            <Link href={`/sites/${broker.slug}/imovel/${selectedProperty.informacoesbasicas.slug || selectedProperty.id}`} className="flex-1 bg-primary hover:bg-primary-hover text-black font-bold h-11 rounded-xl shadow-lg shadow-primary/20 flex items-center justify-center gap-2 transition-all hover:scale-[1.02]">
+                            </div>
+                            <div className="flex gap-3 mt-2">
+                            <Link 
+                                href={propertyUrl} 
+                                className="flex-1 bg-primary hover:bg-primary-hover !text-white font-bold h-11 rounded-xl shadow-lg shadow-primary/20 flex items-center justify-center gap-2 transition-all hover:scale-[1.02]"
+                            >
                                 Ver Detalhes
                                 <span className="material-symbols-outlined text-lg">arrow_forward</span>
                             </Link>
-                        <button className="size-11 flex items-center justify-center rounded-xl border border-gray-200 text-gray-400 hover:border-red-500 hover:text-red-500 hover:bg-red-50 transition-all">
-                            <span className="material-symbols-outlined">favorite</span>
-                        </button>
+                            <button className="size-11 flex items-center justify-center rounded-xl border border-gray-200 text-gray-400 hover:border-red-500 hover:text-red-500 hover:bg-red-50 transition-all">
+                                <span className="material-symbols-outlined">favorite</span>
+                            </button>
+                        </div>
                         </div>
                     </div>
                 </div>
-            </div>
-          )}
+            );
+        })()}
         <WhatsAppWidget brokerId={broker.id}/>
       </main>
     </div>

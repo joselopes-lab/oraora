@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -13,16 +12,30 @@ import { Card } from '@/components/ui/card';
 import { useAuth, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import { signInWithEmailAndPassword, Auth, signOut } from 'firebase/auth';
+import { signInWithEmailAndPassword, Auth, sendPasswordResetEmail } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
-
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogTrigger,
+  DialogClose,
+} from '@/components/ui/dialog';
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [authService, setAuthService] = useState<Auth | null>(null);
+  
+  // Recovery State
+  const [isRecoveryModalOpen, setIsRecoveryModalOpen] = useState(false);
+  const [recoveryEmail, setRecoveryEmail] = useState('');
+  const [isSendingReset, setIsSendingReset] = useState(false);
+
   const auth = useAuth();
   const firestore = useFirestore();
   const router = useRouter();
@@ -38,12 +51,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (auth) {
-      setAuthService(auth);
-      // If a user reaches this page already logged in,
-      // sign them out to clear the session.
-      if (auth.currentUser) {
-        signOut(auth);
-      }
+      // If a user reaches this page already logged in, we let the DashboardLayout handle the redirection
     }
   }, [auth]);
   
@@ -52,7 +60,7 @@ export default function LoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!authService || !firestore) {
+    if (!auth || !firestore) {
       toast({
         variant: "destructive",
         title: "Erro de inicialização",
@@ -64,7 +72,7 @@ export default function LoginPage() {
     setIsSubmitting(true);
     
     try {
-      const userCredential = await signInWithEmailAndPassword(authService, email, password);
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
       const userDocRef = doc(firestore, 'users', user.uid);
@@ -89,9 +97,9 @@ export default function LoginPage() {
       
       console.error("Firebase Login Error Code:", error.code); 
       
-      let description = "Credenciais inválidas. Verifique seu e-mail e senha.";
+      let description = "Credenciais inválidas. Verifique usuário e senha.";
       if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
-        description = "Credenciais inválidas. Verifique seu e-mail e senha. Se o erro persistir em produção, assegure-se que o provedor 'E-mail/Senha' está habilitado no Console do Firebase > Authentication > Sign-in method.";
+        description = "Credenciais inválidas. Verifique usuário e senha. Se o erro persistir em produção, assegure-se que o provedor 'E-mail/Senha' está habilitado no Console do Firebase > Authentication > Sign-in method.";
       }
       
       toast({
@@ -102,10 +110,65 @@ export default function LoginPage() {
     }
   };
 
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!auth || !recoveryEmail) return;
+
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(recoveryEmail)) {
+      toast({
+        variant: "destructive",
+        title: "E-mail inválido",
+        description: "Por favor, insira um endereço de e-mail válido.",
+      });
+      return;
+    }
+
+    setIsSendingReset(true);
+
+    // Configuration to redirect the user to our custom reset page
+    const actionCodeSettings = {
+      url: `${window.location.origin}/reset-password`,
+      handleCodeInApp: true,
+    };
+
+    try {
+      await sendPasswordResetEmail(auth, recoveryEmail, actionCodeSettings);
+      toast({
+        title: "Link Enviado!",
+        description: "Enviamos um e-mail para redefinição da sua senha. Verifique também sua caixa de spam.",
+      });
+      setIsRecoveryModalOpen(false);
+      setRecoveryEmail('');
+    } catch (error: any) {
+      console.error("Password reset error:", error);
+      
+      let message = "Enviamos um e-mail para redefinição da sua senha. Verifique também sua caixa de spam.";
+      
+      if (error.code === 'auth/too-many-requests') {
+        toast({
+          variant: "destructive",
+          title: "Muitas tentativas",
+          description: "Por favor, aguarde um momento antes de tentar novamente.",
+        });
+        return;
+      }
+
+      toast({
+        title: "Solicitação Processada",
+        description: message,
+      });
+      setIsRecoveryModalOpen(false);
+    } finally {
+      setIsSendingReset(false);
+    }
+  };
+
   return (
     <div className="relative flex min-h-screen w-full">
       {/* Left Side - Form Area */}
-      <div className="flex flex-1 flex-col bg-card dark:bg-background relative z-10 w-full lg:w-1/2 lg:max-w-[600px] xl:max-w-[700px] border-r border-border">
+      <div className="flex flex-1 flex-col bg-card dark:bg-background relative z-10 w-full lg:w-1/2 lg:max-w-[600px] xl:max-w-[700px] border-r border-border text-left">
         {/* Header/Logo Area */}
         <header className="px-8 py-6 md:px-12 lg:px-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-3 text-foreground group">
@@ -147,7 +210,13 @@ export default function LoginPage() {
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
                   <Label htmlFor="password" className="text-sm font-medium">Senha</Label>
-                  <Link className="text-sm font-semibold text-muted-foreground hover:text-primary transition-colors" href="/esqueceu-a-senha">Esqueceu a senha?</Link>
+                  <button 
+                    type="button" 
+                    onClick={() => setIsRecoveryModalOpen(true)}
+                    className="text-sm font-semibold text-muted-foreground hover:text-primary transition-colors border-none bg-transparent cursor-pointer"
+                  >
+                    Esqueceu a senha?
+                  </button>
                 </div>
                 <div className="relative group">
                   <Input 
@@ -177,7 +246,7 @@ export default function LoginPage() {
               </Button>
             </form>
 
-            {/* <div className="relative my-8">
+            <div className="relative my-8">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-border"></div>
               </div>
@@ -188,7 +257,7 @@ export default function LoginPage() {
 
             <Button asChild variant="outline" className="w-full h-12 px-6 font-semibold text-foreground bg-gray-50 dark:bg-input border-border rounded-lg hover:bg-gray-100 dark:hover:bg-secondary">
               <Link href="/solicitar-acesso">Solicitar Acesso de Corretor</Link>
-            </Button> */}
+            </Button>
           </div>
         </main>
         
@@ -197,6 +266,39 @@ export default function LoginPage() {
             2025 Oraora Tecnologia. Todos os direitos reservados. CNPJ: 64.052.552/0001-26
           </p>
         </footer>
+
+        {/* Password Recovery Modal - Moved OUTSIDE the main form to prevent nesting issues */}
+        <Dialog open={isRecoveryModalOpen} onOpenChange={setIsRecoveryModalOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Recuperar senha</DialogTitle>
+              <DialogDescription>
+                Informe o e-mail utilizado no cadastro. Enviaremos um link para redefinição da sua senha.
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleResetPassword} className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="recovery-email">E-mail</Label>
+                <Input 
+                  id="recovery-email" 
+                  type="email" 
+                  placeholder="seu@email.com" 
+                  value={recoveryEmail}
+                  onChange={(e) => setRecoveryEmail(e.target.value)}
+                  required 
+                />
+              </div>
+              <DialogFooter className="flex-col sm:flex-row gap-3">
+                <DialogClose asChild>
+                  <Button variant="ghost" type="button">Cancelar</Button>
+                </DialogClose>
+                <Button disabled={isSendingReset || !recoveryEmail} type="submit" className="bg-primary text-primary-foreground font-bold">
+                  {isSendingReset ? 'Enviando...' : 'Enviar link'}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* Right Side - Image/Visual Area */}
@@ -214,7 +316,7 @@ export default function LoginPage() {
         <div className="absolute inset-0 bg-gradient-to-br from-neutral-dark/90 via-neutral-dark/40 to-primary/20 mix-blend-overlay"></div>
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
         
-        <div className="relative z-10 flex flex-col justify-end p-16 w-full h-full text-white">
+        <div className="relative z-10 flex flex-col justify-end p-16 w-full h-full text-white text-left">
           <div className="max-w-md space-y-6">
             <div className="w-16 h-1 bg-primary rounded-full"></div>
             <blockquote className="text-2xl font-medium leading-relaxed font-headline">
@@ -233,7 +335,7 @@ export default function LoginPage() {
                    />
                 </div>
               )}
-              <div>
+              <div className="text-left">
                 <div className="font-bold text-white">Marcus Thorne</div>
                 <div className="text-sm text-gray-300">Corretor Sênior, Zenith Estates</div>
               </div>

@@ -1,3 +1,4 @@
+
 'use client';
 
 import Image from 'next/image';
@@ -5,7 +6,7 @@ import Link from 'next/link';
 import { UrbanPadraoHeader } from './components/UrbanPadraoHeader';
 import { UrbanPadraoFooter } from './components/UrbanPadraoFooter';
 import { WhatsAppWidget } from './components/WhatsAppWidget';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useUser, useDoc, useFirestore, useMemoFirebase, setDocumentNonBlocking } from '@/firebase';
 import { arrayRemove, arrayUnion, doc, collection, query, where, getDocs, getDoc, writeBatch } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
@@ -14,7 +15,7 @@ import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, Dialog
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { useState, useEffect, Suspense } from 'react';
 import SearchFilters from '@/components/SearchFilters';
-
+import { Badge } from '@/components/ui/badge';
 
 // NOTE: This is now a regular component, not a default page export.
 // It will be imported and used by the main [slug]/page.tsx.
@@ -30,6 +31,9 @@ type Broker = {
   foregroundColor?: string;
   slug: string;
   layoutId?: string;
+  businessSettings?: {
+    enabledTransactions: string[];
+  };
   homepage?: {
     heroTagline?: string;
     heroTitle?: string;
@@ -44,10 +48,12 @@ type Broker = {
     featuredTagline?: string;
     featuredTitle?: string;
     featuredSubtitle?: string;
+    featuredPropertyIds?: string[];
     aboutTagline?: string;
     aboutTitle?: string;
     aboutText?: string;
     aboutImageUrl?: string;
+    mapImageUrl?: string;
     ctaTitle?: string;
     ctaSubtitle?: string;
     aboutAwardTitle?: string;
@@ -66,15 +72,21 @@ type Broker = {
 
 type Property = {
   id: string;
+  builderId?: string;
+  brokerId?: string;
   informacoesbasicas: {
     nome: string;
     status: string;
     valor?: number;
+    salePrice?: number;
+    rentPrice?: number;
+    transactionTypes?: string[];
     descricao?: string;
   };
   localizacao: {
     bairro: string;
     cidade: string;
+    estado: string;
   };
   midia: string[];
   caracteristicasimovel: {
@@ -115,6 +127,13 @@ function hslToHex(hslStr: string): string {
 
 export default function UrbanPadraoLayout({ broker, properties }: UrbanPadraoPageProps) {
   const router = useRouter();
+  const pathname = usePathname(); // 1. Pega o caminho atual
+  
+  const isPortalAccess = pathname.startsWith('/sites');
+  // 3. Define as URLs base dinamicamente para todos os links
+  const searchUrl = isPortalAccess ? `/sites/${broker.slug}/search` : '/search';
+  const mapUrl = isPortalAccess ? `/sites/${broker.slug}/explorar-no-mapa` : '/explorar-no-mapa';
+
   const featuredProperties = properties?.slice(0, 6) || [];
   const content = broker.homepage || {};
   const [isMounted, setIsMounted] = useState(false);
@@ -158,7 +177,7 @@ export default function UrbanPadraoLayout({ broker, properties }: UrbanPadraoPag
   };
   
   const handleSearch = (queryString: string) => {
-    router.push(`/sites/${broker.slug}/search?${queryString}`);
+    router.push(`${searchUrl}?${queryString}`)
   };
 
   const formatQuartos = (quartosData: any): string => {
@@ -186,6 +205,13 @@ export default function UrbanPadraoLayout({ broker, properties }: UrbanPadraoPag
   };
   const videoEmbedUrl = getEmbedUrl(content.heroVideoUrl);
 
+  const statusTagBgColor = content.statusTagBgColor ? hslToHex(content.statusTagBgColor) : undefined;
+  const statusTagTextColor = content.statusTagTextColor ? hslToHex(content.statusTagTextColor) : undefined;
+  const cardTitleColor = content.cardTitleColor ? hslToHex(content.cardTitleColor) : undefined;
+  const cardValueColor = content.cardValueColor ? hslToHex(content.cardValueColor) : undefined;
+  const cardIconColor = content.cardIconColor ? hslToHex(content.cardIconColor) : undefined;
+  const statsNumberColor = content.statsNumberColor ? hslToHex(content.statsNumberColor) : 'hsl(var(--primary))';
+
   const dynamicStyles = {
     '--background': broker.backgroundColor,
     '--foreground': broker.foregroundColor,
@@ -194,16 +220,17 @@ export default function UrbanPadraoLayout({ broker, properties }: UrbanPadraoPag
     '--accent': broker.accentColor,
     '--search-button-bg': content.searchButtonBgColor ? `hsl(${content.searchButtonBgColor})` : 'hsl(var(--secondary))',
     '--search-button-text': content.searchButtonTextColor ? `hsl(${content.searchButtonTextColor})` : 'hsl(var(--primary))',
+    '--card-title': cardTitleColor ? cardTitleColor : 'inherit',
+    '--card-value': cardValueColor ? cardValueColor : 'hsl(var(--primary))',
+    '--card-icon': cardIconColor ? cardIconColor : 'hsl(var(--primary))',
+    '--status-tag-bg': statusTagBgColor ? statusTagBgColor : 'rgba(255,255,255,0.9)',
+    '--status-tag-text': statusTagTextColor ? statusTagTextColor : '#000',
+    '--stats-number-color': statsNumberColor,
   } as React.CSSProperties;
 
-  const cardTitleColor = content.cardTitleColor ? hslToHex(content.cardTitleColor) : undefined;
-  const cardValueColor = content.cardValueColor ? hslToHex(content.cardValueColor) : undefined;
-  const cardIconColor = content.cardIconColor ? hslToHex(content.cardIconColor) : undefined;
-  const statusTagBgColor = content.statusTagBgColor ? hslToHex(content.statusTagBgColor) : undefined;
-  const statusTagTextColor = content.statusTagTextColor ? hslToHex(content.statusTagTextColor) : undefined;
-  const statsNumberColor = content.statsNumberColor ? hslToHex(content.statsNumberColor) : 'hsl(var(--secondary))';
-
   const hasStats = content.statsSold || content.statsExperience || content.statsSatisfaction || content.statsSupport;
+
+  const enabledTransactions = broker.businessSettings?.enabledTransactions || ['sale', 'rent'];
 
   return (
     <div style={dynamicStyles} className="urban-padrao-theme relative flex min-h-screen w-full flex-col group/design-root bg-background-light text-text-main font-display antialiased overflow-x-hidden selection:bg-primary selection:text-black">
@@ -265,7 +292,7 @@ export default function UrbanPadraoLayout({ broker, properties }: UrbanPadraoPag
           {/* Floating Search Bar */}
           <div className="relative z-20 -mt-16 w-full max-w-5xl mx-auto px-4">
             <Suspense fallback={<div className="h-24 bg-white rounded-2xl animate-pulse shadow-card border border-gray-100" />}>
-              <SearchFilters onSearch={handleSearch} />
+              <SearchFilters onSearch={handleSearch} enabledTransactions={enabledTransactions} />
             </Suspense>
           </div>
         </section>
@@ -276,28 +303,28 @@ export default function UrbanPadraoLayout({ broker, properties }: UrbanPadraoPag
               <div className="flex flex-wrap items-center justify-center gap-y-8">
                 {content.statsSold && (
                   <div className="flex flex-col items-center justify-center text-center px-6 border-gray-100 w-full sm:w-1/2 lg:w-1/4">
-                    <span className="text-base md:text-lg font-black leading-tight uppercase break-words" style={{ color: statsNumberColor }}>
+                    <span className="text-base md:text-lg font-black leading-tight uppercase break-words" style={{ color: 'var(--stats-number-color)' }}>
                       {content.statsSold}
                     </span>
                   </div>
                 )}
                 {content.statsExperience && (
                   <div className="flex flex-col items-center justify-center text-center px-6 border-gray-100 md:border-l w-full sm:w-1/2 lg:w-1/4">
-                    <span className="text-base md:text-lg font-black leading-tight uppercase break-words" style={{ color: statsNumberColor }}>
+                    <span className="text-base md:text-lg font-black leading-tight uppercase break-words" style={{ color: 'var(--stats-number-color)' }}>
                       {content.statsExperience}
                     </span>
                   </div>
                 )}
                 {content.statsSatisfaction && (
                   <div className="flex flex-col items-center justify-center text-center px-6 border-gray-100 lg:border-l w-full sm:w-1/2 lg:w-1/4">
-                    <span className="text-base md:text-lg font-black leading-tight uppercase break-words" style={{ color: statsNumberColor }}>
+                    <span className="text-base md:text-lg font-black leading-tight uppercase break-words" style={{ color: 'var(--stats-number-color)' }}>
                       {content.statsSatisfaction}
                     </span>
                   </div>
                 )}
                 {content.statsSupport && (
                   <div className="flex flex-col items-center justify-center text-center px-6 border-gray-100 md:border-l w-full sm:w-1/2 lg:w-1/4">
-                    <span className="text-base md:text-lg font-black leading-tight uppercase break-words" style={{ color: statsNumberColor }}>
+                    <span className="text-base md:text-lg font-black leading-tight uppercase break-words" style={{ color: 'var(--stats-number-color)' }}>
                       {content.statsSupport}
                     </span>
                   </div>
@@ -315,19 +342,23 @@ export default function UrbanPadraoLayout({ broker, properties }: UrbanPadraoPag
                 <h2 className="text-text-main text-3xl md:text-4xl font-bold leading-tight">{content.featuredTitle || 'Imóveis Selecionados'}</h2>
                 <p className="text-text-muted mt-4">{content.featuredSubtitle || 'Oportunidades únicas escolhidas a dedo para você viver o extraordinário.'}</p>
               </div>
-              <a className="flex items-center gap-2 font-bold text-black border-b-2 border-primary pb-1 hover:text-primary transition-colors" href={`/sites/${broker.slug}/search`}>
+              <Link className="flex items-center gap-2 font-bold text-black border-b-2 border-primary pb-1 hover:text-primary transition-colors" href={searchUrl}>
                 Ver todos os imóveis
                 <span className="material-symbols-outlined">arrow_forward</span>
-              </a>
+              </Link>
             </div>
             {/* Properties Container */}
             {properties.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 text-left">
               {featuredProperties.map((property) => {
                 const isSaved = savedPropertyIds.includes(property.id);
+                const isAvulso = !!property.brokerId;
                 const quartos = property.caracteristicasimovel.quartos;
+                const propertyUrl = isPortalAccess 
+                    ? `/sites/${broker.slug}/imovel/${property.id}`
+                    : `/imovel/${property.id}`;
                 return (
-                <Link href={`/sites/${broker.slug}/imovel/${property.id}`} key={property.id} className="flex flex-col bg-white rounded-2xl overflow-hidden shadow-soft hover:shadow-card transition-all duration-300 group">
+                <Link href={propertyUrl} key={property.id} className="flex flex-col bg-white rounded-2xl overflow-hidden shadow-soft hover:shadow-card transition-all duration-300 group">
                   <div className="relative h-60 w-full overflow-hidden">
                     <div 
                         className={cn(
@@ -352,13 +383,11 @@ export default function UrbanPadraoLayout({ broker, properties }: UrbanPadraoPag
                     ></div>
                   </div>
                   <div className="flex flex-col p-5 gap-3">
-                    <div className="flex justify-between items-start">
-                      <h3 className="text-lg font-bold text-text-main leading-snug line-clamp-1" style={{color: cardTitleColor}}>{property.informacoesbasicas.nome}</h3>
-                      {property.informacoesbasicas.valor && (
-                        <span className="text-primary font-black text-lg" style={{color: cardValueColor}}>
-                          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2 }).format(property.informacoesbasicas.valor)}
-                        </span>
-                      )}
+                    <div className="flex flex-col gap-1">
+                      <h3 className="text-lg font-bold text-text-main leading-snug" style={{color: cardTitleColor}}>{property.informacoesbasicas.nome}</h3>
+                      <div className="mt-1">
+                        {renderPrice(property)}
+                      </div>
                     </div>
                     <p className="text-text-muted text-sm flex items-center gap-1">
                       <span className="material-symbols-outlined text-[16px]">location_on</span>
@@ -378,7 +407,7 @@ export default function UrbanPadraoLayout({ broker, properties }: UrbanPadraoPag
               )})}
               </div>
             ) : (
-               <div className="text-center py-16 border-2 border-dashed border-gray-300 rounded-xl bg-white">
+               <div className="text-center py-16 border-2 border-dashed border-gray-300 rounded-xl bg-white w-full">
                 <span className="material-symbols-outlined text-5xl text-gray-400 mb-4">apartment</span>
                 <h3 className="text-xl font-bold text-gray-700">Nenhum imóvel em destaque</h3>
                 <p className="text-gray-500 mt-2">Este corretor ainda não selecionou imóveis para a carteira.</p>
@@ -388,20 +417,20 @@ export default function UrbanPadraoLayout({ broker, properties }: UrbanPadraoPag
           </div>
         </section>
         {/* Broker & Presentation Section */}
-        <section className="w-full py-16 lg:py-24 bg-white relative overflow-hidden">
+        <section className="w-full py-16 lg:py-24 bg-white relative overflow-hidden text-left">
           {/* Decorative Elements */}
           <div className="absolute top-0 right-0 w-1/3 h-full bg-[#f8f9fa] skew-x-12 translate-x-20 hidden lg:block"></div>
           <div className="absolute bottom-20 left-10 size-32 rounded-full border-4 border-primary/20 hidden lg:block"></div>
           <div className="layout-container max-w-[1280px] mx-auto px-6 relative z-10">
             <div className="grid lg:grid-cols-2 gap-12 items-center">
               <div className="order-2 lg:order-1 relative">
-                <div className="relative w-full aspect-[4/5] rounded-2xl overflow-hidden shadow-2xl">
-                  <div
-                    className="absolute inset-0 bg-cover bg-center"
-                    style={{
-                      backgroundImage: `url("${content.aboutImageUrl || 'https://lh3.googleusercontent.com/aida-public/AB6AXuBnnSrwSkNX4VEMzf8v2AibJQp1RcHvNb3_q0wuoHZwhVlAJKqmwIhebGEXD_ehHxVeLXegQhl11I3AK8d7sHOjyX2Ru2QsxLQ7CNKGhMFL1kuVczfW4JlWO-MgFaOLLDGfDt2hXsZyS7t5vdOo90YwN1Cwqcoemknmi74RiulnUXgpEBnQguZIsUxNueG01P_uPnYKeZbzSmXBrfvlrkH_y3PAJxi8hET-_dNaHXrJavIJPjRaZDjfN1aQrROrA0lpueLFt6_FA6I'}")`,
-                    }}
-                  ></div>
+                <div className="relative w-full aspect-[4/5] rounded-2xl overflow-hidden shadow-2xl bg-slate-100">
+                  <Image
+                    alt={broker.brandName}
+                    src={content.aboutImageUrl || 'https://lh3.googleusercontent.com/aida-public/AB6AXuBnnSrwSkNX4VEMzf8v2AibJQp1RcHvNb3_q0wuoHZwhVlAJKqmwIhebGEXD_ehHxVeLXegQhl11I3AK8d7sHOjyX2Ru2QsxLQ7CNKGhMFL1kuVczfW4JlWO-MgFaOLLDGfDt2hXsZyS7t5vdOo90YwN1Cwqcoemknmi74RiulnUXgpEBnQguZIsUxNueG01P_uPnYKeZbzSmXBrfvlrkH_y3PAJxi8hET-_dNaHXrJavIJPjRaZDjfN1aQrROrA0lpueLFt6_FA6I'}
+                    fill
+                    className="object-cover"
+                  />
                 </div>
               </div>
               <div className="order-1 lg:order-2 flex flex-col gap-6">
@@ -433,43 +462,85 @@ export default function UrbanPadraoLayout({ broker, properties }: UrbanPadraoPag
                   </div>
                 </div>
                 <div className="mt-4">
-                  <button className="inline-flex items-center justify-center h-12 px-8 rounded-lg bg-black text-white font-bold hover:bg-gray-800 transition-all shadow-lg hover:shadow-xl">
+                  <Link href={`/sites/${broker.slug}/fale-conosco`} className="inline-flex items-center justify-center h-12 px-8 rounded-lg bg-black text-white font-bold hover:bg-gray-800 transition-all shadow-lg hover:shadow-xl">
                     Agendar Consultoria
-                  </button>
+                  </Link>
                 </div>
               </div>
             </div>
           </div>
         </section>
         {/* Map / Location Section */}
-        <section className="w-full py-16 bg-background-light">
+        <section className="w-full py-20 bg-white">
           <div className="layout-container max-w-[1280px] mx-auto px-6">
-            <div className="bg-black rounded-3xl overflow-hidden shadow-2xl text-white relative">
-              <div className="grid md:grid-cols-2 min-h-[400px]">
-                <div className="p-10 flex flex-col justify-center gap-6 relative z-10">
-                  <h2 className="text-3xl font-bold">Encontre imóveis perto de você</h2>
-                  <p className="text-gray-400">Utilize nosso mapa interativo para explorar as melhores oportunidades nas regiões mais valorizadas da cidade.</p>
-                  <Link href={`/explorar-no-mapa`} className="w-fit flex items-center gap-2 bg-primary text-black px-6 py-3 rounded-lg font-bold hover:bg-primary-hover transition-colors">
+            <div className="relative w-full rounded-[2.5rem] overflow-hidden bg-slate-50 border border-slate-100 shadow-soft">
+              <div className="grid lg:grid-cols-2 min-h-[450px]">
+                <div className="p-10 lg:p-16 flex flex-col justify-center gap-8 relative z-10 text-left">
+                  <div className="space-y-4">
+                    <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary-hover text-[10px] font-black uppercase tracking-widest border border-primary/20">
+                      Localização Estratégica
+                    </span>
+                    <h2 className="text-4xl md:text-5xl font-black text-slate-900 leading-tight tracking-tight">
+                      João Pessoa
+                    </h2>
+                    <p className="text-slate-500 text-lg leading-relaxed max-w-md">
+                      Utilize nosso mapa interativo para explorar as melhores oportunidades nas regiões mais valorizadas de João Pessoa.
+                    </p>
+                  </div>
+                  
+                  <Link 
+                    href={mapUrl} 
+                    className="w-full sm:w-fit flex items-center justify-center gap-3 bg-slate-900 hover:bg-black text-white px-8 py-4 rounded-xl font-bold transition-all shadow-xl hover:-translate-y-1 active:scale-95"
+                  >
                     <span className="material-symbols-outlined">map</span>
                     Explorar no Mapa
                   </Link>
                 </div>
-                <div className="relative h-full w-full min-h-[300px]">
+                
+                <div className="relative h-full w-full min-h-[350px] lg:min-h-0">
                   <div
                     className="absolute inset-0 bg-cover bg-center"
                     style={{
-                      backgroundImage: 'url("https://images.unsplash.com/photo-1526778548025-fa2f459cd5c1?q=80&w=2000&auto=format&fit=crop")',
-                      filter: 'grayscale(100%) contrast(120%)',
+                      backgroundImage: `url("${content.mapImageUrl || 'https://images.unsplash.com/photo-1526778548025-fa2f459cd5c1?q=80&w=2000&auto=format&fit=crop'}")`,
                     }}
                   ></div>
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center animate-bounce">
-                    <span className="text-sm font-black text-primary drop-shadow-xl mb-1 bg-black/50 px-2 py-0.5 rounded backdrop-blur-sm">João Pessoa</span>
-                    <span className="material-symbols-outlined text-primary text-5xl drop-shadow-lg">location_on</span>
+                  <div className="absolute inset-0 bg-gradient-to-r from-white via-white/20 to-transparent hidden lg:block"></div>
+                  <div className="absolute inset-0 bg-gradient-to-t from-white via-transparent to-transparent lg:hidden"></div>
+                  
+                  {/* Floating Marker Animation */}
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+                    <div className="relative flex flex-col items-center group">
+                      <div className="absolute -inset-4 bg-primary/30 rounded-full blur-xl animate-pulse"></div>
+                      <div className="relative bg-white dark:bg-slate-900 px-4 py-2 rounded-xl shadow-2xl border border-slate-100 dark:border-slate-800 mb-2 transform -rotate-3 group-hover:rotate-0 transition-transform">
+                        <span className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tighter">João Pessoa</span>
+                      </div>
+                      <div className="relative">
+                        <div className="absolute -top-2 -left-2 size-12 bg-primary/20 rounded-full animate-ping"></div>
+                        <span className="material-symbols-outlined text-primary text-6xl drop-shadow-2xl relative z-10" style={{ fontVariationSettings: "'FILL' 1" }}>location_on</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
+        </section>
+        
+        {/* Newsletter Section */}
+        <section className="w-full py-16 bg-black text-white overflow-hidden relative">
+            <div className="absolute inset-0 bg-cover bg-center opacity-20" style={{backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuCFSXKPYHVcn6bMCHX6E36kKsWYH-Jrnidp5qgbqRJGbl2tdlfAHRWGgw_BH0FSGiuPAeKoFjGKd4iIxXaS7RDxBjhDpxchyUI6ZBIYy7at-GoSMkswUwLtYY2J431RQH8lRwvQ71Fextok_2cbHyuBu2WkdM3MerdFb1zeCcIMCEPpddgbOA9bubnLDWwsPuexTRzdQSnvapPmcLOzJ-pHK_tWJ-1E5X7glsU1dhw3RJ7oeECQqHntdfmjefwEy47loPNgWOSqzY0")'}}></div>
+            <div className="layout-container max-w-[1280px] mx-auto px-6 relative z-10 text-center">
+                <h2 className="text-3xl md:text-4xl font-bold mb-4">{content.ctaTitle || 'Não encontrou o que procurava?'}</h2>
+                <p className="text-gray-300 max-w-2xl mx-auto mb-8 text-lg">
+                    {content.ctaSubtitle || 'Cadastre-se para receber alertas de novos imóveis que correspondem ao seu perfil ou fale diretamente com nossa equipe.'}
+                </p>
+                <div className="flex flex-col sm:flex-row justify-center gap-4">
+                    <input className="h-12 px-4 rounded-lg bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary w-full sm:w-80" placeholder="Seu melhor e-mail" type="email" />
+                    <button className="h-12 px-8 rounded-lg bg-primary !text-white font-bold hover:bg-primary-hover transition-colors shadow-lg shadow-primary/20 cursor-pointer">
+                        Receber Alertas
+                    </button>
+                </div>
+            </div>
         </section>
       </main>
       <UrbanPadraoFooter broker={broker} />

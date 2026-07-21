@@ -2,11 +2,10 @@
 'use client';
 
 import { collection, getDocs, query, where } from 'firebase/firestore';
-import { useFirestore } from '@/firebase'; // Alterado de 'firebase/firestore' para '@/firebase'
+import { useFirestore } from '@/firebase';
 import { useSearchParams } from 'next/navigation';
 import SearchResultsComponent from '@/app/imoveis/SearchResultsComponent';
 import { useEffect, useState, useMemo } from 'react';
-import locationData from '@/lib/location-data.json';
 
 type Property = {
   id: string;
@@ -14,6 +13,9 @@ type Property = {
     nome: string;
     status: string;
     valor?: number;
+    salePrice?: number;
+    rentPrice?: number;
+    transactionTypes?: string[];
     descricao?: string;
     slug?: string;
   };
@@ -56,67 +58,74 @@ export default function ImoveisPageContent() {
   }, [firestore]);
 
   const filteredProperties = useMemo(() => {
+    const finality = searchParams.get('finality') || 'sale';
     const propertyTypeParam = searchParams.get('type');
     const stateUf = searchParams.get('state');
     const citiesParam = searchParams.get('cities');
     const neighborhoodsParam = searchParams.get('neighborhoods');
     const roomsParam = searchParams.get('rooms');
-    const maxPrice = searchParams.get('price');
+    const minPriceParam = searchParams.get('minPrice');
+    const maxPriceParam = searchParams.get('maxPrice');
+    const qParam = searchParams.get('q');
 
-    const searchTypes = propertyTypeParam && propertyTypeParam !== 'all' ? propertyTypeParam.split(',') : [];
-    const searchCities = citiesParam ? citiesParam.split(',').map(c => c.trim()) : [];
-    const searchNeighborhoods = neighborhoodsParam ? neighborhoodsParam.split(',').map(n => n.trim()) : [];
-    const searchRooms = roomsParam ? roomsParam.split(',').map(r => r.replace('+','')) : [];
-
-    if (searchTypes.length === 0 && !stateUf && searchCities.length === 0 && searchNeighborhoods.length === 0 && searchRooms.length === 0 && !maxPrice) {
-      return allProperties;
-    }
-    
     return allProperties.filter(property => {
-      // Filter by Property Type
-      if (searchTypes.length > 0 && !searchTypes.includes(property.caracteristicasimovel.tipo)) {
+      // 1. Filter by Finality (Transaction Type)
+      const types = property.informacoesbasicas.transactionTypes || ['sale'];
+      if (!types.includes(finality)) return false;
+
+      // 2. Filter by Property Type
+      if (propertyTypeParam && propertyTypeParam !== 'all' && property.caracteristicasimovel.tipo !== propertyTypeParam) {
         return false;
       }
       
-      // Filter by State
+      // 3. Filter by State
       if (stateUf && property.localizacao.estado !== stateUf) {
         return false;
       }
 
-      // Filter by Cities
+      // 4. Filter by Cities
+      const searchCities = citiesParam ? citiesParam.split(',') : [];
       if (searchCities.length > 0 && !searchCities.includes(property.localizacao.cidade)) {
         return false;
       }
       
-      // Filter by Neighborhoods
+      // 5. Filter by Neighborhoods
+      const searchNeighborhoods = neighborhoodsParam ? neighborhoodsParam.split(',') : [];
       if (searchNeighborhoods.length > 0 && !searchNeighborhoods.includes(property.localizacao.bairro)) {
          return false;
       }
 
-      // Filter by Rooms
+      // 6. Filter by Rooms (Multi-select)
+      const searchRooms = roomsParam ? roomsParam.split(',') : [];
       if (searchRooms.length > 0) {
-        const propertyRooms = Array.isArray(property.caracteristicasimovel.quartos) 
-            ? property.caracteristicasimovel.quartos.map(q => q.replace('+', '')) 
+        const propertyRoomsArray = Array.isArray(property.caracteristicasimovel.quartos)
+            ? property.caracteristicasimovel.quartos.map(q => q.replace('+', ''))
             : String(property.caracteristicasimovel.quartos || '').split(',').map(r => r.trim().replace('+', ''));
 
         const hasMatchingRoom = searchRooms.some(room => {
-            if (room.endsWith('+')) {
-                const minRooms = parseInt(room.replace('+', ''), 10);
-                return propertyRooms.some(pRoom => parseInt(pRoom) >= minRooms);
+            if (room === '4') {
+                return propertyRoomsArray.some(pRoom => parseInt(pRoom) >= 4);
             }
-            return propertyRooms.includes(room);
+            return propertyRoomsArray.includes(room);
         });
-
-        if (!hasMatchingRoom) {
-            return false;
-        }
+        if (!hasMatchingRoom) return false;
       }
       
-      // Filter by Price
-      if (maxPrice && property.informacoesbasicas.valor) {
-        if(property.informacoesbasicas.valor > parseInt(maxPrice, 10)) {
-          return false;
-        }
+      // 7. Filter by Price
+      const priceToCompare = finality === 'sale' 
+        ? (property.informacoesbasicas.salePrice || property.informacoesbasicas.valor || 0)
+        : (property.informacoesbasicas.rentPrice || 0);
+
+      if (minPriceParam && priceToCompare < parseInt(minPriceParam, 10)) return false;
+      if (maxPriceParam && priceToCompare > parseInt(maxPriceParam, 10)) return false;
+
+      // 8. Filter by Search Query
+      if (qParam) {
+          const q = qParam.toLowerCase();
+          const matchesSearch = property.informacoesbasicas.nome.toLowerCase().includes(q) || 
+                                property.localizacao.bairro.toLowerCase().includes(q) ||
+                                property.localizacao.cidade.toLowerCase().includes(q);
+          if (!matchesSearch) return false;
       }
 
       return true;
@@ -125,8 +134,8 @@ export default function ImoveisPageContent() {
   
   if (loading) {
       return (
-          <div className="flex-1 flex items-center justify-center">
-              <p>Carregando imóveis...</p>
+          <div className="flex-1 flex items-center justify-center min-h-[400px]">
+              <div className="animate-spin size-8 border-4 border-primary border-t-transparent rounded-full"></div>
           </div>
       )
   }

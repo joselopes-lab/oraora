@@ -1,26 +1,63 @@
-
 'use client';
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import locationData from '@/lib/location-data.json';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Checkbox } from '@/components/ui/checkbox';
+import { Search, MapPin, Building2, Bed, DollarSign, ChevronDown, Zap, Filter } from 'lucide-react';
+import { useToast } from "@/hooks/use-toast";
+
+/**
+ * @fileOverview SearchFilters.tsx - ORAORA SEARCH ENGINE 1.0
+ * 
+ * Componente universal de busca. Centraliza toda a lógica de filtragem,
+ * estados de localização e persistência via URL.
+ */
 
 interface SearchFiltersProps {
   onSearch?: (query: string) => void;
   vertical?: boolean;
+  simple?: boolean;
   className?: string;
+  availableStates?: string[];
+  enabledTransactions?: string[];
+  variant?: 'urban' | 'domus' | 'vertex' | 'aura' | 'living';
 }
 
-export default function SearchFilters({ onSearch, vertical = false, className }: SearchFiltersProps) {
+const propertyTypeOptions = ['Apartamento', 'Casa', 'Cobertura', 'Terreno', 'Studio', 'Comercial'];
+const roomOptions = ["1", "2", "3", "4+"];
+
+export default function SearchFilters({ 
+    onSearch, 
+    vertical = false, 
+    simple = false, 
+    className, 
+    availableStates,
+    enabledTransactions = ['sale', 'rent'],
+    variant = 'urban'
+}: SearchFiltersProps) {
     const router = useRouter();
     const pathname = usePathname();
     const searchParams = useSearchParams();
-    const isFirstRender = useRef(true);
+    const { toast } = useToast();
 
-    // URL-derived state for filters
+    // 1. Resolução de Modo Inicial
+    const initialMode = useMemo(() => {
+        const finality = searchParams.get('finality');
+        const defaultMode = enabledTransactions.includes('sale') ? 'sale' : 'rent';
+        return (finality && enabledTransactions.includes(finality)) 
+            ? (finality as 'sale' | 'rent') 
+            : (defaultMode as 'sale' | 'rent');
+    }, [searchParams, enabledTransactions]);
+
+    const [searchMode, setSearchMode] = useState<'sale' | 'rent'>(initialMode);
+
+    // Estados de Filtro
+    const [query, setQuery] = useState(() => searchParams.get('q') || '');
     const [propertyType, setPropertyType] = useState(() => searchParams.get('type') || 'all');
     const [selectedState, setSelectedState] = useState(() => searchParams.get('state') || '');
     const [selectedCities, setSelectedCities] = useState<string[]>(() => searchParams.get('cities')?.split(',').filter(Boolean) || []);
@@ -29,7 +66,7 @@ export default function SearchFilters({ onSearch, vertical = false, className }:
     const [minPrice, setMinPrice] = useState(() => searchParams.get('minPrice') || '');
     const [maxPrice, setMaxPrice] = useState(() => searchParams.get('maxPrice') || '');
 
-    // Local UI state
+    // Estados de Localização
     const [availableCities, setAvailableCities] = useState<string[]>([]);
     const [citySearch, setCitySearch] = useState('');
     const [isCityDropdownOpen, setIsCityDropdownOpen] = useState(false);
@@ -40,102 +77,25 @@ export default function SearchFilters({ onSearch, vertical = false, className }:
     const [isNeighborhoodDropdownOpen, setIsNeighborhoodDropdownOpen] = useState(false);
     const neighborhoodRef = useRef<HTMLDivElement>(null);
 
-    // Sync internal state with URL params when they change (e.g. navigation)
+    // Sincronização com URL
     useEffect(() => {
-        if (isFirstRender.current) {
-            isFirstRender.current = false;
-            return;
+        const finality = searchParams.get('finality');
+        if (finality && (finality === 'sale' || finality === 'rent')) {
+            setSearchMode(finality);
         }
-        setPropertyType(searchParams.get('type') || 'all');
-        setSelectedState(searchParams.get('state') || '');
-        setSelectedCities(searchParams.get('cities')?.split(',').filter(Boolean) || []);
-        setSelectedNeighborhoods(searchParams.get('neighborhoods')?.split(',').filter(Boolean) || []);
-        setRooms(searchParams.get('rooms')?.split(',').filter(Boolean) || []);
-        setMinPrice(searchParams.get('minPrice') || '');
-        setMaxPrice(searchParams.get('maxPrice') || '');
     }, [searchParams]);
 
-    const createQueryString = useCallback(
-      (updates: { name: string, value: string }[]) => {
-        const params = new URLSearchParams(searchParams.toString());
-        updates.forEach(update => {
-          if (update.value) {
-            params.set(update.name, update.value);
-          } else {
-            params.delete(update.name);
-          }
-        });
-        // Reset page on filter change
-        params.set('page', '1');
-        return params.toString();
-      },
-      [searchParams]
-    );
-    
-    const handleSearchSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-        event.preventDefault();
-        const updates = [
-            { name: 'type', value: propertyType },
-            { name: 'state', value: selectedState },
-            { name: 'cities', value: selectedCities.join(',') },
-            { name: 'neighborhoods', value: selectedNeighborhoods.join(',') },
-            { name: 'rooms', value: rooms.join(',') },
-            { name: 'minPrice', value: minPrice },
-            { name: 'maxPrice', value: maxPrice },
-        ];
-        const newQueryString = createQueryString(updates.filter(u => u.value));
-        if (onSearch) {
-          onSearch(newQueryString);
-        } else {
-          router.push(`/imoveis?${newQueryString}`, { scroll: true });
-        }
-    };
-
-    const handleRoomToggle = (room: string) => {
-        setRooms(prev => 
-            prev.includes(room) ? prev.filter(r => r !== room) : [...prev, room]
-        );
-    };
-  
-    const handleCitySelect = (city: string) => {
-      setSelectedCities(prev => prev.includes(city) ? prev.filter(c => c !== city) : [...prev, city]);
-      setCitySearch('');
-    };
-  
-    const handleCityRemove = (city: string) => {
-      setSelectedCities(prev => prev.filter(c => c !== city));
-    };
-    
-    const handleNeighborhoodSelect = (neighborhood: string) => {
-      setSelectedNeighborhoods(prev => prev.includes(neighborhood) ? prev.filter(n => n !== neighborhood) : [...prev, neighborhood]);
-      setNeighborhoodSearch('');
-    };
-  
-    const handleNeighborhoodRemove = (neighborhood: string) => {
-      setSelectedNeighborhoods(prev => prev.filter(n => n !== neighborhood));
-    };
-
-    // Update available cities when state changes
+    // Resolução de Cidades e Bairros
     useEffect(() => {
       if (selectedState) {
-          const stateData = locationData.states.find(s => s.uf === selectedState);
+          const stateData = locationData.states.find(s => s.uf === selectedState || s.name === selectedState);
           setAvailableCities(stateData?.cities.map(c => c.name) || []);
-      } else {
-          setAvailableCities([]);
       }
-      
-      // Only clear selections if this wasn't triggered by the URL sync/mount
-      const urlState = searchParams.get('state') || '';
-      if (selectedState !== urlState && !isFirstRender.current) {
-          setSelectedCities([]);
-          setSelectedNeighborhoods([]);
-      }
-    }, [selectedState, searchParams]);
+    }, [selectedState]);
 
-    // Update available neighborhoods when cities change
     useEffect(() => {
         if (selectedCities.length > 0 && selectedState) {
-            const stateData = locationData.states.find(s => s.uf === selectedState);
+            const stateData = locationData.states.find(s => s.uf === selectedState || s.name === selectedState);
             if(stateData) {
                 const allNeighborhoods = selectedCities.flatMap(cityName => {
                     const cityData = stateData.cities.find(c => c.name === cityName);
@@ -143,277 +103,257 @@ export default function SearchFilters({ onSearch, vertical = false, className }:
                 });
                 setAvailableNeighborhoods([...new Set(allNeighborhoods)]);
             }
-        } else {
-            setAvailableNeighborhoods([]);
         }
+    }, [selectedCities, selectedState]);
 
-        // Only clear if not initial mount and mismatch with URL
-        const urlCities = searchParams.get('cities') || '';
-        if (selectedCities.join(',') !== urlCities && !isFirstRender.current) {
-            setSelectedNeighborhoods([]);
-        }
-    }, [selectedCities, selectedState, searchParams]);
+    // Handlers
+    const handleSearchSubmit = (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
+        const params = new URLSearchParams();
+        params.set('finality', searchMode);
+        if (query) params.set('q', query);
+        if (propertyType !== 'all') params.set('type', propertyType);
+        if (selectedState) params.set('state', selectedState);
+        if (selectedCities.length > 0) params.set('cities', selectedCities.join(','));
+        if (selectedNeighborhoods.length > 0) params.set('neighborhoods', selectedNeighborhoods.join(','));
+        if (rooms.length > 0) params.set('rooms', rooms.join(','));
+        if (minPrice) params.set('minPrice', minPrice);
+        if (maxPrice) params.set('maxPrice', maxPrice);
+        params.set('page', '1');
 
+        if (onSearch) onSearch(params.toString());
+        else router.push(`/imoveis?${params.toString()}`);
+    };
 
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (cityRef.current && !cityRef.current.contains(event.target as Node)) {
-                setIsCityDropdownOpen(false);
-            }
-            if (neighborhoodRef.current && !neighborhoodRef.current.contains(event.target as Node)) {
-                setIsNeighborhoodDropdownOpen(false);
-            }
-        };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
+    const handleClearFilters = () => {
+        setQuery('');
+        setPropertyType('all');
+        setSelectedState('');
+        setSelectedCities([]);
+        setSelectedNeighborhoods([]);
+        setRooms([]);
+        setMinPrice('');
+        setMaxPrice('');
+        if (onSearch) onSearch(`finality=${searchMode}`);
+        else router.push(`/imoveis?finality=${searchMode}`);
+    };
 
-    const filteredCities = availableCities.filter(c => 
-        c.toLowerCase().includes(citySearch.toLowerCase()) && !selectedCities.includes(c)
-    );
+    const handleCitySelect = (city: string) => {
+        setSelectedCities(prev => prev.includes(city) ? prev.filter(c => c !== city) : [...prev, city]);
+    }
     
-    const filteredNeighborhoods = availableNeighborhoods.filter(n => 
-      n.toLowerCase().includes(neighborhoodSearch.toLowerCase()) && !selectedNeighborhoods.includes(n)
-    );
-
-    if (vertical) {
-      return (
-        <form onSubmit={handleSearchSubmit} className="flex flex-col gap-6">
-          <div className="space-y-4">
-            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.1em]">Localização</label>
-            <div className="flex flex-col gap-3">
-              <select 
-                onChange={(e) => setSelectedState(e.target.value)} 
-                value={selectedState} 
-                className="w-full h-11 bg-gray-50 border border-gray-100 rounded-xl px-4 focus:ring-1 focus:ring-primary outline-none text-text-main font-medium text-sm transition-all appearance-none"
-              >
-                <option value="">Selecione um Estado</option>
-                {locationData.states.map(s => <option key={s.uf} value={s.uf}>{s.name}</option>)}
-              </select>
-
-              <div className="relative" ref={cityRef}>
-                <div onClick={() => setIsCityDropdownOpen(true)} className="w-full px-4 bg-gray-50 border border-gray-100 rounded-xl h-11 flex items-center cursor-pointer overflow-hidden text-sm font-medium">
-                  {selectedCities.length > 0 ? (
-                    <div className="flex flex-wrap gap-1">
-                      {selectedCities.slice(0, 1).map(c => (
-                        <span key={c} className="text-text-main">{c}</span>
-                      ))}
-                      {selectedCities.length > 1 && <span className="text-primary font-bold">+{selectedCities.length - 1}</span>}
-                    </div>
-                  ) : <span className="text-gray-400">Selecione cidades</span>}
-                </div>
-                {isCityDropdownOpen && (
-                  <div className="absolute top-full mt-1 w-full bg-white rounded-lg border border-gray-200 shadow-xl z-[60]">
-                    <div className="p-2">
-                      <input value={citySearch} onChange={(e) => setCitySearch(e.target.value)} className="w-full px-3 py-2 text-sm border-gray-100 rounded-md focus:ring-1 focus:ring-primary outline-none" placeholder="Buscar..."/>
-                    </div>
-                    <div className="max-h-48 overflow-y-auto">
-                      {filteredCities.map(c => (
-                        <div key={c} onClick={() => handleCitySelect(c)} className="px-4 py-2 text-sm hover:bg-gray-50 cursor-pointer">{c}</div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="relative" ref={neighborhoodRef}>
-                <div onClick={() => setIsNeighborhoodDropdownOpen(true)} className="w-full px-4 bg-gray-50 border border-gray-100 rounded-xl h-11 flex items-center cursor-pointer overflow-hidden text-sm font-medium">
-                  {selectedNeighborhoods.length > 0 ? (
-                    <div className="flex flex-wrap gap-1">
-                      {selectedNeighborhoods.slice(0, 1).map(n => (
-                        <span key={n} className="text-text-main">{n}</span>
-                      ))}
-                      {selectedNeighborhoods.length > 1 && <span className="text-primary font-bold">+{selectedNeighborhoods.length - 1}</span>}
-                    </div>
-                  ) : <span className="text-gray-400">Selecione bairros</span>}
-                </div>
-                {isNeighborhoodDropdownOpen && (
-                  <div className="absolute top-full mt-1 w-full bg-white rounded-lg border border-gray-200 shadow-xl z-[50]">
-                    <div className="p-2">
-                      <input value={neighborhoodSearch} onChange={(e) => setNeighborhoodSearch(e.target.value)} className="w-full px-3 py-2 text-sm border-gray-100 rounded-md focus:ring-1 focus:ring-primary outline-none" placeholder="Buscar..."/>
-                    </div>
-                    <div className="max-h-48 overflow-y-auto">
-                      {filteredNeighborhoods.map(n => (
-                        <div key={n} onClick={() => handleNeighborhoodSelect(n)} className="px-4 py-2 text-sm hover:bg-gray-50 cursor-pointer">{n}</div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.1em]">Quartos</label>
-            <div className="flex flex-wrap gap-2">
-              {["1", "2", "3", "4+"].map(room => (
-                <button 
-                  key={room} 
-                  type="button" 
-                  onClick={() => handleRoomToggle(room)} 
-                  className={cn(
-                    "size-8 rounded-lg text-xs font-bold transition-all",
-                    rooms.includes(room) ? 'bg-primary text-black shadow-sm' : 'text-gray-400 border border-transparent hover:border-gray-200'
-                  )}
-                >
-                  {room}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.1em]">Preço</label>
-            <div className="grid grid-cols-2 gap-2">
-              <input 
-                type="number" 
-                value={minPrice} 
-                onChange={e => setMinPrice(e.target.value)} 
-                placeholder="Mín" 
-                className="w-full h-11 bg-gray-50 border border-gray-200 rounded-xl px-3 text-xs font-bold outline-none focus:ring-1 focus:ring-primary"
-              />
-              <input 
-                type="number" 
-                value={maxPrice} 
-                onChange={e => setMaxPrice(e.target.value)} 
-                placeholder="Máx" 
-                className="w-full h-11 bg-gray-50 border border-gray-200 rounded-xl px-3 text-xs font-bold outline-none focus:ring-1 focus:ring-primary"
-              />
-            </div>
-          </div>
-
-          <Button 
-            type="submit" 
-            style={{ backgroundColor: 'var(--search-button-bg)', color: 'var(--search-button-text)' }}
-            className="w-full h-12 font-bold rounded-xl shadow-lg flex items-center justify-center gap-2 transition-all hover:opacity-90 active:scale-[0.98] text-white"
-          >
-            <span className="material-symbols-outlined font-bold text-inherit">search</span>
-            Buscar Imóveis
-          </Button>
-        </form>
-      );
+    const handleNeighborhoodSelect = (neighborhood: string) => {
+        setSelectedNeighborhoods(prev => prev.includes(neighborhood) ? prev.filter(n => n !== neighborhood) : [...prev, neighborhood]);
     }
 
+    // Estilização por Variante
+    const styles = {
+        urban: {
+            card: "bg-white border-gray-100 rounded-2xl p-6",
+            tabs: "bg-gray-100",
+            tabActive: "data-[state=active]:bg-white data-[state=active]:text-slate-900",
+            input: "bg-gray-50 border-gray-100 rounded-xl",
+            button: "bg-slate-900 text-white hover:bg-black",
+            icon: "text-primary"
+        },
+        domus: {
+            card: "bg-white/80 backdrop-blur-md border-slate-100 rounded-[2.5rem] p-8",
+            tabs: "bg-slate-100/50",
+            tabActive: "data-[state=active]:bg-white data-[state=active]:text-slate-900",
+            input: "bg-slate-50/50 border-slate-100 rounded-2xl",
+            button: "bg-primary text-slate-900 shadow-glow font-black",
+            icon: "text-primary"
+        },
+        vertex: {
+            card: "bg-slate-900/95 backdrop-blur-xl border-white/5 rounded-[2rem] p-8 text-white",
+            tabs: "bg-white/5",
+            tabActive: "data-[state=active]:bg-primary data-[state=active]:text-slate-950",
+            input: "bg-white/5 border-white/10 rounded-xl text-white",
+            button: "bg-primary text-slate-950 shadow-glow font-black",
+            icon: "text-primary"
+        },
+        aura: {
+            card: "bg-white border-slate-50 rounded-3xl p-8 shadow-soft",
+            tabs: "bg-slate-50",
+            tabActive: "data-[state=active]:bg-white",
+            input: "bg-slate-50 border-transparent rounded-2xl",
+            button: "bg-primary text-primary-foreground font-bold",
+            icon: "text-primary"
+        },
+        living: {
+            card: "bg-white border-gray-200 rounded-2xl p-6",
+            tabs: "bg-gray-100",
+            tabActive: "data-[state=active]:bg-white",
+            input: "bg-gray-50 border-gray-200 rounded-xl",
+            button: "bg-primary text-white font-bold",
+            icon: "text-primary"
+        }
+    }[variant];
+
+    const showTabs = enabledTransactions.includes('sale') && enabledTransactions.includes('rent');
+
     return (
-        <form onSubmit={handleSearchSubmit} className={cn("bg-white/80 backdrop-blur-lg rounded-2xl p-6 lg:p-8 shadow-xl border border-gray-100", className)}>
-          <div className="flex flex-col gap-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
-              <div className="space-y-1.5 lg:col-span-3">
-                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wide ml-1">Localização</label>
-                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        <select onChange={(e) => setSelectedState(e.target.value)} value={selectedState} className="w-full h-12 bg-gray-50 border border-gray-200 rounded-xl px-3 focus:ring-2 focus:ring-primary focus:border-transparent outline-none text-dark-text font-medium placeholder-gray-400 appearance-none text-sm">
-                            <option value="">Selecione um Estado</option>
-                            {locationData.states.map(s => <option key={s.uf} value={s.uf}>{s.name}</option>)}
-                        </select>
-                        <div className="relative z-30" ref={cityRef}>
-                          <div onClick={() => setIsCityDropdownOpen(true)} className="w-full pl-4 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl h-12 flex items-center cursor-pointer overflow-hidden text-sm font-medium">
-                            {selectedCities.length > 0 ? (
-                              <div className="flex flex-wrap gap-1.5">
-                                {selectedCities.map(c => (
-                                  <div key={c} className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
-                                    <span>{c}</span>
-                                    <button type="button" onClick={(e) => { e.stopPropagation(); handleCityRemove(c)}} className="text-blue-400 hover:text-blue-700">
-                                      <span className="material-symbols-outlined text-[12px]">close</span>
-                                    </button>
-                                  </div>
-                                ))}
-                              </div>
-                            ) : <span className="text-gray-400">Selecione cidades</span>}
-                          </div>
-                          {isCityDropdownOpen && (
-                            <div className="absolute top-full mt-1 w-full bg-white rounded-lg border border-gray-200 shadow-lg z-30">
-                              <div className="p-2">
-                                <div className="relative">
-                                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">search</span>
-                                  <input value={citySearch} onChange={(e) => setCitySearch(e.target.value)} className="w-full pl-10 px-3 py-2 text-sm border-gray-200 rounded-md focus:ring-2 focus:ring-primary/50 focus:border-transparent outline-none" placeholder="Buscar cidade..."/>
-                                </div>
-                              </div>
-                              <div className="max-h-48 overflow-y-auto">
-                                {filteredCities.map(c => (
-                                  <div key={c} onClick={() => handleCitySelect(c)} className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">
-                                    <div className={cn('w-4 h-4 rounded border-2 flex items-center justify-center', selectedCities.includes(c) ? 'bg-primary border-primary' : 'bg-white border-gray-300')}>
-                                      {selectedCities.includes(c) && <span className="material-symbols-outlined text-xs text-black">check</span>}
-                                    </div>
-                                    {c}
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
+        <div className={cn(styles.card, "shadow-soft transition-all duration-300", className)}>
+            <form onSubmit={handleSearchSubmit} className="space-y-6">
+                {showTabs && (
+                    <Tabs value={searchMode} onValueChange={(v: any) => setSearchMode(v)} className="w-full max-w-[240px]">
+                        <TabsList className={cn("grid w-full grid-cols-2 p-1 h-11 rounded-xl", styles.tabs)}>
+                            <TabsTrigger value="sale" className={cn("font-bold text-[10px] uppercase tracking-widest rounded-lg", styles.tabActive)}>Comprar</TabsTrigger>
+                            <TabsTrigger value="rent" className={cn("font-bold text-[10px] uppercase tracking-widest rounded-lg", styles.tabActive)}>Alugar</TabsTrigger>
+                        </TabsList>
+                    </Tabs>
+                )}
+
+                {/* Linha 1: Palavra-chave e Tipo */}
+                <div className={cn("grid gap-4", vertical ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-12")}>
+                    <div className={cn("space-y-1.5", vertical ? "" : "lg:col-span-5")}>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">O que você busca?</label>
+                        <div className="relative group">
+                            <Search className={cn("absolute left-4 top-1/2 -translate-y-1/2 size-4", styles.icon)} />
+                            <Input 
+                                value={query} 
+                                onChange={e => setQuery(e.target.value)}
+                                className={cn("h-12 pl-12 pr-4 font-bold text-sm transition-all", styles.input)} 
+                                placeholder="Condomínio, nome ou características..." 
+                            />
                         </div>
-                        <div className="relative z-20" ref={neighborhoodRef}>
-                            <div onClick={() => setIsNeighborhoodDropdownOpen(true)} className="w-full pl-4 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl h-12 flex items-center cursor-pointer overflow-hidden text-sm font-medium">
-                            {selectedNeighborhoods.length > 0 ? (
-                                <div className="flex flex-wrap gap-1.5">
-                                {selectedNeighborhoods.slice(0, 2).map(n => (
-                                    <div key={n} className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
-                                    <span>{n}</span>
-                                    <button type="button" onClick={(e) => { e.stopPropagation(); handleNeighborhoodRemove(n)}} className="text-blue-400 hover:text-blue-700">
-                                        <span className="material-symbols-outlined text-[12px]">close</span>
-                                    </button>
-                                    </div>
-                                ))}
-                                {selectedNeighborhoods.length > 2 && <span className='text-xs text-gray-500'>+{selectedNeighborhoods.length - 2}</span>}
-                                </div>
-                            ) : <span className="text-gray-400">Selecione bairros</span>}
-                            </div>
-                            {isNeighborhoodDropdownOpen && (
-                            <div className="absolute top-full mt-1 w-full bg-white rounded-lg border border-gray-200 shadow-lg z-20">
-                                <div className="p-2">
-                                <div className="relative">
-                                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">search</span>
-                                    <input value={neighborhoodSearch} onChange={(e) => setNeighborhoodSearch(e.target.value)} className="w-full pl-10 px-3 py-2 text-sm border-gray-200 rounded-md focus:ring-2 focus:ring-primary/50 focus:border-transparent outline-none" placeholder="Buscar bairro..."/>
-                                </div>
-                                </div>
-                                <div className="max-h-48 overflow-y-auto">
-                                {filteredNeighborhoods.map(n => (
-                                    <div key={n} onClick={() => handleNeighborhoodSelect(n)} className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">
-                                    <div className={cn('w-4 h-4 rounded border-2 flex items-center justify-center', selectedNeighborhoods.includes(n) ? 'bg-primary border-primary' : 'bg-white border-gray-300')}>
-                                        {selectedNeighborhoods.includes(n) && <span className="material-symbols-outlined text-xs text-black">check</span>}
-                                    </div>
-                                    {n}
-                                    </div>
-                                ))}
-                                </div>
-                            </div>
-                            )}
+                    </div>
+
+                    <div className={cn("space-y-1.5", vertical ? "" : "lg:col-span-4")}>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Tipo de Imóvel</label>
+                        <div className="relative">
+                            <Building2 className={cn("absolute left-4 top-1/2 -translate-y-1/2 size-4", styles.icon)} />
+                            <select 
+                                value={propertyType} 
+                                onChange={e => setPropertyType(e.target.value)}
+                                className={cn("w-full h-12 pl-12 pr-10 appearance-none font-bold text-sm outline-none", styles.input)}
+                            >
+                                <option value="all">Todos os tipos</option>
+                                {propertyTypeOptions.map(t => <option key={t} value={t}>{t}</option>)}
+                            </select>
+                            <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
+                        </div>
+                    </div>
+
+                    <div className={cn("space-y-1.5", vertical ? "" : "lg:col-span-3")}>
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Localização (UF)</label>
+                        <div className="relative">
+                            <MapPin className={cn("absolute left-4 top-1/2 -translate-y-1/2 size-4", styles.icon)} />
+                            <select 
+                                value={selectedState} 
+                                onChange={e => { setSelectedState(e.target.value); setSelectedCities([]); setSelectedNeighborhoods([]); }}
+                                className={cn("w-full h-12 pl-12 pr-10 appearance-none font-bold text-sm outline-none", styles.input)}
+                            >
+                                <option value="">Estado (UF)...</option>
+                                {(availableStates || locationData.states.map(s => s.uf)).map(uf => <option key={uf} value={uf}>{uf}</option>)}
+                            </select>
+                            <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
                         </div>
                     </div>
                 </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Quartos</label>
-                <div className="flex items-center h-12 w-full bg-gray-50 border border-gray-200 rounded-xl p-1 gap-1">
-                  {["1", "2", "3", "4+"].map(room => (
-                      <button key={room} type="button" onClick={() => handleRoomToggle(room)} className={cn("flex-1 h-full rounded-lg text-sm font-bold transition-colors", rooms.includes(room) ? 'bg-black text-primary shadow-sm' : 'text-gray-500 hover:bg-gray-200')}>
-                        {room}
-                      </button>
-                  ))}
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Preço Mínimo</label>
-                    <Input type="number" value={minPrice} onChange={e => setMinPrice(e.target.value)} placeholder="R$ 0" className="w-full h-12 bg-gray-50 border border-gray-200 rounded-xl px-3 focus:ring-2 focus:ring-primary focus:border-transparent outline-none text-dark-text font-medium" />
-                </div>
-                <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Preço Máximo</label>
-                    <Input type="number" value={maxPrice} onChange={e => setMaxPrice(e.target.value)} placeholder="Sem limite" className="w-full h-12 bg-gray-50 border border-gray-200 rounded-xl px-3 focus:ring-2 focus:ring-primary focus:border-transparent outline-none text-dark-text font-medium" />
-                </div>
-              </div>
-              <div className="w-full flex items-end">
-                <Button 
-                  type="submit"
-                  style={{ backgroundColor: 'var(--search-button-bg)', color: 'var(--search-button-text)' }}
-                  className="h-12 w-full px-8 rounded-lg font-bold transition-all shadow-lg flex items-center justify-center gap-2 hover:opacity-90 text-white" 
-                >
-                    <span className="material-symbols-outlined font-bold text-inherit">search</span>
-                    Buscar
-                </Button>
-              </div>
-            </div>
-          </div>
-        </form>
-    )
+
+                {/* Linha 2: Cidade, Bairro e Avançados */}
+                {!simple && (
+                    <div className={cn("grid gap-4", vertical ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-12")}>
+                        <div className={cn("space-y-1.5", vertical ? "" : "lg:col-span-4")}>
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Cidade(s)</label>
+                            <div className="relative" ref={cityRef}>
+                                <div 
+                                    onClick={() => { if(selectedState) setIsCityDropdownOpen(!isCityDropdownOpen); else toast({ title: "Selecione a UF", description: "Escolha o estado primeiro." }); }}
+                                    className={cn("w-full h-12 px-4 flex items-center justify-between cursor-pointer text-sm font-bold truncate", styles.input, !selectedState && "opacity-50")}
+                                >
+                                    <span>{selectedCities.length > 0 ? `${selectedCities.length} Selecionadas` : 'Escolha a cidade...'}</span>
+                                    <ChevronDown className="size-4 text-slate-400" />
+                                </div>
+                                {isCityDropdownOpen && (
+                                    <div className="absolute top-full mt-2 w-full bg-white dark:bg-slate-800 rounded-xl border border-slate-100 shadow-xl z-50 p-2 animate-in fade-in zoom-in-95 duration-200">
+                                        <div className="max-h-48 overflow-y-auto space-y-1">
+                                            {availableCities.map(c => (
+                                                <label key={c} className="flex items-center gap-2 p-2 hover:bg-slate-50 rounded-lg cursor-pointer">
+                                                    <Checkbox checked={selectedCities.includes(c)} onCheckedChange={() => handleCitySelect(c)} />
+                                                    <span className="text-xs font-bold">{c}</span>
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className={cn("space-y-1.5", vertical ? "" : "lg:col-span-4")}>
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Bairro(s)</label>
+                            <div className="relative" ref={neighborhoodRef}>
+                                <div 
+                                    onClick={() => { if(selectedCities.length) setIsNeighborhoodDropdownOpen(!isNeighborhoodDropdownOpen); else toast({ title: "Selecione a Cidade", description: "Escolha ao menos uma cidade primeiro." }); }}
+                                    className={cn("w-full h-12 px-4 flex items-center justify-between cursor-pointer text-sm font-bold truncate", styles.input, !selectedCities.length && "opacity-50")}
+                                >
+                                    <span>{selectedNeighborhoods.length > 0 ? `${selectedNeighborhoods.length} Selecionados` : 'Bairros...'}</span>
+                                    <ChevronDown className="size-4 text-slate-400" />
+                                </div>
+                                {isNeighborhoodDropdownOpen && (
+                                    <div className="absolute top-full mt-2 w-full bg-white dark:bg-slate-800 rounded-xl border border-slate-100 shadow-xl z-50 p-2 animate-in fade-in zoom-in-95 duration-200">
+                                        <div className="max-h-48 overflow-y-auto space-y-1">
+                                            {availableNeighborhoods.map(n => (
+                                                <label key={n} className="flex items-center gap-2 p-2 hover:bg-slate-50 rounded-lg cursor-pointer">
+                                                    <Checkbox checked={selectedNeighborhoods.includes(n)} onCheckedChange={() => handleNeighborhoodSelect(n)} />
+                                                    <span className="text-xs font-bold">{n}</span>
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className={cn("space-y-1.5", vertical ? "" : "lg:col-span-4")}>
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Quartos</label>
+                            <div className={cn("flex p-1 h-12 rounded-xl", styles.tabs)}>
+                                {roomOptions.map(opt => (
+                                    <button 
+                                        key={opt} 
+                                        type="button" 
+                                        onClick={() => setRooms(prev => prev.includes(opt) ? prev.filter(r => r !== opt) : [...prev, opt])}
+                                        className={cn("flex-1 rounded-lg text-xs font-black transition-all", rooms.includes(opt) ? "bg-white shadow-sm text-slate-900" : "text-slate-400 hover:text-slate-600")}
+                                    >
+                                        {opt}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className={cn("space-y-1.5", vertical ? "" : "lg:col-span-5")}>
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Faixa de Preço (R$)</label>
+                            <div className="flex gap-2">
+                                <div className="relative flex-1">
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400">MIN</span>
+                                    <Input value={minPrice} onChange={e => setMinPrice(e.target.value)} type="number" className={cn("h-12 pl-12 pr-4 font-bold text-sm", styles.input)} placeholder="0" />
+                                </div>
+                                <div className="relative flex-1">
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400">MAX</span>
+                                    <Input value={maxPrice} onChange={e => setMaxPrice(e.target.value)} type="number" className={cn("h-12 pl-12 pr-4 font-bold text-sm", styles.input)} placeholder="Ilimitado" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className={cn("flex items-end gap-2", vertical ? "flex-col" : "lg:col-span-7")}>
+                            <Button type="button" variant="ghost" onClick={handleClearFilters} className="h-12 px-6 font-bold text-xs uppercase tracking-widest text-slate-400 hover:text-slate-900">
+                                Limpar
+                            </Button>
+                            <Button type="submit" className={cn("h-12 px-10 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg flex-1 w-full", styles.button)}>
+                                <Search className="size-4 mr-2" /> Buscar Imóveis
+                            </Button>
+                        </div>
+                    </div>
+                )}
+
+                {simple && (
+                    <div className="flex justify-end pt-2">
+                        <Button type="submit" className={cn("h-12 px-12 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg", styles.button)}>
+                            Pesquisar
+                        </Button>
+                    </div>
+                )}
+            </form>
+        </div>
+    );
 }

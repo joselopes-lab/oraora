@@ -4,6 +4,8 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // --- FUNÇÕES AUXILIARES ---
+
     function isSignedIn() {
       return request.auth != null;
     }
@@ -12,179 +14,195 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
     
-    function isExistingDoc() {
-      return resource != null;
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
 
-    function isExistingOwner(userId) {
-      return isOwner(userId) && isExistingDoc();
-    }
-
-    function isUserOfType(userId, userType) {
-      let userDoc = get(/databases/$(database)/documents/users/$(userId));
-      return exists(/databases/$(database)/documents/users/$(userId)) &&
-             userDoc.data.userType == userType;
+    function isUserOfType(userType) {
+      let userPath = /databases/$(database)/documents/users/$(request.auth.uid);
+      return exists(userPath) && get(userPath).data.userType == userType;
     }
 
     function isAdmin() {
-      return isSignedIn() && isUserOfType(request.auth.uid, 'admin');
+      return isSignedIn() && isUserOfType('admin');
     }
 
-    function isBrokerDocumentOwner(brokerId) {
-        return isSignedIn() && get(/databases/$(database)/documents/brokers/$(brokerId)).data.userId == request.auth.uid;
-    }
+    // --- REGRAS DE COLEÇÕES ---
 
+    // 1. USUÁRIOS E LOGS
     match /users/{userId} {
       allow get: if true;
       allow list: if isAdmin();
-      allow create: if isOwner(userId) && request.resource.data.id == userId && request.resource.data.userType in ['broker', 'constructor', 'admin', 'client'];
-      allow update: if (isExistingOwner(userId) || isAdmin()) && request.resource.data.id == resource.data.id && request.resource.data.userType == resource.data.userType;
-      allow delete: if isExistingOwner(userId) || isAdmin();
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId) || isAdmin();
+      allow delete: if isAdmin();
+
+      match /activityLog/{logId} {
+        allow create: if isOwner(userId);
+        allow read: if isOwner(userId) || isAdmin();
+      }
     }
 
+    // 2. CONFIGURAÇÃO DE CORRETORES
     match /brokers/{brokerId} {
       allow read: if true;
-      allow list: if isSignedIn();
-      allow create: if (isOwner(request.resource.data.userId) && isUserOfType(request.resource.data.userId, 'broker')) || isAdmin();
-      allow update: if (isBrokerDocumentOwner(brokerId) && isUserOfType(get(/databases/$(database)/documents/brokers/$(brokerId)).data.userId, 'broker')) || isAdmin();
-      allow delete: if (isBrokerDocumentOwner(brokerId) && isUserOfType(get(/databases/$(database)/documents/brokers/$(brokerId)).data.userId, 'broker')) || isAdmin();
+      allow write: if isOwner(brokerId) || isAdmin();
       
-      match /leadFunnels/{funnelId}/columns/{columnId} {
-        allow read, write: if (isBrokerDocumentOwner(brokerId) && isUserOfType(get(/databases/$(database)/documents/brokers/$(brokerId)).data.userId, 'broker')) || isAdmin();
+      match /{allPaths=**} {
+        allow read: if isOwner(brokerId) || isAdmin();
+        allow write: if isOwner(brokerId) || isAdmin();
       }
+    }
+
+    // 3. CRM LEADS E REDE
+    match /leads/{leadId} {
+      allow read: if isSignedIn() && (
+        resource.data.brokerId == request.auth.uid || 
+        resource.data.network.published == true ||
+        isAdmin()
+      );
+
+      allow write: if isSignedIn() && (
+        (resource == null && request.resource.data.brokerId == request.auth.uid) || 
+        resource.data.brokerId == request.auth.uid || 
+        isAdmin()
+      );
+
+      match /networkResponses/{responseId} {
+        allow read: if isSignedIn();
+        allow list: if isSignedIn();
+        allow create: if isSignedIn();
+        // Permitir update se for o autor da resposta OU o dono do lead pai (necessário para Handshake)
+        allow update, delete: if isSignedIn() && (
+          resource.data.brokerId == request.auth.uid || 
+          get(/databases/$(database)/documents/leads/$(leadId)).data.brokerId == request.auth.uid ||
+          isAdmin()
+        );
+      }
+
+      match /statusHistory/{historyId} {
+        allow read: if isSignedIn();
+        allow write: if isSignedIn() && (get(/databases/$(database)/documents/leads/$(leadId)).data.brokerId == request.auth.uid || isAdmin());
+      }
+    }
+
+    // 4. IMÓVEIS
+    match /properties/{propertyId} {
+      allow read, list: if true;
+      allow write: if isAdmin() || (isUserOfType('constructor') && request.resource.data.builderId == request.auth.uid);
+    }
+
+    match /brokerProperties/{propertyId} {
+      allow read, list: if true;
+      allow write: if (resource != null && isOwner(resource.data.brokerId)) || 
+                   (resource == null && request.resource.data.brokerId == request.auth.uid) || 
+                   isAdmin();
+    }
+
+    // 5. AGENDA E TAREFAS
+    match /events/{eventId} {
+      allow read, list: if isSignedIn() && (resource == null || resource.data.brokerId == request.auth.uid || isAdmin());
+      allow write: if isSignedIn() && (
+        (resource == null && request.resource.data.brokerId == request.auth.uid) ||
+        resource.data.brokerId == request.auth.uid || 
+        isAdmin()
+      );
+    }
+
+    // 6. JORNADAS DE VENDA
+    match /journeys/{journeyId} {
+      allow read, list: if isSignedIn() && (resource == null || resource.data.brokerId == request.auth.uid || isAdmin());
+      allow write: if isSignedIn() && (
+        (resource == null && request.resource.data.brokerId == request.auth.uid) ||
+        resource.data.brokerId == request.auth.uid || 
+        isAdmin()
+      );
+
+      match /timeline/{logId} {
+        allow read, write: if isSignedIn() && (
+          get(/databases/$(database)/documents/journeys/$(journeyId)).data.brokerId == request.auth.uid ||
+          isAdmin()
+        );
+      }
+    }
+
+    // 7. FINANÇAS
+    match /transactions/{transactionId} {
+      allow read, list: if isSignedIn() && (resource == null || resource.data.brokerId == request.auth.uid || isAdmin());
+      allow write: if isSignedIn() && (
+        (resource == null && request.resource.data.brokerId == request.auth.uid) ||
+        resource.data.brokerId == request.auth.uid || 
+        isAdmin()
+      );
+    }
+
+    // 8. INTELIGÊNCIA
+    match /personas/{personaId} {
+      allow read, list: if true;
+      allow write: if isAdmin();
+    }
+
+    match /marketReports/{reportId} {
+      allow read, list: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    match /propertyAnalyses/{analysisId} {
+      allow read, write: if isSignedIn();
+    }
+
+    // 9. INFRAESTRUTURA E LAYOUTS
+    match /layouts/{layoutId} {
+      allow read, list: if true;
+      allow write: if isAdmin();
+    }
+
+    match /portfolios/{brokerId} {
+      allow read: if true;
+      allow write: if isOwner(brokerId) || isAdmin();
+    }
+
+    match /plans/{planId} {
+      allow read, list: if true;
+      allow write: if isAdmin();
+    }
+
+    match /inviteRequests/{requestId} {
+      allow create: if true;
+      allow read, write: if isAdmin();
+    }
+
+    match /domains/{domainName} {
+      allow read: if isSignedIn() && (isOwner(resource.data.brokerId) || isAdmin());
+      allow write: if isAdmin();
     }
 
     match /constructors/{constructorId} {
       allow read, list: if true;
-      allow create: if isOwner(constructorId) && isUserOfType(constructorId, 'constructor') && request.resource.data.userId == constructorId;
-      allow update: if (isOwner(constructorId) && isUserOfType(constructorId, 'constructor')) || isAdmin();
-      allow delete: if (isOwner(constructorId) && isUserOfType(constructorId, 'constructor')) || isAdmin();
+      allow write: if isOwner(constructorId) || isAdmin();
     }
 
-    match /admins/{adminId} {
-      allow get: if isOwner(adminId);
-      allow list: if isAdmin();
-      allow create: if isAdmin() || (isOwner(adminId) && request.auth.token.email == 'vinicius@oraora.com.br');
-      allow update: if isAdmin() && isExistingDoc();
-      allow delete: if isAdmin() && isExistingDoc();
+    match /radarLists/{userId} {
+      allow read, write: if isOwner(userId) || isAdmin();
     }
 
-    match /plans/{planId} {
-      allow get: if true;
-      allow list: if true;
-      allow create: if isAdmin();
-      allow update: if isAdmin() && isExistingDoc();
-      allow delete: if isAdmin() && isExistingDoc();
-    }
-    
-    match /properties/{propertyId} {
-      allow read: if true;
-      allow list: if isSignedIn();
-      allow create: if isSignedIn() && (isAdmin() || (isUserOfType(request.auth.uid, 'constructor') && request.resource.data.builderId == request.auth.uid));
-      allow update: if isSignedIn() && (
-                      isAdmin() || 
-                      (isUserOfType(request.auth.uid, 'constructor') && resource.data.builderId == request.auth.uid)
-                    );
-      allow delete: if isSignedIn() && (isAdmin() || (isUserOfType(request.auth.uid, 'constructor') && resource.data.builderId == request.auth.uid));
+    match /announcements/{annId} {
+      allow read, list: if isSignedIn();
+      // Permitir que usuários criem notificações personalizadas
+      allow create: if isSignedIn() && request.resource.data.type in ['notification', 'rede_oraora'];
+      allow update, delete: if isAdmin();
     }
 
-    match /brokerProperties/{propertyId} {
-      allow read: if (resource.data.isVisibleOnSite == true) || isOwner(resource.data.brokerId) || isAdmin();
-      allow list: if true;
-      allow create: if isOwner(request.resource.data.brokerId);
-      allow update: if isOwner(resource.data.brokerId) || isAdmin();
-      allow delete: if isOwner(resource.data.brokerId) || isAdmin();
-    }
-    
-    match /portfolios/{brokerId} {
-      allow read: if true;
-      allow write: if isOwner(brokerId) && isUserOfType(brokerId, 'broker');
-    }
-    
-    match /layouts/{layoutId} {
-      allow read: if isSignedIn();
-      allow write: if isAdmin();
-    }
-
-    match /leads/{leadId} {
-      allow create: if request.resource.data.brokerId is string && 
-                       request.resource.data.name is string &&
-                       request.resource.data.status is string &&
-                       (request.resource.data.personaIds is list || !('personaIds' in request.resource.data));
-      
-      allow read: if isSignedIn() && (
-        isAdmin() || 
-        (resource == null) || 
-        (resource.data.brokerId == request.auth.uid)
-      );
-
-      allow update, delete: if isSignedIn() && resource != null && (
-        isAdmin() || 
-        (resource.data.brokerId == request.auth.uid)
-      );
-
-      allow list: if (isSignedIn() && isUserOfType(request.auth.uid, 'broker') && request.query.where.get('brokerId') == request.auth.uid) || isAdmin();
-      
-      match /statusHistory/{historyId} {
-        allow create: if (isSignedIn() &&
-                       get(/databases/$(database)/documents/leads/$(leadId)).data.brokerId == request.auth.uid &&
-                       request.resource.data.brokerId == request.auth.uid);
-        allow read, list: if (isSignedIn() &&
-                             get(/databases/$(database)/documents/leads/$(leadId)).data.brokerId == request.auth.uid) || isAdmin();
-        allow update, delete: if false;
-      }
-    }
-
-    match /events/{eventId} {
-      allow create: if isOwner(request.resource.data.brokerId);
-      allow get: if isOwner(request.resource.data.brokerId);
-      allow list: if isSignedIn() && resource.data.brokerId == request.auth.uid;
-      allow update, delete: if isOwner(request.resource.data.brokerId) || isAdmin();
-    }
-
-    match /transactions/{transactionId} {
-      allow create: if isOwner(request.resource.data.brokerId);
-      allow get: if isOwner(request.resource.data.brokerId);
-      allow list: if isSignedIn() && resource.data.brokerId == request.auth.uid;
-      allow update, delete: if isOwner(request.resource.data.brokerId) || isAdmin();
-    }
-
-    match /personas/{personaId} {
-      allow read: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create, update, delete: if isAdmin();
-    }
-    
-    match /tickets/{ticketId} {
-      allow create: if isOwner(request.resource.data.clientId);
-      allow get: if isOwner(request.resource.data.clientId) || isAdmin();
-      allow list: if (isSignedIn() && resource.data.clientId == request.auth.uid) || isAdmin();
-      allow update: if isOwner(request.resource.data.clientId) || isAdmin();
-      allow delete: if isAdmin();
-    }
-
-     match /radarLists/{userId} {
-      allow read: if isOwner(userId) || isAdmin();
-      allow write: if isOwner(userId) && isUserOfType(userId, 'client');
-    }
-    
     match /corretorMetrics/{userId} {
-      allow read: if isOwner(userId) || isAdmin();
-      allow write: if false; 
+      allow read, list: if true;
+      allow write: if isSignedIn();
     }
 
-    match /announcements/{announcementId} {
-      allow read: if isSignedIn();
-      allow write: if isAdmin();
-    }
-
-    match /journeys/{journeyId} {
-      allow read, write: if isSignedIn() && (resource == null || resource.data.brokerId == request.auth.uid || isAdmin());
-    }
-
-    match /inviteRequests/{inviteId} {
-      allow create: if true;
-      allow read, write: if isAdmin();
+    // 10. TICKETS DE SUPORTE
+    match /tickets/{ticketId} {
+      allow read: if isSignedIn() && (resource.data.clientId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && request.resource.data.clientId == request.auth.uid;
+      allow update, delete: if isSignedIn() && (resource.data.clientId == request.auth.uid || isAdmin());
     }
   }
 }

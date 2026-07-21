@@ -1,9 +1,11 @@
+
 'use client';
 
 import React, { createContext, useContext, useEffect, useState, ReactNode, useMemo } from 'react';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { doc, onSnapshot, Firestore } from 'firebase/firestore';
-import { useFirebase } from '@/firebase/provider'; 
+import { doc, onSnapshot } from 'firebase/firestore';
+import { useFirebase } from './provider'; 
+import Loading from '@/app/dashboard/loading';
 
 export interface UserProfile {
   id: string;
@@ -29,12 +31,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
-  const [profileLoading, setProfileLoading] = useState(true);
+  const [profileLoading, setProfileLoading] = useState(false);
 
   useEffect(() => {
     if (!auth || !firestore) {
       setAuthLoading(false);
-      setProfileLoading(false);
       return;
     }
 
@@ -62,7 +63,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             setProfileLoading(false);
           },
           (error) => {
-              console.error("Erro ao buscar perfil do usuário:", error);
+              console.error("AuthProvider: Erro ao buscar perfil:", error);
               setUserProfile(null);
               setProfileLoading(false);
           }
@@ -90,6 +91,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     profileLoading, 
     isReady 
   }), [user, userProfile, authLoading, profileLoading, isReady]);
+
+  // Bloqueia a renderização de qualquer filho enquanto o estado não for resolvido
+  // Isso impede que componentes do Dashboard disparem queries sem estarem autenticados
+  if (authLoading) {
+    return <Loading />;
+  }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

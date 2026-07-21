@@ -38,28 +38,47 @@ import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { useToast } from '@/hooks/use-toast';
 import { useAuthContext, useCollection, useDoc, useFirestore, useMemoFirebase, addDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase';
 import { collection, query, where, orderBy, doc, Timestamp, serverTimestamp } from 'firebase/firestore';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 type JourneyStage = 'prospeccao' | 'visitas' | 'proposta' | 'fechamento' | 'all';
+type JourneyFilterType = 'all' | 'em_andamento' | 'precisam_atencao' | 'proposta' | 'fechamento' | 'concluidas';
+
+interface PresentedProperty {
+  propertyId: string;
+  source: 'properties' | 'brokerProperties';
+  status: 'apresentado' | 'interessado' | 'favorito' | 'visita_solicitada' | 'negociacao' | 'descartado';
+  updatedAt: string | Timestamp;
+}
+
+interface TimelineLog {
+  type: 'auto' | 'manual';
+  title: string;
+  description: string;
+  createdAt: string | Timestamp;
+  createdBy?: string;
+}
 
 interface Journey {
   id: string;
-  clientId: string;
+  clientId?: string;
   clientName: string;
   persona: string;
   personaIcon?: string;
   statusTag?: string;
-  stage: Exclude<JourneyStage, 'all'>;
-  propertyIds: string[];
-  propertyTitle: string;
-  propertyLocation: string;
-  propertyImage: string;
-  potentialValue: number;
+  stage?: Exclude<JourneyStage, 'all'>;
+  propertyIds?: string[];
+  propertyTitle?: string;
+  propertyLocation?: string;
+  propertyImage?: string;
+  potentialValue?: number;
   priority?: boolean;
   brokerId: string;
   createdAt: Timestamp;
   notes?: string;
+  presentedProperties?: PresentedProperty[];
+  timelineLogs?: TimelineLog[];
+  updatedAt?: Timestamp;
 }
 
 interface Lead {
@@ -84,6 +103,16 @@ interface Persona {
   name: string;
 }
 
+interface JourneyEvent {
+  id: string;
+  title: string;
+  date: string;
+  time?: string;
+  completed?: boolean;
+  clientId?: string;
+  journeyId?: string;
+}
+
 const stageDetails: Record<Exclude<JourneyStage, 'all'>, { label: string; color: string; bgColor: string }> = {
   prospeccao: { label: 'Prospecção', color: 'text-blue-600', bgColor: 'bg-blue-100 dark:bg-blue-900/30' },
   visitas: { label: 'Visitas', color: 'text-orange-600', bgColor: 'bg-orange-100 dark:bg-orange-900/30' },
@@ -92,10 +121,10 @@ const stageDetails: Record<Exclude<JourneyStage, 'all'>, { label: string; color:
 };
 
 export default function JornadaVendaPage() {
-  const { user } = useAuthContext();
+  const { user, userProfile, isReady } = useAuthContext();
   const firestore = useFirestore();
   const { toast } = useToast();
-  const [filterStage, setFilterStage] = useState<JourneyStage>('all');
+  const [filterType, setFilterType] = useState<JourneyFilterType>('all');
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -115,10 +144,24 @@ export default function JornadaVendaPage() {
 
   // Queries
   const journeysQuery = useMemoFirebase(
-    () => (firestore && user ? query(collection(firestore, 'journeys'), where('brokerId', '==', user.uid), orderBy('createdAt', 'desc')) : null),
-    [firestore, user?.uid]
+    () => {
+        if (!firestore || !user || !isReady) return null;
+        // Removido orderBy para evitar necessidade de índices compostos
+        return query(collection(firestore, 'journeys'), where('brokerId', '==', user.uid));
+    },
+    [firestore, user?.uid, isReady]
   );
-  const { data: journeys, isLoading: areJourneysLoading } = useCollection<Journey>(journeysQuery);
+  const { data: initialJourneys, isLoading: areJourneysLoading } = useCollection<Journey>(journeysQuery);
+
+  // Ordenação em memória
+  const journeys = useMemo(() => {
+    if (!initialJourneys) return [];
+    return [...initialJourneys].sort((a, b) => {
+        const timeA = a.createdAt?.toMillis() || 0;
+        const timeB = b.createdAt?.toMillis() || 0;
+        return timeB - timeA;
+    });
+  }, [initialJourneys]);
 
   const leadsQuery = useMemoFirebase(
     () => (firestore && user ? query(collection(firestore, 'leads'), where('brokerId', '==', user.uid)) : null),
@@ -160,17 +203,116 @@ export default function JornadaVendaPage() {
   );
   const { data: personas } = useCollection<Persona>(personasQuery);
 
-  const filteredJourneys = useMemo(() => {
+  const eventsQuery = useMemoFirebase(
+    () => {
+        if (!firestore || !user || !isReady) return null;
+        return query(collection(firestore, 'events'), where('brokerId', '==', user.uid));
+    },
+    [firestore, user?.uid, isReady]
+  );
+  const { data: events } = useCollection<JourneyEvent>(eventsQuery);
+
+  const enrichedJourneys = useMemo(() => {
     if (!journeys) return [];
-    return journeys.filter((j) => {
-      const matchesStage = filterStage === 'all' || j.stage === filterStage;
+    
+    return journeys.map(j => {
+      const isSold = j.statusTag === 'Venda Concluída';
+      
+      let attentionInfo: { needsAttention: boolean; reason?: string } = { needsAttention: false };
+      let nextEvent: JourneyEvent | undefined;
+
+      if (!isSold) {
+        const journeyEvents = (events || []).filter(e => e.journeyId === j.id || (!e.journeyId && e.clientId === j.clientId));
+        const uncompletedEvents = journeyEvents.filter(e => !e.completed);
+        
+        const now = new Date();
+        const todayStr = format(now, 'yyyy-MM-dd');
+        
+        let overdueEvent: JourneyEvent | undefined;
+        let upcomingEvent: JourneyEvent | undefined;
+
+        uncompletedEvents.forEach(e => {
+          if (e.date < todayStr) {
+            if (!overdueEvent || e.date < overdueEvent.date) overdueEvent = e;
+          } else if (e.date === todayStr) {
+             if (e.time) {
+                 const [hours, minutes] = e.time.split(':').map(Number);
+                 const eventTime = new Date();
+                 eventTime.setHours(hours, minutes, 0, 0);
+                 if (eventTime < now) {
+                     if (!overdueEvent || e.date < overdueEvent.date) overdueEvent = e;
+                 } else {
+                     if (!upcomingEvent || e.time < (upcomingEvent.time || '23:59')) upcomingEvent = e;
+                 }
+             } else {
+                 if (!upcomingEvent || e.date < upcomingEvent.date) upcomingEvent = e;
+             }
+          } else {
+             if (!upcomingEvent || e.date < upcomingEvent.date) upcomingEvent = e;
+          }
+        });
+
+        nextEvent = upcomingEvent;
+
+        let latestMovement = j.updatedAt?.toMillis() || j.createdAt?.toMillis() || 0;
+        const daysSinceMovement = Math.floor((Date.now() - latestMovement) / (1000 * 60 * 60 * 24));
+        const isNew = (Date.now() - (j.createdAt?.toMillis() || 0)) / (1000 * 60 * 60 * 24) < 3;
+
+        if (overdueEvent) {
+            const overdueDate = new Date(overdueEvent.date + 'T00:00:00');
+            const daysOverdue = Math.floor((Date.now() - overdueDate.getTime()) / (1000 * 60 * 60 * 24));
+            attentionInfo = {
+                needsAttention: true,
+                reason: `Ação vencida${daysOverdue > 0 ? ` há ${daysOverdue} dia(s)` : ''}`
+            };
+        } else if (!nextEvent && !isNew && daysSinceMovement >= 3 && daysSinceMovement < 7) {
+            attentionInfo = {
+                needsAttention: true,
+                reason: 'Sem próxima ação'
+            };
+        } else if (!nextEvent && daysSinceMovement >= 7) {
+            attentionInfo = {
+                needsAttention: true,
+                reason: `Sem movimentação há ${daysSinceMovement} dias`
+            };
+        }
+      }
+
+      return {
+          ...j,
+          attentionInfo,
+          nextEvent
+      };
+    });
+  }, [journeys, events]);
+
+  const filteredJourneys = useMemo(() => {
+    if (!enrichedJourneys) return [];
+    return enrichedJourneys.filter((j) => {
+      const isSold = j.statusTag === 'Venda Concluída';
+      const needsAttention = j.attentionInfo.needsAttention;
+
+      let matchesFilter = true;
+      if (filterType === 'em_andamento') {
+        matchesFilter = !isSold;
+      } else if (filterType === 'precisam_atencao') {
+        matchesFilter = needsAttention;
+      } else if (filterType === 'proposta') {
+        matchesFilter = j.stage === 'proposta';
+      } else if (filterType === 'fechamento') {
+        matchesFilter = j.stage === 'fechamento';
+      } else if (filterType === 'concluidas') {
+        matchesFilter = isSold;
+      }
+
       const matchesSearch =
         j.clientName?.toLowerCase().includes(search.toLowerCase()) ||
         j.propertyTitle?.toLowerCase().includes(search.toLowerCase()) ||
         j.persona?.toLowerCase().includes(search.toLowerCase());
-      return matchesStage && matchesSearch;
+        
+      return matchesFilter && matchesSearch;
     });
-  }, [journeys, filterStage, search]);
+  }, [enrichedJourneys, filterType, search]);
 
   const paginatedJourneys = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
@@ -259,6 +401,12 @@ export default function JornadaVendaPage() {
         : [...prev.propertyIds, id]
     }));
   };
+
+  function handlePageChange(page: number) {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+    }
+  }
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in duration-500">
@@ -403,18 +551,25 @@ export default function JornadaVendaPage() {
             />
           </div>
           <div className="flex gap-2 overflow-x-auto pb-2 lg:pb-0 no-scrollbar items-center">
-            {(['all', 'prospeccao', 'visitas', 'proposta', 'fechamento'] as JourneyStage[]).map((stage) => (
+            {([
+              { id: 'all', label: 'Todas' },
+              { id: 'em_andamento', label: 'Em Andamento' },
+              { id: 'precisam_atencao', label: 'Precisam de Atenção' },
+              { id: 'proposta', label: 'Proposta' },
+              { id: 'fechamento', label: 'Fechamento' },
+              { id: 'concluidas', label: 'Concluídas' }
+            ] as { id: JourneyFilterType; label: string }[]).map((filter) => (
               <button
-                key={stage}
-                onClick={() => { setFilterStage(stage); setCurrentPage(1); }}
+                key={filter.id}
+                onClick={() => { setFilterType(filter.id); setCurrentPage(1); }}
                 className={cn(
-                  "flex h-10 shrink-0 items-center justify-center px-5 rounded-full text-sm font-bold transition-all",
-                  filterStage === stage
+                  "flex h-10 shrink-0 items-center justify-center px-5 rounded-full text-sm font-bold transition-all whitespace-nowrap",
+                  filterType === filter.id
                     ? "bg-primary text-slate-900 shadow-sm"
                     : "bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:border-primary/50"
                 )}
               >
-                {stage === 'all' ? 'Todos' : stageDetails[stage as Exclude<JourneyStage, 'all'>].label}
+                {filter.label}
               </button>
             ))}
           </div>
@@ -425,10 +580,18 @@ export default function JornadaVendaPage() {
         {areJourneysLoading && <p className="text-center p-10 text-slate-400">Carregando jornadas...</p>}
         
         {!areJourneysLoading && paginatedJourneys.map((journey) => {
-          const stage = stageDetails[journey.stage];
+          const stage = journey.stage ? stageDetails[journey.stage] : { label: 'Sem estágio', color: 'text-slate-500', bgColor: 'bg-slate-100' };
           const propertyCount = journey.propertyIds?.length || 1;
           const isHotStatus = journey.statusTag?.includes('Proposta');
           const isSold = journey.statusTag === 'Venda Concluída';
+
+          const daysInJourney = journey.createdAt ? Math.floor((Date.now() - journey.createdAt.toDate().getTime()) / (1000 * 60 * 60 * 24)) : 0;
+
+          // REGRA PROVISÓRIA: substituída por inteligência de atenção
+          const enrichedJ = journey as any;
+          const needsAttention = enrichedJ.attentionInfo?.needsAttention;
+          const attentionReason = enrichedJ.attentionInfo?.reason;
+          const nextEvent = enrichedJ.nextEvent;
 
           return (
             <div
@@ -470,19 +633,34 @@ export default function JornadaVendaPage() {
                       </p>
                     </div>
                   </div>
-                  <div className="flex flex-col items-end">
+                  <div className="flex flex-col items-end gap-2">
                     <span className={cn("px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap", stage.bgColor, stage.color)}>
                       {stage.label}
                     </span>
-                    <p className="text-slate-400 dark:text-slate-500 text-[11px] mt-2 font-medium">
-                      {journey.createdAt ? formatDistanceToNow(journey.createdAt.toDate(), { addSuffix: true, locale: ptBR }) : ''}
+                    {needsAttention && (
+                      <span title={attentionReason} className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-400 border border-amber-200 dark:border-amber-900/50 flex items-center gap-1 animate-pulse cursor-help">
+                        <span className="material-symbols-outlined text-[12px]">warning</span>
+                        Requer Atenção
+                      </span>
+                    )}
+                    {nextEvent && (
+                      <span className="px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wider bg-sky-50 text-sky-600 dark:bg-sky-950/40 dark:text-sky-400 border border-sky-100 dark:border-sky-900/50 flex items-center gap-1">
+                        <span className="material-symbols-outlined text-[12px]">calendar_today</span>
+                        {nextEvent.title} &middot; {nextEvent.date.split('-').reverse().join('/')} {nextEvent.time ? `às ${nextEvent.time}` : ''}
+                      </span>
+                    )}
+                    <p className="text-slate-400 dark:text-slate-500 text-[11px] font-medium text-right mt-1">
+                      {journey.createdAt ? `Criada ${formatDistanceToNow(journey.createdAt.toDate(), { addSuffix: true, locale: ptBR })}` : ''}
+                      <span className="block text-slate-400 dark:text-slate-500 text-[10px] mt-0.5">
+                        {daysInJourney} {daysInJourney === 1 ? 'dia' : 'dias'} de jornada
+                      </span>
                     </p>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-4 bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800/50">
                   <div className="relative h-16 w-24 rounded-lg overflow-hidden shrink-0 shadow-sm">
-                    <Image alt={journey.propertyTitle} src={journey.propertyImage} fill className="object-cover" />
+                    <Image alt={journey.propertyTitle} src={journey.propertyImage || 'https://picsum.photos/seed/placeholder/400/300'} fill className="object-cover" />
                   </div>
                   <div className="flex flex-col min-w-0">
                     <p className="text-slate-900 dark:text-slate-100 text-sm font-bold truncate">
@@ -498,7 +676,7 @@ export default function JornadaVendaPage() {
                   <div className="flex flex-col">
                     <p className="text-slate-400 dark:text-slate-500 text-[10px] font-bold uppercase tracking-widest">Valor Potencial</p>
                     <p className="text-slate-900 dark:text-white text-2xl font-black tracking-tight">
-                      {journey.potentialValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2 })}
+                      {(journey.potentialValue || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2 })}
                     </p>
                   </div>
                   <div className="flex items-center gap-3">
@@ -582,10 +760,4 @@ export default function JornadaVendaPage() {
       </AlertDialog>
     </div>
   );
-
-  function handlePageChange(page: number) {
-    if (page >= 1 && page <= totalPages) {
-      setCurrentPage(page);
-    }
-  }
 }

@@ -33,9 +33,11 @@ import { useState, useEffect, useMemo } from 'react';
 import { format, formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { setDocumentNonBlocking } from "@/firebase/non-blocking-updates";
 
 type BrokerProfile = {
     slug: string;
+    domain?: string; // Adicionado para lidar com domínio personalizado
 };
 
 type Announcement = {
@@ -43,11 +45,14 @@ type Announcement = {
   title: string;
   content: string;
   recipients: string[];
+  type: 'broadcast' | 'notification' | 'rede_oraora';
+  status: 'sent' | 'scheduled' | 'draft';
+  relatedId?: string;
   createdAt: Timestamp;
 };
 
 export function UserMenu() {
-    const { user, userProfile, authLoading, profileLoading } = useAuthContext();
+    const { user, userProfile, authLoading, profileLoading, isReady } = useAuthContext();
     const { firestore } = useFirebase();
     const auth = useAuth();
     const router = useRouter();
@@ -61,24 +66,23 @@ export function UserMenu() {
     }, []);
 
     const brokerDocRef = useMemoFirebase(
-        () => (firestore && user && userProfile?.userType === 'broker' ? doc(firestore, 'brokers', user.uid) : null),
-        [firestore, user, userProfile]
+        () => (firestore && user && userProfile?.userType === 'broker' && isReady ? doc(firestore, 'brokers', user.uid) : null),
+        [firestore, user, userProfile, isReady]
     );
     const { data: brokerProfile, isLoading: isBrokerLoading } = useDoc<BrokerProfile>(brokerDocRef);
 
-    // Query for the latest announcements for this user type
     const announcementsQuery = useMemoFirebase(
         () => {
-            if (!firestore || !userProfile) return null;
+            if (!firestore || !userProfile || !user || !isReady) return null;
             return query(
                 collection(firestore, 'announcements'),
-                where('recipients', 'array-contains', userProfile.userType),
+                where('recipients', 'array-contains-any', [userProfile.userType, user.uid]),
                 where('status', '==', 'sent'),
                 orderBy('createdAt', 'desc'),
                 limit(5)
             );
         },
-        [firestore, userProfile]
+        [firestore, userProfile, user?.uid, isReady]
     );
 
     const { data: announcements } = useCollection<Announcement>(announcementsQuery);
@@ -88,15 +92,19 @@ export function UserMenu() {
     const unreadCount = useMemo(() => {
         if (!announcements) return 0;
         if (!lastReadId) return announcements.length;
-        // Simple logic: if the newest isn't the last read, show 1 new at least
         return latestAnnouncement?.id !== lastReadId ? 1 : 0;
     }, [announcements, lastReadId, latestAnnouncement]);
 
     const hasUnread = unreadCount > 0;
 
     const handleOpenAnnouncement = (ann: Announcement) => {
-        setSelectedAnnouncement(ann);
-        setIsAnnouncementOpen(true);
+        if (ann.type === 'rede_oraora' && ann.relatedId) {
+            router.push(`/dashboard/solicitacoes-rede/${ann.relatedId}`);
+        } else {
+            setSelectedAnnouncement(ann);
+            setIsAnnouncementOpen(true);
+        }
+        
         if (ann.id === latestAnnouncement?.id) {
             setLastReadId(ann.id);
             localStorage.setItem('last_read_announcement', ann.id);
@@ -105,16 +113,20 @@ export function UserMenu() {
 
     const handleLogout = () => {
         if (auth) {
+            if (firestore && user) {
+                const userRef = doc(firestore, 'users', user.uid);
+                setDocumentNonBlocking(userRef, { isOnline: false }, { merge: true });
+            }
+            
             auth.signOut().then(() => {
                 router.push('/login');
             });
         }
     };
   
-    if (authLoading || profileLoading || isBrokerLoading) {
+    if (authLoading || profileLoading || !isReady || isBrokerLoading) {
         return (
             <div className="flex items-center gap-3">
-              <Skeleton className="h-9 w-9 rounded-full" />
               <Skeleton className="h-9 w-9 rounded-full" />
               <div className="h-8 w-px bg-gray-200"></div>
               <Skeleton className="h-8 w-24 rounded-md" />
@@ -126,18 +138,30 @@ export function UserMenu() {
     const isBroker = userProfile?.userType === 'broker';
     const isAdmin = userProfile?.userType === 'admin';
 
-    const siteUrl = isAdmin ? '/' : (isBroker && brokerProfile?.slug) ? `/sites/${brokerProfile.slug}` : '#';
-    const siteTooltip = isAdmin ? 'Ver site principal' : 'Ver meu site público';
+    const brokerSiteUrl = brokerProfile?.domain 
+        ? `https://${brokerProfile.domain}` 
+        : (brokerProfile?.slug ? `/sites/${brokerProfile.slug}` : null);
+
+    const siteUrl = isAdmin ? '/' : brokerSiteUrl || '#';
+
+    const canViewSite = isAdmin || (isBroker && brokerSiteUrl);
+
+    const siteTooltip = isAdmin 
+        ? 'Ver site principal' 
+        : (isBroker && brokerProfile?.domain) 
+        ? `Acessar ${brokerProfile.domain}` 
+        : 'Ver meu site público';
 
     return (
         <div className="flex items-center gap-4">
             <TooltipProvider>
-                {(isAdmin || (isBroker && brokerProfile?.slug)) && (
+                {canViewSite && (
                   <Tooltip>
                       <TooltipTrigger asChild>
-                          <Button asChild variant="ghost" size="icon" className="size-9 rounded-full hover:bg-gray-100 flex items-center justify-center text-text-secondary transition-colors relative">
+                          <Button asChild variant="outline" size="sm" className="h-9 gap-2 font-bold bg-white border-slate-200 hover:bg-slate-50 transition-all rounded-lg shadow-sm">
                               <Link href={siteUrl} target="_blank">
-                                  <span className="material-symbols-outlined text-[20px]">public</span>
+                                  <span className="material-symbols-outlined text-[18px]">public</span>
+                                  Ver site
                               </Link>
                           </Button>
                       </TooltipTrigger>
@@ -147,65 +171,85 @@ export function UserMenu() {
                   </Tooltip>
                 )}
                 
-                <Popover>
-                    <PopoverTrigger asChild>
-                        <button 
-                            className="size-9 rounded-full hover:bg-gray-100 flex items-center justify-center text-text-secondary transition-colors relative cursor-pointer outline-none"
-                        >
-                            <span className="material-symbols-outlined text-[20px]">notifications</span>
-                            {hasUnread && (
-                                <span className="absolute top-2 right-2 size-2 bg-secondary rounded-full border border-white animate-pulse"></span>
-                            )}
-                        </button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-80 p-0 overflow-hidden rounded-xl border border-gray-100 shadow-xl" align="end" sideOffset={8}>
-                        <div className="px-4 py-3 border-b border-gray-50 flex justify-between items-center bg-white">
-                            <h3 className="text-sm font-bold text-text-main">Notificações</h3>
-                            {unreadCount > 0 && (
-                                <span className="text-[10px] font-bold text-secondary uppercase tracking-widest">{unreadCount} Nova{unreadCount > 1 ? 's' : ''}</span>
-                            )}
-                        </div>
-                        <div className="max-h-[360px] overflow-y-auto bg-white">
-                            {announcements && announcements.length > 0 ? (
-                                announcements.map((ann) => (
-                                    <div 
-                                        key={ann.id} 
-                                        onClick={() => handleOpenAnnouncement(ann)}
-                                        className="p-4 hover:bg-background-light transition-colors cursor-pointer border-b border-gray-50 flex gap-3 relative"
-                                    >
-                                        <div className="size-10 shrink-0 rounded-lg bg-secondary/10 flex items-center justify-center text-secondary">
-                                            <span className="material-symbols-outlined text-[20px]">campaign</span>
-                                        </div>
-                                        <div className="flex-grow min-w-0">
-                                            <div className="flex justify-between items-start gap-2">
-                                                <p className="text-xs font-bold text-text-main truncate">{ann.title}</p>
-                                                <span className="text-[10px] text-text-secondary whitespace-nowrap">
-                                                    {ann.createdAt ? formatDistanceToNow(ann.createdAt.toDate(), { addSuffix: true, locale: ptBR }) : ''}
+                <div className="flex items-center gap-2">
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button asChild variant="ghost" size="icon" className="size-9 rounded-full hover:bg-gray-100 flex items-center justify-center text-text-secondary transition-colors relative">
+                                <Link href="/dashboard/suporte">
+                                    <span className="material-symbols-outlined text-[20px]">help</span>
+                                </Link>
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            <p>Suporte e Ajuda</p>
+                        </TooltipContent>
+                    </Tooltip>
+
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <button 
+                                className="size-9 rounded-full hover:bg-gray-100 flex items-center justify-center text-text-secondary transition-colors relative cursor-pointer outline-none"
+                            >
+                                <span className="material-symbols-outlined text-[20px]">notifications</span>
+                                {hasUnread && (
+                                    <span className="absolute top-2 right-2 size-2 bg-red-500 rounded-full border-2 border-white animate-pulse"></span>
+                                )}
+                            </button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-80 p-0 overflow-hidden rounded-xl border border-gray-100 shadow-xl" align="end" sideOffset={8}>
+                            <div className="px-4 py-3 border-b border-gray-50 flex justify-between items-center bg-white">
+                                <h3 className="text-sm font-bold text-text-main uppercase tracking-tighter">Notificações</h3>
+                                {unreadCount > 0 && (
+                                    <span className="text-[10px] font-black text-red-500 uppercase tracking-widest">{unreadCount} Nova{unreadCount > 1 ? 's' : ''}</span>
+                                )}
+                            </div>
+                            <div className="max-h-[360px] overflow-y-auto bg-white">
+                                {announcements && announcements.length > 0 ? (
+                                    announcements.map((ann) => (
+                                        <div 
+                                            key={ann.id} 
+                                            onClick={() => handleOpenAnnouncement(ann)}
+                                            className="p-4 hover:bg-background-light transition-colors cursor-pointer border-b border-gray-50 flex gap-3 relative text-left"
+                                        >
+                                            <div className={cn(
+                                                "size-10 shrink-0 rounded-lg flex items-center justify-center shadow-sm",
+                                                ann.type === 'rede_oraora' ? "bg-primary/20 text-primary-hover" : "bg-blue-50 text-blue-500"
+                                            )}>
+                                                <span className="material-symbols-outlined text-[20px]">
+                                                    {ann.type === 'rede_oraora' ? 'zap' : 'campaign'}
                                                 </span>
                                             </div>
-                                            <p className="text-[11px] text-text-secondary mt-0.5 line-clamp-1">{ann.content}</p>
+                                            <div className="flex-grow min-w-0">
+                                                <div className="flex justify-between items-start gap-2">
+                                                    <p className="text-xs font-bold text-text-main truncate uppercase tracking-tighter">{ann.title}</p>
+                                                    <span className="text-[9px] font-bold text-text-secondary whitespace-nowrap">
+                                                        {ann.createdAt ? formatDistanceToNow(ann.createdAt.toDate(), { addSuffix: true, locale: ptBR }) : ''}
+                                                    </span>
+                                                </div>
+                                                <p className="text-[11px] text-text-secondary mt-0.5 line-clamp-1">{ann.content}</p>
+                                            </div>
+                                            {ann.id !== lastReadId && ann.id === latestAnnouncement?.id && (
+                                                <div className="absolute right-2 top-1/2 -translate-y-1/2 size-2 bg-red-500 rounded-full"></div>
+                                            )}
                                         </div>
-                                        {ann.id !== lastReadId && ann.id === latestAnnouncement?.id && (
-                                            <div className="absolute right-2 top-1/2 -translate-y-1/2 size-2 bg-secondary rounded-full"></div>
-                                        )}
+                                    ))
+                                ) : (
+                                    <div className="p-8 text-center text-xs text-text-secondary italic">
+                                        Nenhuma notificação por enquanto.
                                     </div>
-                                ))
-                            ) : (
-                                <div className="p-8 text-center text-xs text-text-secondary">
-                                    Nenhuma notificação por enquanto.
-                                </div>
-                            )}
-                        </div>
-                        <div className="p-3 text-center border-t border-gray-50 bg-white">
-                            <Link 
-                                href="/dashboard/notificacoes" 
-                                className="text-xs font-bold text-text-main hover:text-secondary transition-colors"
-                            >
-                                Ver todas as notificações
-                            </Link>
-                        </div>
-                    </PopoverContent>
-                </Popover>
+                                )}
+                            </div>
+                            <div className="p-3 text-center border-t border-gray-50 bg-gray-50/50">
+                                <Link 
+                                    href="/dashboard/notificacoes" 
+                                    className="text-[10px] font-black uppercase tracking-widest text-text-secondary hover:text-primary-hover transition-colors"
+                                >
+                                    Ver todas as notificações
+                                </Link>
+                            </div>
+                        </PopoverContent>
+                    </Popover>
+                </div>
             </TooltipProvider>
 
             <div className="h-8 w-px bg-gray-200"></div>
@@ -214,7 +258,7 @@ export function UserMenu() {
                     <button type="button" className="flex items-center gap-3 cursor-pointer group outline-none">
                         <span className="text-right hidden sm:block">
                             <span className="block text-sm font-bold text-text-main">{user?.displayName || 'Usuário'}</span>
-                            <span className="block text-xs text-text-secondary">
+                            <span className="block text-xs text-text-secondary uppercase font-bold tracking-tighter">
                                 {userProfile?.userType === 'admin' ? 'Admin Master' : 
                                  userProfile?.userType === 'broker' ? 'Corretor' : 
                                  userProfile?.userType === 'constructor' ? 'Construtora' : 'Cliente'}
@@ -244,6 +288,14 @@ export function UserMenu() {
                             Meu Perfil
                         </Link>
                     </DropdownMenuItem>
+                    {isBroker && (
+                      <DropdownMenuItem asChild>
+                        <Link href="/dashboard/dominio">
+                            <span className="material-symbols-outlined mr-2 text-base">language</span>
+                            Domínio
+                        </Link>
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuItem>
                         <span className="material-symbols-outlined mr-2 text-base">settings</span>
                         Configurações
@@ -256,7 +308,6 @@ export function UserMenu() {
                 </DropdownMenuContent>
             </DropdownMenu>
 
-            {/* Announcement Detail Modal */}
             <Dialog open={isAnnouncementOpen} onOpenChange={setIsAnnouncementOpen}>
                 <DialogContent className="max-w-md">
                     <DialogHeader>

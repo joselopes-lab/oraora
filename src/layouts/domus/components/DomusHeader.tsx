@@ -1,208 +1,77 @@
 'use client';
+import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
-import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
-import SearchFilters from '@/components/SearchFilters';
-import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
-import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { useAuthContext } from '@/firebase/auth-provider';
+import { usePathname } from 'next/navigation';
 
-type Broker = {
-  brandName: string;
-  slug: string;
-  logoUrl?: string;
-  primaryColor?: string;
-  creci?: string;
-  homepage?: {
-    ctaButtonText?: string;
-    ctaButtonBgColor?: string;
-    ctaButtonTextColor?: string;
-    ctaButtonIcon?: string;
-  }
-};
+const DomusHeader = () => {
+  const { user, isReady } = useAuthContext();
+  const pathname = usePathname();
 
-function hslToHex(hslStr: string): string {
-    if (!hslStr || typeof hslStr !== 'string') return '#000000';
-    const parts = hslStr.match(/(\d+(\.\d+)?)/g);
-    if (!parts || parts.length < 3) return '#000000';
+  const navLinks = [
+    { href: '/', label: 'Início' },
+    { href: '/imoveis', label: 'Imóveis' },
+    { href: '/sobre', label: 'Sobre Nós' },
+    { href: '/fale-conosco', label: 'Fale Conosco' },
+    { href: '/explorar-no-mapa', label: 'Explorar no Mapa' },
+  ];
 
-    const h = parseFloat(parts[0]);
-    const s = parseFloat(parts[1]);
-    const l = parseFloat(parts[2]);
+  const isActive = (href: string) => pathname === href;
 
-    const sNormalized = s / 100;
-    const lNormalized = l / 100;
+  const MobileMenu = () => {
+    const [isOpen, setIsOpen] = useState(false);
 
-    const a = sNormalized * Math.min(lNormalized, 1 - lNormalized);
-    const f = (n: number) => {
-        const k = (n + h / 30) % 12;
-        const color = lNormalized - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
-        return Math.round(255 * color).toString(16).padStart(2, '0');
-    };
-    return `#${f(0)}${f(8)}${f(4)}`;
-}
-
-export function DomusHeader({ broker }: { broker: Broker }) {
-  const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const router = useRouter();
-  const [isMounted, setIsMounted] = useState(false);
-  const defaultLogo = PlaceHolderImages.find(img => img.id === 'default-logo')?.imageUrl;
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
-
-  const handleSearch = (queryString: string) => {
-    setIsSearchModalOpen(false); // Fecha o modal
-    router.push(`/sites/${broker.slug}/search?${queryString}`);
+    return (
+      <div className="md:hidden">
+        <button onClick={() => setIsOpen(!isOpen)} className="text-white">
+          <span className="material-symbols-outlined">menu</span>
+        </button>
+        {isOpen && (
+          <div className="absolute top-full left-0 w-full bg-white shadow-md">
+            <div className="flex flex-col p-4 space-y-2">
+                {navLinks.map(link => (
+                    <Link key={link.href} href={link.href} className="text-gray-800 hover:text-primary">{link.label}</Link>
+                ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
   };
 
-  const ctaText = broker.homepage?.ctaButtonText || 'Fale Conosco';
-  const ctaBgColor = broker.homepage?.ctaButtonBgColor ? hslToHex(broker.homepage.ctaButtonBgColor) : (broker.primaryColor ? hslToHex(broker.primaryColor) : '#8cf91f');
-  const ctaTextColor = broker.homepage?.ctaButtonTextColor ? hslToHex(broker.homepage.ctaButtonTextColor) : '#000000';
-  const ctaIcon = broker.homepage?.ctaButtonIcon || 'chat_bubble';
-
-  const dynamicSheetStyles: React.CSSProperties = {
-    '--primary': broker.primaryColor || '111 89% 50%',
-    '--ring': broker.primaryColor || '111 89% 50%',
-  } as React.CSSProperties;
-
   return (
-    <header className="sticky top-0 z-50 w-full glass-header h-16 flex items-center shadow-sm">
-      <div className="max-w-[1280px] mx-auto px-6 w-full flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Link href={`/sites/${broker.slug}`} className="flex items-center gap-3 group cursor-pointer">
-            {broker.logoUrl ? (
-              <Image src={broker.logoUrl} alt={`Logo de ${broker.brandName}`} width={160} height={40} className="h-10 w-auto object-contain" style={{ width: 'auto' }} />
-            ) : (
-              <>
-                <div className="size-8 flex items-center justify-center">
-                  <span className="material-symbols-outlined text-primary text-2xl group-hover:scale-110 transition-transform">architecture</span>
-                </div>
-                <h2 className="text-[#161811] dark:text-white text-lg font-semibold tracking-tighter uppercase">{broker.brandName}</h2>
-              </>
-            )}
-          </Link>
-          {broker.creci && (
-            <div className="hidden lg:block border-l border-black/10 dark:border-white/10 pl-4 ml-1">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">CRECI: {broker.creci}</p>
-            </div>
-          )}
-        </div>
-        <div className="flex items-center gap-10">
-          <nav className="hidden md:flex items-center gap-8">
-            <Link className="nav-link" href={`/sites/${broker.slug}`}>Início</Link>
-            <Link className="nav-link" href={`/sites/${broker.slug}/search`}>Imóveis</Link>
-            <Link className="nav-link" href={`/sites/${broker.slug}/explorar-no-mapa`}>Explorar no Mapa</Link>
-            <Link className="nav-link" href={`/sites/${broker.slug}/sobre`}>Sobre</Link>
-            <Link className="nav-link" href={`/sites/${broker.slug}/fale-conosco`}>Contato</Link>
-          </nav>
-          <div className="h-4 w-[1px] bg-black/10 dark:bg-white/10 hidden md:block"></div>
-          <div className="flex items-center gap-6">
-            {isMounted ? (
-              <Dialog open={isSearchModalOpen} onOpenChange={setIsSearchModalOpen}>
-                <DialogTrigger asChild>
-                  <button className="flex items-center justify-center text-[#161811]/60 dark:text-white/60 hover:text-primary transition-colors cursor-pointer outline-none">
-                    <span className="material-symbols-outlined text-[22px]">search</span>
-                  </button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-2xl">
-                  <DialogHeader>
-                    <DialogTitle>Busca de Imóveis</DialogTitle>
-                    <DialogDescription>
-                      Utilize os filtros abaixo para encontrar o imóvel ideal.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="py-4">
-                    <SearchFilters onSearch={handleSearch} />
-                  </div>
-                </DialogContent>
-              </Dialog>
-            ) : (
-              <button className="flex items-center justify-center text-[#161811]/60 dark:text-white/60 hover:text-primary transition-colors cursor-pointer outline-none">
-                <span className="material-symbols-outlined text-[22px]">search</span>
-              </button>
-            )}
-            
-            <Link 
-                href={`/sites/${broker.slug}/fale-conosco`} 
-                className="hidden sm:flex items-center justify-center gap-2 rounded-full h-10 px-6 text-xs font-bold uppercase tracking-wider hover:brightness-110 hover:shadow-lg transition-all"
-                style={{ 
-                    backgroundColor: ctaBgColor, 
-                    color: ctaTextColor,
-                    boxShadow: `0 4px 15px -5px ${ctaBgColor}BF`
-                }}
-            >
-              <span className="material-symbols-outlined text-lg">{ctaIcon}</span>
-              {ctaText}
+    <header className="bg-gray-900 text-white shadow-lg sticky top-0 z-40">
+      <div className="container mx-auto px-4">
+        <div className="flex justify-between items-center h-20">
+          <div className="flex items-center">
+            <Link href="/" className="flex items-center gap-2">
+              <Image src="/logo-domus.png" alt="Domus" width={40} height={40} className="rounded-full"/>
+              <span className="text-xl font-bold">Domus</span>
             </Link>
+          </div>
+          
+          <nav className="hidden md:flex items-center space-x-6">
+            {navLinks.map(link => (
+                <Link key={link.href} href={link.href} className={`font-medium transition-colors ${isActive(link.href) ? 'text-primary' : 'text-gray-300 hover:text-white'}`}>
+                    {link.label}
+                </Link>
+            ))}
+          </nav>
 
-            <div className="md:hidden flex items-center gap-3">
-              {isMounted && (
-                <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
-                  <SheetTrigger asChild>
-                    <button className="flex items-center justify-center size-10 rounded-full bg-gray-100 dark:bg-white/5 text-text-main dark:text-white outline-none">
-                      <span className="material-symbols-outlined">menu</span>
-                    </button>
-                  </SheetTrigger>
-                  <SheetContent style={dynamicSheetStyles} side="right" className="p-0 flex flex-col bg-white dark:bg-background-dark border-l border-slate-100 dark:border-white/5">
-                      <SheetHeader className="p-6 border-b border-slate-100 dark:border-white/5">
-                        <VisuallyHidden>
-                            <SheetTitle>Menu Principal</SheetTitle>
-                            <SheetDescription>Navegue pelas seções do site.</SheetDescription>
-                        </VisuallyHidden>
-                        <Link href={`/sites/${broker.slug}`} onClick={() => setIsMobileMenuOpen(false)}>
-                            {broker.logoUrl ? (
-                              <Image src={broker.logoUrl} alt="Logo" width={120} height={30} className="h-[30px] w-auto object-contain" />
-                            ) : (
-                              <h2 className="text-xl font-bold uppercase tracking-tighter">{broker.brandName}</h2>
-                            )}
-                        </Link>
-                      </SheetHeader>
-                      <nav className="flex flex-col gap-2 p-4 text-lg font-semibold">
-                          <Link href={`/sites/${broker.slug}`} onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-3 rounded-lg py-3 px-4 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
-                              <span className="material-symbols-outlined">home</span>Início
-                          </Link>
-                           <Link href={`/sites/${broker.slug}/search`} onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-3 rounded-lg py-3 px-4 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
-                              <span className="material-symbols-outlined">real_estate_agent</span>Imóveis
-                          </Link>
-                          <Link href={`/sites/${broker.slug}/explorar-no-mapa`} onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-3 rounded-lg py-3 px-4 hover:bg-gray-100 transition-colors">
-                              <span className="material-symbols-outlined">map</span>Explorar no Mapa
-                          </Link>
-                          <Link href={`/sites/${broker.slug}/sobre`} onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-3 rounded-lg py-3 px-4 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
-                              <span className="material-symbols-outlined">badge</span>Sobre
-                          </Link>
-                          <Link href={`/sites/${broker.slug}/fale-conosco`} onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-3 rounded-lg py-3 px-4 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
-                              <span className="material-symbols-outlined">mail</span>Contato
-                          </Link>
-                      </nav>
-                      <div className="mt-auto p-6 space-y-4 border-t border-slate-100 dark:border-white/5">
-                          <Button
-                            asChild
-                            className="w-full h-12 text-base font-bold rounded-xl"
-                            style={{
-                              backgroundColor: ctaBgColor,
-                              color: ctaTextColor
-                            }}
-                          >
-                            <Link href={`/sites/${broker.slug}/fale-conosco`} onClick={() => setIsMobileMenuOpen(false)}>
-                              <span className="material-symbols-outlined mr-2">{ctaIcon}</span>
-                              {ctaText}
-                            </Link>
-                          </Button>
-                      </div>
-                  </SheetContent>
-                </Sheet>
-              )}
-            </div>
+          <div className="flex items-center gap-4">
+            {isReady && (
+              <Link href={user ? "/dashboard" : "/login"} className="hidden md:flex items-center gap-2 bg-primary text-white font-bold py-2 px-4 rounded-lg hover:bg-primary-dark transition-colors">
+                <span className="material-symbols-outlined text-[20px]">person</span>
+                {user ? 'Painel' : 'Login'}
+              </Link>
+            )}
+            <MobileMenu />
           </div>
         </div>
       </div>
     </header>
   );
-}
+};
+
+export default DomusHeader;

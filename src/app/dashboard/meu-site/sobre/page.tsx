@@ -7,7 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useDoc, useFirebase, useMemoFirebase, setDocumentNonBlocking } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,6 +15,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import Image from 'next/image';
+import { Progress } from '@/components/ui/progress';
+import { uploadFile } from '@/lib/storage';
 
 const awardSchema = z.object({
   yearOrEntity: z.string().optional(),
@@ -63,9 +66,16 @@ type BrokerData = {
     urbanPadraoSobre?: SobreFormData;
 }
 
+type UploadState = {
+  progress: number;
+  isUploading: boolean;
+  error: string | null;
+};
+
 export default function EditSobrePage() {
-    const { firestore, user } = useFirebase();
+    const { firestore, user, storage } = useFirebase();
     const { toast } = useToast();
+    const [uploadState, setUploadState] = useState<UploadState>({ progress: 0, isUploading: false, error: null });
 
     const brokerDocRef = useMemoFirebase(() => user?.uid ? doc(firestore, 'brokers', user.uid) : null, [firestore, user?.uid]);
     const { data: brokerData, isLoading } = useDoc<BrokerData>(brokerDocRef);
@@ -123,6 +133,27 @@ export default function EditSobrePage() {
         }
     }, [brokerData, form]);
 
+    const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file || !user || !storage) return;
+        setUploadState({ progress: 0, isUploading: true, error: null });
+        try {
+            const path = `brokers/${user.uid}/profile`;
+            const onProgress = (progress: number) => {
+                setUploadState(prev => ({ ...prev, progress, isUploading: true }));
+            };
+            const downloadURL = await uploadFile(storage, path, file, onProgress);
+            form.setValue('profileImageUrl', downloadURL, { shouldDirty: true });
+            toast({ title: 'Upload Concluído!', description: 'A imagem foi enviada.' });
+        } catch (error) {
+            console.error('Upload error:', error);
+            setUploadState({ progress: 0, isUploading: false, error: 'Falha no upload.' });
+            toast({ variant: "destructive", title: "Erro no Upload", description: "Não foi possível enviar a imagem." });
+        } finally {
+            setUploadState(prev => ({ ...prev, isUploading: false }));
+        }
+    };
+
     const onSubmit = (data: SobreFormData) => {
         if (!brokerDocRef || !user) return;
         setDocumentNonBlocking(brokerDocRef, { urbanPadraoSobre: data, userId: user.uid }, { merge: true });
@@ -163,8 +194,42 @@ export default function EditSobrePage() {
                         <div className="p-6 grid grid-cols-1 md:grid-cols-12 gap-8">
                             <div className="md:col-span-4 flex flex-col">
                                 <div className="w-full">
-                                    <Label className="block text-sm font-medium text-text-main mb-2">URL da Foto de Perfil</Label>
-                                    <Input id="profileImageUrl" {...form.register('profileImageUrl')} placeholder="https://exemplo.com/foto.jpg" />
+                                    <Label className="block text-sm font-medium text-text-main mb-2">Foto de Perfil</Label>
+                                    <div className="flex flex-col gap-4">
+                                        <div className="relative size-40 rounded-full bg-gray-100 border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden mx-auto">
+                                            {form.watch('profileImageUrl') ? (
+                                                <Image src={form.watch('profileImageUrl')!} alt="Profile Preview" fill className="object-cover" />
+                                            ) : (
+                                                <span className="material-symbols-outlined text-gray-400 text-4xl">
+                                                person
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label htmlFor="profile-image-upload" className="w-full">
+                                                <div className="w-full h-10 px-4 flex items-center justify-center gap-2 rounded-lg bg-gray-50 border border-gray-200 text-xs font-medium text-gray-700 cursor-pointer hover:bg-gray-200 transition-colors">
+                                                    <span className="material-symbols-outlined text-base">upload</span>
+                                                    Carregar Foto
+                                                </div>
+                                                <Input
+                                                    id="profile-image-upload"
+                                                    type="file"
+                                                    accept="image/*"
+                                                    className="sr-only"
+                                                    onChange={handleImageUpload}
+                                                    disabled={uploadState.isUploading}
+                                                />
+                                            </label>
+                                            {uploadState.isUploading && (
+                                                <Progress value={uploadState.progress} className="h-1.5" />
+                                            )}
+                                            <Input
+                                                className="w-full h-9 border-gray-200 text-xs"
+                                                placeholder="URL da Imagem"
+                                                {...form.register('profileImageUrl')}
+                                            />
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                             <div className="md:col-span-8 space-y-6">

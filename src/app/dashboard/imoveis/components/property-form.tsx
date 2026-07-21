@@ -15,13 +15,10 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-  DialogFooter,
-  DialogClose,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import locationData from '@/lib/location-data.json';
-import { useCollection, useFirestore, useMemoFirebase, useUser, addDocumentNonBlocking, useFirebase } from "@/firebase";
-import { collection, query, where, serverTimestamp } from "firebase/firestore";
+import { useFirestore, useUser, useFirebase, useCollection, useMemoFirebase } from "@/firebase";
+import { collection, query, where, doc } from "firebase/firestore";
 import { useForm, FormProvider, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -39,6 +36,9 @@ import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { ref as storageRef, deleteObject } from "firebase/storage";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Loader2, Trash2, Plus, X } from "lucide-react";
+import locationData from '@/lib/location-data.json';
+import { savePropertyServer } from '../actions.server';
 
 // A simple rich text editor component
 const MiniRichEditor = forwardRef<
@@ -47,7 +47,6 @@ const MiniRichEditor = forwardRef<
 >(({ value, onChange, onBlur }, ref) => {
   const editorRef = useRef<HTMLDivElement>(null);
   
-  // Combine forwarded ref and internal ref
   useImperativeHandle(ref, () => editorRef.current!);
 
   const handleInput = () => {
@@ -68,7 +67,7 @@ const MiniRichEditor = forwardRef<
   }, [value]);
 
   return (
-    <div className="rounded-lg border border-input bg-background focus-within:ring-2 focus-within:ring-ring">
+    <div className="rounded-lg border border-input bg-background focus-within:ring-2 focus-within:ring-ring text-left">
       <div className="p-1 border-b border-input flex items-center gap-1">
         <button
           type="button"
@@ -89,7 +88,7 @@ const MiniRichEditor = forwardRef<
         ref={editorRef}
         contentEditable
         onInput={handleInput}
-        onBlur={onBlur} // Trigger validation on blur
+        onBlur={onBlur}
         className="prose prose-sm dark:prose-invert max-w-none min-h-[120px] w-full rounded-md p-3 text-sm ring-offset-background focus-visible:outline-none"
       />
     </div>
@@ -98,12 +97,12 @@ const MiniRichEditor = forwardRef<
 MiniRichEditor.displayName = 'MiniRichEditor';
 
 
-// Zod Schema based on the new JSON structure
 const propertyFormSchema = z.object({
-  builderId: z.string().optional(), // Kept for associating property with constructors
-  brokerId: z.string().optional(), // For one-off broker properties
-  clientId: z.string().optional(), // New field for associating with a client
+  builderId: z.string().optional(),
+  brokerId: z.string().optional(),
+  clientId: z.string().optional(),
   personaIds: z.array(z.string()).optional().default([]),
+  link: z.string().optional(),
   informacoesbasicas: z.object({
     nome: z.string().min(1, "O nome do imóvel é obrigatório."),
     status: z.string().default('Em Construção'),
@@ -111,6 +110,9 @@ const propertyFormSchema = z.object({
     slogan: z.string().optional(),
     descricao: z.string().optional(),
     valor: z.coerce.number().optional(),
+    salePrice: z.coerce.number().optional(),
+    rentPrice: z.coerce.number().optional(),
+    transactionTypes: z.array(z.string()).default(['sale']),
     previsaoentrega: z.string().optional(),
     condominio: z.coerce.number().optional(),
     iptu: z.coerce.number().optional(),
@@ -121,10 +123,11 @@ const propertyFormSchema = z.object({
     tipo: z.string().default('Apartamento'),
     quartos: z.array(z.string()).optional(),
     suites: z.array(z.string()).optional(),
-    tamanho: z.string().optional(), // Now a string like "23m² a 48m²"
+    tamanho: z.string().optional(),
     vagas: z.string().optional(),
   }),
   localizacao: z.object({
+    cep: z.string().optional(),
     address: z.string().optional(),
     estado: z.string().min(1, "O estado é obrigatório"),
     cidade: z.string().min(1, "A cidade é obrigatória"),
@@ -152,13 +155,13 @@ const generateSlug = (name: string) => {
     return name
         .toString()
         .toLowerCase()
-        .normalize('NFD') // separate accent from letter
-        .replace(/[\u0300-\u036f]/g, '') // remove all separated accents
-        .replace(/\s+/g, '-') // replace spaces with -
-        .replace(/[^a-z0-9-]/g, '') // remove all chars not letters, numbers and -
-        .replace(/-+/g, '-') // replace multiple - with single -
-        .replace(/^-+/, '') // trim - from start of text
-        .replace(/-+$/, ''); // trim - from end of text
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/[^a-z0-9-]/g, '')
+        .replace(/-+/g, '-')
+        .replace(/^-+/, '')
+        .replace(/-+$/, '');
 }
 
 
@@ -191,6 +194,23 @@ type PropertyFormProps = {
 const bedroomOptions = ["1", "2", "3", "4", "5+"];
 const suiteOptions = ["1", "2", "3", "4+"];
 
+const commonAreasOptions = [
+  "Piscina",
+  "Academia",
+  "Salão de Festas",
+  "Churrasqueira",
+  "Playground",
+  "Brinquedoteca",
+  "Quadra Poliesportiva",
+  "Portaria 24h",
+  "Bicicletário",
+  "SPA",
+  "Pet Place",
+  "Espaço Gourmet",
+  "Cinema",
+  "Coworking"
+];
+
 type UploadState = {
   id: string;
   file: File;
@@ -199,7 +219,7 @@ type UploadState = {
 };
 
 
-export default function PropertyForm({ propertyData, onSave, isEditing, isSubmitting }: PropertyFormProps) {
+export default function PropertyForm({ propertyData, onSave, isEditing, isSubmitting: parentSubmitting }: PropertyFormProps) {
     const { firestore, user, storage } = useFirebase();
     const pathname = usePathname();
     const isAvulso = pathname.includes('/avulso/');
@@ -211,25 +231,29 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
     const personasQuery = useMemoFirebase(() => firestore ? query(collection(firestore, 'personas'), where('status', '==', 'Ativo')) : null, [firestore]);
     const { data: personas, isLoading: arePersonasLoading } = useCollection<Persona>(personasQuery);
 
-    const constructorsQuery = useMemoFirebase(() => firestore ? collection(firestore, 'constructors') : null, [firestore]);
+    const constructorsQuery = useMemoFirebase(() => firestore ? query(collection(firestore, 'constructors')) : null, [firestore]);
     const { data: constructors, isLoading: areConstructorsLoading } = useCollection<Constructor>(constructorsQuery);
 
     const { toast } = useToast();
     const [isGeneratingSeo, setIsGeneratingSeo] = useState(false);
     const [isClientModalOpen, setIsClientModalOpen] = useState(false);
+    const [localSubmitting, setLocalSubmitting] = useState(false);
     
     const [imageUploads, setImageUploads] = useState<UploadState[]>([]);
     const [isSlugManuallyEdited, setIsSlugManuallyEdited] = useState(isEditing);
 
+    const states = locationData.states;
+    const [isLoadingCep, setIsLoadingCep] = useState(false);
 
     let defaultValues: PropertyFormData = {
         builderId: '',
         brokerId: user?.uid || '',
         clientId: '',
         personaIds: [],
-        informacoesbasicas: { nome: '', status: 'Em Construção', valor: 0, slug: '', slogan: '', descricao: '', previsaoentrega: '', condominio: 0, iptu: 0, nomeCondominio: '', exclusivo: false },
+        link: '',
+        informacoesbasicas: { nome: '', status: 'Em Construção', valor: 0, salePrice: 0, rentPrice: 0, transactionTypes: ['sale'], slug: '', slogan: '', descricao: '', previsaoentrega: '', condominio: 0, iptu: 0, nomeCondominio: '', exclusivo: false },
         caracteristicasimovel: { tipo: 'Apartamento', quartos: [], suites: [], tamanho: '', vagas: '' },
-        localizacao: { estado: '', cidade: '', bairro: '', address: '', googleMapsLink: '', googleStreetViewLink: '' },
+        localizacao: { cep: '', estado: '', cidade: '', bairro: '', address: '', googleMapsLink: '', googleStreetViewLink: '' },
         midia: [],
         youtubeVideoUrl: '',
         areascomuns: [],
@@ -241,197 +265,74 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
         isVisibleOnSite: true,
     };
 
-    if (isAvulso && !isEditing) {
-        defaultValues.statusobra = { fundacao: 100, estrutura: 100, alvenaria: 100, acabamentos: 100 };
-        defaultValues.informacoesbasicas.status = 'Pronto para Morar';
-    }
-
     const form = useForm<PropertyFormData>({
         resolver: zodResolver(propertyFormSchema),
         defaultValues: {
             ...defaultValues,
             ...propertyData,
-            informacoesbasicas: {
-                ...defaultValues.informacoesbasicas,
-                ...propertyData?.informacoesbasicas,
-            },
-            caracteristicasimovel: {
-                ...defaultValues.caracteristicasimovel,
-                ...propertyData?.caracteristicasimovel,
-            },
-            localizacao: {
-                ...defaultValues.localizacao,
-                ...propertyData?.localizacao,
-            },
-            statusobra: {
-                 ...defaultValues.statusobra,
-                ...propertyData?.statusobra,
-            },
+            informacoesbasicas: { ...defaultValues.informacoesbasicas, ...propertyData?.informacoesbasicas },
+            caracteristicasimovel: { ...defaultValues.caracteristicasimovel, ...propertyData?.caracteristicasimovel },
+            localizacao: { ...defaultValues.localizacao, ...propertyData?.localizacao },
+            statusobra: { ...defaultValues.statusobra, ...propertyData?.statusobra },
         }
     });
 
-    const [states] = useState(locationData.states);
-    const [cities, setCities] = useState<{ name: string; neighborhoods: string[] }[]>([]);
-    const [neighborhoods, setNeighborhoods] = useState<string[]>([]);
-    
     const watchState = form.watch('localizacao.estado');
     const watchCity = form.watch('localizacao.cidade');
-    const watchName = form.watch('informacoesbasicas.nome');
+    const watchTransactionTypes = form.watch('informacoesbasicas.transactionTypes') || [];
 
-    // Populate cities when state changes
-    useEffect(() => {
-        if (watchState) {
-            const stateData = states.find(s => s.name === watchState || s.uf === watchState);
-            setCities(stateData?.cities || []);
-        } else {
-            setCities([]);
-        }
-    }, [watchState, states]);
-    
-    // Populate neighborhoods when city changes
-    useEffect(() => {
-        if (watchCity) {
-            const cityData = cities.find(c => c.name === watchCity);
-            setNeighborhoods(cityData?.neighborhoods || []);
-        } else {
-            setNeighborhoods([]);
-        }
-    }, [watchCity, cities]);
-
-    const citiesWithOptions = useMemo(() => {
-        const currentCity = form.getValues('localizacao.cidade');
-        if (currentCity && !cities.some(c => c.name === currentCity)) {
-            return [{ name: currentCity, neighborhoods: [] }, ...cities];
-        }
-        return cities;
-    }, [cities, form.getValues('localizacao.cidade')]);
-
-    const neighborhoodsWithOptions = useMemo(() => {
-        const currentBairro = form.getValues('localizacao.bairro');
-        if (currentBairro && !neighborhoods.includes(currentBairro)) {
-            return [currentBairro, ...neighborhoods];
-        }
-        return neighborhoods;
-    }, [neighborhoods, form.getValues('localizacao.bairro')]);
-
-    // Handle initial form population for editing
-    useEffect(() => {
-      if (isEditing && propertyData) {
-        // Deep merge to ensure all fields have a value
-         const mergedData = {
-            ...defaultValues,
-            ...propertyData,
-            informacoesbasicas: {
-                ...defaultValues.informacoesbasicas,
-                ...propertyData?.informacoesbasicas,
-            },
-            caracteristicasimovel: {
-                ...defaultValues.caracteristicasimovel,
-                ...propertyData?.caracteristicasimovel,
-            },
-            localizacao: {
-                ...defaultValues.localizacao,
-                ...propertyData?.localizacao,
-            },
-            statusobra: {
-                 ...defaultValues.statusobra,
-                ...propertyData?.statusobra,
-            },
-        };
-        form.reset(mergedData);
+    const handleInternalSave = async (data: PropertyFormData) => {
+        if (!user) return;
+        setLocalSubmitting(true);
+        const colName = isAvulso ? 'brokerProperties' : 'properties';
         
-        // Pre-populate cities and neighborhoods on initial load for edit
-        if (propertyData.localizacao?.estado) {
-            const stateData = states.find(s => s.name === propertyData.localizacao!.estado || s.uf === propertyData.localizacao!.estado);
-            if (stateData) {
-                setCities(stateData.cities);
-                if (propertyData.localizacao.cidade) {
-                    const cityData = stateData.cities.find(c => c.name === propertyData.localizacao!.cidade);
-                    setNeighborhoods(cityData?.neighborhoods || []);
-                }
+        try {
+            const res = await savePropertyServer(colName, (propertyData as any)?.id || null, data, user.uid);
+            if (res.success) {
+                toast({ title: isEditing ? 'Imóvel atualizado!' : 'Imóvel criado!', description: 'Cache de sitemap e portal revalidados.' });
+                onSave(data);
+            } else {
+                toast({ variant: 'destructive', title: 'Erro ao salvar', description: res.message });
             }
-        }
-      }
-    }, [isEditing, propertyData, form, states]);
-    
-
-    const [newAmenity, setNewAmenity] = useState('');
-    const [newNearby, setNewNearby] = useState('');
-    const [newImageUrl, setNewImageUrl] = useState("");
-    
-    const handleAddAmenity = () => {
-        if (newAmenity.trim()) {
-            const currentAmenities = form.getValues('areascomuns');
-            form.setValue('areascomuns', [...currentAmenities, newAmenity.trim()]);
-            setNewAmenity('');
-        }
-    };
-    const handleRemoveAmenity = (index: number) => {
-        const currentAmenities = form.getValues('areascomuns');
-        form.setValue('areascomuns', currentAmenities.filter((_, i) => i !== index));
-    };
-
-    const handleAddNearby = () => {
-        if (newNearby.trim()) {
-            const currentNearby = form.getValues('proximidades');
-            form.setValue('proximidades', [...currentNearby, newNearby.trim()]);
-            setNewNearby('');
-        }
-    };
-    const handleRemoveNearby = (index: number) => {
-        const currentNearby = form.getValues('proximidades');
-        form.setValue('proximidades', currentNearby.filter((_, i) => i !== index));
-    };
-
-    const handleAddImage = () => {
-        if (newImageUrl.trim()) {
-           const currentImages = form.getValues('midia') || [];
-           form.setValue('midia', [...currentImages, newImageUrl.trim()]);
-           setNewImageUrl("");
+        } catch (e: any) {
+            toast({ variant: 'destructive', title: 'Erro de conexão' });
+        } finally {
+            setLocalSubmitting(false);
         }
     };
 
-    const handleRemoveImage = async (index: number) => {
-        if (!storage) {
-            toast({
-                variant: 'destructive',
-                title: 'Erro',
-                description: 'Serviço de armazenamento não está disponível.',
-            });
-            return;
-        }
+    const availableCities = useMemo(() => {
+        if (!watchState) return [];
+        const stateData = states.find(s => s.uf === watchState || s.name === watchState);
+        return stateData?.cities || [];
+    }, [watchState, states]);
 
-        const currentImages = form.getValues('midia') || [];
-        const imageUrl = currentImages[index];
+    const availableNeighborhoods = useMemo(() => {
+        if (!watchCity) return [];
+        const cityData = availableCities.find(c => c.name === watchCity);
+        return cityData?.neighborhoods || [];
+    }, [watchCity, availableCities]);
 
-        // Optimistically update the UI
-        form.setValue('midia', currentImages.filter((_, i) => i !== index));
-
-        // Check if it's a Firebase Storage URL before trying to delete
-        if (imageUrl.includes('firebasestorage.googleapis.com')) {
-            try {
-                // Create a reference from the HTTPS URL
-                const imageRef = storageRef(storage, imageUrl);
-                
-                // Delete the file
-                await deleteObject(imageRef);
-
-                toast({
-                    title: 'Imagem Removida',
-                    description: 'A imagem foi removida com sucesso do armazenamento.',
-                });
-            } catch (error) {
-                console.error("Erro ao remover imagem do storage:", error);
-                // Optional: Revert UI change if deletion fails. For now, just notify.
-                toast({
-                    variant: 'destructive',
-                    title: 'Erro ao Remover do Armazenamento',
-                    description: 'A imagem foi removida da lista, mas falhou ao ser deletada do armazenamento.',
-                });
-            }
+    const handleCepBlur = async (e: React.FocusEvent<HTMLInputElement>) => {
+        const cep = e.target.value.replace(/\D/g, '');
+        if (cep.length !== 8) return;
+        setIsLoadingCep(true);
+        try {
+            const response = await fetch(`https://brasilapi.com.br/api/cep/v2/${cep}`);
+            const data = await response.json();
+            form.setValue('localizacao.estado', data.state, { shouldValidate: true });
+            form.setValue('localizacao.address', data.street || '', { shouldValidate: true });
+            setTimeout(() => {
+                form.setValue('localizacao.cidade', data.city, { shouldValidate: true });
+                form.setValue('localizacao.bairro', data.neighborhood || '', { shouldValidate: true });
+            }, 500);
+        } catch (error) {
+            toast({ variant: "destructive", title: "CEP não localizado" });
+        } finally {
+            setIsLoadingCep(false);
         }
     };
-    
+
     const handleImageUploads = (event: React.ChangeEvent<HTMLInputElement>) => {
         const files = event.target.files;
         if (!files || !user || !storage) return;
@@ -446,123 +347,25 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
 
         newUploads.forEach(upload => {
         const path = `properties/${user.uid}`;
-        const onProgress = (progress: number) => {
-            setImageUploads(prev =>
-            prev.map(u => (u.id === upload.id ? { ...u, progress } : u))
-            );
-        };
-
-        uploadFile(storage, path, upload.file, onProgress)
+        uploadFile(storage, path, upload.file, (progress) => {
+            setImageUploads(prev => prev.map(u => (u.id === upload.id ? { ...u, progress } : u)));
+        })
             .then(downloadURL => {
             form.setValue('midia', [...(form.getValues('midia') || []), downloadURL], { shouldDirty: true });
-            // Remove from upload list on success after a short delay
-            setTimeout(() => {
-                setImageUploads(prev => prev.filter(u => u.id !== upload.id));
-            }, 1000);
+            setTimeout(() => setImageUploads(prev => prev.filter(u => u.id !== upload.id)), 1000);
             })
-            .catch(error => {
-            console.error('Upload error:', error);
-            setImageUploads(prev =>
-                prev.map(u =>
-                u.id === upload.id ? { ...u, error: 'Falha no upload' } : u
-                )
-            );
-            toast({
-                variant: "destructive",
-                title: "Erro no Upload",
-                description: `Falha ao enviar ${upload.file.name}.`,
-            });
-            });
+            .catch(() => toast({ variant: "destructive", title: "Erro no Upload" }));
         });
     };
 
-
-
-    const { areascomuns: watchedAmenities = [], proximidades: watchedNearby = [], midia: watchedMedia = [] } = form.watch();
-
-    const handleGenerateSeo = async () => {
-        setIsGeneratingSeo(true);
-        toast({
-            title: 'Gerando SEO com IA...',
-            description: 'Aguarde um momento, estamos criando o conteúdo para você.',
-        });
-
-        try {
-            const values = form.getValues();
-            const input: GenerateSeoInput = {
-                nome: values.informacoesbasicas.nome,
-                descricao: values.informacoesbasicas.descricao,
-                tipo: values.caracteristicasimovel.tipo,
-                bairro: values.localizacao.bairro,
-                cidade: values.localizacao.cidade,
-                estado: values.localizacao.estado,
-            };
-
-            const result = await generateSeoForProperty(input);
-
-            if (result) {
-                form.setValue('seoTitle', result.seoTitle, { shouldValidate: true });
-                form.setValue('seoDescription', result.seoDescription, { shouldValidate: true });
-                form.setValue('seoKeywords', result.seoKeywords, { shouldValidate: true });
-                toast({
-                    title: 'SEO Gerado com Sucesso!',
-                    description: 'Os campos de SEO foram preenchidos com as sugestões da IA.',
-                });
-            } else {
-                throw new Error("A resposta da IA foi vazia.");
-            }
-
-        } catch (error) {
-            console.error("Erro ao gerar SEO:", error);
-            toast({
-                variant: "destructive",
-                title: 'Erro ao Gerar SEO',
-                description: 'Não foi possível gerar o conteúdo de SEO. Tente novamente.',
-            });
-        } finally {
-            setIsGeneratingSeo(false);
-        }
-    };
-
-    const handleSaveNewClient = async (data: ClientFormData) => {
-        if (!firestore || !user) {
-            toast({ variant: 'destructive', title: 'Erro de Autenticação', description: 'Você precisa estar logado.' });
-            return;
-        }
-        
-        try {
-            const leadsCollectionRef = collection(firestore, 'leads');
-            const newData = {
-                ...data,
-                brokerId: user.uid,
-                createdAt: serverTimestamp(),
-                status: 'new',
-                clientType: 'vendedor',
-            };
-            const docRef = await addDocumentNonBlocking(leadsCollectionRef, newData);
-            
-            if (docRef) {
-                toast({
-                    title: 'Cliente Criado!',
-                    description: `O cliente "${data.name}" foi salvo e selecionado.`,
-                });
-                form.setValue('clientId', docRef.id, { shouldValidate: true });
-                setIsClientModalOpen(false);
-            }
-    
-        } catch (error) {
-            console.error("Erro ao cadastrar cliente:", error);
-            toast({
-                variant: 'destructive',
-                title: 'Erro ao Salvar',
-                description: 'Não foi possível salvar o novo cliente.',
-            });
-        }
+    const removeImage = (urlToRemove: string) => {
+        const currentMidia = form.getValues('midia') || [];
+        form.setValue('midia', currentMidia.filter(url => url !== urlToRemove), { shouldDirty: true });
     };
 
     return (
       <FormProvider {...form}>
-        <form onSubmit={form.handleSubmit(onSave)} className="space-y-6">
+        <form onSubmit={form.handleSubmit(handleInternalSave)} className="space-y-6 text-left">
             <nav className="flex mb-6 text-sm font-medium text-text-secondary">
                 <Link className="hover:text-text-main" href="/dashboard">Home</Link>
                 <span className="mx-2">/</span>
@@ -572,14 +375,14 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
             </nav>
 
             <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
-                <div>
+                <div className="text-left">
                     <h1 className="text-3xl font-black tracking-tight text-text-main mb-2">{isEditing ? 'Editar Imóvel' : 'Cadastrar Novo Imóvel'}</h1>
-                    <p className="text-text-secondary max-w-2xl">Preencha todos os detalhes abaixo para publicar o imóvel no sistema e website. Campos marcados com <span className="text-red-500">*</span> são obrigatórios.</p>
+                    <p className="text-text-secondary max-w-2xl">O sitemap e o portal serão atualizados automaticamente após salvar.</p>
                 </div>
                 <div className="flex gap-3">
-                    <Button type="submit" disabled={isSubmitting} className="px-5 py-2.5 rounded-lg bg-primary text-black font-bold text-sm hover:bg-primary-hover transition-colors shadow-sm flex items-center gap-2">
+                    <Button type="submit" disabled={localSubmitting || parentSubmitting} className="px-5 py-2.5 rounded-lg bg-primary text-black font-bold text-sm hover:bg-primary-hover transition-colors shadow-sm flex items-center gap-2 border-none cursor-pointer">
                         <span className="material-symbols-outlined text-[18px]">save</span>
-                         {isSubmitting ? 'Salvando...' : 'Salvar Imóvel'}
+                         {localSubmitting ? 'Salvando...' : 'Salvar Imóvel'}
                     </Button>
                 </div>
             </div>
@@ -614,62 +417,54 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
                                     render={({ field }) => (
                                     <FormItem className="flex-1">
                                         <FormControl>
-                                            <select {...field} className="w-full rounded-lg border-card-border bg-[#f7f8f5] focus:border-primary focus:ring-primary text-text-main h-11" disabled={areClientsLoading}>
-                                                <option value="">{areClientsLoading ? 'Carregando clientes...' : 'Selecione um cliente...'}</option>
-                                                {clients?.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                            <select {...field} className="w-full rounded-lg border-card-border bg-[#f7f8f5] focus:border-primary focus:ring-primary text-text-main h-11 px-3" disabled={areClientsLoading}>
+                                                <option key="client-none" value="">{areClientsLoading ? 'Carregando clientes...' : 'Selecione um cliente...'}</option>
+                                                {clients?.map((c) => <option key={`client-${c.id}`} value={c.id}>{c.name}</option>)}
                                             </select>
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
                                     )}
                                 />
-                                <Dialog open={isClientModalOpen} onOpenChange={setIsClientModalOpen}>
-                                    <DialogTrigger asChild>
-                                        <Button type="button" variant="outline" className="h-11">
-                                            <span className="material-symbols-outlined text-[18px] mr-2">person_add</span>
-                                            Novo Cliente
-                                        </Button>
-                                    </DialogTrigger>
-                                     <DialogContent className="max-w-4xl p-0 max-h-[90vh] overflow-y-auto">
-                                        <VisuallyHidden>
-                                            <DialogHeader>
-                                                <DialogTitle>Cadastrar Novo Cliente (Vendedor)</DialogTitle>
-                                                <DialogDescription>Este cliente será o proprietário do imóvel avulso.</DialogDescription>
-                                            </DialogHeader>
-                                        </VisuallyHidden>
-                                      <div className="overflow-y-auto">
-                                          <ClientForm 
-                                              onSave={handleSaveNewClient} 
-                                              isEditing={false} 
-                                              clientData={{ clientType: 'vendedor' }}
-                                              onCancel={() => setIsClientModalOpen(false)}
-                                              title="Cadastrar Novo Cliente (Vendedor)"
-                                              description="Este cliente será o proprietário do imóvel avulso."
-                                          />
-                                       </div>
-                                    </DialogContent>
-                                </Dialog>
                             </div>
                         </div>
                     ) : (
-                        <div className="lg:col-span-12">
-                            <FormField
-                                control={form.control}
-                                name="builderId"
-                                render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Construtora Associada</FormLabel>
-                                    <FormControl>
-                                        <select {...field} className="w-full rounded-lg border-card-border bg-[#f7f8f5] focus:border-primary focus:ring-primary text-text-main h-11" disabled={areConstructorsLoading}>
-                                            <option value="">{areConstructorsLoading ? 'Carregando construtoras...' : 'Selecione uma construtora...'}</option>
-                                            {constructors?.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                                        </select>
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                                )}
-                            />
-                        </div>
+                        <>
+                            <div className="lg:col-span-12">
+                                <FormField
+                                    control={form.control}
+                                    name="builderId"
+                                    render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Construtora Associada</FormLabel>
+                                        <FormControl>
+                                            <select {...field} className="w-full rounded-lg border-card-border bg-[#f7f8f5] focus:border-primary focus:ring-primary text-text-main h-11 px-3" disabled={areConstructorsLoading}>
+                                                <option key="constructor-none" value="">{areConstructorsLoading ? 'Carregando...' : 'Selecione uma construtora...'}</option>
+                                                {constructors?.map((c) => <option key={`builder-${c.id}`} value={c.id}>{c.name}</option>)}
+                                            </select>
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                    )}
+                                />
+                            </div>
+                            <div className="lg:col-span-12">
+                                <FormField
+                                    control={form.control}
+                                    name="link"
+                                    render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Link (URL do Imóvel)</FormLabel>
+                                        <FormControl>
+                                            <Input placeholder="Ex: https://www.exemplo.com/imovel" {...field} value={field.value || ''} />
+                                        </FormControl>
+                                        <FormDescription className="text-xs text-text-secondary">Insira o link opcional para o site oficial ou apresentação do imóvel.</FormDescription>
+                                        <FormMessage />
+                                    </FormItem>
+                                    )}
+                                />
+                            </div>
+                        </>
                     )}
                     <div className="lg:col-span-6">
                       <FormField control={form.control} name="informacoesbasicas.nome" render={({ field }) => (
@@ -690,10 +485,10 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
                           <FormItem>
                               <FormLabel>Status</FormLabel>
                               <FormControl>
-                                  <select {...field} className="w-full rounded-lg border-card-border bg-[#f7f8f5] focus:border-primary focus:ring-primary h-11 appearance-none px-3">
-                                      <option>Lançamento</option>
-                                      <option>Em Construção</option>
-                                      <option>Pronto para Morar</option>
+                                  <select {...field} className="w-full rounded-lg border-card-border bg-[#f7f8f5] focus:border-primary focus:ring-primary h-11 px-3">
+                                      <option value="Lançamento">Lançamento</option>
+                                      <option value="Em Construção">Em Construção</option>
+                                      <option value="Pronto para Morar">Pronto para Morar</option>
                                   </select>
                               </FormControl>
                               <FormMessage />
@@ -703,662 +498,495 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
                     <div className="lg:col-span-3">
                        <FormField control={form.control} name="informacoesbasicas.valor" render={({ field }) => (
                           <FormItem>
-                              <FormLabel>Valor do Imóvel</FormLabel>
-                              <FormControl><Input type="number" placeholder="Ex: 347000" {...field} value={field.value ?? 0} /></FormControl>
+                              <FormLabel>Preço de Referência</FormLabel>
+                              <FormControl><Input type="number" {...field} value={field.value ?? 0} /></FormControl>
                               <FormMessage />
                           </FormItem>
                        )} />
                     </div>
-                    <div className="lg:col-span-6">
-                       <FormField control={form.control} name="informacoesbasicas.slug" render={({ field }) => (
-                          <FormItem>
-                              <FormLabel>URL Amigável (Slug)</FormLabel>
-                              <FormControl>
-                                <div className="flex rounded-lg shadow-sm">
-                                    <span className="inline-flex items-center px-3 rounded-l-lg border border-r-0 border-card-border bg-gray-50 text-text-secondary text-sm">
-                                        site.com/imoveis/
-                                    </span>
-                                    <Input 
-                                      className="flex-1 min-w-0 block w-full px-3 py-2 rounded-none rounded-r-lg border-card-border focus:ring-primary focus:border-primary sm:text-sm" 
-                                      placeholder="residencial-vista-verde" 
-                                      {...field} 
-                                      value={field.value || ''} 
-                                      onChange={(e) => {
-                                        field.onChange(e);
-                                        setIsSlugManuallyEdited(true);
-                                      }}
-                                    />
-                                </div>
-                              </FormControl>
-                              <FormMessage />
-                          </FormItem>
-                       )} />
+                    
+                    <div className="lg:col-span-12">
+                      <FormField
+                          control={form.control}
+                          name="informacoesbasicas.transactionTypes"
+                          render={() => (
+                              <FormItem>
+                                  <div className="mb-4">
+                                      <FormLabel className="text-base font-bold">Tipo de Transação</FormLabel>
+                                      <FormDescription>Selecione como este imóvel pode ser comercializado.</FormDescription>
+                                  </div>
+                                  <div className="flex flex-wrap gap-4">
+                                      {['sale', 'rent'].map((item) => (
+                                          <FormField
+                                              key={item}
+                                              control={form.control}
+                                              name="informacoesbasicas.transactionTypes"
+                                              render={({ field }) => {
+                                                  return (
+                                                      <FormItem key={item} className="flex flex-row items-start space-x-3 space-y-0">
+                                                          <FormControl>
+                                                              <Checkbox
+                                                                  checked={field.value?.includes(item)}
+                                                                  onCheckedChange={(checked) => {
+                                                                      return checked
+                                                                          ? field.onChange([...field.value, item])
+                                                                          : field.onChange(field.value?.filter((value) => value !== item))
+                                                                  }}
+                                                              />
+                                                          </FormControl>
+                                                          <FormLabel className="font-normal capitalize">
+                                                              {item === 'sale' ? 'Venda' : 'Aluguel'}
+                                                          </FormLabel>
+                                                      </FormItem>
+                                                  )
+                                              }}
+                                          />
+                                      ))}
+                                  </div>
+                              </FormItem>
+                          )}
+                      />
                     </div>
-                     <div className="lg:col-span-3">
-                       <FormField control={form.control} name="informacoesbasicas.slogan" render={({ field }) => (
-                          <FormItem>
-                              <FormLabel>Slogan de Marketing</FormLabel>
-                              <FormControl><Input placeholder="Onde a natureza encontra o conforto." {...field} value={field.value || ''} /></FormControl>
-                              <FormMessage />
-                          </FormItem>
-                       )} />
-                    </div>
-                     <div className="lg:col-span-3">
-                       <FormField control={form.control} name="informacoesbasicas.previsaoentrega" render={({ field }) => (
-                          <FormItem>
-                              <FormLabel>Previsão de Entrega</FormLabel>
-                              <FormControl><Input placeholder="Ex: Dez 28" {...field} value={field.value || ''} /></FormControl>
-                              <FormMessage />
-                          </FormItem>
-                       )} />
-                    </div>
-                    {isAvulso && (
-                        <>
-                            <div className="lg:col-span-6">
-                                <FormField control={form.control} name="informacoesbasicas.nomeCondominio" render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Nome do Condomínio</FormLabel>
-                                        <FormControl><Input placeholder="Ex: Edifício Central Park" {...field} value={field.value || ''} /></FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )} />
-                            </div>
-                            <div className="lg:col-span-3">
-                                <FormField control={form.control} name="informacoesbasicas.condominio" render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Valor do Condomínio</FormLabel>
-                                        <FormControl>
-                                            <div className="relative">
-                                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary font-medium">R$</span>
-                                                <Input type="number" step="0.01" className="pl-9" {...field} value={field.value ?? 0} />
-                                            </div>
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )} />
-                            </div>
-                            <div className="lg:col-span-3">
-                                <FormField control={form.control} name="informacoesbasicas.iptu" render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Valor do IPTU (Anual)</FormLabel>
-                                        <FormControl>
-                                            <div className="relative">
-                                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary font-medium">R$</span>
-                                                <Input type="number" step="0.01" className="pl-9" {...field} value={field.value ?? 0} />
-                                            </div>
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )} />
-                            </div>
-                            <div className="lg:col-span-12">
-                                <FormField
-                                    control={form.control}
-                                    name="informacoesbasicas.exclusivo"
-                                    render={({ field }) => (
-                                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4 bg-gray-50/50">
-                                            <div className="space-y-0.5">
-                                                <FormLabel className="text-base">
-                                                    Imóvel com Exclusividade
-                                                </FormLabel>
-                                                <FormDescription>
-                                                    Marque se você possui exclusividade na venda deste imóvel.
-                                                </FormDescription>
-                                            </div>
-                                            <FormControl>
-                                                <Switch
-                                                    checked={field.value}
-                                                    onCheckedChange={field.onChange}
-                                                />
-                                            </FormControl>
-                                        </FormItem>
-                                    )}
-                                />
-                            </div>
-                        </>
-                    )}
-                     <div className="lg:col-span-12">
-                        <FormField
-                            control={form.control}
-                            name="informacoesbasicas.descricao"
-                            render={({ field }) => (
+
+                    {watchTransactionTypes.includes('sale') && (
+                        <div className="lg:col-span-3">
+                            <FormField control={form.control} name="informacoesbasicas.salePrice" render={({ field }) => (
                                 <FormItem>
-                                <FormLabel>Descrição Completa</FormLabel>
-                                <FormControl>
-                                    <MiniRichEditor
-                                        value={field.value || ''}
-                                        onChange={field.onChange}
-                                        onBlur={field.onBlur}
-                                    />
-                                </FormControl>
-                                <FormMessage />
+                                    <FormLabel>Preço de Venda (R$)</FormLabel>
+                                    <FormControl><Input type="number" {...field} value={field.value ?? 0} /></FormControl>
                                 </FormItem>
-                            )}
-                        />
+                            )} />
+                        </div>
+                    )}
+                    {watchTransactionTypes.includes('rent') && (
+                        <div className="lg:col-span-3">
+                            <FormField control={form.control} name="informacoesbasicas.rentPrice" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Preço de Aluguel (R$)</FormLabel>
+                                    <FormControl><Input type="number" {...field} value={field.value ?? 0} /></FormControl>
+                                </FormItem>
+                            )} />
+                        </div>
+                    )}
+
+                    <div className="lg:col-span-3">
+                        <FormField control={form.control} name="informacoesbasicas.condominio" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Condomínio (R$)</FormLabel>
+                                <FormControl><Input type="number" {...field} value={field.value ?? 0} /></FormControl>
+                            </FormItem>
+                        )} />
+                    </div>
+                    <div className="lg:col-span-3">
+                        <FormField control={form.control} name="informacoesbasicas.iptu" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>IPTU (Anual - R$)</FormLabel>
+                                <FormControl><Input type="number" {...field} value={field.value ?? 0} /></FormControl>
+                            </FormItem>
+                        )} />
+                    </div>
+                    <div className="lg:col-span-3">
+                        <FormField control={form.control} name="informacoesbasicas.nomeCondominio" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Nome do Condomínio</FormLabel>
+                                <FormControl><Input placeholder="Ex: Splendor" {...field} value={field.value || ''} /></FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )} />
+                    </div>
+                    <div className="lg:col-span-3 flex items-end">
+                        <FormField control={form.control} name="informacoesbasicas.exclusivo" render={({ field }) => (
+                            <FormItem className="flex items-center gap-2 space-y-0 h-11 border border-card-border rounded-lg bg-[#f7f8f5] px-3 w-full">
+                                <FormLabel className="text-sm font-medium text-text-main cursor-pointer">Imóvel Exclusivo</FormLabel>
+                                <FormControl>
+                                    <Switch checked={field.value} onCheckedChange={field.onChange} />
+                                </FormControl>
+                            </FormItem>
+                        )} />
                     </div>
                 </div>
-            </section>
-            
-             <section className="bg-white rounded-xl border border-card-border shadow-sm overflow-hidden">
-                <div className="px-6 py-4 border-b border-card-border bg-gray-50/50">
-                    <h3 className="font-bold text-lg flex items-center gap-2">
-                        <span className="material-symbols-outlined text-text-secondary">straighten</span>
-                        Características
-                    </h3>
-                </div>
-                <div className="p-6 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                    <FormField control={form.control} name="caracteristicasimovel.tipo" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Tipo</FormLabel>
-                        <FormControl>
-                          <select {...field} className="w-full rounded-lg border-card-border bg-[#f7f8f5] focus:border-primary focus:ring-primary h-11">
-                              <option>Apartamento</option>
-                              <option>Casa</option>
-                              <option>Cobertura</option>
-                              <option>Studio</option>
-                          </select>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )} />
-                     <FormField
-                        control={form.control}
-                        name="caracteristicasimovel.tamanho"
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Área (m²)</FormLabel>
-                                <FormControl><Input placeholder="Ex: 23m² a 48m²" {...field} value={field.value || ''} /></FormControl>
-                                <FormMessage />
-                            </FormItem>
-                        )}
-                    />
-                     <FormField
-                        control={form.control}
-                        name="caracteristicasimovel.vagas"
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Vagas Garagem</FormLabel>
-                                <FormControl><Input placeholder="Ex: 1 ou 2" {...field} value={field.value || ''} /></FormControl>
-                                <FormMessage />
-                            </FormItem>
-                        )}
-                    />
-                </div>
-                 <div className="px-6 pb-6 grid grid-cols-1 md:grid-cols-2 gap-8">
-                     <FormField
-                        control={form.control}
-                        name="caracteristicasimovel.quartos"
-                        render={() => (
-                            <FormItem>
-                            <FormLabel>Quartos</FormLabel>
-                                <div className="flex flex-wrap items-center gap-x-6 gap-y-2 pt-2">
-                                {bedroomOptions.map((item) => (
-                                    <FormField
-                                    key={item}
-                                    control={form.control}
-                                    name="caracteristicasimovel.quartos"
-                                    render={({ field }) => {
-                                        return (
-                                        <FormItem
-                                            key={item}
-                                            className="flex flex-row items-start space-x-2 space-y-0"
-                                        >
-                                            <FormControl>
-                                            <Checkbox
-                                                checked={Array.isArray(field.value) && field.value.includes(item)}
-                                                onCheckedChange={(checked) => {
-                                                    const currentValue = Array.isArray(field.value) ? field.value : [];
-                                                    return checked
-                                                    ? field.onChange([...currentValue, item])
-                                                    : field.onChange(
-                                                        currentValue.filter(
-                                                            (value) => value !== item
-                                                        )
-                                                        );
-                                                }}
-                                            />
-                                            </FormControl>
-                                            <FormLabel className="font-normal text-sm">
-                                                {item}
-                                            </FormLabel>
-                                        </FormItem>
-                                        )
-                                    }}
-                                    />
-                                ))}
-                                </div>
-                            <FormMessage />
-                            </FormItem>
-                        )}
-                        />
-                    {isAvulso && (
-                        <FormField
-                            control={form.control}
-                            name="caracteristicasimovel.suites"
-                            render={() => (
-                            <FormItem>
-                                <FormLabel>Suítes</FormLabel>
-                                <div className="flex flex-wrap items-center gap-x-6 gap-y-2 pt-2">
-                                {suiteOptions.map((item) => (
-                                    <FormField
-                                    key={item}
-                                    control={form.control}
-                                    name="caracteristicasimovel.suites"
-                                    render={({ field }) => (
-                                        <FormItem key={item} className="flex flex-row items-start space-x-2 space-y-0">
-                                        <FormControl>
-                                            <Checkbox
-                                            checked={Array.isArray(field.value) && field.value.includes(item)}
-                                            onCheckedChange={(checked) => {
-                                                const currentValue = Array.isArray(field.value) ? field.value : [];
-                                                return checked
-                                                ? field.onChange([...currentValue, item])
-                                                : field.onChange(currentValue.filter((value) => value !== item));
-                                            }}
-                                            />
-                                        </FormControl>
-                                        <FormLabel className="font-normal text-sm">{item}</FormLabel>
-                                        </FormItem>
-                                    )}
-                                    />
-                                ))}
-                                </div>
-                                <FormMessage />
-                            </FormItem>
-                            )}
-                        />
-                    )}
-                 </div>
             </section>
 
-             <section className="bg-white rounded-xl border border-card-border shadow-sm overflow-hidden">
-                <div className="px-6 py-4 border-b border-card-border bg-gray-50/50">
-                    <div className="flex items-center gap-2">
-                        <h3 className="font-bold text-lg flex items-center gap-2">
-                            <span className="material-symbols-outlined text-text-secondary">groups</span>
-                            Público-Alvo (Personas)
-                        </h3>
-                        <TooltipProvider>
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <button type="button" className="text-muted-foreground hover:text-foreground">
-                                        <span className="material-symbols-outlined text-base">help_outline</span>
-                                    </button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                    <p className="max-w-xs">
-                                        Esta seleção serve para categorizar o imóvel para o tipo de cliente, <br />
-                                        permitindo que o sistema recomende os imóveis certos para as <br />
-                                        personas corretas e vice-versa.
-                                    </p>
-                                </TooltipContent>
-                            </Tooltip>
-                        </TooltipProvider>
-                    </div>
-                </div>
-                <div className="p-6">
-                    <FormField
-                        control={form.control}
-                        name="personaIds"
-                        render={() => (
-                            <FormItem>
-                                <FormLabel>Selecione as personas que se encaixam neste imóvel</FormLabel>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">
-                                    {arePersonasLoading ? <p>Carregando personas...</p> : personas?.map((persona) => (
-                                        <FormField
-                                            key={persona.id}
-                                            control={form.control}
-                                            name="personaIds"
-                                            render={({ field }) => (
-                                                <FormItem
-                                                    key={persona.id}
-                                                    className="flex items-center gap-3 p-3 rounded-lg border border-gray-100 bg-gray-50/50 has-[:checked]:bg-primary/20 has-[:checked]:border-primary transition-all"
-                                                >
-                                                    <FormControl>
-                                                        <Checkbox
-                                                            checked={field.value?.includes(persona.id)}
-                                                            onCheckedChange={(checked) => {
-                                                                return checked
-                                                                    ? field.onChange([...(field.value || []), persona.id])
-                                                                    : field.onChange(field.value?.filter(id => id !== persona.id))
-                                                            }}
-                                                        />
-                                                    </FormControl>
-                                                    <div className={`size-8 rounded-full ${persona.iconBackgroundColor} flex items-center justify-center`}>
-                                                        <span className="material-symbols-outlined text-sm">{persona.icon}</span>
-                                                    </div>
-                                                    <FormLabel className="font-semibold text-sm m-0">
-                                                        {persona.name}
-                                                    </FormLabel>
-                                                </FormItem>
-                                            )}
-                                        />
-                                    ))}
-                                </div>
-                                <FormMessage />
-                            </FormItem>
-                        )}
-                    />
-                </div>
-            </section>
-            
-             <section className="bg-white rounded-xl border border-card-border shadow-sm overflow-hidden">
+            <section className="bg-white rounded-xl border border-card-border shadow-sm overflow-hidden">
                 <div className="px-6 py-4 border-b border-card-border bg-gray-50/50">
                     <h3 className="font-bold text-lg flex items-center gap-2">
                         <span className="material-symbols-outlined text-text-secondary">location_on</span>
                         Localização
                     </h3>
                 </div>
-                <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="md:col-span-3">
-                    <FormField
-                      control={form.control} name="localizacao.address"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Endereço Completo</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Ex: Av. Exemplo, 123" {...field} value={field.value || ''} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  <FormField
-                    control={form.control} name="localizacao.estado"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Estado <span className="text-red-500">*</span></FormLabel>
-                        <FormControl>
-                          <select {...field} onChange={(e) => { field.onChange(e); form.setValue('localizacao.cidade', ''); form.setValue('localizacao.bairro', ''); }} className="w-full rounded-lg border-card-border bg-[#f7f8f5] focus:border-primary focus:ring-primary h-11">
-                            <option value="">Selecione um estado</option>
-                            {states.map(state => <option key={state.uf} value={state.uf}>{state.name}</option>)}
-                          </select>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control} name="localizacao.cidade"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Cidade <span className="text-red-500">*</span></FormLabel>
-                        <FormControl>
-                          <select {...field} onChange={(e) => { field.onChange(e); form.setValue('localizacao.bairro', ''); }} disabled={!watchState} className="w-full rounded-lg border-card-border bg-[#f7f8f5] focus:border-primary focus:ring-primary h-11 disabled:bg-gray-200">
-                            <option value="">Selecione uma cidade</option>
-                            {citiesWithOptions.map(city => <option key={city.name} value={city.name}>{city.name}</option>)}
-                          </select>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control} name="localizacao.bairro"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Bairro <span className="text-red-500">*</span></FormLabel>
-                        <FormControl>
-                          <select {...field} disabled={!watchCity} className="w-full rounded-lg border-card-border bg-[#f7f8f5] focus:border-primary focus:ring-primary h-11 disabled:bg-gray-200">
-                             <option value="">Selecione um bairro</option>
-                             {neighborhoodsWithOptions.map(neighborhood => <option key={neighborhood} value={neighborhood}>{neighborhood}</option>)}
-                          </select>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <div className="md:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
-                    <FormField control={form.control} name="localizacao.googleMapsLink" render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Embed Google Maps</FormLabel>
-                            <FormControl><Textarea placeholder="Cole o código de incorporação do Google Maps aqui" {...field} value={field.value || ''} /></FormControl>
-                            <FormMessage />
-                        </FormItem>
-                    )} />
-                    <FormField control={form.control} name="localizacao.googleStreetViewLink" render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Embed Street View</FormLabel>
-                            <FormControl><Textarea placeholder="Cole o código de incorporação do Street View aqui" {...field} value={field.value || ''} /></FormControl>
-                            <FormMessage />
-                        </FormItem>
-                    )} />
-                  </div>
+                <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-6">
+                    <div className="lg:col-span-3">
+                        <FormField control={form.control} name="localizacao.cep" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>CEP</FormLabel>
+                                <FormControl>
+                                    <div className="relative">
+                                        <Input placeholder="00000-000" {...field} value={field.value || ''} onBlur={handleCepBlur} />
+                                        {isLoadingCep && <Loader2 className="absolute right-3 top-3 animate-spin h-4 w-4 text-slate-400" />}
+                                    </div>
+                                </FormControl>
+                            </FormItem>
+                        )} />
+                    </div>
+                    <div className="lg:col-span-3">
+                        <FormField control={form.control} name="localizacao.estado" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Estado</FormLabel>
+                                <FormControl>
+                                    <select {...field} className="w-full rounded-lg border-card-border bg-[#f7f8f5] focus:border-primary focus:ring-primary h-11 px-3">
+                                        <option value="">Selecione...</option>
+                                        {states.map(s => <option key={s.uf} value={s.uf}>{s.name}</option>)}
+                                    </select>
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )} />
+                    </div>
+                    <div className="lg:col-span-3">
+                        <FormField control={form.control} name="localizacao.cidade" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Cidade</FormLabel>
+                                <FormControl>
+                                    <select {...field} className="w-full rounded-lg border-card-border bg-[#f7f8f5] focus:border-primary focus:ring-primary h-11 px-3" disabled={!watchState}>
+                                        <option value="">Selecione...</option>
+                                        {availableCities.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
+                                    </select>
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )} />
+                    </div>
+                    <div className="lg:col-span-3">
+                        <FormField control={form.control} name="localizacao.bairro" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Bairro</FormLabel>
+                                <FormControl>
+                                    <select {...field} className="w-full rounded-lg border-card-border bg-[#f7f8f5] focus:border-primary focus:ring-primary h-11 px-3" disabled={!watchCity}>
+                                        <option value="">Selecione...</option>
+                                        {availableNeighborhoods.map(b => <option key={b} value={b}>{b}</option>)}
+                                        {field.value && !availableNeighborhoods.includes(field.value) && (
+                                            <option key={field.value} value={field.value}>{field.value}</option>
+                                        )}
+                                    </select>
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )} />
+                    </div>
+                    <div className="lg:col-span-12">
+                        <FormField control={form.control} name="localizacao.address" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Endereço Completo</FormLabel>
+                                <FormControl><Input placeholder="Rua, número, complemento" {...field} value={field.value || ''} /></FormControl>
+                            </FormItem>
+                        )} />
+                    </div>
                 </div>
             </section>
-            
-             <section className="bg-white rounded-xl border border-card-border shadow-sm overflow-hidden">
+
+            <section className="bg-white rounded-xl border border-card-border shadow-sm overflow-hidden">
                 <div className="px-6 py-4 border-b border-card-border bg-gray-50/50">
                     <h3 className="font-bold text-lg flex items-center gap-2">
-                        <span className="material-symbols-outlined text-text-secondary">perm_media</span>
-                        Mídia e Galeria
+                        <span className="material-symbols-outlined text-text-secondary">home_work</span>
+                        Características & Detalhes
+                    </h3>
+                </div>
+                <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-6">
+                    <div className="lg:col-span-4">
+                        <FormField control={form.control} name="caracteristicasimovel.tipo" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Tipo de Imóvel</FormLabel>
+                                <FormControl>
+                                    <select {...field} className="w-full rounded-lg border-card-border bg-[#f7f8f5] focus:border-primary focus:ring-primary h-11 px-3">
+                                        <option value="Apartamento">Apartamento</option>
+                                        <option value="Casa">Casa</option>
+                                        <option value="Terreno">Terreno</option>
+                                        <option value="Cobertura">Cobertura</option>
+                                        <option value="Comercial">Comercial</option>
+                                    </select>
+                                </FormControl>
+                            </FormItem>
+                        )} />
+                    </div>
+                    <div className="lg:col-span-4">
+                        <FormField control={form.control} name="caracteristicasimovel.tamanho" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Área Útil (m²)</FormLabel>
+                                <FormControl><Input placeholder="Ex: 85" {...field} value={field.value || ''} /></FormControl>
+                            </FormItem>
+                        )} />
+                    </div>
+                    <div className="lg:col-span-4">
+                        <FormField control={form.control} name="caracteristicasimovel.vagas" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Vagas de Garagem</FormLabel>
+                                <FormControl><Input placeholder="Ex: 2" {...field} value={field.value || ''} /></FormControl>
+                            </FormItem>
+                        )} />
+                    </div>
+
+                    <div className="lg:col-span-6">
+                        <FormField
+                            control={form.control}
+                            name="caracteristicasimovel.quartos"
+                            render={() => (
+                                <FormItem>
+                                    <FormLabel>Dormitórios</FormLabel>
+                                    <div className="flex flex-wrap gap-2">
+                                        {bedroomOptions.map((opt) => (
+                                            <FormField
+                                                key={`bed-${opt}`}
+                                                control={form.control}
+                                                name="caracteristicasimovel.quartos"
+                                                render={({ field }) => (
+                                                    <FormItem key={`bed-${opt}`} className="flex items-center space-x-2">
+                                                        <FormControl>
+                                                            <Checkbox
+                                                                checked={field.value?.includes(opt)}
+                                                                onCheckedChange={(checked) => {
+                                                                    const current = field.value || [];
+                                                                    return checked ? field.onChange([...current, opt]) : field.onChange(current.filter(v => v !== opt))
+                                                                }}
+                                                            />
+                                                        </FormControl>
+                                                        <FormLabel className="text-sm font-normal cursor-pointer">{opt}</FormLabel>
+                                                    </FormItem>
+                                                )}
+                                            />
+                                        ))}
+                                    </div>
+                                </FormItem>
+                            )}
+                        />
+                    </div>
+
+                    <div className="lg:col-span-6">
+                        <FormField
+                            control={form.control}
+                            name="caracteristicasimovel.suites"
+                            render={() => (
+                                <FormItem>
+                                    <FormLabel>Suítes</FormLabel>
+                                    <div className="flex flex-wrap gap-2">
+                                        {suiteOptions.map((opt) => (
+                                            <FormField
+                                                key={`suite-${opt}`}
+                                                control={form.control}
+                                                name="caracteristicasimovel.suites"
+                                                render={({ field }) => (
+                                                    <FormItem key={`suite-${opt}`} className="flex items-center space-x-2">
+                                                        <FormControl>
+                                                            <Checkbox
+                                                                checked={field.value?.includes(opt)}
+                                                                onCheckedChange={(checked) => {
+                                                                    const current = field.value || [];
+                                                                    return checked ? field.onChange([...current, opt]) : field.onChange(current.filter(v => v !== opt))
+                                                                }}
+                                                            />
+                                                        </FormControl>
+                                                        <FormLabel className="text-sm font-normal cursor-pointer">{opt}</FormLabel>
+                                                    </FormItem>
+                                                )}
+                                            />
+                                        ))}
+                                    </div>
+                                </FormItem>
+                            )}
+                        />
+                    </div>
+
+                    <div className="lg:col-span-12">
+                        <FormField
+                            control={form.control}
+                            name="areascomuns"
+                            render={({ field }) => {
+                                const valueArray = field.value || [];
+                                return (
+                                    <FormItem>
+                                        <div className="mb-2">
+                                            <FormLabel className="text-base font-bold">Áreas Comuns / Lazer</FormLabel>
+                                            <FormDescription>Selecione as comodidades disponíveis no condomínio ou adicione uma personalizada.</FormDescription>
+                                        </div>
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-4">
+                                            {commonAreasOptions.map((opt) => (
+                                                <div key={`area-${opt}`} className="flex flex-row items-center space-x-2 space-y-0">
+                                                    <Checkbox
+                                                        id={`area-${opt}`}
+                                                        checked={valueArray.includes(opt)}
+                                                        onCheckedChange={(checked) => {
+                                                            if (checked) {
+                                                                field.onChange([...valueArray, opt]);
+                                                            } else {
+                                                                field.onChange(valueArray.filter((v: string) => v !== opt));
+                                                            }
+                                                        }}
+                                                    />
+                                                    <label htmlFor={`area-${opt}`} className="text-sm font-normal cursor-pointer select-none">
+                                                        {opt}
+                                                    </label>
+                                                </div>
+                                            ))}
+                                            {valueArray.filter((v: string) => !commonAreasOptions.includes(v)).map((opt: string) => (
+                                                <div key={`area-${opt}`} className="flex flex-row items-center space-x-2 space-y-0 bg-primary/10 px-2 py-1 rounded">
+                                                    <Checkbox
+                                                        id={`area-${opt}`}
+                                                        checked={true}
+                                                        onCheckedChange={(checked) => {
+                                                            if (!checked) {
+                                                                field.onChange(valueArray.filter((v: string) => v !== opt));
+                                                            }
+                                                        }}
+                                                    />
+                                                    <label htmlFor={`area-${opt}`} className="text-sm font-bold cursor-pointer select-none text-primary-dark">
+                                                        {opt}
+                                                    </label>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <div className="flex gap-2 max-w-md">
+                                            <Input
+                                                id="custom-area-input"
+                                                placeholder="Adicionar área comum personalizada... Ex: Quadra de Tênis"
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') {
+                                                        e.preventDefault();
+                                                        const target = e.currentTarget;
+                                                        const val = target.value.trim();
+                                                        if (val && !valueArray.includes(val)) {
+                                                            field.onChange([...valueArray, val]);
+                                                            target.value = '';
+                                                        }
+                                                    }
+                                                }}
+                                            />
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                onClick={() => {
+                                                    const input = document.getElementById('custom-area-input') as HTMLInputElement;
+                                                    const val = input?.value.trim();
+                                                    if (val && !valueArray.includes(val)) {
+                                                        field.onChange([...valueArray, val]);
+                                                        input.value = '';
+                                                    }
+                                                }}
+                                            >
+                                                Adicionar
+                                            </Button>
+                                        </div>
+                                    </FormItem>
+                                );
+                            }}
+                        />
+                    </div>
+
+                    <div className="lg:col-span-12">
+                        <FormField control={form.control} name="informacoesbasicas.descricao" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Descrição do Imóvel</FormLabel>
+                                <FormControl>
+                                    <MiniRichEditor 
+                                        value={field.value} 
+                                        onChange={field.onChange} 
+                                        onBlur={field.onBlur} 
+                                    />
+                                </FormControl>
+                            </FormItem>
+                        )} />
+                    </div>
+                </div>
+            </section>
+
+            <section className="bg-white rounded-xl border border-card-border shadow-sm overflow-hidden">
+                <div className="px-6 py-4 border-b border-card-border bg-gray-50/50">
+                    <h3 className="font-bold text-lg flex items-center gap-2">
+                        <span className="material-symbols-outlined text-text-secondary">imagesmode</span>
+                        Galeria de Fotos
+                    </h3>
+                </div>
+                <div className="p-6">
+                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-6">
+                        {form.watch('midia')?.map((url, index) => (
+                            <div key={index} className="relative aspect-square group rounded-lg overflow-hidden border border-card-border">
+                                <Image src={url} alt={`Preview ${index}`} fill className="object-cover" />
+                                <button
+                                    type="button"
+                                    onClick={() => removeImage(url)}
+                                    className="absolute top-1 right-1 bg-white/90 p-1.5 rounded-full text-red-500 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+                                >
+                                    <Trash2 className="size-4" />
+                                </button>
+                                {index === 0 && <span className="absolute bottom-0 left-0 right-0 bg-primary/90 text-black text-[10px] font-bold py-0.5 text-center">PRINCIPAL</span>}
+                            </div>
+                        ))}
+                        
+                        {imageUploads.map(upload => (
+                            <div key={upload.id} className="relative aspect-square flex flex-col items-center justify-center border border-dashed border-card-border rounded-lg bg-gray-50">
+                                <Loader2 className="size-6 animate-spin text-primary mb-2" />
+                                <span className="text-[10px] font-bold">{Math.round(upload.progress)}%</span>
+                            </div>
+                        ))}
+
+                        <label className="aspect-square flex flex-col items-center justify-center border-2 border-dashed border-card-border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                            <Plus className="size-8 text-text-secondary" />
+                            <span className="text-xs font-medium text-text-secondary mt-2">Adicionar Fotos</span>
+                            <input type="file" multiple accept="image/*" className="hidden" onChange={handleImageUploads} />
+                        </label>
+                    </div>
+                    <p className="text-xs text-text-secondary">Arraste para reordenar (em breve). A primeira imagem será a capa do imóvel.</p>
+                    
+                    <div className="border-t border-card-border pt-6 mt-6">
+                        <FormField control={form.control} name="youtubeVideoUrl" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Link de Vídeo do YouTube</FormLabel>
+                                <FormControl>
+                                    <Input placeholder="Ex: https://www.youtube.com/watch?v=..." {...field} value={field.value || ''} />
+                                </FormControl>
+                                <FormDescription>Insira o link completo de um vídeo institucional ou tour virtual do imóvel no YouTube.</FormDescription>
+                            </FormItem>
+                        )} />
+                    </div>
+                </div>
+            </section>
+
+            <section className="bg-white rounded-xl border border-card-border shadow-sm overflow-hidden">
+                <div className="px-6 py-4 border-b border-card-border bg-gray-50/50">
+                    <h3 className="font-bold text-lg flex items-center gap-2">
+                        <span className="material-symbols-outlined text-text-secondary">search</span>
+                        Configurações de SEO & Sitemap
                     </h3>
                 </div>
                 <div className="p-6 space-y-6">
-                    <FormField control={form.control} name="youtubeVideoUrl" render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Vídeo Promocional (YouTube/Vimeo)</FormLabel>
-                        <FormControl><Input placeholder="https://youtube.com/watch?v=..." {...field} value={field.value || ''} /></FormControl>
-                        <FormMessage />
-                    </FormItem>
-                    )} />
-                    <div className="space-y-3">
-                        <label className="block text-sm font-semibold text-text-main">Galeria de Imagens</label>
-                        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-4">
-                            {watchedMedia.map((image, index) => (
-                                <div key={index} className="group relative aspect-square rounded-lg overflow-hidden border border-card-border bg-gray-100">
-                                    <Image src={image} alt={`Property image ${index + 1}`} fill className="w-full h-full object-cover" />
-                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                                    <button onClick={() => handleRemoveImage(index)} type="button" className="text-white hover:text-red-400"><span className="material-symbols-outlined">delete</span></button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                        <div className="mt-4">
-                            <label htmlFor="image-upload" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
-                                <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                                    <span className="material-symbols-outlined text-gray-500 mb-2">cloud_upload</span>
-                                    <p className="mb-2 text-sm text-gray-500"><span className="font-semibold">Clique para carregar</span> ou arraste e solte</p>
-                                    <p className="text-xs text-gray-500">PNG, JPG, WEBP (Máx. 5MB por arquivo)</p>
-                                </div>
-                                <Input id="image-upload" type="file" className="hidden" multiple onChange={handleImageUploads} accept="image/png, image/jpeg, image/webp" />
-                            </label>
-                        </div>
-
-                        {imageUploads.length > 0 && (
-                        <div className="space-y-2 mt-4">
-                            <h4 className="text-xs font-bold uppercase text-gray-500">UPLOADS EM ANDAMENTO</h4>
-                            {imageUploads.map(upload => (
-                            <div key={upload.id}>
-                                <div className="flex justify-between items-center text-xs mb-1">
-                                <span className="truncate max-w-[200px]">{upload.file.name}</span>
-                                <span className={cn(upload.error ? 'text-red-500' : 'text-gray-500')}>{Math.round(upload.progress)}%</span>
-                                </div>
-                                <Progress value={upload.progress} className="h-1.5" />
-                                {upload.error && <p className="text-xs text-red-500 mt-1">{upload.error}</p>}
-                            </div>
-                            ))}
-                        </div>
-                        )}
-
-                        <div className="relative flex py-2 items-center">
-                            <div className="flex-grow border-t border-gray-200"></div>
-                            <span className="flex-shrink mx-4 text-xs text-gray-400">OU</span>
-                            <div className="flex-grow border-t border-gray-200"></div>
-                        </div>
-                        
-                        <div className="flex items-center gap-2">
-                            <Input value={newImageUrl} onChange={(e) => setNewImageUrl(e.target.value)} placeholder="Adicione pela URL da imagem" />
-                            <Button onClick={handleAddImage} type="button" size="sm">Adicionar URL</Button>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <section className="bg-white rounded-xl border border-card-border shadow-sm overflow-hidden h-full">
-                    <div className="px-6 py-4 border-b border-card-border bg-gray-50/50">
-                        <h3 className="font-bold text-lg flex items-center gap-2">
-                            <span className="material-symbols-outlined text-text-secondary">engineering</span>
-                            Status da Obra
-                        </h3>
-                    </div>
-                    <div className="p-6 space-y-6">
-                         <Controller
-                            name="statusobra.fundacao"
-                            control={form.control}
-                            render={({ field: { onChange, value } }) => (
-                                <div>
-                                    <div className="flex justify-between mb-1">
-                                        <label className="text-sm font-medium text-text-main">Fundação</label>
-                                        <span className="text-sm font-bold text-primary-hover">{value || 0}%</span>
-                                    </div>
-                                    <Slider defaultValue={[value || 0]} max={100} step={1} onValueChange={(vals) => onChange(vals[0])} />
-                                </div>
-                            )}
-                        />
-                         <Controller
-                            name="statusobra.estrutura"
-                            control={form.control}
-                            render={({ field: { onChange, value } }) => (
-                                <div>
-                                    <div className="flex justify-between mb-1">
-                                        <label className="text-sm font-medium text-text-main">Estrutura</label>
-                                        <span className="text-sm font-bold text-primary-hover">{value || 0}%</span>
-                                    </div>
-                                    <Slider defaultValue={[value || 0]} max={100} step={1} onValueChange={(vals) => onChange(vals[0])} />
-                                </div>
-                            )}
-                        />
-                         <Controller
-                            name="statusobra.alvenaria"
-                            control={form.control}
-                            render={({ field: { onChange, value } }) => (
-                                <div>
-                                    <div className="flex justify-between mb-1">
-                                        <label className="text-sm font-medium text-text-main">Alvenaria</label>
-                                        <span className="text-sm font-bold text-primary-hover">{value || 0}%</span>
-                                    </div>
-                                    <Slider defaultValue={[value || 0]} max={100} step={1} onValueChange={(vals) => onChange(vals[0])} />
-                                </div>
-                            )}
-                        />
-                         <Controller
-                            name="statusobra.acabamentos"
-                            control={form.control}
-                            render={({ field: { onChange, value } }) => (
-                                <div>
-                                    <div className="flex justify-between mb-1">
-                                        <label className="text-sm font-medium text-text-main">Acabamentos</label>
-                                        <span className="text-sm font-bold text-primary-hover">{value || 0}%</span>
-                                    </div>
-                                    <Slider defaultValue={[value || 0]} max={100} step={1} onValueChange={(vals) => onChange(vals[0])} />
-                                </div>
-                            )}
-                        />
-                    </div>
-                </section>
-                <section className="bg-white rounded-xl border border-card-border shadow-sm overflow-hidden h-full flex flex-col">
-                    <div className="px-6 py-4 border-b border-card-border bg-gray-50/50">
-                        <h3 className="font-bold text-lg flex items-center gap-2">
-                            <span className="material-symbols-outlined text-text-secondary">pool</span>
-                            Diferenciais
-                        </h3>
-                    </div>
-                    <div className="p-6 space-y-6 flex-1">
-                        <div className="space-y-3">
-                            <label className="block text-sm font-semibold text-text-main">Áreas Comuns</label>
-                            <div className="flex gap-2">
-                                <Input value={newAmenity} onChange={(e) => setNewAmenity(e.target.value)} placeholder="Ex: Piscina" type="text"/>
-                                <Button onClick={handleAddAmenity} type="button" size="icon"><span className="material-symbols-outlined text-sm">add</span></Button>
-                            </div>
-                            <div className="flex flex-wrap gap-2 pt-2">
-                                {watchedAmenities.map((item, index) => (
-                                     <span key={index} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-[#f2f5f0] text-text-main border border-card-border">
-                                        {item}
-                                        <button onClick={() => handleRemoveAmenity(index)} type="button" className="hover:text-red-500"><span className="material-symbols-outlined text-[14px]">close</span></button>
-                                    </span>
-                                ))}
-                            </div>
-                        </div>
-                        <div className="border-t border-card-border my-4"></div>
-                        <div className="space-y-3">
-                            <label className="block text-sm font-semibold text-text-main">Proximidades</label>
-                            <div className="flex gap-2">
-                                <Input value={newNearby} onChange={(e) => setNewNearby(e.target.value)} placeholder="Ex: Metrô Santana" type="text"/>
-                                <Button onClick={handleAddNearby} type="button" size="icon"><span className="material-symbols-outlined text-sm">add</span></Button>
-                            </div>
-                            <div className="flex flex-wrap gap-2 pt-2">
-                                {watchedNearby.map((item, index) => (
-                                    <span key={index} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-[#f2f5f0] text-text-main border border-card-border">
-                                        {item}
-                                        <button onClick={() => handleRemoveNearby(index)} type="button" className="hover:text-red-500"><span className="material-symbols-outlined text-[14px]">close</span></button>
-                                    </span>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-                </section>
-            </div>
-            
-             <section className="bg-white rounded-xl border border-card-border shadow-sm overflow-hidden">
-                <div className="px-6 py-4 border-b border-card-border bg-gray-50/50 flex flex-wrap justify-between items-center gap-3">
-                    <h3 className="font-bold text-lg flex items-center gap-2">
-                        <span className="material-symbols-outlined text-text-secondary">search</span>
-                        Configurações de SEO
-                    </h3>
-                    <Button type="button" onClick={handleGenerateSeo} disabled={isGeneratingSeo} size="sm" variant="outline" className="bg-white hover:bg-gray-100">
-                        {isGeneratingSeo ? (
-                            <>
-                                <span className="material-symbols-outlined text-sm mr-2 animate-spin">progress_activity</span>
-                                Gerando...
-                            </>
-                        ) : (
-                            <>
-                                <span className="material-symbols-outlined text-sm mr-2">auto_awesome</span>
-                                Gerar com IA
-                            </>
-                        )}
-                    </Button>
-                </div>
-                <div className="p-6 space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <FormField control={form.control} name="seoTitle" render={({ field }) => (
                           <FormItem>
                               <FormLabel>Meta Title</FormLabel>
-                              <FormControl><Input placeholder="Apartamento de Luxo em São Paulo | Construtora X" {...field} value={field.value || ''} /></FormControl>
-                              <FormMessage />
+                              <FormControl><Input placeholder="Título para o Google" {...field} value={field.value || ''} /></FormControl>
                           </FormItem>
                         )} />
                         <FormField control={form.control} name="seoKeywords" render={({ field }) => (
                           <FormItem>
-                              <FormLabel>Palavras-chave (separadas por vírgula)</FormLabel>
-                              <FormControl><Input placeholder="apartamento, luxo, são paulo, venda" {...field} value={field.value || ''} /></FormControl>
-                              <FormMessage />
+                              <FormLabel>Palavras-chave</FormLabel>
+                              <FormControl><Input placeholder="imóveis, luxo, bairro" {...field} value={field.value || ''} /></FormControl>
                           </FormItem>
                         )} />
                     </div>
                     <FormField control={form.control} name="seoDescription" render={({ field }) => (
                       <FormItem>
                           <FormLabel>Meta Description</FormLabel>
-                          <FormControl><Textarea placeholder="Breve descrição para aparecer nos resultados de busca..." rows={3} {...field} value={field.value || ''} /></FormControl>
-                          <FormMessage />
+                          <FormControl><Textarea rows={3} {...field} value={field.value || ''} /></FormControl>
                       </FormItem>
                     )} />
                 </div>
             </section>
-            <div className="flex justify-end gap-3 mt-6">
-                <Button type="button" variant="outline" asChild>
-                    <Link href={cancelUrl}>Cancelar</Link>
-                </Button>
-                <Button type="submit" disabled={isSubmitting} className="px-5 py-2.5 rounded-lg bg-primary text-black font-bold text-sm hover:bg-primary-hover transition-colors shadow-sm flex items-center gap-2">
-                    <span className="material-symbols-outlined text-[18px]">save</span>
-                    {isSubmitting ? 'Salvando...' : 'Salvar Imóvel'}
+
+            <div className="flex justify-end gap-3 mt-6 pb-20">
+                <Button type="button" variant="outline" asChild><Link href={cancelUrl}>Cancelar</Link></Button>
+                <Button type="submit" disabled={localSubmitting || parentSubmitting} className="font-bold">
+                    {localSubmitting ? 'Salvando...' : 'Salvar Imóvel'}
                 </Button>
             </div>
         </form>
       </FormProvider>
     );
 }
-

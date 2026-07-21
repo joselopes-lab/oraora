@@ -5,10 +5,11 @@
 
 import { DomusHeader } from '../components/DomusHeader';
 import { DomusFooter } from '../components/DomusFooter';
-import { WhatsAppWidget } from '@/app/sites/urban-padrao/components/WhatsAppWidget';
+import { WhatsAppWidget } from '@/layouts/urban-padrao/components/WhatsAppWidget';
 import Image from 'next/image';
 import Link from 'next/link';
 import React from 'react';
+import { usePathname } from 'next/navigation';
 
 type TeamMember = {
     name: string;
@@ -107,6 +108,14 @@ type Broker = {
 };
 
 export default function DomusSobrePage({ broker }: { broker: Broker }) {
+  const pathname = usePathname(); // 1. Pega o caminho atual
+
+  // 2. Verifica se está acessando via portal (oraora.com.br/sites/...)
+  const isPortalAccess = pathname.startsWith('/sites');
+  
+  // 3. Define as URLs base dinamicamente
+  const mapUrl = isPortalAccess ? `/sites/${broker.slug}/explorar-no-mapa` : '/explorar-no-mapa';
+
   const homeContent = broker.homepage || {};
   const brokerContent = broker.urbanPadraoSobre || {};
   const adminContent = broker.oraoraSobre || {};
@@ -167,15 +176,15 @@ export default function DomusSobrePage({ broker }: { broker: Broker }) {
     '--about-quote-text': homeContent.aboutQuoteTextColor ? `hsl(${homeContent.aboutQuoteTextColor})` : 'hsl(var(--secondary))',
     '--about-tagline-color': homeContent.aboutTaglineColor ? `hsl(${homeContent.aboutTaglineColor})` : 'hsl(var(--primary))',
     '--cta-section-bg': homeContent.ctaSectionBgColor ? `hsl(${homeContent.ctaSectionBgColor})` : 'hsl(var(--secondary))',
-    '--cta-section-title': homeContent.ctaSectionTitleColor ? `hsl(${homeContent.ctaSectionTitleColor})` : '#fff',
-    '--cta-section-subtitle': homeContent.ctaSectionSubtitleColor ? `hsl(${homeContent.ctaSectionSubtitleColor})` : 'rgba(255,255,255,0.6)',
-    '--cta-section-button-bg': homeContent.ctaSectionButtonBgColor ? `hsl(${homeContent.ctaSectionButtonBgColor})` : 'hsl(var(--primary))',
-    '--cta-section-button-text': homeContent.ctaSectionButtonTextColor ? `hsl(${homeContent.ctaSectionButtonTextColor})` : 'hsl(var(--secondary))',
-    '--map-section-bg': homeContent.mapSectionBgColor ? `hsl(${homeContent.mapSectionBgColor})` : '#f3f4f1',
-    '--map-title-color': homeContent.mapTitleColor ? `hsl(${homeContent.mapTitleColor})` : '#111827',
-    '--map-text-color': homeContent.mapTextColor ? `hsl(${homeContent.mapTextColor})` : '#4b5563',
-    '--map-button-bg': homeContent.mapButtonBgColor ? `hsl(${homeContent.mapButtonBgColor})` : '#1e293b',
-    '--map-button-text': homeContent.mapButtonTextColor ? `hsl(${homeContent.mapButtonTextColor})` : '#ffffff',
+    '--cta-section-title': homeContent.ctaSectionTitleColor ? `hsl(${content.ctaSectionTitleColor})` : '#fff',
+    '--cta-section-subtitle': homeContent.ctaSectionSubtitleColor ? `hsl(${content.ctaSectionSubtitleColor})` : 'rgba(255,255,255,0.6)',
+    '--cta-section-button-bg': homeContent.ctaSectionButtonBgColor ? `hsl(${content.ctaSectionButtonBgColor})` : 'hsl(var(--primary))',
+    '--cta-section-button-text': homeContent.ctaSectionButtonTextColor ? `hsl(${content.ctaSectionButtonTextColor})` : 'hsl(var(--secondary))',
+    '--map-section-bg': homeContent.mapSectionBgColor ? `hsl(${content.mapSectionBgColor})` : '#f3f4f1',
+    '--map-title-color': homeContent.mapTitleColor ? `hsl(${content.mapTitleColor})` : '#111827',
+    '--map-text-color': homeContent.mapTextColor ? `hsl(${content.mapTextColor})` : '#4b5563',
+    '--map-button-bg': homeContent.mapButtonBgColor ? `hsl(${content.mapButtonBgColor})` : '#1e293b',
+    '--map-button-text': homeContent.mapButtonTextColor ? `hsl(${content.mapButtonTextColor})` : '#ffffff',
   } as React.CSSProperties;
 
   const whatsappLink = broker.whatsappUrl?.replace('wa.me.com.br', 'wa.me') || '#';
@@ -183,7 +192,7 @@ export default function DomusSobrePage({ broker }: { broker: Broker }) {
   const hasStats = defaultContent.statAnunciados || defaultContent.statNegocios || defaultContent.statCidades || defaultContent.statAvaliacao;
 
   return (
-    <div style={dynamicStyles} className="domus-theme font-display bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 min-h-screen transition-colors duration-300">
+    <div style={dynamicStyles} className="domus-theme font-display bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 min-h-screen transition-colors duration-300 text-left">
       <style jsx>{`
         .hero-gradient {
             background: radial-gradient(circle at top right, hsl(var(--secondary) / 0.05) 0%, transparent 70%);
@@ -308,7 +317,8 @@ export default function DomusSobrePage({ broker }: { broker: Broker }) {
                     <h2 className="text-4xl md:text-6xl font-extrabold leading-tight tracking-tight" style={{ color: 'var(--map-title-color)' }}>{defaultContent.mapTitle}</h2>
                     <p className="text-xl font-medium" style={{ color: 'var(--map-text-color)' }}>{defaultContent.mapSubtitle}</p>
                     <div className="flex flex-col sm:flex-row gap-4 mt-4">
-                        <Link href={`/sites/${broker.slug}/explorar-no-mapa`} className="flex min-w-[240px] items-center justify-center gap-3 rounded-full h-16 px-10 text-lg font-black shadow-lg hover:scale-[1.05] transition-transform uppercase tracking-widest" style={{ backgroundColor: 'var(--map-button-bg)', color: 'var(--map-button-text)' }}>
+                        {/* CORREÇÃO: Utilizando a URL base dinâmica mapUrl */}
+                        <Link href={mapUrl} className="flex min-w-[240px] items-center justify-center gap-3 rounded-full h-16 px-10 text-lg font-black shadow-lg hover:scale-[1.05] transition-transform uppercase tracking-widest" style={{ backgroundColor: 'var(--map-button-bg)', color: 'var(--map-button-text)' }}>
                             <span className="material-symbols-outlined font-bold">map</span>
                             EXPLORAR NO MAPA
                         </Link>
@@ -319,7 +329,7 @@ export default function DomusSobrePage({ broker }: { broker: Broker }) {
             </div>
         </section>
 
-        <section className="px-6 mb-24">
+        <section className="px-6 mb-24 text-center">
           <div className="max-w-7xl mx-auto rounded-2xl md:rounded-[40px] p-12 md:p-24 relative overflow-hidden text-center text-white border border-slate-800" style={{ backgroundColor: 'var(--cta-section-bg)' }}>
             <div className="absolute inset-0 bg-[url('https://picsum.photos/seed/cta/1600/900')] opacity-10 bg-cover bg-center"></div>
             <div className="relative z-10 flex flex-col items-center">

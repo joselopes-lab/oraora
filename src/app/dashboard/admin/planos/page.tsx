@@ -1,4 +1,3 @@
-
 'use client';
 import { useState, useMemo } from 'react';
 import Link from 'next/link';
@@ -95,7 +94,7 @@ export default function AdminPlanosPage() {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
                 <div>
                     <nav className="flex items-center gap-2 text-xs text-text-secondary mb-2 font-medium">
-                        <Link className="hover:text-primary transition-colors" href="/dashboard">Dashboard</Link>
+                        <Link className="hover:text-primary transition-colors" href="/dashboard">Painel</Link>
                         <span className="material-symbols-outlined text-[10px]">chevron_right</span>
                         <span className="text-text-main">Adesão e Planos</span>
                     </nav>

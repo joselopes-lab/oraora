@@ -1,4 +1,3 @@
-
 'use client';
 import { useDoc, useFirebase, setDocumentNonBlocking, useMemoFirebase, useCollection } from '@/firebase';
 import { doc, collection, query, where, getDocs } from 'firebase/firestore';
@@ -37,6 +36,7 @@ const homepageSchema = z.object({
   aboutTitle: z.string().optional(),
   aboutText: z.string().optional(),
   aboutImageUrl: z.string().url("URL inválida.").optional().or(z.literal('')),
+  mapImageUrl: z.string().url("URL inválida.").optional().or(z.literal('')),
   ctaTitle: z.string().optional(),
   ctaSubtitle: z.string().optional(),
   value1Icon: z.string().optional(),
@@ -86,6 +86,8 @@ export default function EditHomepagePage() {
   const { firestore, user, storage } = useFirebase();
   const { toast } = useToast();
   const [heroImageUploadState, setHeroImageUploadState] = useState<UploadState>({ progress: 0, isUploading: false, error: null });
+  const [aboutImageUploadState, setAboutImageUploadState] = useState<UploadState>({ progress: 0, isUploading: false, error: null });
+  const [mapImageUploadState, setMapImageUploadState] = useState<UploadState>({ progress: 0, isUploading: false, error: null });
 
   const brokerDocRef = useMemoFirebase(
     () => (firestore && user?.uid ? doc(firestore, 'brokers', user.uid) : null),
@@ -179,6 +181,48 @@ export default function EditHomepagePage() {
     }
   };
 
+  const handleAboutImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !user || !storage) return;
+    setAboutImageUploadState({ progress: 0, isUploading: true, error: null });
+    try {
+        const path = `brokers/${user.uid}/site_images`;
+        const onProgress = (progress: number) => {
+            setAboutImageUploadState(prev => ({ ...prev, progress, isUploading: true }));
+        };
+        const downloadURL = await uploadFile(storage, path, file, onProgress);
+        form.setValue('aboutImageUrl', downloadURL, { shouldDirty: true });
+        toast({ title: 'Upload Concluído!', description: 'A imagem foi enviada.' });
+    } catch (error) {
+        console.error('Upload error:', error);
+        setAboutImageUploadState({ progress: 0, isUploading: false, error: 'Falha no upload.' });
+        toast({ variant: "destructive", title: "Erro no Upload", description: "Não foi possível enviar a imagem." });
+    } finally {
+        setAboutImageUploadState(prev => ({ ...prev, isUploading: false }));
+    }
+  };
+
+  const handleMapImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !user || !storage) return;
+    setMapImageUploadState({ progress: 0, isUploading: true, error: null });
+    try {
+        const path = `brokers/${user.uid}/site_images`;
+        const onProgress = (progress: number) => {
+            setMapImageUploadState(prev => ({ ...prev, progress, isUploading: true }));
+        };
+        const downloadURL = await uploadFile(storage, path, file, onProgress);
+        form.setValue('mapImageUrl', downloadURL, { shouldDirty: true });
+        toast({ title: 'Upload Concluído!', description: 'A imagem do mapa foi enviada.' });
+    } catch (error) {
+        console.error('Upload error:', error);
+        setMapImageUploadState({ progress: 0, isUploading: false, error: 'Falha no upload.' });
+        toast({ variant: "destructive", title: "Erro no Upload", description: "Não foi possível enviar a imagem do mapa." });
+    } finally {
+        setMapImageUploadState(prev => ({ ...prev, isUploading: false }));
+    }
+  };
+
   const onSubmit = (data: HomepageData) => {
     if (!user) return;
     const sanitizedData = JSON.parse(JSON.stringify(data));
@@ -268,42 +312,46 @@ export default function EditHomepagePage() {
                 <FormItem className="md:col-span-2">
                   <FormLabel>Imagem de Fundo (Hero)</FormLabel>
                   <FormControl>
-                    <div className="flex items-center gap-4">
-                      <div className="relative w-48 h-28 bg-gray-100 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden">
+                    <div className="flex flex-col gap-4">
+                      <div className="relative w-full aspect-video bg-gray-100 rounded-xl border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden">
                         {field.value ? (
-                          <Image src={field.value} alt="Hero Background Preview" layout="fill" className="object-cover" />
+                          <Image src={field.value} alt="Hero Background Preview" fill className="object-cover" />
                         ) : (
                           <span className="material-symbols-outlined text-gray-400 text-4xl">
                             hide_image
                           </span>
                         )}
                       </div>
-                      <div className="flex-1 space-y-2">
-                         <label htmlFor="hero-image-upload" className="w-full">
-                          <div className="w-full h-12 px-4 flex items-center justify-center gap-2 rounded-lg bg-gray-50 border border-gray-200 text-sm font-medium text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors">
-                            <span className="material-symbols-outlined text-base">upload</span>
-                            Carregar nova imagem
-                          </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <label htmlFor="hero-image-upload" className="w-full">
+                            <div className="w-full h-12 px-4 flex items-center justify-center gap-2 rounded-lg bg-gray-50 border border-gray-200 text-sm font-medium text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors">
+                              <span className="material-symbols-outlined text-base">upload</span>
+                              Carregar nova imagem
+                            </div>
+                            <Input
+                              id="hero-image-upload"
+                              type="file"
+                              accept="image/*"
+                              className="sr-only"
+                              onChange={handleHeroImageUpload}
+                              disabled={heroImageUploadState.isUploading}
+                            />
+                          </label>
+                          {heroImageUploadState.isUploading && (
+                            <div className="space-y-1">
+                              <Progress value={heroImageUploadState.progress} className="h-2" />
+                            </div>
+                          )}
+                        </div>
+                        <div className="space-y-2">
                           <Input
-                            id="hero-image-upload"
-                            type="file"
-                            accept="image/*"
-                            className="sr-only"
-                            onChange={handleHeroImageUpload}
-                            disabled={heroImageUploadState.isUploading}
+                            className="w-full h-12 border-gray-200"
+                            placeholder="Ou cole a URL da imagem aqui"
+                            {...field}
+                            value={field.value ?? ""}
                           />
-                        </label>
-                        {heroImageUploadState.isUploading && (
-                          <div className="space-y-1">
-                            <Progress value={heroImageUploadState.progress} className="h-2" />
-                          </div>
-                        )}
-                        <Input
-                          className="w-full h-10 border-gray-200"
-                          placeholder="Ou cole a URL da imagem aqui"
-                          {...field}
-                          value={field.value ?? ""}
-                        />
+                        </div>
                       </div>
                     </div>
                   </FormControl>
@@ -513,15 +561,122 @@ export default function EditHomepagePage() {
                     name="aboutImageUrl"
                     render={({ field }) => (
                     <FormItem>
-                        <FormLabel>URL da Imagem da Seção "Sobre"</FormLabel>
+                        <FormLabel>Imagem da Seção "Sobre"</FormLabel>
                         <FormControl>
-                            <Input placeholder="https://exemplo.com/imagem.jpg" {...field} value={field.value ?? ''} />
+                            <div className="flex flex-col gap-4">
+                                <div className="relative w-full aspect-video bg-gray-100 rounded-xl border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden">
+                                {field.value ? (
+                                    <Image src={field.value} alt="About Image Preview" fill className="object-cover" />
+                                ) : (
+                                    <span className="material-symbols-outlined text-gray-400 text-4xl">
+                                    hide_image
+                                    </span>
+                                )}
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <label htmlFor="about-image-upload" className="w-full">
+                                        <div className="w-full h-12 px-4 flex items-center justify-center gap-2 rounded-lg bg-gray-50 border border-gray-200 text-sm font-medium text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors">
+                                            <span className="material-symbols-outlined text-base">upload</span>
+                                            Carregar nova imagem
+                                        </div>
+                                        <Input
+                                            id="about-image-upload"
+                                            type="file"
+                                            accept="image/*"
+                                            className="sr-only"
+                                            onChange={handleAboutImageUpload}
+                                            disabled={aboutImageUploadState.isUploading}
+                                        />
+                                        </label>
+                                        {aboutImageUploadState.isUploading && (
+                                        <div className="space-y-1">
+                                            <Progress value={aboutImageUploadState.progress} className="h-2" />
+                                        </div>
+                                        )}
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Input
+                                        className="w-full h-12 border-gray-200"
+                                        placeholder="Ou cole a URL da imagem aqui"
+                                        {...field}
+                                        value={field.value ?? ""}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
                         </FormControl>
                         <FormMessage />
                     </FormItem>
                     )}
                 />
             </div>
+        </div>
+      </section>
+
+      {/* Map Section */}
+      <section className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="p-6 border-b border-gray-100 bg-gray-50/50">
+            <h2 className="text-lg font-bold flex items-center gap-2 text-gray-800">
+                <span className="material-symbols-outlined text-primary-hover">map</span>
+                Imagem da Seção Mapa
+            </h2>
+        </div>
+        <div className="p-6">
+            <FormField
+                control={form.control}
+                name="mapImageUrl"
+                render={({ field }) => (
+                <FormItem>
+                    <FormLabel>Imagem de Fundo da Seção de Localização</FormLabel>
+                    <FormControl>
+                        <div className="flex flex-col gap-4">
+                            <div className="relative w-full aspect-[21/9] bg-gray-100 rounded-xl border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden">
+                            {field.value ? (
+                                <Image src={field.value} alt="Map Background Preview" fill className="object-cover" />
+                            ) : (
+                                <span className="material-symbols-outlined text-gray-400 text-4xl">
+                                map
+                                </span>
+                            )}
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <label htmlFor="map-image-upload" className="w-full">
+                                    <div className="w-full h-12 px-4 flex items-center justify-center gap-2 rounded-lg bg-gray-50 border border-gray-200 text-sm font-medium text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors">
+                                        <span className="material-symbols-outlined text-base">upload</span>
+                                        Carregar nova imagem do mapa
+                                    </div>
+                                    <Input
+                                        id="map-image-upload"
+                                        type="file"
+                                        accept="image/*"
+                                        className="sr-only"
+                                        onChange={handleMapImageUpload}
+                                        disabled={mapImageUploadState.isUploading}
+                                    />
+                                    </label>
+                                    {mapImageUploadState.isUploading && (
+                                    <div className="space-y-1">
+                                        <Progress value={mapImageUploadState.progress} className="h-2" />
+                                    </div>
+                                    )}
+                                </div>
+                                <div className="space-y-2">
+                                    <Input
+                                    className="w-full h-12 border-gray-200"
+                                    placeholder="Ou cole a URL da imagem aqui"
+                                    {...field}
+                                    value={field.value ?? ""}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </FormControl>
+                    <FormMessage />
+                </FormItem>
+                )}
+            />
         </div>
       </section>
         </form>

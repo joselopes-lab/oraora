@@ -1,9 +1,12 @@
+
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
-import { initializeFirebase } from '@/firebase/index.server';
+import { initializeFirebase, adminDb } from '@/firebase/index.server';
 import { notFound } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
+import { getBrokerData } from '../../utils.server';
+import { FieldValue } from 'firebase-admin/firestore';
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -47,7 +50,6 @@ type Property = {
     nome: string;
     status: string;
     valor?: number;
-    status: string;
   };
   midia: string[];
   localizacao: {
@@ -62,44 +64,33 @@ function hslToHex(hslStr: string): string {
     if (!parts || parts.length < 3) return '#000000';
 
     const h = parseFloat(parts[0]);
-    const s = parseFloat(parts[1]) / 100;
-    const l = parseFloat(parts[2]) / 100;
+    const s = Math.min(100, Math.max(0, parseFloat(parts[1]))) / 100;
+    const l = Math.min(100, Math.max(0, parseFloat(parts[2]))) / 100;
 
     const a = s * Math.min(l, 1 - l);
     const f = (n: number) => {
         const k = (n + h / 30) % 12;
         const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
-        return Math.round(255 * color).toString(16).padStart(2, '0');
+        const channel = Math.round(255 * color);
+        const hex = channel.toString(16);
+        return hex.length === 1 ? "0" + hex : hex;
     };
     return `#${f(0)}${f(8)}${f(4)}`;
 }
 
-async function getBrokerData(slug: string): Promise<Broker | null> {
-  const { firestore } = initializeFirebase();
-  const brokersRef = collection(firestore, 'brokers');
-  const q = query(brokersRef, where('slug', '==', slug));
-  const querySnapshot = await getDocs(q);
-  if (querySnapshot.empty) return null;
-  const brokerDoc = querySnapshot.docs[0];
-  return { id: brokerDoc.id, ...brokerDoc.data() } as Broker;
-}
-
 async function getFeaturedProperties(brokerId: string, featuredIds?: string[]): Promise<Property[]> {
-  const { firestore } = initializeFirebase();
   const results: Property[] = [];
   
   if (featuredIds && featuredIds.length > 0) {
-    const pRef = collection(firestore, 'properties');
-    const pQuery = query(pRef, where('__name__', 'in', featuredIds));
-    const pSnap = await getDocs(pQuery);
-    pSnap.forEach(d => results.push({ id: d.id, ...d.data() } as Property));
+    const pRef = adminDb.collection('properties');
+    const pSnap = await pRef.where('__name__', 'in', featuredIds).get();
+    pSnap.forEach(d => results.push({ id: d.id, ...d.data() } as any));
 
-    const bpRef = collection(firestore, 'brokerProperties');
-    const bpQuery = query(bpRef, where('__name__', 'in', featuredIds));
-    const bpSnap = await getDocs(bpQuery);
+    const bpRef = adminDb.collection('brokerProperties');
+    const bpSnap = await bpRef.where('__name__', 'in', featuredIds).get();
     bpSnap.forEach(d => {
         if (!results.find(r => r.id === d.id)) {
-            results.push({ id: d.id, ...d.data() } as Property);
+            results.push({ id: d.id, ...d.data() } as any);
         }
     });
     return results.sort((a, b) => (featuredIds.indexOf(a.id) - featuredIds.indexOf(b.id)));
@@ -107,11 +98,20 @@ async function getFeaturedProperties(brokerId: string, featuredIds?: string[]): 
   return [];
 }
 
-export default async function OralinkPublicPage({ params }: { params: { slug: string } }) {
-  const { slug } = params;
+export default async function OralinkPublicPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
   const broker = await getBrokerData(slug);
 
   if (!broker) notFound();
+
+  // Incrementa contador de acessos ao Oralink via servidor aguardando conclusão
+  try {
+    await adminDb.collection('corretorMetrics').doc(broker.id).set({
+      oralinkHits: FieldValue.increment(1)
+    }, { merge: true });
+  } catch (e) {
+    console.error("Erro ao rastrear acesso oralink:", e);
+  }
 
   const oralink = broker.oralink || {
     displayName: broker.brandName,
@@ -124,7 +124,7 @@ export default async function OralinkPublicPage({ params }: { params: { slug: st
   };
 
   const properties = await getFeaturedProperties(broker.id, oralink.featuredPropertyIds);
-  const activeLinks = (oralink.links || []).filter(l => l.active && l.title && l.url);
+  const activeLinks = (oralink.links || []).filter((l: any) => l.active && l.title && l.url);
 
   const getYoutubeEmbedUrl = (url?: string) => {
     if (!url) return null;
@@ -175,7 +175,7 @@ export default async function OralinkPublicPage({ params }: { params: { slug: st
         )}
 
         <div className="w-full space-y-4 mb-16">
-          {activeLinks.map(link => (
+          {activeLinks.map((link: any) => (
             <a 
               key={link.id} 
               href={link.url} 

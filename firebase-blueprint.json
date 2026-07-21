@@ -1,0 +1,198 @@
+
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user within the Oraora application.",
+      "properties": {
+        "id": { "type": "string" },
+        "userType": { "type": "string", "enum": ["broker", "constructor", "admin", "client"] },
+        "email": { "type": "string", "format": "email" },
+        "username": { "type": "string" },
+        "planId": { "type": "string" },
+        "isActive": { "type": "boolean" },
+        "lastAccess": { "type": "string", "format": "date-time" },
+        "totalSessionSeconds": { "type": "number" },
+        "isOnline": { "type": "boolean" }
+      },
+      "required": ["id", "userType", "email", "username", "isActive"]
+    },
+    "Broker": {
+      "title": "Broker",
+      "type": "object",
+      "description": "Broker details and site settings.",
+      "properties": {
+        "id": { "type": "string" },
+        "slug": { "type": "string" },
+        "brandName": { "type": "string" },
+        "logoUrl": { "type": "string" },
+        "onboardingCompleted": { "type": "boolean" }
+      }
+    },
+    "BrokerCoverage": {
+      "title": "Broker Coverage & Authority",
+      "type": "object",
+      "description": "Defines the geographic area and professional expertise of a broker.",
+      "properties": {
+        "brokerId": { "type": "string" },
+        "states": { "type": "array", "items": { "type": "string" } },
+        "cities": { "type": "array", "items": { "type": "string" } },
+        "districts": { "type": "array", "items": { "type": "string" } },
+        "radius": { "type": "number", "description": "Operating radius in km" },
+        "specialties": { "type": "array", "items": { "type": "string" } },
+        "profile": {
+          "type": "object",
+          "properties": {
+            "yearsExperience": { "type": "string" },
+            "targetAudience": { "type": "string" },
+            "priceRange": { "type": "string" },
+            "languages": { "type": "array", "items": { "type": "string" } },
+            "presentialService": { "type": "boolean" },
+            "onlineService": { "type": "boolean" }
+          }
+        },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "CityContent": {
+      "title": "City Generated Content",
+      "type": "object",
+      "description": "AI generated and structured content for city authority pages.",
+      "properties": {
+        "id": { "type": "string", "description": "brokerId_cityName" },
+        "brokerId": { "type": "string" },
+        "cityName": { "type": "string" },
+        "stateUf": { "type": "string" },
+        "status": { "type": "string", "enum": ["draft", "published", "archived"] },
+        "seo": {
+          "type": "object",
+          "properties": {
+            "title": { "type": "string" },
+            "description": { "type": "string" },
+            "keywords": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "sections": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        },
+        "scores": {
+          "type": "object",
+          "properties": {
+            "seo": { "type": "number" },
+            "quality": { "type": "number" },
+            "aiReadiness": { "type": "number" }
+          }
+        },
+        "researchReport": { "$ref": "#/backend/entities/ResearchReport" },
+        "lastGeneratedAt": { "type": "string", "format": "date-time" },
+        "publishedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Constructor": {
+      "title": "Constructor",
+      "type": "object",
+      "description": "Real estate developer or construction company profile.",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "cnpj": { "type": "string" },
+        "logoUrl": { "type": "string" },
+        "city": { "type": "string" },
+        "state": { "type": "string" },
+        "isVisibleOnSite": { "type": "boolean" }
+      }
+    },
+    "Property": {
+      "title": "Property",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "builderId": { "type": "string" },
+        "brokerId": { "type": "string" },
+        "isVisibleOnSite": { "type": "boolean" },
+        "informacoesbasicas": { "type": "object" },
+        "localizacao": { "type": "object" }
+      }
+    },
+    "Lead": {
+      "title": "Lead",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "brokerId": { "type": "string" },
+        "name": { "type": "string" },
+        "status": { "type": "string" },
+        "network": { "type": "object" }
+      }
+    },
+    "RadarList": {
+      "title": "RadarList",
+      "type": "object",
+      "description": "A user's saved properties list.",
+      "properties": {
+        "userId": { "type": "string" },
+        "propertyIds": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "Ticket": {
+      "title": "Ticket",
+      "type": "object",
+      "description": "Support tickets.",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "clientId": { "type": "string" },
+        "clientName": { "type": "string" },
+        "status": { "type": "string", "enum": ["Novo", "Em Andamento", "Aguardando Cliente", "Fechado"] },
+        "priority": { "type": "string", "enum": ["Baixa", "Média", "Alta", "Urgente"] },
+        "category": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Announcement": {
+        "title": "Announcement/Notification",
+        "type": "object",
+        "description": "System-wide broadcasts or individual notifications.",
+        "properties": {
+            "id": { "type": "string" },
+            "title": { "type": "string" },
+            "content": { "type": "string" },
+            "recipients": { "type": "array", "items": { "type": "string" }, "description": "UIDs or UserTypes" },
+            "type": { "type": "string", "enum": ["broadcast", "notification", "rede_oraora"] },
+            "status": { "type": "string", "enum": ["sent", "scheduled", "draft"] },
+            "relatedId": { "type": "string", "description": "Link to leadId or propertyId" },
+            "createdAt": { "type": "string", "format": "date-time" }
+        }
+    }
+  },
+  "auth": {
+    "providers": ["password"]
+  },
+  "firestore": {
+    "/users/{userId}": { "schema": { "$ref": "#/backend/entities/User" }, "description": "Global user profiles." },
+    "/users/{userId}/activityLog/{logId}": { "schema": { "type": "object" }, "description": "Navigation and activity history." },
+    "/brokers/{brokerId}": { "schema": { "$ref": "#/backend/entities/Broker" }, "description": "Broker site settings." },
+    "/brokerCoverage/{brokerId}": { "schema": { "$ref": "#/backend/entities/BrokerCoverage" }, "description": "Broker service areas and expertise." },
+    "/cityContent/{contentId}": { "schema": { "$ref": "#/backend/entities/CityContent" }, "description": "AI generated city authority pages." },
+    "/constructors/{id}": { "schema": { "$ref": "#/backend/entities/Constructor" }, "description": "Construction company profiles." },
+    "/properties/{propertyId}": { "schema": { "$ref": "#/backend/entities/Property" }, "description": "Global constructor properties." },
+    "/brokerProperties/{propertyId}": { "schema": { "$ref": "#/backend/entities/Property" }, "description": "Exclusive broker properties." },
+    "/leads/{leadId}": { "schema": { "$ref": "#/backend/entities/Lead" }, "description": "CRM leads." },
+    "/leads/{leadId}/networkResponses/{id}": { "schema": { "type": "object" }, "description": "Partnership proposals." },
+    "/leads/{leadId}/statusHistory/{id}": { "schema": { "type": "object" }, "description": "Lead lifecycle tracking." },
+    "/portfolios/{brokerId}": { "schema": { "type": "object" }, "description": "Broker highlights." },
+    "/personas/{id}": { "schema": { "type": "object" }, "description": "AI personas." },
+    "/marketReports/{id}": { "schema": { "type": "object" }, "description": "Market data." },
+    "/plans/{id}": { "schema": { "type": "object" }, "description": "SaaS plans." },
+    "/inviteRequests/{id}": { "schema": { "type": "object" }, "description": "Access requests." },
+    "/domains/{domain}": { "schema": { "type": "object" }, "description": "Custom domains." },
+    "/announcements/{id}": { "schema": { "$ref": "#/backend/entities/Announcement" }, "description": "Notifications and Broadcasts." },
+    "/radarLists/{userId}": { "schema": { "$ref": "#/backend/entities/RadarList" }, "description": "Saved properties lists." },
+    "/tickets/{ticketId}": { "schema": { "$ref": "#/backend/entities/Ticket" }, "description": "Support tickets." }
+  }
+}

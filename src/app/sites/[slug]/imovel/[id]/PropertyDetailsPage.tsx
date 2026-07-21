@@ -109,9 +109,6 @@ function hslToHex(hslStr: string): string {
     const s = parseFloat(parts[1]);
     const l = parseFloat(parts[2]);
 
-    const sNormalized = s / 100;
-    const lNormalized = l / 100;
-
     const a = sNormalized * Math.min(lNormalized, 1 - lNormalized);
     const f = (n: number) => {
         const k = (n + h / 30) % 12;
@@ -256,6 +253,8 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
   const cardValueColor = content.cardValueColor ? hslToHex(content.cardValueColor) : undefined;
   const cardIconColor = content.cardIconColor ? hslToHex(content.cardIconColor) : undefined;
 
+  const isAvulso = !!property.brokerId;
+
   const dynamicStyles: React.CSSProperties = {
     '--background': broker.backgroundColor,
     '--foreground': broker.foregroundColor,
@@ -310,7 +309,7 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
             </div>
             {midia.slice(1, 5).map((img, idx) => (
               <div key={idx} onClick={() => openGallery(idx + 1)} className="hidden md:block relative rounded-2xl overflow-hidden group cursor-pointer shadow-soft">
-                <Image alt="img" src={img} fill className="object-cover transition-transform duration-700 group-hover:scale-105"/>
+                <Image alt="img" src={img} fill className="object-cover transition-transform duration-700 group-hover:scale-105" />
               </div>
             ))}
           </div>

@@ -1,3 +1,4 @@
+
 'use client';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -84,6 +85,13 @@ export default function SearchResults({ broker, properties }: SearchResultsPageP
     const router = useRouter();
     const pathname = usePathname();
     const searchParams = useSearchParams();
+
+    const isPortalAccess = pathname.startsWith('/sites');
+    const searchUrl = isPortalAccess ? `/sites/${broker.slug}/search` : '/search';
+
+    const availableStates = useMemo(() => {
+        return Array.from(new Set(properties.map(p => p.localizacao.estado))).filter(Boolean);
+    }, [properties]);
 
     const filteredProperties = useMemo(() => {
         const propertyTypeParam = searchParams.get('type');
@@ -199,11 +207,11 @@ export default function SearchResults({ broker, properties }: SearchResultsPageP
         '--accent': broker.accentColor,
         '--search-button-bg': content.searchButtonBgColor ? `hsl(${content.searchButtonBgColor})` : 'hsl(var(--secondary))',
         '--search-button-text': content.searchButtonTextColor ? `hsl(${content.searchButtonTextColor})` : 'hsl(var(--primary))',
-        '--card-title': content.cardTitleColor ? `hsl(${content.cardTitleColor})` : 'inherit',
-        '--card-value': content.cardValueColor ? `hsl(${content.cardValueColor})` : 'hsl(var(--primary))',
-        '--card-icon': content.cardIconColor ? `hsl(${content.cardIconColor})` : 'hsl(var(--primary))',
-        '--status-tag-bg': content.statusTagBgColor ? `hsl(${content.statusTagBgColor})` : 'rgba(255,255,255,0.9)',
-        '--status-tag-text': content.statusTagTextColor ? `hsl(${content.statusTagTextColor})` : '#000',
+        '--card-title': cardTitleColor,
+        '--card-value': cardValueColor,
+        '--card-icon': cardIconColor,
+        '--status-tag-bg': statusTagBgColor,
+        '--status-tag-text': statusTagTextColor,
     } as React.CSSProperties;
 
     return (
@@ -218,7 +226,7 @@ export default function SearchResults({ broker, properties }: SearchResultsPageP
                                     <h1 className="text-3xl md:text-4xl font-black text-text-main mb-2">Encontre o imóvel ideal</h1>
                                     <p className="text-text-muted">Utilize os filtros abaixo para refinar sua busca.</p>
                                 </div>
-                                <SearchFilters onSearch={handleSearch} />
+                                <SearchFilters onSearch={handleSearch} availableStates={availableStates} />
                             </div>
                         </div>
                     </section>
@@ -261,12 +269,17 @@ export default function SearchResults({ broker, properties }: SearchResultsPageP
                                         <button className="absolute top-3 right-3 z-10 flex size-8 items-center justify-center rounded-full bg-white/80 backdrop-blur-sm text-gray-500 hover:text-red-500 hover:bg-white transition-colors">
                                             <span className="material-symbols-outlined text-[20px]">favorite</span>
                                         </button>
-                                        <Image alt={property.informacoesbasicas.nome} width={400} height={300} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" src={property.midia?.[0] || 'https://picsum.photos/seed/prop/400/300'}/>
+                                        <Image alt={property.informacoesbasicas.nome} width={400} height={300} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110" src={property.midia?.[0] || 'https://picsum.photos/seed/prop/400/300'}/>
                                         <div className="absolute bottom-0 left-0 w-full bg-gradient-to-t from-black/60 to-transparent p-4 pt-12">
                                             {property.informacoesbasicas.valor && (
-                                            <p className="text-white font-bold text-2xl tracking-tight">
-                                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(property.informacoesbasicas.valor)}
-                                            </p>
+                                            <div className="text-white">
+                                                <span className="block text-[10px] font-bold text-gray-300 uppercase tracking-widest mb-0.5">
+                                                    A partir de:
+                                                </span>
+                                                <p className="font-bold text-2xl tracking-tight leading-none">
+                                                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(property.informacoesbasicas.valor)}
+                                                </p>
+                                            </div>
                                             )}
                                         </div>
                                     </div>
@@ -315,7 +328,7 @@ export default function SearchResults({ broker, properties }: SearchResultsPageP
                                         <button
                                             key={i}
                                             onClick={() => handlePageChange(i + 1)}
-                                            className={cn("flex items-center justify-center size-10 rounded-full border border-gray-200 font-medium transition-all", currentPage === i + 1 ? 'bg-primary text-black font-bold shadow-md' : 'bg-white text-text-muted hover:bg-gray-100 hover:border-gray-300')}
+                                            className={cn("flex items-center justify-center size-10 rounded-full border border-gray-200 font-medium transition-all", currentPage === i + 1 ? 'bg-secondary !text-white font-bold shadow-md' : 'bg-white text-text-muted hover:bg-gray-100 hover:border-gray-300')}
                                         >
                                             {i + 1}
                                         </button>
@@ -337,7 +350,7 @@ export default function SearchResults({ broker, properties }: SearchResultsPageP
                             </p>
                             <div className="flex flex-col sm:flex-row justify-center gap-4">
                                 <input className="h-12 px-4 rounded-lg bg-white/10 border border-white/20 text-white placeholder-gray-400 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary w-full sm:w-80" placeholder="Seu melhor e-mail" type="email" />
-                                <button className="h-12 px-8 rounded-lg bg-primary text-black font-bold hover:bg-primary-hover transition-colors shadow-lg shadow-primary/20">
+                                <button className="h-12 px-8 rounded-lg bg-primary !text-white font-bold hover:bg-primary-hover transition-colors shadow-lg shadow-primary/20">
                                     Receber Alertas
                                 </button>
                             </div>

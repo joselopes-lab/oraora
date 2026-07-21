@@ -46,6 +46,9 @@ type Event = {
   broker?: string;
   completed?: boolean;
   notes?: Note[];
+  journeyId?: string;
+  propertyId?: string;
+  propertySource?: 'properties' | 'brokerProperties';
 };
 
 type Lead = {

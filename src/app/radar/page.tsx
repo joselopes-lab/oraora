@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -8,11 +7,21 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
-import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { signInWithEmailAndPassword, signOut, sendPasswordResetEmail } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogTrigger,
+  DialogClose,
+} from '@/components/ui/dialog';
 
 export default function RadarLoginPage() {
     const [showPassword, setShowPassword] = useState(false);
@@ -20,6 +29,11 @@ export default function RadarLoginPage() {
     const [password, setPassword] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     
+    // Recovery State
+    const [isRecoveryModalOpen, setIsRecoveryModalOpen] = useState(false);
+    const [recoveryEmail, setRecoveryEmail] = useState('');
+    const [isSendingReset, setIsSendingReset] = useState(false);
+
     const auth = useAuth();
     const firestore = useFirestore();
     const router = useRouter();
@@ -81,11 +95,66 @@ export default function RadarLoginPage() {
         }
     };
 
+    const handleResetPassword = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!auth || !recoveryEmail) return;
+
+        // Basic email validation
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(recoveryEmail)) {
+            toast({
+                variant: "destructive",
+                title: "E-mail inválido",
+                description: "Por favor, insira um endereço de e-mail válido.",
+            });
+            return;
+        }
+
+        setIsSendingReset(true);
+
+        // Configuration to redirect the user to our custom reset page
+        const actionCodeSettings = {
+          url: `${window.location.origin}/reset-password`,
+          handleCodeInApp: true,
+        };
+
+        try {
+            await sendPasswordResetEmail(auth, recoveryEmail, actionCodeSettings);
+            toast({
+                title: "Link Enviado!",
+                description: "Enviamos um e-mail para redefinição da sua senha. Verifique também sua caixa de spam.",
+            });
+            setIsRecoveryModalOpen(false);
+            setRecoveryEmail('');
+        } catch (error: any) {
+            console.error("Password reset error:", error);
+            
+            let message = "Enviamos um e-mail para redefinição da sua senha. Verifique também sua caixa de spam.";
+            
+            if (error.code === 'auth/too-many-requests') {
+                toast({
+                    variant: "destructive",
+                    title: "Muitas tentativas",
+                    description: "Por favor, aguarde um momento antes de tentar novamente.",
+                });
+                return;
+            }
+
+            toast({
+                title: "Solicitação Processada",
+                description: message,
+            });
+            setIsRecoveryModalOpen(false);
+        } finally {
+            setIsSendingReset(false);
+        }
+    };
+
 
     return (
         <div className="bg-background-light font-display antialiased min-h-screen flex flex-col overflow-x-hidden selection:bg-primary selection:text-neutral-dark">
             <div className="relative flex min-h-screen w-full flex-row">
-                <div className="flex flex-col flex-1 bg-white relative z-10 w-full lg:w-1/2 lg:max-w-[600px] xl:max-w-[700px] border-r border-gray-100">
+                <div className="flex flex-col flex-1 bg-white relative z-10 w-full lg:w-1/2 lg:max-w-[600px] xl:max-w-[700px] border-r border-gray-100 text-left">
                     <div className="px-8 py-8 md:px-12 lg:px-16 flex items-center justify-between">
                         <Link href="/" className="flex items-center gap-3">
                             <Image src={siteData?.logoUrl || defaultLogo || ""} alt="Oraora Logo" width={160} height={40} className="h-10 w-auto" style={{ width: 'auto' }} />
@@ -96,7 +165,7 @@ export default function RadarLoginPage() {
                     </div>
                     <div className="flex flex-1 flex-col justify-center px-8 md:px-12 lg:px-16 py-10">
                         <div className="max-w-[420px] w-full mx-auto flex flex-col">
-                            <div className="mb-10">
+                            <div className="mb-10 text-left">
                                 <h1 className="text-4xl font-extrabold text-neutral-dark tracking-tight mb-4">Acesse seu Radar</h1>
                                 <p className="text-gray-500 text-lg leading-relaxed">Entre para visualizar seus imóveis salvos e recomendações exclusivas</p>
                             </div>
@@ -115,7 +184,40 @@ export default function RadarLoginPage() {
                                 <div className="space-y-2">
                                     <div className="flex justify-between items-center ml-1">
                                         <Label className="text-sm font-semibold text-neutral-dark" htmlFor="password">Senha</Label>
-                                        <Link className="text-sm font-bold text-gray-400 hover:text-neutral-dark transition-colors" href="/esqueceu-a-senha">Esqueci minha senha</Link>
+                                        <Dialog open={isRecoveryModalOpen} onOpenChange={setIsRecoveryModalOpen}>
+                                          <DialogTrigger asChild>
+                                            <button type="button" className="text-sm font-bold text-gray-400 hover:text-neutral-dark transition-colors border-none bg-transparent cursor-pointer">Esqueceu minha senha</button>
+                                          </DialogTrigger>
+                                          <DialogContent className="sm:max-w-md">
+                                            <DialogHeader>
+                                              <DialogTitle>Recuperar senha</DialogTitle>
+                                              <DialogDescription>
+                                                Informe o e-mail utilizado no cadastro. Enviaremos um link para redefinição da sua senha.
+                                              </DialogDescription>
+                                            </DialogHeader>
+                                            <form onSubmit={handleResetPassword} className="space-y-4 py-4">
+                                              <div className="space-y-2 text-left">
+                                                <Label htmlFor="radar-recovery-email">E-mail</Label>
+                                                <Input 
+                                                  id="radar-recovery-email" 
+                                                  type="email" 
+                                                  placeholder="seu@email.com" 
+                                                  value={recoveryEmail}
+                                                  onChange={(e) => setRecoveryEmail(e.target.value)}
+                                                  required 
+                                                />
+                                              </div>
+                                              <DialogFooter className="flex-col sm:flex-row gap-3">
+                                                <DialogClose asChild>
+                                                  <Button variant="ghost" type="button">Cancelar</Button>
+                                                </DialogClose>
+                                                <Button disabled={isSendingReset || !recoveryEmail} type="submit" className="bg-primary text-neutral-dark font-bold">
+                                                  {isSendingReset ? 'Enviando...' : 'Enviar link'}
+                                                </Button>
+                                              </DialogFooter>
+                                            </form>
+                                          </DialogContent>
+                                        </Dialog>
                                     </div>
                                     <div className="relative group">
                                         <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-primary transition-colors" style={{ fontSize: '20px' }}>lock</span>
@@ -129,7 +231,7 @@ export default function RadarLoginPage() {
                                         </button>
                                     </div>
                                 </div>
-                                <Button className="w-full h-14 bg-primary hover:bg-[#b0d132] text-neutral-dark font-extrabold rounded-xl shadow-glow transition-all duration-300 transform active:scale-[0.98] flex items-center justify-center gap-3 group mt-8" type="submit" disabled={isSubmitting || !auth}>
+                                <Button className="w-full h-14 bg-primary hover:bg-[#b0d132] text-neutral-dark font-extrabold rounded-xl shadow-glow transition-all duration-300 transform active:scale-[0.98] flex items-center justify-center gap-3 group mt-8 border-none cursor-pointer" type="submit" disabled={isSubmitting || !auth}>
                                     <span className="text-lg">{isSubmitting ? 'Acessando...' : 'Acessar Radar'}</span>
                                     {!isSubmitting && <span className="material-symbols-outlined transition-transform group-hover:translate-x-1" style={{ fontSize: '22px' }}>arrow_forward</span>}
                                 </Button>
@@ -150,17 +252,17 @@ export default function RadarLoginPage() {
                         </div>
                     </div>
                     <div className="px-8 py-8 md:px-12 lg:px-16 text-center md:text-left">
-                        <p className="text-xs text-gray-400 font-medium">© 2024 Oraora Radar. Todos os direitos reservados.</p>
+                        <p className="text-xs text-gray-400 font-medium">© 2025 Oraora Radar. Todos os direitos reservados.</p>
                     </div>
                 </div>
-                <div className="hidden lg:flex flex-1 relative bg-neutral-dark overflow-hidden">
+                <div className="hidden lg:flex flex-1 relative bg-neutral-dark overflow-hidden group/right-pane">
                     <div className="absolute inset-0 z-0">
-                        <Image alt="Arquitetura moderna e luxuosa com linhas tecnológicas" className="w-full h-full object-cover opacity-50 grayscale hover:grayscale-0 transition-all duration-1000 ease-in-out scale-105" src={bgImage} fill />
+                        <Image alt="Arquitetura moderna e luxuosa com linhas tecnológicas" className="w-full h-full object-cover opacity-50 grayscale group-hover/right-pane:grayscale-0 transition-all duration-1000 ease-in-out scale-105" src={bgImage} fill />
                         <div className="absolute inset-0 bg-black/60"></div>
                         <div className="absolute inset-0 bg-gradient-to-br from-neutral-dark via-neutral-dark/60 to-transparent"></div>
                         <div className="absolute inset-0 bg-gradient-to-t from-neutral-dark via-transparent to-transparent"></div>
                     </div>
-                    <div className="relative z-10 flex flex-col justify-center p-16 xl:p-24 w-full h-full text-white">
+                    <div className="relative z-10 flex flex-col justify-center p-16 xl:p-24 w-full h-full text-white text-left">
                         <div className="max-w-lg space-y-12">
                             <div className="space-y-4">
                                 <div className="w-12 h-1.5 bg-primary rounded-full"></div>
@@ -171,7 +273,7 @@ export default function RadarLoginPage() {
                             </div>
                             <div className="grid gap-8">
                                 <div className="flex gap-5 items-start">
-                                    <div className="size-12 rounded-xl glass-panel flex items-center justify-center flex-shrink-0 text-primary">
+                                    <div className="size-12 rounded-xl bg-white/10 backdrop-blur-md flex items-center justify-center flex-shrink-0 text-primary border border-white/10">
                                         <span className="material-symbols-outlined">notifications_active</span>
                                     </div>
                                     <div>
@@ -180,7 +282,7 @@ export default function RadarLoginPage() {
                                     </div>
                                 </div>
                                 <div className="flex gap-5 items-start">
-                                    <div className="size-12 rounded-xl glass-panel flex items-center justify-center flex-shrink-0 text-primary">
+                                    <div className="size-12 rounded-xl bg-white/10 backdrop-blur-md flex items-center justify-center flex-shrink-0 text-primary border border-white/10">
                                         <span className="material-symbols-outlined">favorite</span>
                                     </div>
                                     <div>
@@ -189,7 +291,7 @@ export default function RadarLoginPage() {
                                     </div>
                                 </div>
                                 <div className="flex gap-5 items-start">
-                                    <div className="size-12 rounded-xl glass-panel flex items-center justify-center flex-shrink-0 text-primary">
+                                    <div className="size-12 rounded-xl bg-white/10 backdrop-blur-md flex items-center justify-center flex-shrink-0 text-primary border border-white/10">
                                         <span className="material-symbols-outlined">insights</span>
                                     </div>
                                     <div>
@@ -200,12 +302,12 @@ export default function RadarLoginPage() {
                             </div>
                         </div>
                         <div className="absolute bottom-12 right-12">
-                            <div className="glass-panel p-5 rounded-2xl shadow-2xl max-w-[240px] border-white/20">
+                            <div className="bg-white/10 backdrop-blur-md p-5 rounded-2xl shadow-2xl max-w-[240px] border border-white/20">
                                 <div className="flex items-center gap-3 mb-3">
                                     <div className="size-10 rounded-full overflow-hidden border border-primary/50">
                                         <img alt="User" className="w-full h-full object-cover" src={userAvatar}/>
                                     </div>
-                                    <div>
+                                    <div className="text-left">
                                         <div className="text-xs text-gray-300">Nova Oportunidade</div>
                                         <div className="text-sm font-bold text-primary">Próximo a você</div>
                                     </div>

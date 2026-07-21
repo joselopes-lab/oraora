@@ -120,6 +120,9 @@ type Event = {
   description?: string;
   location?: string;
   broker?: string;
+  journeyId?: string;
+  propertyId?: string;
+  propertySource?: 'properties' | 'brokerProperties';
 };
 
 type ClientDetailViewProps = {
@@ -296,6 +299,7 @@ export default function ClientDetailView({ client, personas, recommendedProperti
     };
 
     const currentPersona = personas[0];
+    const initials = client.name?.substring(0, 2).toUpperCase() || 'CL';
 
     return (
       <div className="flex flex-col gap-6">
@@ -608,15 +612,20 @@ export default function ClientDetailView({ client, personas, recommendedProperti
                 </div>
 
                 {/* Next Steps / Task Card */}
-                <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col items-center text-center">
                     <h3 className="font-black text-slate-900 dark:text-white mb-6 uppercase text-xs tracking-widest flex items-center gap-2">
                         <span className="material-symbols-outlined text-green-700">event_note</span>
                         Próximas Atividades
                     </h3>
-                    <div className="space-y-4">
+                    
+                    <div className="size-20 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-black text-2xl uppercase mb-4 border-2 border-white shadow-soft">
+                        {initials}
+                    </div>
+
+                    <div className="space-y-4 w-full">
                         {clientEvents && clientEvents.filter(e => !e.completed).length > 0 ? (
                             clientEvents.filter(e => !e.completed).slice(0, 2).map(event => (
-                                <div key={event.id} className="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-800">
+                                <div key={event.id} className="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-800 text-left">
                                     <div className="flex justify-between items-start mb-1">
                                         <span className="text-[9px] font-black text-green-700 uppercase">{event.type}</span>
                                         <span className="text-[9px] text-slate-400 font-bold">{format(parseISO(event.date), 'dd/MM')}</span>

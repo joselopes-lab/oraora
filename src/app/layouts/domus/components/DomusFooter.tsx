@@ -1,4 +1,3 @@
-
 'use client';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -14,6 +13,7 @@ type Broker = {
   instagramUrl?: string;
   linkedinUrl?: string;
   logoUrl?: string;
+  footerLogoUrl?: string;
 };
 
 export function DomusFooter({ broker }: { broker: Broker }) {
@@ -25,8 +25,10 @@ export function DomusFooter({ broker }: { broker: Broker }) {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-12">
           <div className="col-span-1 md:col-span-2 lg:col-span-2">
             <div className="flex items-center gap-3 mb-4">
-              {broker.logoUrl ? (
-                <Image src={broker.logoUrl} alt={`Logo de ${broker.brandName}`} width={160} height={40} className="h-10 w-auto object-contain" />
+              {broker.footerLogoUrl ? (
+                <Image src={broker.footerLogoUrl} alt={`Logo de ${broker.brandName}`} width={160} height={40} className="h-8 md:h-10 w-auto object-contain" />
+              ) : broker.logoUrl ? (
+                <Image src={broker.logoUrl} alt={`Logo de ${broker.brandName}`} width={160} height={40} className="h-8 md:h-10 w-auto object-contain" />
               ) : (
                 <div className="flex items-center gap-3">
                     <div className="size-8 bg-primary flex items-center justify-center rounded-lg">
@@ -63,19 +65,6 @@ export function DomusFooter({ broker }: { broker: Broker }) {
                   </svg>
                 </a>
               )}
-              {broker.linkedinUrl && (
-                <a 
-                  className="w-10 h-10 rounded-full border border-slate-200 dark:border-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400 hover:bg-primary hover:border-primary hover:text-black transition-all" 
-                  href={broker.linkedinUrl} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  aria-label="LinkedIn"
-                >
-                  <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
-                    <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/>
-                  </svg>
-                </a>
-              )}
               {whatsappLink && (
                 <a 
                   className="w-10 h-10 rounded-full border border-slate-200 dark:border-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400 hover:bg-primary hover:border-primary hover:text-black transition-all" 
@@ -94,26 +83,26 @@ export function DomusFooter({ broker }: { broker: Broker }) {
         </div>
         <div className="border-t border-[#f3f4f0] dark:border-white/5 pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-center md:text-left">
           <div className="flex flex-col gap-1">
-            <p className="text-[#161811]/40 dark:text-white/40 text-xs">© 2024 {broker.brandName}. Todos os direitos reservados. {broker.creci && `| ${broker.creci}`}</p>
+            <p className="text-[#161811]/40 dark:text-white/40 text-xs">© 2025 {broker.brandName}. Todos os direitos reservados. {broker.creci && `| ${broker.creci}`}</p>
             <div className="flex gap-6 text-xs font-medium text-[#161811]/60 dark:text-white/60">
               <Link className="hover:text-primary transition-colors" href="/termos-de-uso">Termos de Uso</Link>
-              <Link className="hover:text-primary transition-colors" href="/politica-de-privacidade">Privacidade</Link>
+              <Link className="hover:text-primary transition-colors" href="/politica-de-privacidade">Política de Privacidade</Link>
             </div>
           </div>
-          <div className="flex items-center gap-2 text-[#161811]/40 dark:text-white/40 text-xs">
-            <span>Criado por:</span>
+          <div className="flex items-center gap-1.5 whitespace-nowrap">
+            <span className="opacity-60 text-[#161811]/60 dark:text-white/60 text-xs">Criado por:</span>
             <a 
-              href="/corretor" 
+              href="https://oraora.com.br/corretor" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="hover:opacity-80 transition-opacity"
+              className="hover:opacity-100 transition-opacity flex items-center"
             >
               <Image 
-                src="https://firebasestorage.googleapis.com/v0/b/studio-5937631195-8ebfd.firebasestorage.app/o/site-assets%2Flogos%2Fb51a21ec-d89e-4b7e-be51-d741841e8903-logo-oraora-b.png?alt=media&token=a0d87477-f1e3-4637-8b84-0589b49566ff" 
+                src="https://firebasestorage.googleapis.com/v0/b/studio-5937631195-8ebfd.firebasestorage.app/o/site-assets%2Flogos%2Fb51a21ec-d89e-4b7e-be51-d741841e8903-logo-oraora-b.png?alt=media&token=ba675609-9e91-4c12-a5f7-0daf5b9a9ba2" 
                 alt="Oraora" 
                 width={80} 
                 height={20} 
-                className="h-4 w-auto grayscale opacity-60 dark:invert" 
+                className="h-5 w-auto grayscale brightness-0 dark:invert opacity-90" 
               />
             </a>
           </div>

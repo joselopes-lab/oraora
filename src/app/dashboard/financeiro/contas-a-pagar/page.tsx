@@ -1,4 +1,3 @@
-
 'use client';
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -6,7 +5,7 @@ import { useState, useMemo, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import TransactionDetail from "../components/transaction-detail";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
-import { useCollection, useFirestore, useMemoFirebase, useUser, deleteDocumentNonBlocking, setDocumentNonBlocking } from "@/firebase";
+import { useCollection, useFirestore, useMemoFirebase, useUser, deleteDocumentNonBlocking, setDocumentNonBlocking, useAuthContext } from "@/firebase";
 import { collection, query, where, doc } from "firebase/firestore";
 import { format, startOfMonth, endOfMonth, parseISO, isBefore, isEqual, addMonths, subMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -31,14 +30,16 @@ type Transaction = {
 
 export default function AccountsPayablePage() {
     const { user } = useUser();
+    const { isReady } = useAuthContext();
     const firestore = useFirestore();
     const { toast } = useToast();
     const [currentDate, setCurrentDate] = useState(new Date());
 
     const transactionsQuery = useMemoFirebase(
-      () => (firestore && user ? query(collection(firestore, 'transactions'), where('brokerId', '==', user.uid), where('type', '==', 'despesa')) : null),
-      [firestore, user]
+      () => (isReady && firestore && user?.uid ? query(collection(firestore, 'transactions'), where('brokerId', '==', user.uid), where('type', '==', 'despesa')) : null),
+      [isReady, !!user?.uid, user?.uid, firestore]
     );
+
     const { data: allTransactions, isLoading } = useCollection<Transaction>(transactionsQuery);
 
     const monthlyTransactions = useMemo(() => {
@@ -103,7 +104,7 @@ export default function AccountsPayablePage() {
     const totalOverdue = useMemo(() => monthlyTransactions.filter(t => t.status === 'Atrasado').reduce((acc, curr) => acc + curr.value, 0), [monthlyTransactions]);
 
   return (
-    <>
+    <div className="flex flex-col gap-6 animate-in fade-in duration-500 text-left">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
         <div>
           <nav className="flex items-center gap-2 text-xs text-text-secondary mb-2 font-medium">
@@ -112,7 +113,7 @@ export default function AccountsPayablePage() {
             <span className="text-text-main">Contas a Pagar</span>
           </nav>
           <div className="flex items-center gap-4">
-            <h1 className="text-3xl font-bold text-text-main tracking-tight">Contas a Pagar</h1>
+            <h1 className="text-3xl font-bold text-text-main tracking-tight uppercase">Contas a Pagar</h1>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-4">
@@ -122,7 +123,7 @@ export default function AccountsPayablePage() {
             </button>
             <div className="flex items-center gap-2 px-4 py-2 min-w-[160px] justify-center">
               <span className="material-symbols-outlined text-gray-400 text-[18px]">calendar_month</span>
-              <span className="font-bold text-sm text-text-main capitalize">{format(currentDate, 'MMMM, yyyy', { locale: ptBR })}</span>
+              <span className="text-sm font-bold text-text-main capitalize">{format(currentDate, 'MMMM, yyyy', { locale: ptBR })}</span>
             </div>
             <button onClick={handleNextMonth} className="p-2 hover:bg-gray-50 text-text-secondary hover:text-text-main transition-colors border-l border-gray-100">
               <span className="material-symbols-outlined text-[20px]">chevron_right</span>
@@ -263,6 +264,6 @@ export default function AccountsPayablePage() {
           {selectedAccount && <TransactionDetail transaction={selectedAccount} onClose={() => setSelectedAccount(null)} onDelete={handleDeleteTransaction} onStatusChange={handleStatusChange} />}
         </DialogContent>
       </Dialog>
-    </>
+    </div>
   );
 }

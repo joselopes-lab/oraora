@@ -4,6 +4,8 @@ import { UrbanPadraoHeader } from '../components/UrbanPadraoHeader';
 import { UrbanPadraoFooter } from '../components/UrbanPadraoFooter';
 import { WhatsAppWidget } from '../components/WhatsAppWidget';
 import React from 'react';
+import * as LucideIcons from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 type Broker = {
   id: string;
@@ -45,17 +47,68 @@ type ServicosPageProps = {
   broker: Broker;
 };
 
+const getLucideIcon = (iconName: string | undefined) => {
+  if (!iconName) return LucideIcons.Star;
+  
+  // Mapping for common Material Symbol names to Lucide names
+  const mapping: Record<string, string> = {
+    'real_estate_agent': 'Handshake',
+    'analytics': 'BarChart3',
+    'photo_camera': 'Camera',
+    'gavel': 'Gavel',
+    'travel_explore': 'Search',
+    'key': 'Key',
+    'support_agent': 'Headset',
+    'verified_user': 'ShieldCheck',
+    'bolt': 'Zap',
+    'favorite': 'Heart',
+    'home': 'Home',
+    'groups': 'Users',
+    'person': 'User',
+    'location_on': 'MapPin',
+    'celebration': 'PartyPopper',
+    'outdoor_grill': 'Flame',
+    'sports_tennis': 'Trophy',
+    'deck': 'Palmtree',
+    'contract': 'FileText',
+    'manage_accounts': 'UserCog',
+    'autorenew': 'RefreshCw',
+    'handshake': 'Handshake',
+    'rocket_launch': 'Rocket',
+    'percent': 'Percent',
+    'request_quote': 'Banknote',
+    'description': 'FileText',
+    'assignment_turned_in': 'ClipboardCheck',
+    'calendar_month': 'Calendar',
+    'recurring': 'Repeat'
+  };
+
+  // 1. Try exact PascalCase name from Lucide
+  if ((LucideIcons as any)[iconName]) {
+    return (LucideIcons as any)[iconName];
+  }
+
+  // 2. Try mapped Material Symbol name
+  const mappedName = mapping[iconName.toLowerCase().trim()];
+  if (mappedName && (LucideIcons as any)[mappedName]) {
+    return (LucideIcons as any)[mappedName];
+  }
+
+  // 3. Fallback to HelpCircle for any non-matching string (like the brand name fragment)
+  return LucideIcons.HelpCircle;
+};
+
 export default function ServicosClientPage({ broker }: ServicosPageProps) {
     const content = broker.urbanPadraoServicos || {};
     const homepageContent = broker.homepage || {};
     
     const defaultServiceItems = [
-      { icon: 'real_estate_agent', title: 'Assessoria Completa', description: 'Acompanhamento integral na compra ou venda de imóveis. Desde a busca do perfil ideal até a negociação final, garantindo o melhor deal.', isVisible: true },
-      { icon: 'analytics', title: 'Avaliação de Imóveis', description: 'Laudos técnicos precisos baseados em dados reais de mercado para definir o valor justo e competitivo do seu patrimônio.', isVisible: true },
-      { icon: 'photo_camera', title: 'Marketing Digital de Imóveis', description: 'Produção visual de alto padrão (fotos, vídeos, tour 360º) e campanhas segmentadas para atrair o público qualificado.', isVisible: true },
-      { icon: 'gavel', title: 'Consultoria Jurídica', description: 'Análise documental minuciosa (Due Diligence) e suporte na elaboração de contratos para segurança jurídica total.', isVisible: true },
-      { icon: 'travel_explore', title: 'Property Hunting', description: 'Serviço de busca ativa personalizada. Encontramos imóveis "off-market" e oportunidades exclusivas que atendem seus critérios.', isVisible: true },
-      { icon: 'key', title: 'Gestão Patrimonial', description: 'Administração de imóveis para locação com foco na rentabilidade, manutenção do ativo e relacionamento com inquilinos.', isVisible: true },
+      { icon: 'Handshake', title: 'Assessoria Completa', description: 'Acompanhamento integral na compra ou venda de imóveis. Desde a busca do perfil ideal até a negociação final, garantindo o melhor deal.', isVisible: true },
+      { icon: 'BarChart3', title: 'Avaliação de Imóveis', description: 'Laudos técnicos precisos baseados em dados reais de mercado para definir o valor justo e competitivo do seu patrimônio.', isVisible: true },
+      { icon: 'Camera', title: 'Marketing Digital de Imóveis', description: 'Produção visual de alto padrão (fotos, vídeos, tour 360º) e campanhas segmentadas para atrair o público qualificado.', isVisible: true },
+      { icon: 'Gavel', title: 'Consultoria Jurídica', description: 'Análise documental minuciosa (Due Diligence) e suporte na elaboração de contratos para segurança jurídica total.', isVisible: true },
+      { icon: 'Search', title: 'Property Hunting', description: 'Serviço de busca ativa personalizada. Encontramos imóveis "off-market" e oportunidades exclusivas que atendem seus critérios.', isVisible: true },
+      { icon: 'Key', title: 'Gestão Patrimonial', description: 'Administração de imóveis para locação com foco na rentabilidade, manutenção do ativo e relacionamento com inquilinos.', isVisible: true },
     ];
 
     const defaultProcessSteps = [
@@ -64,26 +117,6 @@ export default function ServicosClientPage({ broker }: ServicosPageProps) {
       { title: 'Negociação Técnica', description: 'Mediação profissional das propostas para garantir as melhores condições para você.' },
       { title: 'Fechamento e Pós-Venda', description: 'Suporte jurídico até a assinatura e acompanhamento contínuo após a entrega das chaves.' },
     ];
-
-    const getSafeIcon = (iconName: string | undefined) => {
-        if (!iconName) return 'star';
-        const mapping: Record<string, string> = {
-            'ICONE-VENDA': 'real_estate_agent',
-            'ICON-VENDA': 'real_estate_agent',
-            'ICONE-CAPTACAO': 'travel_explore',
-            'ICON-CAPTACAO': 'travel_explore',
-            'ICONE-AVALIACAO': 'analytics',
-            'ICON-AVALIACAO': 'analytics',
-            'ICONE-CONSULTORIA': 'support_agent',
-            'ICON-CONSULTORIA': 'support_agent',
-            'ICONE-GESTAO': 'key',
-            'ICON-GESTAO': 'key',
-            'ICONE-MARKETING': 'photo_camera',
-            'ICON-MARKETING': 'photo_camera'
-        };
-        const upperIcon = iconName.toUpperCase().trim();
-        return mapping[upperIcon] || iconName;
-    };
 
     const serviceItems = (content.serviceItems && content.serviceItems.length > 0 ? content.serviceItems : defaultServiceItems)
         .filter(item => item.isVisible !== false);
@@ -128,14 +161,14 @@ export default function ServicosClientPage({ broker }: ServicosPageProps) {
                         </div>
                         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
                         {serviceItems.map((item, index) => {
-                            const icon = getSafeIcon(item.icon);
+                            const Icon = getLucideIcon(item.icon);
                             return (
                             <div key={index} className="bg-white p-8 rounded-2xl shadow-soft hover:shadow-card transition-all duration-300 border border-transparent hover:border-primary/30 group relative overflow-hidden">
                                 <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                                    <span className="material-symbols-outlined text-8xl text-primary">{icon}</span>
+                                    <Icon className="size-24 text-primary" strokeWidth={1.5} />
                                 </div>
                                 <div className="size-14 rounded-xl bg-background-light border border-gray-100 flex items-center justify-center mb-6 group-hover:bg-primary group-hover:text-black transition-colors duration-300 text-primary relative z-10">
-                                    <span className="material-symbols-outlined text-3xl">{icon}</span>
+                                    <Icon className="size-7" strokeWidth={2} />
                                 </div>
                                 <h3 className="text-xl font-bold text-text-main mb-3 relative z-10">{item.title}</h3>
                                 <p className="text-text-muted leading-relaxed mb-6 relative z-10 text-sm">
@@ -186,7 +219,7 @@ export default function ServicosClientPage({ broker }: ServicosPageProps) {
                                     <div className="absolute inset-0 bg-black/20"></div>
                                     <div className="absolute bottom-6 left-6 right-6 bg-white/95 backdrop-blur-md p-6 rounded-xl shadow-lg border border-white/50">
                                         <div className="flex items-center gap-3 mb-2">
-                                            <span className="material-symbols-outlined text-primary text-2xl">verified_user</span>
+                                            <LucideIcons.ShieldCheck className="text-primary size-6" />
                                             <h4 className="font-bold text-text-main">Compromisso Ético</h4>
                                         </div>
                                         <p className="text-sm text-text-muted">Transparência e integridade são os pilares que sustentam cada etapa do nosso trabalho.</p>
@@ -208,11 +241,11 @@ export default function ServicosClientPage({ broker }: ServicosPageProps) {
                         </p>
                         <div className="flex flex-col sm:flex-row justify-center gap-4">
                             <button className="h-14 px-8 rounded-full text-base font-bold shadow-lg shadow-primary/20 transition-all transform hover:scale-105 flex items-center justify-center gap-2 bg-sobre-cta-bg text-white">
-                                <span className="material-symbols-outlined">calendar_month</span>
+                                <LucideIcons.Calendar className="size-5" />
                                 Solicitar Serviço
                             </button>
                             <button className="h-14 px-8 rounded-full bg-black text-white hover:bg-gray-800 transition-all flex items-center justify-center gap-2">
-                                <span className="material-symbols-outlined">call</span>
+                                <LucideIcons.Phone className="size-5" />
                                 Fale Conosco
                             </button>
                         </div>

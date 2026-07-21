@@ -2,7 +2,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
@@ -51,13 +51,23 @@ export function DomusHeader({ broker }: { broker: Broker }) {
   const [isMounted, setIsMounted] = useState(false);
   const defaultLogo = PlaceHolderImages.find(img => img.id === 'default-logo')?.imageUrl;
 
+  //Logica de Roteamento Dinâmico
+  const pathname = usePathname();
+  const isPortalAccess = pathname.startsWith('/sites');
+    
+  const homeUrl = isPortalAccess ? `/sites/${broker.slug}` : '/';
+  const searchUrl = isPortalAccess ? `/sites/${broker.slug}/search` : '/search';
+  const mapUrl = isPortalAccess ? `/sites/${broker.slug}/explorar-no-mapa` : '/explorar-no-mapa';
+  const sobreUrl = isPortalAccess ? `/sites/${broker.slug}/sobre` : '/sobre';
+  const contatoUrl = isPortalAccess ? `/sites/${broker.slug}/fale-conosco` : '/fale-conosco';
+
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
   const handleSearch = (queryString: string) => {
     setIsSearchModalOpen(false); // Fecha o modal
-    router.push(`/sites/${broker.slug}/search?${queryString}`);
+    router.push(`${searchUrl}?${queryString}`);
   };
 
   const ctaText = broker.homepage?.ctaButtonText || 'Fale Conosco';
@@ -74,7 +84,7 @@ export function DomusHeader({ broker }: { broker: Broker }) {
     <header className="sticky top-0 z-50 w-full glass-header h-16 flex items-center shadow-sm">
       <div className="max-w-[1280px] mx-auto px-4 sm:px-6 w-full flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Link href={`/sites/${broker.slug}`} className="flex items-center gap-3 group cursor-pointer">
+          <Link href={homeUrl} className="flex items-center gap-3 group cursor-pointer">
             {broker.logoUrl ? (
               <Image src={broker.logoUrl} alt={`Logo de ${broker.brandName}`} width={160} height={40} className="h-10 w-auto object-contain" style={{ width: 'auto' }} />
             ) : (
@@ -94,11 +104,11 @@ export function DomusHeader({ broker }: { broker: Broker }) {
         </div>
         <div className="flex items-center gap-10">
           <nav className="hidden md:flex items-center gap-8">
-            <Link className="nav-link" href={`/sites/${broker.slug}`}>Início</Link>
-            <Link className="nav-link" href={`/sites/${broker.slug}/search`}>Imóveis</Link>
-            <Link className="nav-link" href={`/sites/${broker.slug}/explorar-no-mapa`}>Explorar no Mapa</Link>
-            <Link className="nav-link" href={`/sites/${broker.slug}/sobre`}>Sobre</Link>
-            <Link className="nav-link" href={`/sites/${broker.slug}/fale-conosco`}>Contato</Link>
+            <Link className="nav-link" href={homeUrl}>Início</Link>
+            <Link className="nav-link" href={searchUrl}>Imóveis</Link>
+            <Link className="nav-link" href={mapUrl}>Explorar no Mapa</Link>
+            <Link className="nav-link" href={sobreUrl}>Sobre</Link>
+            <Link className="nav-link" href={contatoUrl}>Contato</Link>
           </nav>
           <div className="h-4 w-[1px] bg-black/10 dark:bg-white/10 hidden md:block"></div>
           <div className="flex items-center gap-6">
@@ -128,7 +138,7 @@ export function DomusHeader({ broker }: { broker: Broker }) {
             )}
             
             <Link 
-                href={`/sites/${broker.slug}/fale-conosco`} 
+                href={contatoUrl} 
                 className="hidden sm:flex items-center justify-center gap-2 rounded-full h-10 px-6 text-xs font-bold uppercase tracking-wider hover:brightness-110 hover:shadow-lg transition-all"
                 style={{ 
                     backgroundColor: ctaBgColor, 
@@ -154,7 +164,7 @@ export function DomusHeader({ broker }: { broker: Broker }) {
                             <SheetTitle>Menu Principal</SheetTitle>
                             <SheetDescription>Navegue pelas seções do site.</SheetDescription>
                         </VisuallyHidden>
-                        <Link href={`/sites/${broker.slug}`} onClick={() => setIsMobileMenuOpen(false)}>
+                        <Link href={homeUrl} onClick={() => setIsMobileMenuOpen(false)}>
                             {broker.logoUrl ? (
                               <Image src={broker.logoUrl} alt="Logo" width={120} height={30} className="h-[30px] w-auto object-contain" />
                             ) : (
@@ -163,19 +173,19 @@ export function DomusHeader({ broker }: { broker: Broker }) {
                         </Link>
                       </SheetHeader>
                       <nav className="flex flex-col gap-2 p-4 text-lg font-semibold">
-                          <Link href={`/sites/${broker.slug}`} onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-3 rounded-lg py-3 px-4 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+                          <Link href={homeUrl} onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-3 rounded-lg py-3 px-4 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
                               <span className="material-symbols-outlined">home</span>Início
                           </Link>
-                           <Link href={`/sites/${broker.slug}/search`} onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-3 rounded-lg py-3 px-4 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+                           <Link href={searchUrl} onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-3 rounded-lg py-3 px-4 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
                               <span className="material-symbols-outlined">real_estate_agent</span>Imóveis
                           </Link>
-                          <Link href={`/sites/${broker.slug}/explorar-no-mapa`} onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-3 rounded-lg py-3 px-4 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+                          <Link href={mapUrl} onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-3 rounded-lg py-3 px-4 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
                               <span className="material-symbols-outlined">map</span>Explorar no Mapa
                           </Link>
-                          <Link href={`/sites/${broker.slug}/sobre`} onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-3 rounded-lg py-3 px-4 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+                          <Link href={sobreUrl} onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-3 rounded-lg py-3 px-4 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
                               <span className="material-symbols-outlined">badge</span>Sobre
                           </Link>
-                          <Link href={`/sites/${broker.slug}/fale-conosco`} onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-3 rounded-lg py-3 px-4 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+                          <Link href={contatoUrl} onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-3 rounded-lg py-3 px-4 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
                               <span className="material-symbols-outlined">mail</span>Contato
                           </Link>
                       </nav>
@@ -188,7 +198,7 @@ export function DomusHeader({ broker }: { broker: Broker }) {
                               color: ctaTextColor
                             }}
                           >
-                            <Link href={`/sites/${broker.slug}/fale-conosco`} onClick={() => setIsMobileMenuOpen(false)}>
+                            <Link href={contatoUrl} onClick={() => setIsMobileMenuOpen(false)}>
                               <span className="material-symbols-outlined mr-2">{ctaIcon}</span>
                               {ctaText}
                             </Link>

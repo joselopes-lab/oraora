@@ -1,71 +1,16 @@
-import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
-import { initializeFirebase } from '@/firebase/index.server';
+import { adminDb } from '@/firebase/index.server';
 import { notFound } from 'next/navigation';
-import UrbanPadraoLayout from '@/layouts/urban-padrao/UrbanPadraoLayout';
-import LivingLayout from '@/layouts/living/LivingLayout';
-import DomusLayout from '@/app/layouts/domus/DomusLayout';
+import { getBrokerData } from '../utils.server';
+import { FieldValue } from 'firebase-admin/firestore';
+import { LayoutProps } from '@/layouts/sdk.types';
+import { getTheme, getThemePage } from '@/layouts/registry';
+import { JsonLd } from '@/components/JsonLd';
+import { generatePropertyJsonLd } from '@/lib/seo';
+import { headers } from 'next/headers';
+import React from 'react';
 
 // Force dynamic rendering to ensure data is fresh on every request
 export const dynamic = 'force-dynamic';
-
-// Tipos de dados
-type Broker = {
-  id: string;
-  brandName: string;
-  logoUrl?: string;
-  primaryColor?: string;
-  secondaryColor?: string;
-  slug: string;
-  layoutId?: string;
-  homepage?: {
-    heroTagline?: string;
-    heroTitle?: string;
-    heroSubtitle?: string;
-    heroVideoUrl?: string;
-    heroImageUrl?: string;
-    statsSold?: string;
-    statsExperience?: string;
-    statsSatisfaction?: string;
-    statsSupport?: string;
-    featuredTagline?: string;
-    featuredTitle?: string;
-    featuredSubtitle?: string;
-    featuredPropertyIds?: string[];
-    aboutTagline?: string;
-    aboutTitle?: string;
-    aboutText?: string;
-    aboutImageUrl?: string;
-    ctaTitle?: string;
-    ctaSubtitle?: string;
-    value1Icon?: string;
-    value1Title?: string;
-    value1Description?: string;
-    value2Icon?: string;
-    value2Title?: string;
-    value2Description?: string;
-    value3Icon?: string;
-    value3Title?: string;
-    value3Description?: string;
-    value4Icon?: string;
-    value4Title?: string;
-    value4Description?: string;
-    aboutQuote?: string;
-    aboutAwardTitle?: string;
-    aboutAwardText?: string;
-    hideStats?: boolean;
-    statsSectionBgColor?: string;
-    statsNumberColor?: string;
-    statsLabelColor?: string;
-  };
-  footerSlogan?: string;
-  footerContactEmail?: string;
-  footerContactPhone?: string;
-  footerContactAddress?: string;
-  creci?: string;
-  whatsappUrl?: string;
-  instagramUrl?: string;
-  linkedinUrl?: string;
-};
 
 type Property = {
   id: string;
@@ -74,6 +19,9 @@ type Property = {
     nome: string;
     status: string;
     valor?: number;
+    salePrice?: number;
+    rentPrice?: number;
+    transactionTypes?: string[];
     descricao?: string;
     slug?: string;
   };
@@ -89,27 +37,11 @@ type Property = {
   };
 };
 
-// Funções de busca de dados no servidor
-async function getBrokerData(slug: string): Promise<Broker | null> {
-  const { firestore } = initializeFirebase();
-  const brokersRef = collection(firestore, 'brokers');
-  const q = query(brokersRef, where('slug', '==', slug));
-  const querySnapshot = await getDocs(q);
+async function getPortfolioProperties(brokerId: string, enabledTransactions: string[]): Promise<Property[]> {
+  const portfolioRef = adminDb.collection('portfolios').doc(brokerId);
+  const portfolioSnap = await portfolioRef.get();
 
-  if (querySnapshot.empty) {
-    return null;
-  }
-
-  const brokerDoc = querySnapshot.docs[0];
-  return { id: brokerDoc.id, ...brokerDoc.data() } as Broker;
-}
-
-async function getPortfolioProperties(brokerId: string): Promise<Property[]> {
-  const { firestore } = initializeFirebase();
-  const portfolioRef = doc(firestore, 'portfolios', brokerId);
-  const portfolioSnap = await getDoc(portfolioRef);
-
-  if (!portfolioSnap.exists()) {
+  if (!portfolioSnap.exists) {
     return [];
   }
 
@@ -119,17 +51,20 @@ async function getPortfolioProperties(brokerId: string): Promise<Property[]> {
   }
   
   const propertiesData: Property[] = [];
-  const propertiesRef = collection(firestore, 'properties');
+  const propertiesRef = adminDb.collection('properties');
 
   for (let i = 0; i < propertyIds.length; i += 30) {
     const batch = propertyIds.slice(i, i + 30);
     if (batch.length > 0) {
-        const q = query(propertiesRef, where('__name__', 'in', batch));
-        const propertiesSnap = await getDocs(q);
-        propertiesSnap.forEach(doc => {
-            const propertyData = { id: doc.id, ...doc.data() } as Property;
-            if (propertyData.isVisibleOnSite !== false) {
-                propertiesData.push(propertyData);
+        const snap = await propertiesRef.where('__name__', 'in', batch).get();
+        snap.forEach(docSnap => {
+            const data = docSnap.data() as any;
+            if (data.isVisibleOnSite !== false) {
+                const propTypes = data.informacoesbasicas?.transactionTypes || ['sale'];
+                const hasMatch = propTypes.some((t: string) => enabledTransactions.includes(t));
+                if (hasMatch) {
+                    propertiesData.push({ id: docSnap.id, ...data });
+                }
             }
         });
     }
@@ -138,75 +73,112 @@ async function getPortfolioProperties(brokerId: string): Promise<Property[]> {
   return propertiesData;
 }
 
-async function getBrokerProperties(brokerId: string): Promise<Property[]> {
-  const { firestore } = initializeFirebase();
-  const brokerPropertiesRef = collection(firestore, 'brokerProperties');
-  const q = query(brokerPropertiesRef, where('brokerId', '==', brokerId), where('isVisibleOnSite', '==', true));
-  const querySnapshot = await getDocs(q);
+async function getBrokerProperties(brokerId: string, enabledTransactions: string[]): Promise<Property[]> {
+  const snap = await adminDb.collection('brokerProperties')
+    .where('brokerId', '==', brokerId)
+    .where('isVisibleOnSite', '==', true)
+    .get();
   
-  return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Property));
+  const allProps = snap.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as any));
+  
+  return allProps.filter((p: any) => {
+      const propTypes = p.informacoesbasicas?.transactionTypes || ['sale'];
+      return propTypes.some((t: string) => enabledTransactions.includes(t));
+  });
 }
 
 export default async function BrokerSitePage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const broker = await getBrokerData(slug);
+  const headersList = await headers();
+  const host = headersList.get('host') || 'oraora.com.br';
 
   if (!broker) {
     notFound();
   }
 
+  const enabledTransactions = broker.businessSettings?.enabledTransactions || ['sale', 'rent'];
+
+  try {
+    await adminDb.collection('corretorMetrics').doc(broker.id).set({
+      siteHits: FieldValue.increment(1)
+    }, { merge: true });
+  } catch (e) {
+    console.error("Erro ao rastrear acesso:", e);
+  }
+
   const [portfolioProperties, brokerProperties] = await Promise.all([
-    getPortfolioProperties(broker.id),
-    getBrokerProperties(broker.id)
+    getPortfolioProperties(broker.id, enabledTransactions),
+    getBrokerProperties(broker.id, enabledTransactions)
   ]);
 
   const allProperties = [...portfolioProperties, ...brokerProperties];
 
-  // Logic for Featured Properties (up to 6)
   let featuredProperties: Property[] = [];
-  const selectedIds = broker.homepage?.featuredPropertyIds || [];
+  const selectedIds = (broker as any).homepage?.featuredPropertyIds || [];
 
   if (selectedIds.length > 0) {
-    // Fill featured based on selection order
-    selectedIds.forEach(id => {
+    selectedIds.forEach((id: string) => {
       const match = allProperties.find(p => p.id === id);
       if (match) featuredProperties.push(match);
     });
   }
 
-  // If no manual selection or selection was empty, do random shuffle
   if (featuredProperties.length === 0 && allProperties.length > 0) {
     featuredProperties = [...allProperties].sort(() => 0.5 - Math.random()).slice(0, 6);
   }
 
-  // To maintain compatibility with existing layouts that might slice properties directly,
-  // we ensure that the 'allProperties' list starts with the featured ones.
   const otherProperties = allProperties.filter(p => !featuredProperties.find(fp => fp.id === p.id));
   const sortedProperties = [...featuredProperties, ...otherProperties];
 
-  switch (broker.layoutId) {
-    case 'urban-padrao':
-      return <UrbanPadraoLayout broker={broker as any} properties={sortedProperties} />;
-    case 'living':
-        return <LivingLayout broker={broker as any} properties={sortedProperties} />;
-    case 'domus':
-        return <DomusLayout broker={broker as any} properties={sortedProperties} />;
-    default:
-      return <UrbanPadraoLayout broker={broker as any} properties={sortedProperties} />;
-  }
-}
+  const layoutId = (broker as any).layoutId;
 
-export async function generateStaticParams() {
-  try {
-    const { firestore } = initializeFirebase();
-    const brokersRef = collection(firestore, 'brokers');
-    const snapshot = await getDocs(query(brokersRef, where('slug', '!=', null)));
-    
-    return snapshot.docs.map(doc => ({
-      slug: doc.data().slug,
-    }));
-  } catch (error) {
-    console.error("Failed to generate static params for broker sites:", error);
-    return [];
+  // --- ORAORA PAGE LOADER 1.0 ---
+  const theme = getTheme(layoutId);
+  const ThemePage = getThemePage(layoutId, 'home');
+
+  // --- ORAORA THEME SDK 1.0 - PREPARE PROPS ---
+  const sdkProps: LayoutProps = {
+    broker: {
+      id: broker.id,
+      brandName: broker.brandName,
+      slug: broker.slug,
+      creci: broker.creci,
+      whatsappUrl: broker.whatsappUrl,
+      instagramUrl: broker.instagramUrl,
+      linkedinUrl: broker.linkedinUrl,
+      logoUrl: broker.logoUrl,
+      footerLogoUrl: broker.footerLogoUrl,
+      faviconUrl: broker.faviconUrl,
+    },
+    properties: sortedProperties as any,
+    content: broker.homepage || {},
+    theme: {
+      primary: broker.primaryColor,
+      secondary: broker.secondaryColor,
+      accent: broker.accentColor,
+      background: broker.backgroundColor,
+      foreground: broker.foregroundColor,
+    },
+    seo: {
+      title: broker.siteTitle,
+      slogan: broker.footerSlogan,
+      description: (broker as any).homepage?.heroSubtitle,
+    },
+    settings: {
+      enabledTransactions,
+    },
+    version: theme.manifest.version
+  };
+
+  if (theme.isLegacy) {
+    return <ThemePage broker={broker as any} properties={sortedProperties as any} />;
   }
+
+  return (
+    <>
+      {sortedProperties[0] && <JsonLd data={generatePropertyJsonLd(sortedProperties[0], `https://${host}`)} />}
+      <ThemePage {...sdkProps} />
+    </>
+  );
 }

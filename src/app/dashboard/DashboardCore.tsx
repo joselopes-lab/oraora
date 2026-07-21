@@ -6,7 +6,7 @@ import { UserMenu } from "./user-info";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
-import React, { useState, useEffect, useRef, createContext, useContext } from 'react';
+import React, { useState, useRef, createContext, useContext, useEffect } from 'react';
 import { UserProfile } from "@/firebase/auth-provider";
 import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
 import { doc, setDoc } from 'firebase/firestore';
@@ -24,7 +24,6 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogTrigger,
   DialogClose
 } from "@/components/ui/dialog";
 import {
@@ -34,7 +33,6 @@ import {
 } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
-import { Progress } from "@/components/ui/progress";
 import { generateSiteContent } from '@/ai/flows/generate-site-content-flow';
 
 // Context to share onboarding state
@@ -319,12 +317,6 @@ export default function DashboardCore({
   );
   const { data: siteData } = useDoc<{ logoUrl?: string }>(siteContentRef);
 
-  const personalBrokerRef = useMemoFirebase(
-    () => (firestore && userProfile.id ? doc(firestore, 'brokers', userProfile.id) : null),
-    [firestore, userProfile.id]
-  );
-  const { data: personalBrokerData } = useDoc<any>(personalBrokerRef);
-
   const handleMouseEnter = (id: string) => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     setOpenMenu(id);
@@ -370,11 +362,6 @@ export default function DashboardCore({
                       Dashboard
                     </Link>
 
-                    <Link className={cn(navLinkClasses("/ora-ia"), "text-primary-hover")} href="/ora-ia" target="_blank">
-                      <span className="material-symbols-outlined text-[20px]">psychology</span>
-                      Ora IA
-                    </Link>
-                    
                     <div onMouseEnter={() => handleMouseEnter('clientes')} onMouseLeave={handleMouseLeave} className="h-full">
                       <DropdownMenu open={openMenu === 'clientes'} onOpenChange={(open) => setOpenMenu(open ? 'clientes' : null)}>
                         <DropdownMenuTrigger className={dropdownTriggerClasses(["/dashboard/leads", "/dashboard/clientes", "/dashboard/personas"])}>
@@ -383,44 +370,74 @@ export default function DashboardCore({
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="start" className="w-56" onMouseEnter={() => handleMouseEnter('clientes')} onMouseLeave={handleMouseLeave}>
                           <DropdownMenuItem asChild><Link href="/dashboard/leads">Funil de Vendas</Link></DropdownMenuItem>
-                          <DropdownMenuItem asChild><Link href="/dashboard/clientes">Clientes Ativos</Link></DropdownMenuItem>
+                          <DropdownMenuItem asChild><Link href="/dashboard/clientes">Clientes</Link></DropdownMenuItem>
                           <DropdownMenuItem asChild><Link href="/dashboard/personas">Personas</Link></DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
 
-                    <div onMouseEnter={() => handleMouseEnter('portfolio')} onMouseLeave={handleMouseLeave} className="h-full">
-                      <DropdownMenu open={openMenu === 'portfolio'} onOpenChange={(open) => setOpenMenu(open ? 'portfolio' : null)}>
+                    <div onMouseEnter={() => handleMouseEnter('imoveis')} onMouseLeave={handleMouseLeave} className="h-full">
+                      <DropdownMenu open={openMenu === 'imoveis'} onOpenChange={(open) => setOpenMenu(open ? 'imoveis' : null)}>
                         <DropdownMenuTrigger className={dropdownTriggerClasses(["/dashboard/imoveis", "/dashboard/minha-carteira", "/dashboard/avulso"])}>
                           <span className="material-symbols-outlined text-[20px]">apartment</span>
-                          Portfólio
+                          Imóveis
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start" className="w-56" onMouseEnter={() => handleMouseEnter('portfolio')} onMouseLeave={handleMouseLeave}>
-                          <DropdownMenuItem asChild><Link href="/dashboard/imoveis">Imóveis de Construtoras</Link></DropdownMenuItem>
+                        <DropdownMenuContent align="start" className="w-56" onMouseEnter={() => handleMouseEnter('imoveis')} onMouseLeave={handleMouseLeave}>
                           <DropdownMenuItem asChild><Link href="/dashboard/minha-carteira">Minha Carteira</Link></DropdownMenuItem>
-                          <DropdownMenuItem asChild><Link href="/dashboard/avulso">Imóveis Próprios</Link></DropdownMenuItem>
+                          <DropdownMenuItem asChild><Link href="/dashboard/imoveis">Construtoras</Link></DropdownMenuItem>
+                          <DropdownMenuItem asChild><Link href="/dashboard/avulso">Meus Imóveis</Link></DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
                     
                     <div onMouseEnter={() => handleMouseEnter('negocios')} onMouseLeave={handleMouseLeave} className="h-full">
                       <DropdownMenu open={openMenu === 'negocios'} onOpenChange={(open) => setOpenMenu(open ? 'negocios' : null)}>
-                        <DropdownMenuTrigger className={dropdownTriggerClasses(["/dashboard/agenda", "/dashboard/propostas", "/dashboard/financeiro", "/dashboard/jornada"])}>
+                        <DropdownMenuTrigger className={dropdownTriggerClasses(["/dashboard/jornada", "/dashboard/propostas", "/dashboard/agenda"])}>
                           <span className="material-symbols-outlined text-[20px]">business_center</span>
                           Negócios
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="start" className="w-56" onMouseEnter={() => handleMouseEnter('negocios')} onMouseLeave={handleMouseLeave}>
                           <DropdownMenuItem asChild><Link href="/dashboard/jornada">Jornada de Venda</Link></DropdownMenuItem>
-                          <DropdownMenuItem asChild><Link href="/dashboard/agenda">Agenda</Link></DropdownMenuItem>
                           <DropdownMenuItem asChild><Link href="/dashboard/propostas">Propostas</Link></DropdownMenuItem>
-                          <DropdownMenuItem asChild><Link href="/dashboard/financeiro">Financeiro</Link></DropdownMenuItem>
+                          <DropdownMenuItem asChild><Link href="/dashboard/agenda">Agenda</Link></DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+
+                    <div onMouseEnter={() => handleMouseEnter('cartorio')} onMouseLeave={handleMouseLeave} className="h-full">
+                      <DropdownMenu open={openMenu === 'cartorio'} onOpenChange={(open) => setOpenMenu(open ? 'cartorio' : null)}>
+                        <DropdownMenuTrigger className={dropdownTriggerClasses(["/dashboard/cartorio"])}>
+                          <span className="material-symbols-outlined text-[20px]">gavel</span>
+                          Cartório
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="w-56" onMouseEnter={() => handleMouseEnter('cartorio')} onMouseLeave={handleMouseLeave}>
+                          <DropdownMenuItem asChild><Link href="/dashboard/cartorio?tab=servicos">Serviços</Link></DropdownMenuItem>
+                          <DropdownMenuItem asChild><Link href="/dashboard/cartorio?tab=processos">Meus Processos</Link></DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+
+                    <Link className={navLinkClasses("/dashboard/financeiro")} href="/dashboard/financeiro">
+                      <span className="material-symbols-outlined text-[20px]">payments</span>
+                      Financeiro
+                    </Link>
+
+                    <div onMouseEnter={() => handleMouseEnter('rede')} onMouseLeave={handleMouseLeave} className="h-full">
+                      <DropdownMenu open={openMenu === 'rede'} onOpenChange={(open) => setOpenMenu(open ? 'rede' : null)}>
+                        <DropdownMenuTrigger className={dropdownTriggerClasses(["/dashboard/radar-oportunidades", "/dashboard/solicitacoes-rede"])}>
+                          <span className="material-symbols-outlined text-[20px]">lan</span>
+                          Rede
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="w-56" onMouseEnter={() => handleMouseEnter('rede')} onMouseLeave={handleMouseLeave}>
+                          <DropdownMenuItem asChild><Link href="/dashboard/radar-oportunidades">Radar</Link></DropdownMenuItem>
+                          <DropdownMenuItem asChild><Link href="/dashboard/solicitacoes-rede">Solicitações</Link></DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
                     
                     <div onMouseEnter={() => handleMouseEnter('crescimento')} onMouseLeave={handleMouseLeave} className="h-full">
                       <DropdownMenu open={openMenu === 'crescimento'} onOpenChange={(open) => setOpenMenu(open ? 'crescimento' : null)}>
-                        <DropdownMenuTrigger className={dropdownTriggerClasses(["/dashboard/meu-site", "/dashboard/marketing", "/dashboard/loja", "/dashboard/oralink", "/dashboard/ativacao"])}>
+                        <DropdownMenuTrigger className={dropdownTriggerClasses(["/dashboard/meu-site", "/dashboard/oralink", "/dashboard/marketing", "/dashboard/mercado", "/dashboard/loja", "/dashboard/ativacao"])}>
                           <span className="material-symbols-outlined text-[20px]">trending_up</span>
                           Crescimento
                         </DropdownMenuTrigger>
@@ -428,16 +445,13 @@ export default function DashboardCore({
                           <DropdownMenuItem asChild><Link href="/dashboard/meu-site">Meu Site</Link></DropdownMenuItem>
                           <DropdownMenuItem asChild><Link href="/dashboard/oralink">Oralink</Link></DropdownMenuItem>
                           <DropdownMenuItem asChild><Link href="/dashboard/marketing">Marketing</Link></DropdownMenuItem>
-                          <DropdownMenuItem asChild><Link href="/dashboard/loja">Loja</Link></DropdownMenuItem>
-                          <DropdownMenuItem asChild><Link href="/dashboard/ativacao">Guia de Ativação</Link></DropdownMenuItem>
+                          <DropdownMenuItem asChild><Link href="/dashboard/marketing/autoridade">Autoridade Digital</Link></DropdownMenuItem>
+                          <DropdownMenuItem asChild><Link href="/dashboard/mercado">Inteligência de Mercado</Link></DropdownMenuItem>
+                          <DropdownMenuItem asChild><Link href="/dashboard/loja">Loja OraOra</Link></DropdownMenuItem>
+                          <DropdownMenuItem asChild><Link href="/dashboard/ativacao">Academia OraOra</Link></DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
-
-                    <Link className={navLinkClasses("/dashboard/suporte")} href="/dashboard/suporte">
-                      <span className="material-symbols-outlined text-[20px]">help</span>
-                      Suporte
-                    </Link>
                   </>
                 )}
                 
@@ -445,12 +459,14 @@ export default function DashboardCore({
                   <>
                     <div onMouseEnter={() => handleMouseEnter('inteligencia')} onMouseLeave={handleMouseLeave} className="h-full">
                       <DropdownMenu open={openMenu === 'inteligencia'} onOpenChange={(open) => setOpenMenu(open ? 'inteligencia' : null)}>
-                        <DropdownMenuTrigger className={dropdownTriggerClasses(["/dashboard", "/dashboard/admin/leads", "/dashboard/personas"])}>
+                        <DropdownMenuTrigger className={dropdownTriggerClasses(["/dashboard", "/dashboard/admin/leads", "/dashboard/personas", "/dashboard/admin/inteligencia", "/dashboard/admin/acessos", "/dashboard/mercado"])}>
                           <span className="material-symbols-outlined text-[20px]">psychology</span>
                           Inteligência
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="start" className="w-56" onMouseEnter={() => handleMouseEnter('inteligencia')} onMouseLeave={handleMouseLeave}>
                           <DropdownMenuItem asChild><Link href="/dashboard">Visão Geral</Link></DropdownMenuItem>
+                          <DropdownMenuItem asChild><Link href="/dashboard/mercado">Inteligência de Mercado</Link></DropdownMenuItem>
+                          <DropdownMenuItem asChild><Link href="/dashboard/admin/acessos">Acessos e Performance</Link></DropdownMenuItem>
                           <DropdownMenuItem asChild><Link href="/dashboard/admin/leads">Leads</Link></DropdownMenuItem>
                           <DropdownMenuItem asChild><Link href="/dashboard/personas">Personas</Link></DropdownMenuItem>
                         </DropdownMenuContent>
@@ -476,15 +492,15 @@ export default function DashboardCore({
                       Ativos
                     </Link>
 
-                    <div onMouseEnter={() => handleMouseEnter('monetizacao')} onMouseLeave={handleMouseLeave} className="h-full">
-                      <DropdownMenu open={openMenu === 'monetizacao'} onOpenChange={(open) => setOpenMenu(open ? 'monetizacao' : null)}>
-                        <DropdownMenuTrigger className={dropdownTriggerClasses(["/dashboard/admin/planos", "/dashboard/loja"])}>
-                          <span className="material-symbols-outlined text-[20px]">payments</span>
-                          Monetização
+                    <div onMouseEnter={() => handleMouseEnter('loja-admin')} onMouseLeave={handleMouseLeave} className="h-full">
+                      <DropdownMenu open={openMenu === 'loja-admin'} onOpenChange={(open) => setOpenMenu(open ? 'loja-admin' : null)}>
+                        <DropdownMenuTrigger className={dropdownTriggerClasses(["/dashboard/admin/planos", "/dashboard/admin/loja/themes"])}>
+                          <span className="material-symbols-outlined text-[20px]">storefront</span>
+                          Loja OraOra
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start" className="w-56" onMouseEnter={() => handleMouseEnter('monetizacao')} onMouseLeave={handleMouseLeave}>
-                          <DropdownMenuItem asChild><Link href="/dashboard/admin/planos">Planos</Link></DropdownMenuItem>
-                          <DropdownMenuItem asChild><Link href="/dashboard/loja">Loja</Link></DropdownMenuItem>
+                        <DropdownMenuContent align="start" className="w-56" onMouseEnter={() => handleMouseEnter('loja-admin')} onMouseLeave={handleMouseLeave}>
+                          <DropdownMenuItem asChild><Link href="/dashboard/admin/loja/themes">Theme Center</Link></DropdownMenuItem>
+                          <DropdownMenuItem asChild><Link href="/dashboard/admin/planos">Gestão de Planos</Link></DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
@@ -535,7 +551,7 @@ export default function DashboardCore({
                     </DialogHeader>
                   </VisuallyHidden>
                   
-                  <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+                  <div className="flex-1 min-0 flex flex-col overflow-hidden">
                     {onboardingStep === 1 && (
                       <div className="flex flex-col h-full overflow-hidden">
                         <div className="flex-1 p-8 md:p-10 flex flex-col gap-6 bg-white overflow-y-auto min-h-0">
@@ -559,10 +575,10 @@ export default function DashboardCore({
                           </div>
 
                           <div className="flex flex-col gap-4 mt-2">
-                            <Button onClick={() => setOnboardingStep(2)} className="w-full bg-primary hover:bg-primary-hover text-slate-900 font-bold py-6 rounded-xl transition-all transform hover:-translate-y-1 shadow-lg flex items-center justify-center gap-2 group text-lg">
+                            <button onClick={() => setOnboardingStep(2)} className="w-full bg-primary hover:bg-primary-hover text-slate-900 font-bold py-6 rounded-xl transition-all transform hover:-translate-y-1 shadow-lg flex items-center justify-center gap-2 group text-lg border-none cursor-pointer">
                                 Começar Onboarding
                                 <span className="material-symbols-outlined group-hover:translate-x-1 transition-transform">arrow_forward</span>
-                            </Button>
+                            </button>
                             <p className="text-center text-slate-400 text-sm font-body">
                               Leva menos de 5 minutos. Você também pode pular e fazer isso depois.
                             </p>
@@ -590,7 +606,7 @@ export default function DashboardCore({
                         </header>
                         <div className="flex flex-col gap-3 p-8 pb-2 shrink-0">
                           <div className="flex gap-6 justify-between items-end">
-                            <div>
+                            <div className='text-left'>
                               <p className="text-primary font-bold text-sm uppercase tracking-wider">Passo 1 de 5</p>
                               <h1 className="text-slate-900 dark:text-slate-100 text-2xl font-bold mt-1">Sobre Você</h1>
                             </div>
@@ -600,8 +616,8 @@ export default function DashboardCore({
                             <div className="h-full rounded-full bg-primary transition-all duration-500" style={{ width: '20%' }}></div>
                           </div>
                         </div>
-                        <div className="flex-1 overflow-y-auto min-h-0 p-8 space-y-8">
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="flex-1 overflow-y-auto min-0 p-8 space-y-8">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
                             <div className="flex flex-col gap-2">
                               <label className="text-slate-700 dark:text-slate-300 font-medium text-sm">1. Quantos anos você atua como corretor?</label>
                               <input 
@@ -631,7 +647,7 @@ export default function DashboardCore({
                                 <button 
                                   type="button" 
                                   onClick={handleAddLocation}
-                                  className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-primary transition-colors"
+                                  className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-primary transition-colors cursor-pointer bg-transparent border-none"
                                 >
                                   add_circle
                                 </button>
@@ -640,13 +656,13 @@ export default function DashboardCore({
                                 {briefingData.locations.map((loc, idx) => (
                                   <span key={idx} className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-slate-900 border border-primary/20 text-xs font-bold">
                                     {loc}
-                                    <button onClick={() => removeLocation(idx)} className="material-symbols-outlined text-[14px] hover:text-red-500">close</button>
+                                    <button onClick={() => removeLocation(idx)} className="material-symbols-outlined text-[14px] hover:text-red-500 cursor-pointer border-none bg-transparent">close</button>
                                   </span>
                                 ))}
                               </div>
                             </div>
                           </div>
-                          <div className="flex flex-col gap-2">
+                          <div className="flex flex-col gap-2 text-left">
                             <label className="text-slate-700 dark:text-slate-300 font-medium text-sm">3. Qual tipo de imóvel você mais trabalha? (Selecione todos que se aplicam)</label>
                             <div className="flex flex-wrap gap-2">
                               {['Apartamento', 'Casa', 'Terreno', 'Comercial', 'Rural'].map(type => (
@@ -655,7 +671,7 @@ export default function DashboardCore({
                                   type="button"
                                   onClick={() => togglePropertyType(type)}
                                   className={cn(
-                                    "px-4 py-2 rounded-full border-2 transition-all font-medium text-sm",
+                                    "px-4 py-2 rounded-full border-2 transition-all font-medium text-sm cursor-pointer",
                                     briefingData.propertyTypes.includes(type) 
                                       ? "border-primary bg-primary/10 text-slate-900 dark:text-slate-100" 
                                       : "border-slate-200 dark:border-slate-700 hover:border-primary text-slate-600 dark:text-slate-400"
@@ -666,7 +682,7 @@ export default function DashboardCore({
                               ))}
                             </div>
                           </div>
-                          <div className="flex flex-col gap-2">
+                          <div className="flex flex-col gap-2 text-left">
                             <label className="text-slate-700 dark:text-slate-300 font-medium text-sm">4. Qual seu público principal? (Selecione todos que se aplicam)</label>
                             <div className="flex flex-wrap gap-2">
                               {['Investidores', 'Famílias', 'Primeiro Imóvel', 'Alto Padrão'].map(type => (
@@ -675,7 +691,7 @@ export default function DashboardCore({
                                   type="button"
                                   onClick={() => toggleAudience(type)}
                                   className={cn(
-                                    "px-4 py-2 rounded-full border-2 transition-all font-medium text-sm",
+                                    "px-4 py-2 rounded-full border-2 transition-all font-medium text-sm cursor-pointer",
                                     briefingData.audiences.includes(type) 
                                       ? "border-primary bg-primary/10 text-slate-900 dark:text-slate-100" 
                                       : "border-slate-200 dark:border-slate-700 hover:border-primary text-slate-600 dark:text-slate-400"
@@ -688,10 +704,10 @@ export default function DashboardCore({
                           </div>
                           <div className="flex flex-col gap-2 text-left">
                             <div className="flex items-center gap-2">
-                              <label className="text-slate-700 dark:text-slate-300 font-medium text-sm text-left">5. Qual seu maior diferencial como corretor?</label>
+                              <label className="text-slate-700 dark:text-slate-300 font-medium text-sm">5. Qual seu maior diferencial como corretor?</label>
                               <Popover>
                                 <PopoverTrigger asChild>
-                                  <button type="button" className="text-slate-400 hover:text-primary transition-colors flex items-center justify-center">
+                                  <button type="button" className="text-slate-400 hover:text-primary transition-colors flex items-center justify-center cursor-pointer bg-transparent border-none">
                                     <span className="material-symbols-outlined text-base">help</span>
                                   </button>
                                 </PopoverTrigger>
@@ -718,10 +734,10 @@ export default function DashboardCore({
                           </div>
                           <div className="flex flex-col gap-2 text-left">
                             <div className="flex items-center gap-2">
-                              <label className="text-slate-700 dark:text-slate-300 font-medium text-sm text-left">6. Por que um cliente deveria escolher você?</label>
+                              <label className="text-slate-700 dark:text-slate-300 font-medium text-sm">6. Por que um cliente deveria escolher você?</label>
                               <Popover>
                                 <PopoverTrigger asChild>
-                                  <button type="button" className="text-slate-400 hover:text-primary transition-colors flex items-center justify-center">
+                                  <button type="button" className="text-slate-400 hover:text-primary transition-colors flex items-center justify-center cursor-pointer bg-transparent border-none">
                                     <span className="material-symbols-outlined text-base">help</span>
                                   </button>
                                 </PopoverTrigger>
@@ -748,10 +764,10 @@ export default function DashboardCore({
                           </div>
                         </div>
                         <footer className="flex items-center justify-between gap-4 border-t border-slate-100 dark:border-slate-800 px-8 py-6 bg-slate-50/50 dark:bg-slate-900/50 shrink-0">
-                          <button onClick={() => setOnboardingStep(1)} className="text-slate-500 dark:text-slate-400 font-bold px-6 py-3 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                          <button onClick={() => setOnboardingStep(1)} className="text-slate-500 dark:text-slate-400 font-bold px-6 py-3 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer border-none bg-transparent">
                             Voltar
                           </button>
-                          <button onClick={() => setOnboardingStep(3)} className="bg-primary hover:brightness-105 text-slate-900 font-bold px-10 py-3 rounded-lg flex items-center gap-2 shadow-lg shadow-primary/20 transition-all active:scale-95">
+                          <button onClick={() => setOnboardingStep(3)} className="bg-primary hover:brightness-105 text-slate-900 font-bold px-10 py-3 rounded-lg flex items-center gap-2 shadow-lg shadow-primary/20 transition-all active:scale-95 border-none cursor-pointer">
                             Próximo
                             <span className="material-symbols-outlined">arrow_forward</span>
                           </button>
@@ -769,7 +785,7 @@ export default function DashboardCore({
                             <h2 className="text-lg font-bold leading-tight tracking-tight">Onboarding</h2>
                           </div>
                         </header>
-                        <div className="flex flex-col gap-3 p-6 pb-2 shrink-0">
+                        <div className="flex flex-col gap-3 p-6 pb-2 shrink-0 text-left">
                           <div className="flex gap-6 justify-between items-end">
                             <div>
                               <p className="text-slate-500 dark:text-slate-400 text-sm font-medium uppercase tracking-wider">Passo 2 de 5</p>
@@ -803,7 +819,7 @@ export default function DashboardCore({
                               <h3 className="text-slate-900 dark:text-slate-100 text-lg font-semibold leading-snug">8. Como funciona seu atendimento até o fechamento da venda?</h3>
                               <Popover>
                                 <PopoverTrigger asChild>
-                                  <button type="button" className="text-slate-400 hover:text-primary transition-colors flex items-center justify-center">
+                                  <button type="button" className="text-slate-400 hover:text-primary transition-colors flex items-center justify-center cursor-pointer bg-transparent border-none">
                                     <span className="material-symbols-outlined text-base">help</span>
                                   </button>
                                 </PopoverTrigger>
@@ -857,11 +873,11 @@ export default function DashboardCore({
                           </section>
                         </div>
                         <footer className="flex items-center justify-between gap-4 border-t border-slate-100 dark:border-slate-800 px-6 py-5 bg-slate-50/50 dark:bg-slate-900/50 shrink-0">
-                          <button onClick={() => setOnboardingStep(2)} className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg border-2 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer">
+                          <button onClick={() => setOnboardingStep(2)} className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg border-2 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer bg-transparent">
                             <span className="material-symbols-outlined text-[20px]">arrow_back</span>
                             Voltar
                           </button>
-                          <button onClick={() => setOnboardingStep(4)} className="flex items-center justify-center gap-2 px-8 py-2.5 rounded-lg bg-primary text-slate-900 font-bold shadow-lg shadow-primary/20 hover:brightness-105 active:scale-95 transition-all cursor-pointer">
+                          <button onClick={() => setOnboardingStep(4)} className="flex items-center justify-center gap-2 px-8 py-2.5 rounded-lg bg-primary text-slate-900 font-bold shadow-lg shadow-primary/20 hover:brightness-105 active:scale-95 transition-all cursor-pointer border-none">
                             Próximo
                             <span className="material-symbols-outlined text-[20px]">arrow_forward</span>
                           </button>
@@ -879,7 +895,7 @@ export default function DashboardCore({
                             <h2 className="text-lg font-bold leading-tight tracking-tight">Onboarding do Corretor</h2>
                           </div>
                         </header>
-                        <div className="flex flex-col gap-3 p-6 pb-2 shrink-0">
+                        <div className="flex flex-col gap-3 p-6 pb-2 shrink-0 text-left">
                           <div className="flex items-center justify-between mb-2">
                             <span className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Passo 3 de 5</span>
                             <span className="text-sm font-bold text-primary">60%</span>
@@ -887,7 +903,7 @@ export default function DashboardCore({
                           <div className="h-2 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                             <div className="h-full bg-primary transition-all duration-500" style={{ width: '60%' }}></div>
                           </div>
-                          <p className="mt-4 text-2xl font-bold">Autoridade (Passo 3 de 5)</p>
+                          <p className="mt-4 text-2xl font-bold">Autoridade</p>
                         </div>
                         <div className="flex-1 overflow-y-auto min-h-0 p-6 space-y-8">
                           <div className="space-y-3">
@@ -905,8 +921,8 @@ export default function DashboardCore({
                               />
                             </div>
                           </div>
-                          <div className="space-y-3">
-                            <label className="block text-base font-semibold text-slate-800 dark:text-slate-200 text-left">
+                          <div className="space-y-3 text-left">
+                            <label className="block text-base font-semibold text-slate-800 dark:text-slate-200">
                               11. Possui certificações ou especializações?
                             </label>
                             <textarea 
@@ -942,7 +958,7 @@ export default function DashboardCore({
                                   type="radio" 
                                   value="nao" 
                                   checked={briefingData.testimonials === 'nao'}
-                                  onChange={e => setBriefingData(prev => ({ ...prev, testimonials: e.target.value }))}
+                                  onChange={e => setBriefingData(prev => ({ ...prev, postSales: e.target.value }))}
                                 />
                                 <div className="flex items-center gap-2">
                                   <span className="material-symbols-outlined text-slate-400 peer-checked:text-primary">cancel</span>
@@ -959,18 +975,18 @@ export default function DashboardCore({
                                   placeholder="https://g.page/seu-perfil/review" 
                                   type="url"
                                   value={briefingData.testimonialLink}
-                                  onChange={e => setBriefingData(prev => ({ ...prev, testimonialLink: e.target.value }))}
+                                  onChange={(e) => setBriefingData(prev => ({ ...prev, testimonialLink: e.target.value }))}
                                 />
                               </div>
                             </div>
                           </div>
                         </div>
                         <footer className="flex items-center justify-between gap-4 border-t border-slate-100 dark:border-slate-800 px-6 py-5 bg-slate-50/50 dark:bg-slate-900/50 shrink-0">
-                          <button onClick={() => setOnboardingStep(3)} className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg border-2 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer">
+                          <button onClick={() => setOnboardingStep(3)} className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg border-2 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer bg-transparent">
                             <span className="material-symbols-outlined text-[20px]">arrow_back</span>
                             Voltar
                           </button>
-                          <button onClick={() => setOnboardingStep(5)} className="flex items-center justify-center gap-2 px-8 py-2.5 rounded-lg bg-primary text-slate-900 font-bold shadow-lg shadow-primary/20 hover:brightness-105 active:scale-95 transition-all cursor-pointer">
+                          <button onClick={() => setOnboardingStep(5)} className="flex items-center justify-center gap-2 px-8 py-2.5 rounded-lg bg-primary text-slate-900 font-bold shadow-lg shadow-primary/20 hover:brightness-105 active:scale-95 transition-all cursor-pointer border-none">
                             Próximo
                             <span className="material-symbols-outlined text-[20px]">arrow_forward</span>
                           </button>
@@ -988,7 +1004,7 @@ export default function DashboardCore({
                             <h2 className="text-lg font-bold tracking-tight">Onboarding</h2>
                           </div>
                         </header>
-                        <div className="flex flex-col gap-3 p-6 pb-2 shrink-0">
+                        <div className="flex flex-col gap-3 p-6 pb-2 shrink-0 text-left">
                           <div className="flex items-center justify-between mb-2">
                             <span className="text-sm font-medium text-slate-600 dark:text-slate-400">Passo 4 de 5</span>
                             <span className="text-sm font-bold text-slate-900 dark:text-slate-100">80%</span>
@@ -996,7 +1012,7 @@ export default function DashboardCore({
                           <div className="h-2 w-full rounded-full bg-slate-100 dark:bg-slate-800">
                             <div className="h-2 rounded-full bg-primary" style={{ width: '80%' }}></div>
                           </div>
-                          <h1 className="text-2xl font-bold text-slate-900 dark:text-white mt-4 text-left">Posicionamento (Passo 4 de 5)</h1>
+                          <h1 className="text-2xl font-bold text-slate-900 dark:text-white mt-4 text-left">Posicionamento</h1>
                         </div>
                         <div className="flex-1 overflow-y-auto min-h-0 p-6 space-y-8 text-left">
                           <div className="space-y-4">
@@ -1021,7 +1037,7 @@ export default function DashboardCore({
                               <h3 className="text-base font-semibold text-slate-800 dark:text-slate-200">14. Qual seu maior ponto forte profissional?</h3>
                               <Popover>
                                 <PopoverTrigger asChild>
-                                  <button type="button" className="text-slate-400 hover:text-primary transition-colors flex items-center justify-center">
+                                  <button type="button" className="text-slate-400 hover:text-primary transition-colors flex items-center justify-center cursor-pointer bg-transparent border-none">
                                     <span className="material-symbols-outlined text-base">help</span>
                                   </button>
                                 </PopoverTrigger>
@@ -1030,7 +1046,7 @@ export default function DashboardCore({
                                     <h4 className="font-bold text-sm text-primary">Exemplos de Pontos Fortes:</h4>
                                     <ul className="text-xs text-slate-600 dark:text-slate-400 list-disc pl-4 space-y-1">
                                       <li>Especialista em fechamentos rápidos e decisivos.</li>
-                                      <li>Grande rede de contatos com investidores estrangeiros.</li>
+                                      <li>Grande rede de contatos with investidores estrangeiros.</li>
                                       <li>Domínio completo de técnicas de marketing digital imobiliário.</li>
                                       <li>Habilidade superior em mediar conflitos e negociações complexas.</li>
                                     </ul>
@@ -1043,16 +1059,16 @@ export default function DashboardCore({
                               placeholder="Ex: Minha capacidade de negociação e atendimento personalizado..." 
                               rows={4}
                               value={briefingData.professionalStrength}
-                              onChange={e => setBriefingData(prev => ({ ...prev, professionalStrength: e.target.value }))}
+                              onChange={(e) => setBriefingData(prev => ({ ...prev, professionalStrength: e.target.value }))}
                             ></textarea>
                           </div>
                         </div>
                         <footer className="flex items-center justify-between gap-4 border-t border-slate-100 dark:border-slate-800 px-6 py-5 bg-slate-50/50 dark:bg-slate-900/50 shrink-0">
-                          <button onClick={() => setOnboardingStep(4)} className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg font-bold text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer">
+                          <button onClick={() => setOnboardingStep(4)} className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-lg font-bold text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer bg-transparent border-none">
                             <span className="material-symbols-outlined text-base">arrow_back</span>
                             Voltar
                           </button>
-                          <button onClick={() => setOnboardingStep(6)} className="flex items-center justify-center gap-2 px-8 py-2.5 rounded-lg bg-primary text-slate-900 font-bold text-sm hover:brightness-105 active:scale-95 transition-all shadow-sm cursor-pointer">
+                          <button onClick={() => setOnboardingStep(6)} className="flex items-center justify-center gap-2 px-8 py-2.5 rounded-lg bg-primary text-slate-900 font-bold text-sm hover:brightness-105 active:scale-95 transition-all shadow-sm cursor-pointer border-none">
                             Próximo
                             <span className="material-symbols-outlined text-base">arrow_forward</span>
                           </button>
@@ -1081,15 +1097,15 @@ export default function DashboardCore({
                           <p className="text-slate-500 dark:text-slate-400 text-xs font-medium uppercase tracking-wider">Finalizando seu perfil</p>
                         </div>
                         <div className="flex-1 overflow-y-auto min-h-0 p-6 space-y-8 text-left">
-                          <div className="flex flex-col gap-2">
+                          <div className="flex flex-col gap-2 text-left">
                             <h1 className="text-slate-900 dark:text-slate-100 text-2xl font-bold leading-tight">Informações Finais</h1>
                             <p className="text-slate-500 dark:text-slate-400 text-sm">Confirme seus dados de contato e credenciais profissionais para ativar sua conta.</p>
                           </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-left">
                             {/* Nome Completo */}
                             <div className="md:col-span-2">
                               <label className="flex flex-col gap-2">
-                                <span className="text-slate-900 dark:text-slate-100 text-sm font-semibold">Nome Completo</span>
+                                <span className="text-slate-900 dark:text-slate-100 text-sm font-semibold text-left">Nome Completo</span>
                                 <div className="relative">
                                   <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xl">person</span>
                                   <input 
@@ -1104,7 +1120,7 @@ export default function DashboardCore({
                             {/* Email */}
                             <div className="md:col-span-2">
                               <label className="flex flex-col gap-2">
-                                <span className="text-slate-900 dark:text-slate-100 text-sm font-semibold">Email Profissional</span>
+                                <span className="text-slate-900 dark:text-slate-100 text-sm font-semibold text-left">Email Profissional</span>
                                 <div className="relative">
                                   <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xl">mail</span>
                                   <input 
@@ -1119,9 +1135,9 @@ export default function DashboardCore({
                             </div>
                             {/* Telefone Comercial */}
                             <label className="flex flex-col gap-2">
-                              <span className="text-slate-900 dark:text-slate-100 text-sm font-semibold">Telefone Comercial</span>
+                              <span className="text-slate-900 dark:text-slate-100 text-sm font-semibold text-left">Telefone Comercial</span>
                               <div className="relative">
-                                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xl">call</span>
+                                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xl">call</span>
                                   <input 
                                     className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 pl-10 pr-4 py-3 text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" 
                                     placeholder="(00) 0000-0000"
@@ -1132,7 +1148,7 @@ export default function DashboardCore({
                             </label>
                             {/* WhatsApp */}
                             <label className="flex flex-col gap-2">
-                              <span className="text-slate-900 dark:text-slate-100 text-sm font-semibold">WhatsApp</span>
+                              <span className="text-slate-900 dark:text-slate-100 text-sm font-semibold text-left">WhatsApp</span>
                               <div className="relative">
                                 <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-green-600 text-xl">chat</span>
                                 <input 
@@ -1145,7 +1161,7 @@ export default function DashboardCore({
                             </label>
                             {/* CRECI */}
                             <label className="flex flex-col gap-2">
-                              <span className="text-slate-900 dark:text-slate-100 text-sm font-semibold">CRECI</span>
+                              <span className="text-slate-900 dark:text-slate-100 text-sm font-semibold text-left">CRECI</span>
                               <div className="relative">
                                 <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xl">badge</span>
                                 <input 
@@ -1158,7 +1174,7 @@ export default function DashboardCore({
                             </label>
                             {/* Instagram */}
                             <label className="flex flex-col gap-2">
-                              <span className="text-slate-900 dark:text-slate-100 text-sm font-semibold">Instagram</span>
+                              <span className="text-slate-900 dark:text-slate-100 text-sm font-semibold text-left">Instagram</span>
                               <div className="relative">
                                 <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xl">photo_camera</span>
                                 <input 
@@ -1173,7 +1189,7 @@ export default function DashboardCore({
                         </div>
                         <footer className="flex items-center justify-between p-6 shrink-0 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
                           {!isFinishing && (
-                            <button onClick={() => setOnboardingStep(5)} className="flex items-center gap-2 px-6 py-3 rounded-lg text-slate-600 dark:text-slate-400 font-bold text-sm hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-all ml-0 mr-auto">
+                            <button onClick={() => setOnboardingStep(5)} className="flex items-center gap-2 px-6 py-3 rounded-lg text-slate-600 dark:text-slate-400 font-bold text-sm hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer border-none bg-transparent ml-0 mr-auto">
                               <span className="material-symbols-outlined text-lg">arrow_back</span>
                               Voltar
                             </button>
@@ -1181,7 +1197,7 @@ export default function DashboardCore({
                           <button 
                             onClick={handleFinishOnboarding} 
                             disabled={isFinishing}
-                            className="flex items-center gap-2 px-8 py-3 rounded-lg bg-primary text-slate-900 font-bold text-sm shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all cursor-pointer disabled:opacity-70 ml-auto"
+                            className="flex items-center gap-2 px-8 py-3 rounded-lg bg-primary text-slate-900 font-bold text-sm shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all cursor-pointer disabled:opacity-70 ml-auto border-none"
                           >
                             {isFinishing ? (
                               <>
@@ -1219,7 +1235,7 @@ export default function DashboardCore({
                           ))}
                         </div>
 
-                        <div className="relative z-10 flex-1 p-8 md:p-12 flex flex-col items-center justify-center text-center gap-8">
+                        <div className="relative z-10 flex flex-col flex-1 p-8 md:p-12 items-center justify-center text-center gap-8">
                           <div className="inline-flex items-center justify-center w-20 h-20 bg-primary rounded-full shadow-lg shadow-primary/20 animate-pop">
                             <svg className="size-10 text-slate-900" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
                               <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round"></path>
@@ -1249,14 +1265,14 @@ export default function DashboardCore({
                               </div>
                               <div className="text-left">
                                 <h3 className="font-bold text-slate-900">Ferramentas Prontas</h3>
-                                <p className="text-xs text-slate-500">Acesse seu dashboard e comece a vender.</p>
+                                <p className="text-xs text-slate-500">Acesse seu painel e comece a vender.</p>
                               </div>
                             </div>
                           </div>
 
-                          <Button asChild className="w-full max-w-md h-14 bg-primary hover:bg-primary-hover text-slate-900 font-bold text-lg rounded-xl shadow-lg transition-all transform hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2">
+                          <Button asChild className="w-full max-w-md h-14 bg-primary hover:bg-primary-hover text-slate-900 font-bold text-lg rounded-xl shadow-lg transition-all transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2">
                             <Link href="/dashboard">
-                              Ir para o Dashboard
+                              Ir para o Painel
                               <span className="material-symbols-outlined">arrow_forward</span>
                             </Link>
                           </Button>
@@ -1297,7 +1313,7 @@ export default function DashboardCore({
       </main>
       <footer className="mt-auto border-t border-[#f2f5f0] bg-white">
         <div className="max-w-[1440px] mx-auto px-6 py-6 flex flex-col md:flex-row items-center justify-between gap-4 text-center md:text-left">
-          <p className="text-text-secondary text-xs font-normal">© 2024 Oraora Tecnologia. Todos os direitos reservados.</p>
+          <p className="text-text-secondary text-xs font-normal">© 2025 Oraora Tecnologia. Todos os direitos reservados.</p>
           <div className="flex items-center gap-6">
             <Link className="text-text-secondary text-xs font-medium hover:text-text-main transition-colors" href="/politica-de-privacidade">Privacidade</Link>
             <Link className="text-text-secondary text-xs font-medium hover:text-text-main transition-colors" href="/termos-de-uso">Termos de Uso</Link>

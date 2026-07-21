@@ -1,8 +1,8 @@
 
 'use server';
 
-import { initializeFirebase } from '@/firebase/index.server';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { adminDb } from '@/firebase/index.server';
+import { FieldValue } from 'firebase-admin/firestore';
 
 interface LeadFormData {
   name: string;
@@ -14,13 +14,17 @@ interface LeadFormData {
   source?: string;
 }
 
+/**
+ * Server Action para criar leads utilizando o Firebase Admin SDK.
+ * Evita conflitos com o SDK de cliente e garante permissões de escrita no servidor.
+ */
 export async function createLead(data: LeadFormData) {
   try {
-    const { firestore } = initializeFirebase();
-    const leadsCollection = collection(firestore, 'leads');
+    // No servidor, usamos diretamente o adminDb da nossa configuração server-side
+    const leadsCollection = adminDb.collection('leads');
 
-    // Calculate lead score
-    let score = 20; // Base score
+    // Cálculo básico de score para o lead
+    let score = 20; 
     if (data.source === 'WhatsApp') {
       score += 20;
     }
@@ -41,9 +45,8 @@ export async function createLead(data: LeadFormData) {
       qualification = 'Morno';
     }
 
-
-    // Use the standard addDoc for server-side operations
-    await addDoc(leadsCollection, {
+    // Sintaxe correta do Firebase Admin SDK para adicionar documentos
+    const leadRef = await leadsCollection.add({
       brokerId: data.brokerId,
       name: data.name,
       email: data.email,
@@ -52,21 +55,39 @@ export async function createLead(data: LeadFormData) {
       message: data.message || '',
       status: 'new',
       source: data.source || 'Site Público',
-      createdAt: serverTimestamp(),
+      createdAt: FieldValue.serverTimestamp(),
       leadScore: score,
       leadQualification: qualification,
     });
+
+    // Incrementa o contador de leads nas métricas do corretor
+    await adminDb.collection('corretorMetrics').doc(data.brokerId).set({
+        totalLeads: FieldValue.increment(1)
+    }, { merge: true });
 
     return {
       success: true,
       message: 'Sua mensagem foi enviada com sucesso!',
     };
   } catch (error) {
-    console.error('Erro ao criar lead:', error);
-    // Return a generic error message for security reasons
+    console.error('Erro ao criar lead no servidor:', error);
     return {
       success: false,
-      message: 'Ocorreu um erro ao enviar sua mensagem. Tente novamente mais tarde.',
+      message: 'Ocorreu um erro ao processar sua solicitação. Tente novamente mais tarde.',
     };
   }
+}
+
+/**
+ * Incrementa contadores de acessos (hits) via servidor.
+ */
+export async function incrementMetric(brokerId: string, field: 'siteHits' | 'oralinkHits') {
+    if (!brokerId) return;
+    try {
+        await adminDb.collection('corretorMetrics').doc(brokerId).set({
+            [field]: FieldValue.increment(1)
+        }, { merge: true });
+    } catch (error) {
+        console.error(`Erro ao incrementar ${field}:`, error);
+    }
 }

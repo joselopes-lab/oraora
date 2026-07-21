@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useMemo } from 'react';
-import { useCollection, useFirestore, useMemoFirebase, useAuthContext, setDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase, useAuthContext, deleteDocumentNonBlocking } from '@/firebase';
 import { collection, query, where, doc, orderBy, writeBatch, serverTimestamp, getDocs, getDoc, Timestamp, limit } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -39,7 +39,9 @@ const ClientSideDate = ({ date, options }: { date: Date, options?: Intl.DateTime
   const [formattedDate, setFormattedDate] = useState<string | null>(null);
 
   useEffect(() => {
-    setFormattedDate(date.toLocaleDateString('pt-BR', options));
+    if (date) {
+      setFormattedDate(date.toLocaleDateString('pt-BR', options));
+    }
   }, [date, options]);
 
   return <>{formattedDate || '...'}</>;
@@ -110,7 +112,7 @@ const LeadCard = ({ lead, columns, onMove, onDragStart, onDeleteClick }: { lead:
         <div 
             draggable={true}
             onDragStart={(e) => onDragStart(e, lead.id)}
-            className={`bg-white p-4 rounded-xl shadow-sm border border-gray-100 group hover:shadow-soft hover:border-primary/50 transition-all cursor-grab active:cursor-grabbing relative ${lead.status === 'converted' ? 'border-l-4 border-l-secondary' : ''}`}>
+            className={`bg-white p-4 rounded-xl shadow-sm border border-gray-100 group hover:shadow-soft hover:border-primary/50 transition-all cursor-grab active:cursor-grabbing relative text-left ${lead.status === 'converted' ? 'border-l-4 border-l-secondary' : ''}`}>
             
             <div className="absolute top-2 right-2 flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
                 <AlertDialogTrigger asChild>
@@ -122,7 +124,7 @@ const LeadCard = ({ lead, columns, onMove, onDragStart, onDeleteClick }: { lead:
             </div>
             <div className="mb-3">
                 <h4 className="font-bold text-text-main">{lead.name}</h4>
-                <p className="text-xs text-text-secondary">{lead.propertyInterest || 'Nenhum interesse específico'}</p>
+                <p className="text-xs text-text-secondary line-clamp-1">{lead.propertyInterest || 'Nenhum interesse específico'}</p>
             </div>
             <div className="space-y-2 mb-4">
                 <div className="flex items-center gap-2 text-xs text-text-secondary">
@@ -166,7 +168,7 @@ const LeadCard = ({ lead, columns, onMove, onDragStart, onDeleteClick }: { lead:
 };
 
 export default function LeadsPage() {
-    const { user, userProfile } = useAuthContext();
+    const { user, userProfile, isReady } = useAuthContext();
     const firestore = useFirestore();
     const { toast } = useToast();
     const [draggedLeadId, setDraggedLeadId] = useState<string | null>(null);
@@ -180,24 +182,36 @@ export default function LeadsPage() {
 
     const leadsQuery = useMemoFirebase(
       () => {
-        if (!firestore || !user?.uid) return null;
+        if (!isReady || !firestore || !user?.uid || !userProfile) return null;
+        const leadsRef = collection(firestore, 'leads');
         if (userProfile?.userType === 'admin') {
-          return query(collection(firestore, 'leads'));
+          return query(leadsRef, limit(200));
         }
+        // Filtro por brokerId é obrigatório para conformidade com regras
         return query(collection(firestore, 'leads'), where('brokerId', '==', user.uid));
       },
-      [firestore, user?.uid, userProfile?.userType]
+      [isReady, firestore, user?.uid, userProfile?.userType]
     );
 
     const funnelColumnsQuery = useMemoFirebase(
-        () => (firestore && user?.uid ? query(collection(firestore, 'brokers', user.uid, 'leadFunnels', 'default', 'columns'), orderBy('order')) : null),
-        [firestore, user?.uid]
+        () => (isReady && firestore && user?.uid ? query(collection(firestore, 'brokers', user.uid, 'leadFunnels', 'default', 'columns'), orderBy('order')) : null),
+        [isReady, firestore, user?.uid]
     );
 
-    const { data: leads, isLoading: areLeadsLoading } = useCollection<Lead>(leadsQuery);
+    const { data: initialLeads, isLoading: areLeadsLoading } = useCollection<Lead>(leadsQuery);
     const { data: columns, isLoading: areColumnsLoading } = useCollection<LeadFunnelColumn>(funnelColumnsQuery);
 
-    const isLoading = areLeadsLoading || areColumnsLoading;
+    const isLoading = areLeadsLoading || areColumnsLoading || !isReady || (isReady && initialLeads === null);
+
+    // Ordenação em memória para manter a interface consistente e rápida
+    const leads = useMemo(() => {
+        if (!initialLeads) return [];
+        return [...initialLeads].sort((a, b) => {
+            const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+            const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+            return timeB - timeA;
+        });
+    }, [initialLeads]);
 
     useEffect(() => {
         if (columns) {
@@ -260,7 +274,7 @@ export default function LeadsPage() {
             const leadDoc = await getDoc(leadRef);
             if (!leadDoc.exists()) throw new Error("Lead document not found");
             const leadData = leadDoc.data();
-            const createdAt = leadData.createdAt.toDate();
+            const createdAt = leadData.createdAt?.toDate() || new Date();
             const tempoPorEtapa = leadData.tempoPorEtapa || {};
     
             const historyQuery = query(historyRef, orderBy('changedAt', 'desc'), limit(1));
@@ -426,7 +440,7 @@ export default function LeadsPage() {
       <AlertDialog>
         <Dialog open={isFunnelEditorOpen} onOpenChange={setIsFunnelEditorOpen}>
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-6">
-                <div>
+                <div className="text-left">
                     <h1 className="text-3xl font-bold text-text-main tracking-tight">Funil de Vendas</h1>
                     <p className="text-text-secondary mt-1">Acompanhe seus leads e mova os cards para atualizar o status do atendimento.</p>
                 </div>
@@ -451,7 +465,7 @@ export default function LeadsPage() {
                     </Button>
                 </div>
             </div>
-            <div className="bg-white rounded-xl shadow-soft border border-gray-100 p-4 mb-8">
+            <div className="bg-white rounded-xl shadow-soft border border-gray-100 p-4 mb-8 text-left">
                 <div className="flex flex-col md:flex-row gap-4 items-end md:items-center">
                     <div className="w-full md:w-auto md:flex-1 grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
@@ -511,7 +525,7 @@ export default function LeadsPage() {
             </div>
              {viewMode === 'kanban' ? (
                 <div className="flex-grow overflow-x-auto pb-4">
-                    <div className="flex gap-6 min-w-[1200px] h-full">
+                    <div className="flex gap-6 min-w-[1200px] h-full text-left border-none">
                         {columns?.map(column => {
                             const leadsInColumn = leads?.filter(lead => lead.status === column.id) || [];
                             return (
@@ -530,7 +544,7 @@ export default function LeadsPage() {
                                             <span className="bg-gray-200 text-text-secondary text-xs font-bold px-2 py-0.5 rounded-full">{leadsInColumn.length}</span>
                                             <button 
                                                 onClick={() => setIsFunnelEditorOpen(true)}
-                                                className="text-gray-400 hover:text-primary transition-colors cursor-pointer"
+                                                className="text-gray-400 hover:text-primary transition-colors cursor-pointer border-none bg-transparent"
                                                 title="Editar Etapa"
                                             >
                                                 <span className="material-symbols-outlined text-[16px]">edit</span>
@@ -538,13 +552,14 @@ export default function LeadsPage() {
                                         </div>
                                     </div>
                                     <div className={`kanban-col ${column.bgColor} rounded-xl p-2 flex flex-col gap-3 border border-gray-100/50 transition-colors h-full min-h-[400px]`}>
-                                        {isLoading && <p className="text-center text-xs text-text-secondary p-4">Carregando...</p>}
-                                        {!isLoading && leadsInColumn.map(lead => (
-                                            <LeadCard key={lead.id} lead={lead} columns={columns} onMove={handleMoveLead} onDragStart={handleDragStart} onDeleteClick={setLeadToDelete}/>
+                                        {isLoading ? (
+                                             <div className="flex items-center justify-center p-8"><Loader2 className="animate-spin text-primary" /></div>
+                                        ) : leadsInColumn.map(lead => (
+                                            <LeadCard key={lead.id} lead={lead} columns={columns || []} onMove={handleMoveLead} onDragStart={handleDragStart} onDeleteClick={setLeadToDelete}/>
                                         ))}
                                         {!isLoading && leadsInColumn.length === 0 && (
-                                            <div className="text-center text-xs text-text-secondary p-4 h-24 flex items-center justify-center border-2 border-dashed border-gray-200/50 rounded-xl">
-                                                Nenhum lead aqui
+                                            <div className="text-center text-xs text-text-secondary p-4 h-24 flex items-center justify-center border-2 border-dashed border-gray-200/50 rounded-xl italic">
+                                                Nenhum lead nesta etapa.
                                             </div>
                                         )}
                                     </div>
@@ -554,7 +569,7 @@ export default function LeadsPage() {
                     </div>
                 </div>
             ) : (
-                 <div className="bg-white rounded-xl shadow-soft border border-gray-100 overflow-hidden">
+                 <div className="bg-white rounded-xl shadow-soft border border-gray-100 overflow-hidden text-left">
                     <Table>
                         <TableHeader>
                             <TableRow>
@@ -566,10 +581,9 @@ export default function LeadsPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                        {isLoading && (
-                            <TableRow><TableCell colSpan={5} className="text-center">Carregando leads...</TableCell></TableRow>
-                        )}
-                        {!isLoading && leads?.map(lead => {
+                        {isLoading ? (
+                            <TableRow><TableCell colSpan={5} className="text-center italic text-slate-400">Carregando leads...</TableCell></TableRow>
+                        ) : leads?.length > 0 ? leads.map(lead => {
                             const column = columns?.find(c => c.id === lead.status);
                             return (
                                 <TableRow key={lead.id}>
@@ -619,7 +633,9 @@ export default function LeadsPage() {
                                     </TableCell>
                                 </TableRow>
                             )
-                        })}
+                        }) : (
+                             <TableRow><TableCell colSpan={5} className="text-center p-10 text-slate-400 italic">Nenhum lead encontrado no funil.</TableCell></TableRow>
+                        )}
                         </TableBody>
                     </Table>
                 </div>
@@ -676,6 +692,6 @@ export default function LeadsPage() {
                 </DialogFooter>
             </DialogContent>
         </Dialog>
-        </AlertDialog>
+      </AlertDialog>
     );
 }

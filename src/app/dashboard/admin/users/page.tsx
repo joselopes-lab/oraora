@@ -1,4 +1,3 @@
-
 'use client';
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
@@ -11,7 +10,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useCollection, useFirestore, useMemoFirebase, setDocumentNonBlocking, deleteDocumentNonBlocking, useUser } from "@/firebase";
-import { collection, query, doc } from "firebase/firestore";
+import { collection, query, doc, Timestamp } from "firebase/firestore";
 import { Button } from '@/components/ui/button';
 import {
   AlertDialog,
@@ -27,15 +26,27 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { Switch } from '@/components/ui/switch';
 
+const ClientSideDate = ({ date, options }: { date: Date, options?: Intl.DateTimeFormatOptions }) => {
+  const [formattedDate, setFormattedDate] = useState<string | null>(null);
+
+  useEffect(() => {
+    setFormattedDate(date.toLocaleDateString('pt-BR', options));
+  }, [date, options]);
+
+  return <>{formattedDate || '...'}</>;
+};
+
 type User = {
   id: string;
   username: string;
   email: string;
-  userType: 'admin' | 'broker' | 'constructor';
-  lastAccess?: string; 
+  userType: 'admin' | 'broker' | 'constructor' | 'client';
+  lastAccess?: Timestamp; 
   isActive: boolean;
   slug?: string; // slug for broker's public site
   planId?: string;
+  totalSessionSeconds?: number;
+  isOnline?: boolean;
 };
 
 type Plan = {
@@ -139,11 +150,25 @@ export default function UserManagementPage() {
     
     const isUserListLoading = areUsersLoading || isAuthUserLoading || areBrokersLoading || arePlansLoading;
 
+    const formatTimeSpent = (seconds?: number) => {
+        if (!seconds) return '0m';
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        
+        if (hours > 0) return `${hours}h ${minutes}m`;
+        return `${minutes}m`;
+    }
+
 
   return (
     <AlertDialog>
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8 text-left">
         <div>
+           <nav className="flex items-center gap-2 text-xs text-text-secondary mb-2 font-medium">
+                <Link className="hover:text-primary transition-colors" href="/dashboard">Painel</Link>
+                <span className="material-symbols-outlined text-[10px]">chevron_right</span>
+                <span className="text-text-main">Gestão de Usuários</span>
+            </nav>
           <h1 className="text-3xl font-bold text-text-main tracking-tight mb-2">Gestão de Usuários</h1>
           <p className="text-text-secondary">Gerencie acessos, permissões e cadastro de novos membros.</p>
         </div>
@@ -221,7 +246,7 @@ export default function UserManagementPage() {
               <TableRow className="bg-gray-50 border-b border-gray-100 text-xs uppercase text-text-secondary font-semibold tracking-wider">
                 <TableHead className="px-6 py-4 font-bold">Usuário</TableHead>
                 <TableHead className="px-6 py-4 font-bold">Função</TableHead>
-                <TableHead className="px-6 py-4 font-bold">Plano</TableHead>
+                <TableHead className="px-6 py-4 font-bold">Tempo de Uso</TableHead>
                 <TableHead className="px-6 py-4 font-bold">Status</TableHead>
                 <TableHead className="px-6 py-4 font-bold">Último Acesso</TableHead>
                 <TableHead className="px-6 py-4 font-bold text-right">Ações</TableHead>
@@ -239,9 +264,13 @@ export default function UserManagementPage() {
               <TableRow key={user.id} className="group hover:bg-background-light/50 transition-colors">
                 <TableCell className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center gap-3">
-                    <div className="size-10 rounded-full bg-gray-200 overflow-hidden flex-shrink-0">
-                      
-                      <span className="w-full h-full flex items-center justify-center bg-primary text-text-main font-bold">{user.username.charAt(0)}</span>
+                    <div className="relative">
+                        <div className="size-10 rounded-full bg-gray-200 overflow-hidden flex-shrink-0">
+                            <span className="w-full h-full flex items-center justify-center bg-primary text-text-main font-bold">{user.username.charAt(0)}</span>
+                        </div>
+                        {user.isOnline && (
+                             <span className="absolute bottom-0 right-0 size-3 bg-green-500 border-2 border-white rounded-full"></span>
+                        )}
                     </div>
                     <div>
                       <p className="text-sm font-bold text-text-main">{user.username}</p>
@@ -257,7 +286,8 @@ export default function UserManagementPage() {
                   </span>
                 </TableCell>
                 <TableCell className="px-6 py-4 whitespace-nowrap">
-                  <span className="text-sm font-medium text-text-secondary">{planNameMap[user.planId || ''] || 'N/A'}</span>
+                  <span className="text-sm font-bold text-slate-900">{formatTimeSpent(user.totalSessionSeconds)}</span>
+                  <p className="text-[10px] text-slate-400 uppercase font-bold tracking-tighter">Total Acumulado</p>
                 </TableCell>
                 <TableCell className="px-6 py-4 whitespace-nowrap">
                     <div className='flex items-center gap-2'>
@@ -272,7 +302,14 @@ export default function UserManagementPage() {
                     </div>
                 </TableCell>
                 <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-text-secondary">
-                  Hoje, 10:30
+                   {user.lastAccess ? (
+                     <ClientSideDate 
+                        date={user.lastAccess.toDate()} 
+                        options={{ day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }} 
+                     />
+                   ) : (
+                     <span className="italic opacity-50">Nunca</span>
+                   )}
                 </TableCell>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                   <div className="flex items-center justify-end gap-2">

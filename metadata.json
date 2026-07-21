@@ -1,4 +1,7 @@
 {
-  "name": "studio-5937631195",
-  "description": "App imported from Firebase Studio"
+  "name": "Integração Cartório - App do Corretor",
+  "description": "App do Corretor com integração direta e em tempo real a Cartórios de Registro",
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }

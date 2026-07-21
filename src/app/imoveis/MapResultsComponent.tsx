@@ -317,7 +317,7 @@ export default function MapResultsComponent({ properties, searchControls }: { pr
                     position={selectedPoi.position}
                     onCloseClick={() => setSelectedPoi(null)}
                   >
-                    <div className="p-1 font-bold">{selectedPoi.name}</div>
+                    <div className="p-1 font-bold text-black">{selectedPoi.name}</div>
                   </InfoWindow>
                 )}
             </GoogleMap>
@@ -399,7 +399,7 @@ export default function MapResultsComponent({ properties, searchControls }: { pr
         </div>
         
         {!isResultsOpen && (
-             <button onClick={() => setIsResultsOpen(true)} className="absolute top-6 right-6 z-30 flex items-center justify-center size-12 bg-white rounded-full shadow-float border border-gray-200 text-gray-600 hover:text-black hover:scale-105 transition-all">
+             <button onClick={() => setIsResultsOpen(true)} className="absolute top-6 right-6 z-30 flex items-center justify-center size-12 bg-white rounded-full shadow-float border border-gray-100 text-gray-600 hover:text-black hover:scale-105 transition-all">
                 <span className="material-symbols-outlined">list_alt</span>
             </button>
         )}
@@ -408,15 +408,12 @@ export default function MapResultsComponent({ properties, searchControls }: { pr
             <div className="absolute inset-0 z-40 flex items-center justify-center p-4 bg-black/20" onClick={handleCloseModal}>
                 <div className="bg-white w-full max-w-[400px] rounded-2xl shadow-float overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200 relative" onClick={(e) => e.stopPropagation()}>
                     <button onClick={handleCloseModal} className="absolute top-3 right-3 z-20 bg-white/80 backdrop-blur rounded-full p-1.5 text-gray-500 hover:text-black hover:bg-white transition-colors shadow-sm">
-                         <span className="material-symbols-outlined text-xl">close</span>
+                        <span className="material-symbols-outlined text-xl">close</span>
                     </button>
                     <div className="h-56 relative w-full group cursor-pointer">
                         <div className="absolute top-3 left-3 z-10 flex gap-2">
-                            <span className="bg-primary text-black text-[10px] font-bold px-2.5 py-1 rounded-md shadow-sm">Destaque</span>
-                            <span className="bg-black/70 backdrop-blur text-white text-[10px] font-bold px-2.5 py-1 rounded-md shadow-sm">Venda</span>
-                        </div>
-                        <div className="absolute top-3 right-3 z-10 bg-white/30 backdrop-blur-md p-1.5 rounded-full hover:bg-white text-white hover:text-red-500 transition-colors">
-                            <span className="material-symbols-outlined text-[16px]">favorite</span>
+                            <span className="bg-primary !text-white text-[10px] font-bold px-2.5 py-1 rounded-md shadow-sm">Destaque</span>
+                            <span className="bg-black/70 backdrop-blur !text-white text-[10px] font-bold px-2.5 py-1 rounded-md shadow-sm">Venda</span>
                         </div>
                         <Image alt={selectedProperty.informacoesbasicas.nome} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" src={selectedProperty.midia?.[0] || 'https://picsum.photos/seed/modal/400/224'} fill/>
                     </div>
@@ -433,7 +430,6 @@ export default function MapResultsComponent({ properties, searchControls }: { pr
                             {selectedProperty.informacoesbasicas.valor && (
                             <p className="text-xl font-black text-primary-hover">{selectedProperty.informacoesbasicas.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
                             )}
-                            <p className="text-xs text-text-muted font-medium">Cond: R$ 850</p>
                         </div>
                         </div>
                         <div className="grid grid-cols-3 gap-2 py-3 border-y border-gray-100">
@@ -456,12 +452,12 @@ export default function MapResultsComponent({ properties, searchControls }: { pr
                         </p>
                         </div>
                         <div className="flex gap-3 mt-2">
-                            <Link href={`/imoveis/${selectedProperty.informacoesbasicas.slug || selectedProperty.id}`} className="flex-1 bg-primary hover:bg-primary-hover text-black font-bold h-11 rounded-xl shadow-lg shadow-primary/20 flex items-center justify-center gap-2 transition-all hover:scale-[1.02]">
+                            <Link href={`/imoveis/${selectedProperty.informacoesbasicas.slug || selectedProperty.id}`} className="flex-1 bg-primary hover:bg-primary-hover !text-white font-bold h-11 rounded-xl shadow-lg shadow-primary/20 flex items-center justify-center gap-2 transition-all hover:scale-[1.02]">
                                 Ver Detalhes
                                 <span className="material-symbols-outlined text-lg">arrow_forward</span>
                             </Link>
                         <button className="size-11 flex items-center justify-center rounded-xl border border-gray-200 text-gray-400 hover:border-red-500 hover:text-red-500 hover:bg-red-50 transition-all">
-                            <span className="material-symbols-outlined">favorite</span>
+                            <span className="material-symbols-outlined">favorite_border</span>
                         </button>
                         </div>
                     </div>

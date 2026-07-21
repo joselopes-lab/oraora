@@ -31,6 +31,13 @@ type ContactContentFormData = z.infer<typeof contactContentSchema>;
 
 type BrokerData = {
     oraoraContato?: Partial<ContactContentFormData>;
+    // Global fields to load from "Manage Site"
+    footerContactEmail?: string;
+    footerContactPhone?: string;
+    footerContactAddress?: string;
+    instagramUrl?: string;
+    linkedinUrl?: string;
+    twitterUrl?: string;
 }
 
 export default function EditPortalContactPage() {
@@ -46,12 +53,34 @@ export default function EditPortalContactPage() {
 
   const form = useForm<ContactContentFormData>({
     resolver: zodResolver(contactContentSchema),
-    defaultValues: {},
+    defaultValues: {
+        headerTagline: '',
+        headerTitle: '',
+        headerSubtitle: '',
+        phone: '',
+        email: '',
+        addressLine1: '',
+        addressLine2: '',
+        addressHint: '',
+        instagramUrl: '',
+        linkedinUrl: '',
+        twitterUrl: '',
+    },
   });
 
   useEffect(() => {
-    if (siteData?.oraoraContato) {
-      form.reset(siteData.oraoraContato);
+    if (siteData) {
+      const pageData = siteData.oraoraContato || {};
+      form.reset({
+        ...pageData,
+        // Load global info if page-specific info is missing
+        email: pageData.email || siteData.footerContactEmail || '',
+        phone: pageData.phone || siteData.footerContactPhone || '',
+        addressLine1: pageData.addressLine1 || siteData.footerContactAddress || '',
+        instagramUrl: pageData.instagramUrl || siteData.instagramUrl || '',
+        linkedinUrl: pageData.linkedinUrl || siteData.linkedinUrl || '',
+        twitterUrl: pageData.twitterUrl || siteData.twitterUrl || '',
+      });
     }
   }, [siteData, form]);
 
@@ -69,7 +98,12 @@ export default function EditPortalContactPage() {
   };
   
   if (isLoading) {
-    return <p>Carregando...</p>;
+    return (
+        <div className="p-10 text-center flex flex-col items-center gap-4">
+            <span className="material-symbols-outlined animate-spin text-4xl text-primary">progress_activity</span>
+            <p className="text-slate-500">Carregando dados da página...</p>
+        </div>
+    );
   }
   
   return (
@@ -78,11 +112,15 @@ export default function EditPortalContactPage() {
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-10">
                 <div>
+                    <Link href="/dashboard/meu-site" className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1 mb-2">
+                        <span className="material-symbols-outlined text-base">arrow_back</span>
+                        Voltar para Meu Site
+                    </Link>
                     <h1 className="text-3xl font-black text-gray-900 tracking-tight">Editar Página de Contato</h1>
-                    <p className="text-text-muted mt-2 text-sm md:text-base">Gerencie o conteúdo da página de contato do portal Oraora.</p>
+                    <p className="text-text-muted mt-2 text-sm md:text-base">Personalize os textos da página de contato. Os dados de contato foram importados das configurações gerais.</p>
                 </div>
                 <div className="flex gap-3">
-                     <Button type="submit" disabled={form.formState.isSubmitting}>
+                     <Button type="submit" disabled={form.formState.isSubmitting} className="bg-primary hover:bg-primary-hover text-slate-900 font-bold px-6 h-11 rounded-xl shadow-lg shadow-primary/20">
                         {form.formState.isSubmitting ? 'Salvando...' : 'Salvar Alterações'}
                     </Button>
                 </div>
@@ -130,6 +168,10 @@ export default function EditPortalContactPage() {
                     <span className="material-symbols-outlined text-primary-hover">contact_phone</span>
                     Informações de Contato
                 </h2>
+                <div className="flex items-center gap-2 px-3 py-1 bg-primary/10 rounded-full border border-primary/20">
+                    <span className="material-symbols-outlined text-[14px] text-primary-hover">sync</span>
+                    <span className="text-[10px] font-bold text-primary-hover uppercase tracking-wider">Sincronizado com Perfil</span>
+                </div>
                 </div>
                 <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
                     <FormField control={form.control} name="phone" render={({ field }) => (

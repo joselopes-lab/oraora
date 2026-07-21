@@ -1,40 +1,11 @@
-import { collection, query, where, getDocs } from 'firebase/firestore';
-import { initializeFirebase } from '@/firebase/index.server';
+import { adminDb } from '@/firebase/index.server';
 import { notFound } from 'next/navigation';
-import SobreClientPage from '@/layouts/urban-padrao/sobre/SobreClientPage';
-import DomusSobrePage from '@/app/layouts/domus/sobre/DomusSobrePage';
+import { getThemePage } from '@/layouts/registry';
+import { getBrokerData } from '../../utils.server';
+import { FieldValue } from 'firebase-admin/firestore';
 
 // Force dynamic rendering to ensure data is fresh on every request
 export const dynamic = 'force-dynamic';
-
-type Broker = {
-  id: string;
-  brandName: string;
-  logoUrl?: string;
-  primaryColor?: string;
-  secondaryColor?: string;
-  backgroundColor?: string;
-  foregroundColor?: string;
-  accentColor?: string;
-  slug: string;
-  layoutId?: string;
-  urbanPadraoSobre?: any;
-  oraoraSobre?: any;
-};
-
-async function getBrokerData(slug: string): Promise<Broker | null> {
-  const { firestore } = initializeFirebase();
-  const brokersRef = collection(firestore, 'brokers');
-  const q = query(brokersRef, where('slug', '==', slug));
-  const querySnapshot = await getDocs(q);
-
-  if (querySnapshot.empty) {
-    return null;
-  }
-
-  const brokerDoc = querySnapshot.docs[0];
-  return { id: brokerDoc.id, ...brokerDoc.data() } as Broker;
-}
 
 export default async function BrokerAboutPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -43,10 +14,20 @@ export default async function BrokerAboutPage({ params }: { params: Promise<{ sl
   if (!broker) {
     notFound();
   }
-  
-  if (broker.layoutId === 'domus') {
-    return <DomusSobrePage broker={broker as any} />;
+
+  // Incrementa contador de acessos
+  try {
+    await adminDb.collection('corretorMetrics').doc(broker.id).set({
+      siteHits: FieldValue.increment(1)
+    }, { merge: true });
+  } catch (e) {
+    console.error("Erro ao rastrear acesso:", e);
   }
   
-  return <SobreClientPage broker={broker as any} />;
+  const layoutId = (broker as any).layoutId;
+
+  // --- ORAORA PAGE LOADER 1.0 ---
+  const SobrePage = getThemePage(layoutId, 'about');
+  
+  return <SobrePage broker={broker as any} />;
 }

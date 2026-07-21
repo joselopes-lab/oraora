@@ -26,9 +26,9 @@ const pageGroups = [
         ]
     },
     {
-        title: "Dashboard do Administrador",
+        title: "Painel do Administrador",
         pages: [
-            { href: "/dashboard", name: "Dashboard Geral (Visão Admin)" },
+            { href: "/dashboard", name: "Painel Geral (Visão Admin)" },
             { href: "/dashboard/admin/leads", name: "Leads (Geral)" },
             { href: "/dashboard/imoveis", name: "Gestão de Imóveis (Construtoras)" },
             { href: "/dashboard/personas", name: "Gestão de Personas" },
@@ -44,9 +44,9 @@ const pageGroups = [
         ]
     },
     {
-        title: "Dashboard do Corretor",
+        title: "Painel do Corretor",
         pages: [
-            { href: "/dashboard", name: "Dashboard Principal" },
+            { href: "/dashboard", name: "Painel Principal" },
             { href: "/dashboard/leads", name: "Funil de Leads (Kanban)" },
             { href: "/dashboard/clientes", name: "Lista de Clientes" },
             { href: "/dashboard/imoveis", name: "Imóveis de Construtoras" },
@@ -60,7 +60,7 @@ const pageGroups = [
         ]
     },
     {
-        title: "Dashboard do Cliente (Radar)",
+        title: "Painel do Cliente (Radar)",
         pages: [
             { href: "/radar/dashboard", name: "Painel do Cliente" },
             { href: "/radar/dashboard/imoveis-salvos", name: "Imóveis Salvos" },

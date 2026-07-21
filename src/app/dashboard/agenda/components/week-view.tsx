@@ -14,6 +14,9 @@ type Event = {
   duration?: string; // in minutes
   type: 'reuniao' | 'visita' | 'tarefa' | 'particular' | 'outro';
   description?: string;
+  journeyId?: string;
+  propertyId?: string;
+  propertySource?: 'properties' | 'brokerProperties';
 };
 
 const eventTypeStyles: { [key: string]: string } = {

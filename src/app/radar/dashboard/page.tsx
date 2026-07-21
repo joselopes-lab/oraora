@@ -101,6 +101,9 @@ type Event = {
   completed?: boolean;
   clientId?: string;
   description?: string;
+  journeyId?: string;
+  propertyId?: string;
+  propertySource?: 'properties' | 'brokerProperties';
 };
 
 type BrokerMetrics = {

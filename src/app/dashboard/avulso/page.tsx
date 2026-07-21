@@ -14,6 +14,7 @@ import { useCollection, useFirestore, useMemoFirebase, useUser, setDocumentNonBl
 import { collection, query, where, doc, getDocs } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useMemo, useEffect } from "react";
+import { useRouter } from 'next/navigation';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,7 +31,7 @@ import { Progress } from "@/components/ui/progress";
 type BrokerProperty = {
   id: string;
   brokerId: string;
-  informacoesbasicas: {
+  informacoesbasicas?: {
     nome: string;
     status: string;
   };
@@ -40,6 +41,11 @@ type BrokerProperty = {
   };
   midia: string[];
   isVisibleOnSite: boolean;
+  title?: string;
+  nome?: string;
+  basicInfo?: {
+    title?: string;
+  };
 };
 
 type Property = {
@@ -55,6 +61,7 @@ export default function AvulsoPage() {
     const { user, userProfile, isReady } = useAuthContext();
     const firestore = useFirestore();
     const { toast } = useToast();
+    const router = useRouter();
     const [propertyToDelete, setPropertyToDelete] = useState<BrokerProperty | null>(null);
 
     const planDocRef = useMemoFirebase(
@@ -116,13 +123,18 @@ export default function AvulsoPage() {
         }
     }, [firestore, portfolio, isPortfolioLoading]);
 
+    const getPropertyName = (property: BrokerProperty | null) => {
+        if (!property) return "Imóvel sem título";
+        return property.informacoesbasicas?.nome || property.title || property.nome || property.basicInfo?.title || "Imóvel sem título";
+    };
+
     const handleDeleteProperty = () => {
         if (!propertyToDelete || !firestore) return;
         const docRef = doc(firestore, 'brokerProperties', propertyToDelete.id);
         deleteDocumentNonBlocking(docRef);
         toast({
             title: "Imóvel Excluído",
-            description: `O imóvel "${propertyToDelete.informacoesbasicas.nome}" foi removido.`
+            description: `O imóvel "${getPropertyName(propertyToDelete)}" foi removido.`
         })
         setPropertyToDelete(null);
     }
@@ -144,7 +156,7 @@ export default function AvulsoPage() {
     const usagePercentage = (propertyLimit && propertyLimit > 0) ? (totalPropertyCount / propertyLimit) * 100 : 0;
 
     return (
-        <AlertDialog>
+        <div>
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
                 <div>
                     <h1 className="text-3xl font-bold text-text-main tracking-tight">Listagem de Imóveis Avulsos</h1>
@@ -156,6 +168,10 @@ export default function AvulsoPage() {
                             <span className="material-symbols-outlined text-[20px]">add</span>
                             Cadastrar Novo Imóvel
                        </Link>
+                    </Button>
+                    <Button variant="outline" onClick={() => router.push('/dashboard/imoveis/importar')} className="font-bold py-2.5 px-5 rounded-lg flex items-center gap-2">
+                        <span className="material-symbols-outlined text-[20px]">upload</span>
+                        Importar JSON
                     </Button>
                 </div>
             </div>
@@ -224,13 +240,13 @@ export default function AvulsoPage() {
                                     <TableCell className="px-6 py-4">
                                         <div className="flex items-center gap-4">
                                             <div className="h-16 w-24 rounded-lg overflow-hidden bg-gray-200 shrink-0 border border-gray-100">
-                                                <Image alt={property.informacoesbasicas.nome} className="h-full w-full object-cover" src={property.midia?.[0] || 'https://placehold.co/100x100'} width={96} height={64} />
+                                                <Image alt={getPropertyName(property)} className="h-full w-full object-cover" src={property.midia?.[0] || 'https://placehold.co/100x100'} width={96} height={64} />
                                             </div>
                                             <div>
-                                                <p className="font-bold text-text-main text-base">{property.informacoesbasicas.nome}</p>
+                                                <p className="font-bold text-text-main text-base">{getPropertyName(property)}</p>
                                                 <p className="text-text-secondary text-xs">{property.localizacao.cidade}, {property.localizacao.estado}</p>
                                                 <div className="mt-1 flex items-center gap-2">
-                                                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium ${property.informacoesbasicas.status === 'Lançamento' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}`}>{property.informacoesbasicas.status}</span>
+                                                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium ${property.informacoesbasicas?.status === 'Lançamento' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}`}>{property.informacoesbasicas?.status}</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -242,11 +258,9 @@ export default function AvulsoPage() {
                                                     <span className="material-symbols-outlined text-[20px]">edit</span>
                                                 </Link>
                                             </Button>
-                                             <AlertDialogTrigger asChild>
-                                                <Button variant="ghost" size="icon" className="p-2 text-text-secondary hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Excluir" onClick={() => setPropertyToDelete(property)}>
-                                                    <span className="material-symbols-outlined text-[20px]">delete</span>
-                                                </Button>
-                                            </AlertDialogTrigger>
+                                            <Button variant="ghost" size="icon" className="p-2 text-text-secondary hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Excluir" onClick={() => setPropertyToDelete(property)}>
+                                                <span className="material-symbols-outlined text-[20px]">delete</span>
+                                            </Button>
                                         </div>
                                     </TableCell>
                                 </TableRow>
@@ -272,21 +286,23 @@ export default function AvulsoPage() {
                 </div>
             </div>
 
-            <AlertDialogContent>
-                <AlertDialogHeader>
-                    <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                        Esta ação não pode ser desfeita. Isso excluirá permanentemente o imóvel <span className="font-bold">{propertyToDelete?.informacoesbasicas.nome}</span>.
-                    </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                    <AlertDialogCancel onClick={() => setPropertyToDelete(null)}>Cancelar</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleDeleteProperty} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                        Sim, excluir
-                    </AlertDialogAction>
-                </AlertDialogFooter>
-            </AlertDialogContent>
+            <AlertDialog open={!!propertyToDelete} onOpenChange={(open) => !open && setPropertyToDelete(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Esta ação não pode ser desfeita. Isso excluirá permanentemente o imóvel <span className="font-bold">{getPropertyName(propertyToDelete)}</span>.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDeleteProperty} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                            Sim, excluir
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
 
-        </AlertDialog>
+        </div>
     );
 }

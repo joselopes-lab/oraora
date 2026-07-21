@@ -1,11 +1,14 @@
+
 import type { Metadata } from 'next';
 import Script from 'next/script';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { FirebaseClientProvider, AuthProvider } from '@/firebase';
-import { initializeFirebase } from '@/firebase/index.server';
-import { doc, getDoc } from 'firebase/firestore';
-
+import { adminDb } from '@/firebase/index.server';
+import { ActivityTracker } from '@/components/ActivityTracker';
+import { Suspense } from 'react';
+import { JsonLd } from '@/components/JsonLd';
+import { generateOrganizationJsonLd } from '@/lib/seo';
 
 type BrokerData = {
   faviconUrl?: string;
@@ -15,29 +18,37 @@ type BrokerData = {
 
 async function getSiteData(): Promise<BrokerData | null> {
   try {
-    const { firestore } = initializeFirebase();
-    const siteContentDocRef = doc(firestore, 'brokers', 'oraora-main-site');
-    const siteDoc = await getDoc(siteContentDocRef);
-    
-    if (siteDoc.exists()) {
-      return siteDoc.data() as BrokerData;
-    }
+    const siteDoc = await adminDb.collection('brokers').doc('oraora-main-site').get();
+    if (siteDoc.exists) return siteDoc.data() as BrokerData;
     return null;
   } catch (error) {
-    console.error("Error fetching site data:", error);
+    console.error("Error fetching site data in layout:", error);
     return null;
   }
 }
 
 export async function generateMetadata(): Promise<Metadata> {
   const siteData = await getSiteData();
-
   return {
-    title: 'Oraora',
-    description: 'Área restrita para corretores',
+    title: {
+      default: 'Oraora | Inteligência Imobiliária',
+      template: '%s | Oraora'
+    },
+    description: 'A plataforma definitiva para encontrar, anunciar e gerenciar imóveis de alto padrão com auxílio de inteligência artificial.',
     icons: {
       icon: siteData?.faviconUrl || '/favicon.ico',
     },
+    openGraph: {
+      type: 'website',
+      locale: 'pt_BR',
+      url: 'https://oraora.com.br',
+      siteName: 'Oraora',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: 'Oraora | Inteligência Imobiliária',
+      description: 'Encontre seu lugar no mundo com a plataforma mais moderna do mercado.',
+    }
   };
 }
 
@@ -57,59 +68,22 @@ export default async function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
         <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" />
-        <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet" />
-        
-        {/* Google Analytics Script */}
         {gaId && (
           <>
-            <Script
-              async
-              src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`}
-              strategy="afterInteractive"
-            />
+            <Script async src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`} strategy="afterInteractive" />
             <Script id="google-analytics" strategy="afterInteractive">
-              {`
-                window.dataLayer = window.dataLayer || [];
-                function gtag(){dataLayer.push(arguments);}
-                gtag('js', new Date());
-                gtag('config', '${gaId}');
-              `}
+              {`window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('js', new Date()); gtag('config', '${gaId}');`}
             </Script>
           </>
         )}
-        
-        {/* Facebook Pixel Script */}
-        {fbPixelId && (
-          <Script id="facebook-pixel" strategy="afterInteractive">
-            {`
-              !function(f,b,e,v,n,t,s)
-              {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
-              n.callMethod.apply(n,arguments):n.queue.push(arguments)};
-              if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
-              n.queue=[];t=b.createElement(e);t.async=!0;
-              t.src=v;s=b.getElementsByTagName(e)[0];
-              s.parentNode.insertBefore(t,s)}(window, document,'script',
-              'https://connect.facebook.net/en_US/fbevents.js');
-              fbq('init', '${fbPixelId}');
-              fbq('track', 'PageView');
-            `}
-          </Script>
-        )}
-
       </head>
       <body className="font-body antialiased selection:bg-primary selection:text-primary-foreground">
-        {fbPixelId && (
-          <noscript>
-            <img
-              height="1"
-              width="1"
-              style={{ display: 'none' }}
-              src={`https://www.facebook.com/tr?id=${fbPixelId}&ev=PageView&noscript=1`}
-            />
-          </noscript>
-        )}
+        <JsonLd data={generateOrganizationJsonLd()} />
         <FirebaseClientProvider>
           <AuthProvider>
+            <Suspense fallback={null}>
+              <ActivityTracker />
+            </Suspense>
             {children}
             <Toaster />
           </AuthProvider>

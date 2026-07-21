@@ -5,10 +5,12 @@ import { DomusHeader } from './components/DomusHeader';
 import { DomusFooter } from './components/DomusFooter';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
-import { useState, useEffect } from 'react';
-import { WhatsAppWidget } from '@/app/sites/urban-padrao/components/WhatsAppWidget';
+import { useState, useEffect, useMemo } from 'react';
+import { WhatsAppWidget } from '@/layouts/urban-padrao/components/WhatsAppWidget';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import SearchFilters from '@/components/SearchFilters';
+import { useNavigation } from '@/lib/navigation/navigationService';
 
 
 type Broker = {
@@ -21,6 +23,7 @@ type Broker = {
   backgroundColor?: string;
   foregroundColor?: string;
   slug: string;
+  layoutId?: string;
   homepage?: {
     heroTagline?: string;
     heroTitle?: string;
@@ -86,10 +89,15 @@ type Broker = {
   whatsappUrl?: string;
   instagramUrl?: string;
   linkedinUrl?: string;
+  businessSettings?: {
+    enabledTransactions: string[];
+  };
 };
 
 type Property = {
   id: string;
+  builderId?: string;
+  brokerId?: string;
   informacoesbasicas: {
     nome: string;
     status: string;
@@ -99,6 +107,7 @@ type Property = {
   localizacao: {
     bairro: string;
     cidade: string;
+    estado: string;
   };
   midia: string[];
   caracteristicasimovel: {
@@ -114,47 +123,19 @@ type DomusLayoutProps = {
   properties: Property[];
 };
 
-function hslToHex(hslStr: string): string {
-    if (!hslStr || typeof hslStr !== 'string') return '#000000';
-    const parts = hslStr.match(/(\d+(\.\d+)?)/g);
-    if (!parts || parts.length < 3) return '#000000';
-
-    const h = parseFloat(parts[0]);
-    const s = parseFloat(parts[1]) / 100;
-    const l = parseFloat(parts[2]) / 100;
-
-    const a = s * Math.min(l, 1 - l);
-    const f = (n: number) => {
-        const k = (n + h / 30) % 12;
-        const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
-        return Math.round(255 * color).toString(16).padStart(2, '0');
-    };
-    return `#${f(0)}${f(8)}${f(4)}`;
-}
-
 export default function DomusLayout({ broker, properties }: DomusLayoutProps) {
   const router = useRouter();
+  const nav = useNavigation(broker.slug);
   const [isMounted, setIsMounted] = useState(false);
   
-  const [searchQuery, setSearchQuery] = useState("");
-  const [filterType, setFilterType] = useState("all");
-  const [maxPrice, setMaxPrice] = useState("5000000");
-
   useEffect(() => {
     setIsMounted(true);
   }, []);
   
   const content = broker.homepage || {};
 
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const params = new URLSearchParams();
-    if (searchQuery) params.set('q', searchQuery);
-    if (filterType !== 'all') params.set('type', filterType);
-    if (maxPrice !== '5000000') params.set('maxPrice', maxPrice);
-    params.set('finality', 'venda');
-    
-    router.push(`/sites/${broker.slug}/search?${params.toString()}`);
+  const handleSearch = (queryString: string) => {
+    router.push(nav.search(queryString));
   };
 
   const getEmbedUrl = (url: string | undefined): string | null => {
@@ -191,11 +172,6 @@ export default function DomusLayout({ broker, properties }: DomusLayoutProps) {
     heroTitle: "Encontre o lar dos seus sonhos com <span class=\"text-primary italic\">curadoria</span> exclusiva",
     heroSubtitle: "Imóveis selecionados com tecnologia e atendimento personalizado para uma experiência premium e sem burocracia.",
     heroImageUrl: "https://lh3.googleusercontent.com/aida-public/AB6AXuBlzbiXYY0BpchRCPRPqvTEk5BWBLgaa5EubTInww9SGxsUFqt1kdnrgrvROu_1uGCm_zf9dbSwIXVo9j14bfmkXYsdWizi8b4n-nxIvOTCFKn_-3cmrodAG0oMOMJS_BkQFTbOgsaTzlk_2ta7QqGoKM0benjx5savhNz0Q9NukbSP9UFGZEOkILVFfG35YLUD52Dw6EDPI5VeqxQyCNnn9-fqZ74F6pWzXw9T9PIfhaRPJyrLfKDt38xm-twOo6v8OrV1r77JMow",
-    statsSold: "",
-    statsExperience: "",
-    statsSatisfaction: "",
-    statsSupport: "",
-    hideStats: false,
     featuredTagline: "Nosso Destaque",
     featuredTitle: "Properties For You",
     featuredSubtitle: "A curated selection of the finest properties from our exclusive portfolio.",
@@ -216,10 +192,6 @@ export default function DomusLayout({ broker, properties }: DomusLayoutProps) {
     value4Icon: "verified_user",
     value4Title: "Negociação Segura",
     value4Description: "Intermediação profissional focada no melhor interesse do cliente.",
-    ctaTitle: "Pronto para encontrar seu próximo lar?",
-    ctaSubtitle: "Agende uma consultoria personalizada agora mesmo via WhatsApp.",
-    mapTitle: "Encontre imóveis perto de você",
-    mapSubtitle: "Utilize nosso mapa interativo para explorar as melhores oportunidades nas regiões mais valorizadas.",
   };
 
   const featuredProperties = properties?.slice(0, 6) || [];
@@ -233,70 +205,22 @@ export default function DomusLayout({ broker, properties }: DomusLayoutProps) {
     return `${joinedQuartos} Quartos`;
   };
 
+  const availableStates = useMemo(() => {
+    return Array.from(new Set(properties.map(p => p.localizacao.estado))).filter(Boolean);
+  }, [properties]);
+
+  const enabledTransactions = broker.businessSettings?.enabledTransactions || ['sale', 'rent'];
+
   const dynamicStyles = {
     '--background': broker.backgroundColor || '90 20% 97%',
     '--foreground': broker.foregroundColor || '110 16% 8%',
     '--primary': broker.primaryColor || '80 99% 49%',
     '--secondary': broker.secondaryColor || '110 16% 8%',
     '--accent': broker.accentColor || '97 78% 56%',
-    '--card-title': content.cardTitleColor ? `hsl(${content.cardTitleColor})` : 'inherit',
-    '--card-value': content.cardValueColor ? `hsl(${content.cardValueColor})` : 'hsl(var(--primary))',
-    '--card-icon': content.cardIconColor ? `hsl(${content.cardIconColor})` : 'hsl(var(--primary))',
-    '--status-tag-bg': content.statusTagBgColor ? `hsl(${content.statusTagBgColor})` : 'rgba(255,255,255,0.9)',
-    '--status-tag-text': content.statusTagTextColor ? `hsl(${content.statusTagTextColor})` : '#000',
-    '--search-button-bg': content.searchButtonBgColor ? `hsl(${content.searchButtonBgColor})` : 'hsl(var(--primary))',
-    '--search-button-text': '#ffffff',
-    '--cta-button-bg': content.ctaButtonBgColor ? `hsl(${content.ctaButtonBgColor})` : 'hsl(var(--primary))',
-    '--cta-button-text': content.ctaButtonTextColor ? `hsl(${content.ctaButtonTextColor})` : 'hsl(var(--secondary))',
-    '--about-quote-bg': content.aboutQuoteBgColor ? `hsl(${content.aboutQuoteBgColor})` : 'hsl(var(--primary))',
-    '--about-quote-text': content.aboutQuoteTextColor ? `hsl(${content.aboutQuoteTextColor})` : 'hsl(var(--secondary))',
-    '--about-tagline-color': content.aboutTaglineColor ? `hsl(${content.aboutTaglineColor})` : 'hsl(var(--primary))',
-    '--cta-section-bg': content.ctaSectionBgColor ? `hsl(${content.ctaSectionBgColor})` : 'hsl(var(--secondary))',
-    '--cta-section-title': content.ctaSectionTitleColor ? `hsl(${content.ctaSectionTitleColor})` : '#fff',
-    '--cta-section-subtitle': content.ctaSectionSubtitleColor ? `hsl(${content.ctaSectionSubtitleColor})` : 'rgba(255,255,255,0.6)',
-    '--cta-section-button-bg': content.ctaSectionButtonBgColor ? `hsl(${content.ctaSectionButtonBgColor})` : 'hsl(var(--primary))',
-    '--cta-section-button-text': content.ctaSectionButtonTextColor ? `hsl(${content.ctaSectionButtonTextColor})` : 'hsl(var(--secondary))',
-    '--map-section-bg': content.mapSectionBgColor ? `hsl(${content.mapSectionBgColor})` : '#f3f4f1',
-    '--map-title-color': content.mapTitleColor ? `hsl(${content.mapTitleColor})` : '#111827',
-    '--map-text-color': content.mapTextColor ? `hsl(${content.mapTextColor})` : '#4b5563',
-    '--map-button-bg': content.mapButtonBgColor ? `hsl(${content.mapButtonBgColor})` : '#1e293b',
-    '--map-button-text': content.mapButtonTextColor ? `hsl(${content.mapButtonTextColor})` : '#ffffff',
   } as React.CSSProperties;
-
-  const whatsappLink = broker.whatsappUrl ? 
-    (broker.whatsappUrl.includes('wa.me/') && !broker.whatsappUrl.includes('wa.me/55') ? 
-      broker.whatsappUrl.replace('wa.me/', 'wa.me/55') : 
-      broker.whatsappUrl.replace('wa.me.com.br', 'wa.me')) 
-    : '#';
-
-  const hasStats = content.statsSold || content.statsExperience || content.statsSatisfaction || content.statsSupport;
 
   return (
     <div style={dynamicStyles} className="domus-theme font-display bg-background-light dark:bg-background-dark text-[#161811] dark:text-white transition-colors duration-300 min-h-screen">
-      <style jsx global>{`
-        .price-slider {
-            accent-color: hsl(var(--primary));
-        }
-        .price-slider::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            height: 18px;
-            width: 18px;
-            border-radius: 50%;
-            background: hsl(var(--primary)) !important;
-            cursor: pointer;
-            border: 2px solid white;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-        }
-        .price-slider::-moz-range-thumb {
-            height: 18px;
-            width: 18px;
-            border-radius: 50%;
-            background: hsl(var(--primary)) !important;
-            cursor: pointer;
-            border: 2px solid white;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-        }
-      `}</style>
       <DomusHeader broker={broker as any} />
       <main>
         <section className="max-w-[1280px] mx-auto px-6 pt-12 md:pt-20 pb-10">
@@ -343,7 +267,7 @@ export default function DomusLayout({ broker, properties }: DomusLayoutProps) {
                     </DialogContent>
                   </Dialog>
                 )}
-                <Link href={`/sites/${broker.slug}/search`} className="flex min-w-[200px] items-center justify-center rounded-xl h-14 px-8 bg-white dark:bg-white/5 border border-[#e3e5dc] dark:border-white/10 text-[#161811] dark:text-white text-base font-bold hover:bg-gray-50 dark:hover:bg-white/10 transition-all">
+                <Link href={nav.search()} className="flex min-w-[200px] items-center justify-center rounded-xl h-14 px-8 bg-white dark:bg-white/5 border border-[#e3e5dc] dark:border-white/10 text-[#161811] dark:text-white text-base font-bold hover:bg-gray-50 dark:hover:bg-white/10 transition-all">
                     Ver Catálogo
                 </Link>
               </div>
@@ -370,144 +294,67 @@ export default function DomusLayout({ broker, properties }: DomusLayoutProps) {
             </div>
           </div>
 
-          <div className="bg-white dark:bg-slate-900/90 backdrop-blur-2xl p-8 rounded-[2.5rem] border border-slate-200 dark:border-white/10 shadow-2xl relative z-20 mt-[30px] w-full">
-            <form onSubmit={handleSearchSubmit} className="flex flex-col lg:flex-row gap-6 items-end">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 flex-1 w-full">
-                    <div>
-                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">Tipo de Imóvel</label>
-                        <select 
-                            value={filterType}
-                            onChange={(e) => setFilterType(e.target.value)}
-                            className="w-full h-11 bg-gray-50 dark:bg-slate-800/50 border-slate-200/50 dark:border-slate-700/50 rounded-xl py-2 px-4 text-xs font-bold focus:ring-primary focus:border-primary text-slate-900 dark:text-white appearance-none"
-                        >
-                            <option value="all">Todos os tipos</option>
-                            <option value="Apartamento">Apartamentos</option>
-                            <option value="Casa">Casas de Luxo</option>
-                            <option value="Cobertura">Coberturas</option>
-                            <option value="Terreno">Terrenos</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">Cidade ou Bairro</label>
-                        <div className="relative">
-                            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">place</span>
-                            <input 
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full h-11 bg-gray-50 dark:bg-slate-800/50 border-slate-200/50 dark:border-slate-700/50 rounded-xl py-2 pl-10 pr-4 text-xs font-bold focus:ring-primary focus:border-primary text-slate-900 dark:text-white transition-all outline-none" 
-                                placeholder="João Pessoa, Manaíra..." 
-                                type="text"
-                            />
-                        </div>
-                    </div>
-                    <div>
-                        <div className="flex justify-between items-center mb-3 ml-1">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Valor Máximo</label>
-                            <span className="text-[10px] font-black text-primary uppercase">{parseInt(maxPrice).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })}</span>
-                        </div>
-                        <div className="py-2 px-1">
-                            <input 
-                                className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-primary price-slider" 
-                                max="5000000" 
-                                min="0" 
-                                step="50000" 
-                                type="range"
-                                value={maxPrice}
-                                onChange={(e) => setMaxPrice(e.target.value)}
-                            />
-                        </div>
-                    </div>
-                </div>
-                
-                <button type="submit" style={{ backgroundColor: 'var(--search-button-bg)', color: '#ffffff' }} className="w-full lg:w-auto min-w-[200px] font-black h-14 rounded-2xl shadow-lg hover:shadow-primary/20 hover:scale-[1.05] transition-all flex items-center justify-center gap-2 uppercase text-xs tracking-[0.1em] group text-white">
-                    <span className="material-symbols-outlined transition-transform group-hover:rotate-12 text-inherit">search</span>
-                    Buscar Imóveis
-                </button>
-            </form>
+          <div className="relative z-20 mt-[30px] w-full">
+            <SearchFilters 
+                variant="domus" 
+                onSearch={handleSearch} 
+                availableStates={availableStates} 
+                enabledTransactions={enabledTransactions}
+            />
           </div>
-
-          {hasStats && !content.hideStats && (
-          <section className="w-full py-16 border-y border-[#f3f4f0] dark:border-white/5 bg-white">
-              <div className="max-w-[1280px] mx-auto px-6">
-                  <div className="flex flex-wrap items-center justify-center gap-y-8">
-                      {content.statsSold && (
-                        <div className="flex flex-col items-center justify-center text-center px-6 border-slate-100 w-full sm:w-1/2 lg:w-1/4">
-                            <div className="text-lg md:text-xl font-black text-[#161811] dark:text-white leading-tight uppercase break-words">
-                                {content.statsSold}
-                            </div>
-                        </div>
-                      )}
-                      {content.statsExperience && (
-                        <div className="flex flex-col items-center justify-center text-center px-6 border-slate-100 md:border-l w-full sm:w-1/2 lg:w-1/4">
-                            <div className="text-lg md:text-xl font-black text-[#161811] dark:text-white leading-tight uppercase break-words">
-                                {content.statsExperience}
-                            </div>
-                        </div>
-                      )}
-                      {content.statsSatisfaction && (
-                        <div className="flex flex-col items-center justify-center text-center px-6 border-slate-100 lg:border-l w-full sm:w-1/2 lg:w-1/4">
-                            <div className="text-lg md:text-xl font-black text-[#161811] dark:text-white leading-tight uppercase break-words">
-                                {content.statsSatisfaction}
-                            </div>
-                        </div>
-                      )}
-                      {content.statsSupport && (
-                        <div className="flex flex-col items-center justify-center text-center px-6 border-slate-100 md:border-l w-full sm:w-1/2 lg:w-1/4">
-                            <div className="text-lg md:text-xl font-black text-[#161811] dark:text-white leading-tight uppercase break-words">
-                                {content.statsSupport}
-                            </div>
-                        </div>
-                      )}
-                  </div>
-              </div>
-          </section>
-          )}
         </section>
 
         <section className="max-w-[1280px] mx-auto px-6 py-20">
-          <div className="flex flex-col md:flex-row justify-between items-end mb-12 gap-6">
+          <div className="flex flex-col md:flex-row justify-between items-end mb-12 gap-6 text-left">
             <div className="flex flex-col gap-3">
                 <span className="text-primary font-bold uppercase tracking-widest text-sm mb-2">{content.featuredTagline || defaultContent.featuredTagline}</span>
             <h2 className="text-[#161811] dark:text-white text-4xl font-bold leading-tight tracking-tight">{content.featuredTitle || defaultContent.featuredTitle}</h2>
             <p className="text-[#161811]/60 dark:text-white/60 text-lg">{content.featuredSubtitle || defaultContent.featuredSubtitle}</p>
             </div>
-            <Link href={`/sites/${broker.slug}/search`} className="flex items-center gap-2 text-background-dark dark:text-primary font-bold hover:underline group">
+            <Link href={nav.search()} className="flex items-center gap-2 text-background-dark dark:text-primary font-bold hover:underline group">
                             Ver todos os imóveis <span className="material-symbols-outlined group-hover:translate-x-1 transition-transform">arrow_forward</span>
             </Link>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {featuredProperties.map((property) => (
-              <Link key={property.id} href={`/sites/${broker.slug}/imovel/${property.informacoesbasicas.slug || property.id}`} className="flex flex-col gap-4 group cursor-pointer">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 text-left">
+            {featuredProperties.map((property) => {
+              const isProject = !property.brokerId;
+              return (
+              <Link key={property.id} href={nav.property(property.informacoesbasicas.slug || property.id)} className="flex flex-col gap-4 group cursor-pointer">
                 <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden shadow-lg">
-                  <div className="absolute inset-0 bg-center bg-no-repeat bg-cover group-hover:scale-110 transition-transform duration-700" style={{ backgroundImage: 'url(' + (property.midia?.[0] || 'https://picsum.photos/400/300') + ')' }}></div>
+                  <div className="absolute inset-0 bg-center bg-no-repeat bg-cover group-hover:scale-110 transition-transform duration-700" style={{ backgroundImage: 'url(' + (property.midia?.[0] || 'https://picsum.photos/seed/prop/400/300') + ')' }}></div>
                   <div className="absolute top-4 left-4" style={{ backgroundColor: 'var(--status-tag-bg)', color: 'var(--status-tag-text)' }}>
                     <span className="backdrop-blur-sm text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest">{property.informacoesbasicas.status}</span>
                   </div>
                 </div>
                 <div className="flex flex-col gap-2">
-                  <h4 className="text-[#161811] dark:text-white text-xl font-semibold leading-normal uppercase" style={{ color: 'var(--card-title)' }}>{property.informacoesbasicas.nome}</h4>
+                  <h4 className="text-[#161811] dark:text-white text-xl font-semibold leading-normal uppercase">{property.informacoesbasicas.nome}</h4>
                   <div className="flex items-center gap-1 text-primary">
                     <span className="material-symbols-outlined text-sm">location_on</span>
                     <span className="text-sm font-semibold uppercase tracking-wide">{property.localizacao.bairro}, {property.localizacao.cidade}</span>
                   </div>
                   <div className="flex gap-4 py-2 border-y border-[#f3f4f0] dark:border-white/5 mt-2">
                     <div className="flex items-center gap-1 text-[#161811]/60 dark:text-white/60 text-sm">
-                      <span className="material-symbols-outlined text-lg" style={{ color: 'var(--card-icon)' }}>bed</span> {Array.isArray(property.caracteristicasimovel.quartos) ? property.caracteristicasimovel.quartos.join(', ') : property.caracteristicasimovel.quartos}
+                      <span className="material-symbols-outlined text-lg">bed</span> {formatQuartos(property.caracteristicasimovel.quartos)}
                     </div>
                     <div className="flex items-center gap-1 text-[#161811]/60 dark:text-white/60 text-sm">
-                      <span className="material-symbols-outlined text-lg" style={{ color: 'var(--card-icon)' }}>directions_car</span> {property.caracteristicasimovel.vagas}
+                      <span className="material-symbols-outlined text-lg">directions_car</span> {property.caracteristicasimovel.vagas}
                     </div>
                     <div className="flex items-center gap-1 text-[#161811]/60 dark:text-white/60 text-sm">
-                      <span className="material-symbols-outlined text-lg" style={{ color: 'var(--card-icon)' }}>square_foot</span> {property.caracteristicasimovel.tamanho}
+                      <span className="material-symbols-outlined text-lg">square_foot</span> {property.caracteristicasimovel.tamanho}
                     </div>
                   </div>
-                  <p className="text-[#161811] dark:text-white text-2xl font-bold mt-2" style={{ color: 'var(--card-value)' }}>{property.informacoesbasicas.valor?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) || 'Consulte'}</p>
+                  <div className="flex flex-col mt-2">
+                    <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">
+                        {isProject ? 'A partir de:' : ''}
+                    </span>
+                    <p className="text-[#161811] dark:text-white text-2xl font-bold">{property.informacoesbasicas.valor?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) || 'Consulte'}</p>
+                  </div>
                 </div>
               </Link>
-            ))}
+            )})}
           </div>
         </section>
-        <section className="bg-white dark:bg-background-dark/50 py-24">
+        <section className="bg-white dark:bg-background-dark/50 py-24 text-left">
           <div className="max-w-[1280px] mx-auto px-6">
             <div className="flex flex-col lg:flex-row gap-16 items-center">
               <div className="w-full lg:w-1/2">
@@ -568,7 +415,7 @@ export default function DomusLayout({ broker, properties }: DomusLayoutProps) {
                     <h2 className="text-4xl md:text-6xl font-bold leading-tight tracking-tight" style={{ color: 'var(--cta-section-title)' }}>{content.ctaTitle || 'Pronto para encontrar seu próximo lar?'}</h2>
                     <p className="text-xl" style={{ color: 'var(--cta-section-subtitle)' }}>{content.ctaSubtitle || 'Agende uma consultoria personalizada agora mesmo via WhatsApp.'}</p>
                     <div className="flex flex-col sm:flex-row gap-4 mt-4 w-full sm:w-auto px-4">
-                        <a href={whatsappLink} target="_blank" rel="noopener noreferrer" className="flex w-full items-center justify-center gap-3 rounded-full h-16 px-10 text-lg font-black shadow-lg hover:scale-[1.05] transition-all uppercase tracking-widest" style={{ backgroundColor: 'var(--cta-section-button-bg)', color: 'var(--cta-section-button-text)' }}>
+                        <a href={nav.contact()} className="flex w-full items-center justify-center gap-3 rounded-full h-16 px-10 text-lg font-black shadow-lg hover:scale-[1.05] transition-all uppercase tracking-widest" style={{ backgroundColor: 'var(--cta-section-button-bg)', color: 'var(--cta-section-button-text)' }}>
                             <span className="material-symbols-outlined font-bold">chat</span>
                             FALAR NO WHATSAPP
                         </a>

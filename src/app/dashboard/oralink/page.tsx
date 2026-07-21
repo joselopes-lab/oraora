@@ -224,7 +224,7 @@ export default function OralinkManagementPage() {
   const { data: avulsoProperties } = useCollection<Property>(brokerPropertiesQuery);
 
   const portfolioDocRef = useMemoFirebase(
-    () => (user ? doc(firestore, 'portfolios', user.uid) : null),
+    () => (user && firestore ? doc(firestore, 'portfolios', user.uid) : null),
     [user, firestore]
   );
   const { data: portfolio, isLoading: isPortfolioLoading } = useDoc<{ propertyIds: string[] }>(portfolioDocRef);
@@ -239,8 +239,10 @@ export default function OralinkManagementPage() {
       const snap = await getDocs(q);
       setPortfolioProperties(snap.docs.map(d => ({ id: d.id, ...d.data() } as Property)));
     };
-    fetchPortfolio();
-  }, [firestore, portfolio]);
+    if (user) {
+        fetchPortfolio();
+    }
+  }, [firestore, portfolio, user]);
 
   const allAvailableProperties = useMemo(() => {
     const combined = [...(avulsoProperties || []), ...portfolioProperties];
@@ -267,13 +269,20 @@ export default function OralinkManagementPage() {
     statusTagTextColor: '110 16% 8%',
   });
 
+  // Calculate only IDs that exist in current selection to avoid "ghost" items blocking the limit
+  const activeFeaturedPropertyIds = useMemo(() => {
+    const currentIds = oralink.featuredPropertyIds || [];
+    return currentIds.filter(id => allAvailableProperties.some(p => p.id === id));
+  }, [oralink.featuredPropertyIds, allAvailableProperties]);
+
   useEffect(() => {
     if (brokerData?.oralink) {
       setOralink(prev => ({
         ...prev,
         ...brokerData.oralink,
         links: brokerData.oralink.links || [],
-        featuredPropertyIds: brokerData.oralink.featuredPropertyIds || [],
+        // Clean the array from empty/null values on load
+        featuredPropertyIds: (brokerData.oralink.featuredPropertyIds || []).filter((id: any) => typeof id === 'string' && id !== ''),
         showVideo: brokerData.oralink.showVideo ?? false,
         videoUrl: brokerData.oralink.videoUrl || '',
       }));
@@ -284,7 +293,9 @@ export default function OralinkManagementPage() {
 
   const handleSave = () => {
     if (!user || !firestore || !brokerDocRef) return;
-    setDocumentNonBlocking(brokerDocRef, { oralink }, { merge: true });
+    // Sanitização para remover undefined
+    const sanitizedOralink = JSON.parse(JSON.stringify(oralink));
+    setDocumentNonBlocking(brokerDocRef, { oralink: sanitizedOralink }, { merge: true });
     toast({ title: "Oralink Atualizado!", description: "Suas alterações foram salvas com sucesso." });
   };
 
@@ -350,10 +361,18 @@ export default function OralinkManagementPage() {
 
   const handlePropertyToggle = (id: string) => {
     const current = oralink.featuredPropertyIds || [];
-    if (current.includes(id)) {
-      setOralink(prev => ({ ...prev, featuredPropertyIds: current.filter(pid => pid !== id) }));
+    const isAlreadySelected = current.includes(id);
+
+    if (isAlreadySelected) {
+      setOralink(prev => ({ 
+        ...prev, 
+        featuredPropertyIds: (prev.featuredPropertyIds || []).filter(pid => pid !== id) 
+      }));
     } else {
-      if (current.length >= 4) {
+      // First, clean the current selection of any non-existent properties
+      const cleanCurrent = current.filter(pid => allAvailableProperties.some(p => p.id === pid));
+      
+      if (cleanCurrent.length >= 4) {
         toast({
           variant: "destructive",
           title: "Limite Atingido",
@@ -361,7 +380,10 @@ export default function OralinkManagementPage() {
         });
         return;
       }
-      setOralink(prev => ({ ...prev, featuredPropertyIds: [...current, id] }));
+      setOralink(prev => ({ 
+        ...prev, 
+        featuredPropertyIds: [...cleanCurrent, id] 
+      }));
     }
   };
 
@@ -462,7 +484,7 @@ export default function OralinkManagementPage() {
   } as React.CSSProperties;
 
   return (
-    <div style={dynamicStyles} className="relative flex flex-col lg:flex-row gap-8">
+    <div style={dynamicStyles} className="relative flex min-h-screen w-full flex-col lg:flex-row gap-8">
       <div className="flex-1 flex flex-col gap-8 max-w-3xl">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
@@ -804,7 +826,7 @@ export default function OralinkManagementPage() {
 
                 <div className="p-6 border-t border-gray-100 bg-gray-50/50 flex items-center justify-between">
                   <span className="text-sm font-bold text-text-secondary">
-                    {oralink.featuredPropertyIds?.length || 0} de 4 selecionados
+                    {activeFeaturedPropertyIds.length} de 4 selecionados
                   </span>
                   <DialogClose asChild>
                     <Button className="bg-primary text-text-main font-bold px-8">Concluir</Button>
