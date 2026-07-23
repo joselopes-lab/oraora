@@ -88,6 +88,26 @@ type LeadFormData = z.infer<typeof leadSchema>;
 
 const googleMapsLibraries: Libraries = ['places'];
 
+function getWhatsAppNumber(broker: any): string | null {
+  if (!broker) return null;
+  const fields = ['whatsapp', 'phone', 'contactPhone', 'mobilePhone', 'footerContactPhone'];
+  let rawPhone = '';
+  
+  for (const field of fields) {
+    if (broker[field] && typeof broker[field] === 'string' && broker[field].trim() !== '') {
+      rawPhone = broker[field];
+      break;
+    }
+  }
+  
+  if (!rawPhone) return null;
+  
+  const cleaned = rawPhone.replace(/\D/g, '');
+  if (cleaned.length < 10) return null;
+  
+  return cleaned.startsWith('55') ? cleaned : `55${cleaned}`;
+}
+
 export default function PropertyDetailsComponent() {
   const params = useParams();
   const id = params.id as string;
@@ -375,8 +395,6 @@ export default function PropertyDetailsComponent() {
     }
     setIsSubmitting(false);
   };
-
-  const closeGallery = () => { setIsGalleryOpen(false); };
 
   const videoEmbedUrl = getEmbedUrl(property?.youtubeVideoUrl);
   const mapSrc = extractMapSrc(property?.localizacao.googleMapsLink);
