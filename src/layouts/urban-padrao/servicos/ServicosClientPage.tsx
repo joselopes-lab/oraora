@@ -254,7 +254,7 @@ export default function ServicosClientPage({ broker }: ServicosPageProps) {
             )}
         </main>
         <UrbanPadraoFooter broker={broker} />
-        <WhatsAppWidget brokerId={broker.id} />
+        <WhatsAppWidget brokerId={broker.id} source="home" />
     </div>
   );
 }

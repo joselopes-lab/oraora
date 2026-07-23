@@ -425,7 +425,7 @@ export default function DomusLayout({ broker, properties }: DomusLayoutProps) {
         </section>
       </main>
       <DomusFooter broker={broker as any} />
-      <WhatsAppWidget brokerId={broker.id} />
+      <WhatsAppWidget brokerId={broker.id} source="home" />
     </div>
   );
 }

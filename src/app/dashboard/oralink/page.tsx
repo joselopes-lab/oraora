@@ -493,7 +493,7 @@ export default function OralinkManagementPage() {
           </div>
           <div className="flex gap-2">
             <Button asChild variant="outline" className="bg-white border-slate-200">
-              <Link href={`/sites/${brokerData?.slug}/link`} target="_blank">
+              <Link href={`/sites/${brokerData?.slug || brokerData?.id || user?.uid}/link`} target="_blank">
                 <Eye className="size-4 mr-2" />
                 Ver Oralink
               </Link>

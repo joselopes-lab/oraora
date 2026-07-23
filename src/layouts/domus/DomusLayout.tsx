@@ -233,6 +233,14 @@ export default function DomusLayout({ broker, properties }: DomusLayoutProps) {
     mapSubtitle: "Utilize nosso mapa interativo para explorar as melhores oportunidades nas regiões mais valorizadas.",
   };
 
+  const renderBadges = (property: Property) => {
+    const types = property.informacoesbasicas.transactionTypes || ['sale'];
+    const badges = [];
+    if (types.includes('sale')) badges.push("À Venda");
+    if (types.includes('rent')) badges.push("Para Aluguel");
+    return badges;
+  };
+
   const featuredProperties = properties?.slice(0, 6) || [];
 
   const formatQuartos = (quartosData: any): string => {
@@ -445,8 +453,10 @@ export default function DomusLayout({ broker, properties }: DomusLayoutProps) {
               <Link key={property.id} href={`/sites/${broker.slug}/imovel/${property.informacoesbasicas.slug || property.id}`} className="flex flex-col gap-4 group cursor-pointer">
                 <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden shadow-lg">
                   <div className="absolute inset-0 bg-center bg-no-repeat bg-cover group-hover:scale-110 transition-transform duration-700" style={{ backgroundImage: 'url(' + (property.midia?.[0] || 'https://picsum.photos/seed/prop/400/300') + ')' }}></div>
-                  <div className="absolute top-4 left-4" style={{ backgroundColor: 'var(--status-tag-bg)', color: 'var(--status-tag-text)' }}>
-                    <span className="backdrop-blur-sm text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest">{property.informacoesbasicas.status}</span>
+                  <div className="absolute top-4 left-4 flex flex-col gap-2">
+                    {renderBadges(property).map((badge, idx) => (
+                      <span key={idx} className="backdrop-blur-sm text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest" style={{ backgroundColor: 'var(--status-tag-bg)', color: 'var(--status-tag-text)' }}>{badge}</span>
+                    ))}
                   </div>
                 </div>
                 <div className="flex flex-col gap-2">
@@ -548,7 +558,7 @@ export default function DomusLayout({ broker, properties }: DomusLayoutProps) {
         </section>
       </main>
       <DomusFooter broker={broker as any} />
-      <WhatsAppWidget brokerId={broker.id} />
+      <WhatsAppWidget brokerId={broker.id} source="home" />
     </div>
   );
 }

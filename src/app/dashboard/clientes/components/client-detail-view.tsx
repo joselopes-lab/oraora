@@ -63,6 +63,7 @@ type Lead = {
     phone: string;
     clientType?: 'comprador' | 'vendedor';
     propertyInterest?: string;
+    propertyName?: string;
     status: string;
     createdAt: Timestamp;
     address?: {
@@ -404,6 +405,17 @@ export default function ClientDetailView({ client, personas, recommendedProperti
                             <span className="bg-slate-100 dark:bg-slate-800 text-[10px] font-black px-2 py-1 rounded text-slate-500 uppercase">{linkedProperties.length} itens</span>
                         </div>
                         <div className="space-y-3 flex-1">
+                            {client.propertyName && (
+                                <div className="mb-4 p-4 bg-primary/5 border-2 border-primary/20 rounded-2xl flex items-center gap-4">
+                                    <div className="size-10 bg-primary/20 rounded-xl flex items-center justify-center text-primary shrink-0">
+                                        <span className="material-symbols-outlined font-bold">corporate_fare</span>
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">🏢 Imóvel de interesse</p>
+                                        <p className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">{client.propertyName}</p>
+                                    </div>
+                                </div>
+                            )}
                             {linkedProperties.length > 0 ? (
                                 paginatedLinkedProps.map((prop) => (
                                     <div key={prop.id} className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-800 group hover:border-primary/50 transition-all shadow-sm">

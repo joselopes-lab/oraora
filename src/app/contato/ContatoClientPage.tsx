@@ -111,7 +111,7 @@ export default function ContatoClientPage() {
             phone: data.phone,
             propertyInterest: data.subject,
             message: data.message,
-            source: 'Formulário de Contato',
+            source: 'contact_page',
         });
 
         if (result.success) {
@@ -609,7 +609,7 @@ export default function ContatoClientPage() {
                 </div>
             </div>
         </footer>
-        <WhatsAppWidget brokerId="oraora-main-site" />
+        <WhatsAppWidget brokerId="oraora-main-site" source="contact_page" />
       </div>
     )
 }

@@ -1,7 +1,7 @@
 import { adminDb } from '@/firebase/index.server';
 import { notFound } from 'next/navigation';
 import { getThemePage } from '@/layouts/registry';
-import { getBrokerData } from '../../utils.server';
+import { getBrokerData, serializeForClient } from '../../utils.server';
 import { FieldValue } from 'firebase-admin/firestore';
 
 // Force dynamic rendering to ensure data is fresh on every request
@@ -27,7 +27,7 @@ export default async function BrokerContactPage({ params }: { params: Promise<{ 
   const layoutId = (broker as any).layoutId;
 
   // --- ORAORA PAGE LOADER 1.0 ---
-  const ContactPage = getThemePage(layoutId, 'contact');
+  const ContactPage = await getThemePage(layoutId, 'contact');
 
-  return <ContactPage broker={broker as any} />;
+  return <ContactPage broker={serializeForClient(broker) as any} />;
 }

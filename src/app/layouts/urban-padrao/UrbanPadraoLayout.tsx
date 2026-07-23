@@ -544,7 +544,7 @@ export default function UrbanPadraoLayout({ broker, properties }: UrbanPadraoPag
         </section>
       </main>
       <UrbanPadraoFooter broker={broker} />
-      <WhatsAppWidget brokerId={broker.id} />
+      <WhatsAppWidget brokerId={broker.id} source="home" />
     </div>
   );
 }

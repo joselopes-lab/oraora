@@ -109,7 +109,8 @@ export default function DomusFaleConoscoPage({ broker }: DomusFaleConoscoPagePro
       phone: data.phone,
       propertyInterest: data.subject,
       message: data.message,
-      source: 'Formulário de Contato Domus',
+      source: 'contact_page',
+      origin: 'form',
     });
 
     if (result.success) {
@@ -330,7 +331,7 @@ export default function DomusFaleConoscoPage({ broker }: DomusFaleConoscoPagePro
         </section>
       </main>
       <DomusFooter broker={broker as any} />
-      <WhatsAppWidget brokerId={broker.id} />
+      <WhatsAppWidget brokerId={broker.id} source="contact_page" />
     </div>
   );
 }

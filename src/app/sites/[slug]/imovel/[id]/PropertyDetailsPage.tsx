@@ -16,10 +16,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { useUser, useDoc, useFirestore, useMemoFirebase, setDocumentNonBlocking } from '@/firebase';
 import { arrayRemove, arrayUnion, doc } from 'firebase/firestore';
-import { useRouter, notFound } from 'next/navigation';
+import { useRouter, usePathname, notFound } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { WhatsAppWidget } from '../../components/WhatsAppWidget';
+import { WhatsAppLeadModal } from '@/components/WhatsAppLeadModal';
 import { Badge } from '@/components/ui/badge';
 
 
@@ -106,26 +107,58 @@ function hslToHex(hslStr: string): string {
     if (!parts || parts.length < 3) return '#000000';
 
     const h = parseFloat(parts[0]);
-    const s = parseFloat(parts[1]);
-    const l = parseFloat(parts[2]);
+    const s = parseFloat(parts[1]) / 100;
+    const l = parseFloat(parts[2]) / 100;
 
-    const a = sNormalized * Math.min(lNormalized, 1 - lNormalized);
+    const a = s * Math.min(l, 1 - l);
     const f = (n: number) => {
         const k = (n + h / 30) % 12;
-        const color = lNormalized - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+        const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
         return Math.round(255 * color).toString(16).padStart(2, '0');
     };
     return `#${f(0)}${f(8)}${f(4)}`;
 }
 
+function extractMapSrc(googleMapsLink: string | undefined): string | undefined {
+    if (!googleMapsLink) return undefined;
+    const match = googleMapsLink.match(/src="([^"]+)"/);
+    if (match) return match[1];
+    if (googleMapsLink.startsWith('http')) return googleMapsLink;
+    return undefined;
+}
+
+function getYoutubeEmbedUrl(url: string | undefined): string | undefined {
+    if (!url) return undefined;
+    
+    // Suporta urls do tipo:
+    // https://www.youtube.com/watch?v=VIDEO_ID
+    // https://youtu.be/VIDEO_ID
+    // https://www.youtube.com/embed/VIDEO_ID
+    
+    let videoId = '';
+    
+    if (url.includes('youtube.com/watch?v=')) {
+        videoId = url.split('v=')[1].split('&')[0];
+    } else if (url.includes('youtu.be/')) {
+        videoId = url.split('youtu.be/')[1].split('?')[0];
+    } else if (url.includes('youtube.com/embed/')) {
+        videoId = url.split('embed/')[1].split('?')[0];
+    }
+    
+    return videoId ? `https://www.youtube.com/embed/${videoId}` : undefined;
+}
+
 export default function PropertyDetailsPage({ broker, property, similarProperties }: PropertyDetailsPageProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const { toast } = useToast();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
+  
   const { informacoesbasicas, midia, caracteristicasimovel, localizacao, areascomuns, youtubeVideoUrl } = property;
   const [isGalleryOpen, setIsGalleryOpen] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
-  const { toast } = useToast();
-  const [isSubmitting, setIsSubmitting] = useState(false);
   
-  const router = useRouter();
   const { user } = useUser();
   const firestore = useFirestore();
   
@@ -187,7 +220,8 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
       phone: data.phone,
       propertyInterest: informacoesbasicas.nome,
       message: data.message,
-      source: 'Formulário de Contato do Imóvel',
+      source: 'property_form',
+      origin: 'form',
     });
 
     if (result.success) {
@@ -205,7 +239,7 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
     }
     setIsSubmitting(false);
   };
-  
+
   const openGallery = (index: number) => {
     setSelectedImageIndex(index);
     setIsGalleryOpen(true);
@@ -225,22 +259,6 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
     if (uniqueNumbers.length === 1) return uniqueNumbers[0].toString();
     const last = uniqueNumbers.pop();
     return `${uniqueNumbers.join(', ')} e ${last}`;
-  };
-
-  const extractMapSrc = (linkOrIframe: string | undefined): string | null => {
-    if (!linkOrIframe) return null;
-    const iframeMatch = linkOrIframe.match(/src="([^"]*)"/);
-    if (iframeMatch && iframeMatch[1]) return iframeMatch[1];
-    return null;
-  };
-  
-  const getYoutubeEmbedUrl = (url: string | undefined): string | null => {
-    if (!url) return null;
-    let videoId;
-    if (url.includes('youtube.com/watch?v=')) videoId = url.split('v=')[1]?.split('&')[0];
-    else if (url.includes('youtu.be/')) videoId = url.split('/').pop()?.split('?')[0];
-    if (videoId) return `https://www.youtube.com/embed/${videoId}`;
-    return null;
   };
 
   const videoEmbedUrl = getYoutubeEmbedUrl(youtubeVideoUrl);
@@ -362,30 +380,30 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
                 ))}
               </div>
             </div>
+            {/* Mapa e Street View */}
             {(mapSrc || streetViewSrc) && (
-                <div>
-                  <h2 className="text-2xl font-bold text-text-main mb-4">Localização</h2>
-                  <Tabs defaultValue="map" className="w-full">
-                      <TabsList className="grid w-full grid-cols-2 h-14 p-1.5 bg-gray-100 rounded-xl">
-                          <TabsTrigger value="map" className="rounded-lg font-bold flex items-center gap-2 transition-all">
-                              <span className="material-symbols-outlined">map</span> Mapa
-                          </TabsTrigger>
-                          <TabsTrigger value="streetview" className="rounded-lg font-bold flex items-center gap-2 transition-all">
-                              <span className="material-symbols-outlined">streetview</span> Street View
-                          </TabsTrigger>
-                      </TabsList>
-                      <TabsContent value="map">
-                        <div className="bg-gray-100 rounded-xl h-[400px] w-full overflow-hidden mt-4">
-                          {mapSrc ? <iframe src={mapSrc} width="100%" height="100%" style={{ border: 0 }}></iframe> : <div className="flex items-center justify-center h-full">Mapa não disponível</div>}
-                        </div>
-                      </TabsContent>
-                      <TabsContent value="streetview">
-                        <div className="bg-gray-100 rounded-xl h-[400px] w-full overflow-hidden mt-4">
-                          {streetViewSrc ? <iframe src={streetViewSrc} width="100%" height="100%" style={{ border: 0 }}></iframe> : <div className="flex items-center justify-center h-full">Street View não disponível</div>}
-                        </div>
-                      </TabsContent>
-                    </Tabs>
-                </div>
+              <div className="mt-12">
+                <Tabs defaultValue="map" className="w-full">
+                  <TabsList className="grid w-full grid-cols-2 h-14 p-1.5 bg-gray-100 dark:bg-slate-800 rounded-xl">
+                      <TabsTrigger value="map" className="rounded-lg font-bold flex items-center gap-2 transition-all">
+                        <span className="material-symbols-outlined text-lg">map</span> Mapa
+                      </TabsTrigger>
+                      <TabsTrigger value="streetview" className="rounded-lg font-bold flex items-center gap-2 transition-all">
+                        <span className="material-symbols-outlined text-lg">streetview</span> Street View
+                      </TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="map">
+                    {mapSrc && (
+                      <iframe src={mapSrc} className="w-full h-[450px] border-0 rounded-2xl shadow-inner mt-4" allowFullScreen loading="lazy" referrerPolicy="no-referrer-when-downgrade" />
+                    )}
+                  </TabsContent>
+                  <TabsContent value="streetview">
+                    {streetViewSrc && (
+                      <iframe src={streetViewSrc} className="w-full h-[450px] border-0 rounded-2xl shadow-inner mt-4" allowFullScreen loading="lazy" referrerPolicy="no-referrer-when-downgrade" />
+                    )}
+                  </TabsContent>
+                </Tabs>
+              </div>
             )}
           </div>
           
@@ -400,6 +418,15 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
                   <textarea {...form.register('message')} className="w-full rounded-lg border-gray-200 text-sm focus:border-primary focus:ring-primary bg-gray-50 resize-none h-32 p-3"></textarea>
                   <Button disabled={isSubmitting} type="submit" className="w-full h-12 bg-black text-white font-bold hover:bg-gray-900 shadow-lg">
                     {isSubmitting ? 'Enviando...' : 'Falar com Corretor'}
+                  </Button>
+                  <Button 
+                    type="button" 
+                    onClick={() => setIsWhatsAppModalOpen(true)} 
+                    disabled={isSubmitting}
+                    className="w-full h-12 bg-[#25D366] hover:bg-[#20ba5a] text-white font-bold shadow-lg flex items-center justify-center gap-2 mt-4"
+                  >
+                    <span className="material-symbols-outlined text-lg font-bold">chat</span>
+                    Conversar pelo WhatsApp
                   </Button>
                 </form>
               </div>
@@ -481,7 +508,16 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
         </section>
       </main>
       <UrbanPadraoFooter broker={broker} />
-      <WhatsAppWidget brokerId={broker.id} />
+      <WhatsAppWidget broker={broker} property={property} source="property_whatsapp" />
+
+      <WhatsAppLeadModal 
+        isOpen={isWhatsAppModalOpen}
+        onClose={() => setIsWhatsAppModalOpen(false)}
+        broker={broker}
+        property={property}
+        source="property_whatsapp"
+        origin="whatsapp"
+      />
 
       {isGalleryOpen && midia && (
         <div className="fixed inset-0 z-[100] flex flex-col bg-black/95 backdrop-blur-md animate-in fade-in duration-300">

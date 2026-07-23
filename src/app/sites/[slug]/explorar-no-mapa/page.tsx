@@ -1,7 +1,7 @@
 import { adminDb } from '@/firebase/index.server';
 import { notFound } from 'next/navigation';
 import { getThemePage } from '@/layouts/registry';
-import { getBrokerData } from '../../utils.server';
+import { getBrokerData, serializeForClient } from '../../utils.server';
 import { FieldValue } from 'firebase-admin/firestore';
 
 // Force dynamic rendering to ensure data is fresh on every request
@@ -96,7 +96,7 @@ export default async function BrokerMapPage({ params }: { params: Promise<{ slug
   const layoutId = (broker as any).layoutId;
 
   // --- ORAORA PAGE LOADER 1.0 ---
-  const MapPage = getThemePage(layoutId, 'map');
+  const MapPage = await getThemePage(layoutId, 'map');
 
-  return <MapPage broker={broker as any} properties={allProperties as any} />;
+  return <MapPage broker={serializeForClient(broker) as any} properties={serializeForClient(allProperties) as any} />;
 }

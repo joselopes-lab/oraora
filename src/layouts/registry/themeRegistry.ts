@@ -1,45 +1,57 @@
 /**
  * @fileOverview themeRegistry.ts - Dicionário Mestre de Layouts e Páginas
  * 
- * Centraliza o registro de todos os temas e seus componentes internos.
+ * Centraliza o registro de todos os temas e mapeamento de carregamento dinâmico sob demanda.
  */
 
-import { ThemeDefinition } from './types';
+import { PageKey, ThemeDefinition } from './types';
 
-// --- IMPORTS DE COMPONENTES ---
-
-// Urban Padrão (Base & Fallback)
-import UrbanPadraoLayout from '@/layouts/urban-padrao/UrbanPadraoLayout';
-import SobreClientPage from '@/layouts/urban-padrao/SobreClientPage';
-import FaleConoscoClientPage from '@/layouts/urban-padrao/fale-conosco/FaleConoscoClientPage';
-import ServicosClientPage from '@/layouts/urban-padrao/servicos/ServicosClientPage';
-import SearchResults from '@/layouts/urban-padrao/search/SearchResults';
-import PropertyDetailsPage from '@/layouts/urban-padrao/imovel/PropertyDetailsPage';
-import MapClientPage from '@/layouts/urban-padrao/explorar-no-mapa/MapClientPage';
-
-// Domus Luxury
-import DomusLayout from '@/app/layouts/domus/DomusLayout';
-import DomusSobrePage from '@/app/layouts/domus/sobre/DomusSobrePage';
-import DomusFaleConoscoPage from '@/app/layouts/domus/fale-conosco/DomusFaleConoscoPage';
-import DomusSearchPage from '@/app/layouts/domus/search/DomusSearchPage';
-import DomusPropertyDetailsPage from '@/app/layouts/domus/imovel/DomusPropertyDetailsPage';
-import DomusMapClientPage from '@/app/layouts/domus/explorar-no-mapa/DomusMapClientPage';
-
-// Outros Layouts
-import LivingLayout from '@/layouts/living/LivingLayout';
-import AuraLayout from '@/layouts/aura/Layout';
-import VertexLayout from '@/layouts/vertex/Layout';
-
-// Metadados SDK 1.0
+// Metadados SDK 1.0 (apenas JSON / objetos leves, sem importar React components)
 import { manifest as auraManifest } from '../aura/manifest';
 import { config as auraConfig } from '../aura/config';
 import { manifest as vertexManifest } from '../vertex/manifest';
 import { config as vertexConfig } from '../vertex/config';
 
+export type PageLoader = () => Promise<{ default: React.ComponentType<any> }>;
+
+/**
+ * Mapeamento de carregadores dinâmicos (sob demanda com await import)
+ */
+export const THEME_PAGE_LOADERS: Record<string, Partial<Record<PageKey, PageLoader>>> = {
+  'urban-padrao': {
+    home: () => import('@/layouts/urban-padrao/UrbanPadraoLayout'),
+    about: () => import('@/layouts/urban-padrao/SobreClientPage'),
+    contact: () => import('@/layouts/urban-padrao/fale-conosco/FaleConoscoClientPage'),
+    services: () => import('@/layouts/urban-padrao/servicos/ServicosClientPage'),
+    search: () => import('@/layouts/urban-padrao/search/SearchResults'),
+    listing: () => import('@/layouts/urban-padrao/search/SearchResults'),
+    property: () => import('@/layouts/urban-padrao/imovel/PropertyDetailsPage'),
+    map: () => import('@/layouts/urban-padrao/explorar-no-mapa/MapClientPage')
+  },
+  'domus': {
+    home: () => import('@/app/layouts/domus/DomusLayout'),
+    about: () => import('@/app/layouts/domus/sobre/DomusSobrePage'),
+    contact: () => import('@/app/layouts/domus/fale-conosco/DomusFaleConoscoPage'),
+    search: () => import('@/app/layouts/domus/search/DomusSearchPage'),
+    listing: () => import('@/app/layouts/domus/search/DomusSearchPage'),
+    property: () => import('@/app/layouts/domus/imovel/DomusPropertyDetailsPage'),
+    map: () => import('@/app/layouts/domus/explorar-no-mapa/DomusMapClientPage')
+  },
+  'living': {
+    home: () => import('@/layouts/living/LivingLayout')
+  },
+  'aura': {
+    home: () => import('@/layouts/aura/Layout')
+  },
+  'vertex': {
+    home: () => import('@/layouts/vertex/Layout')
+  }
+};
+
 export const THEME_REGISTRY: Record<string, ThemeDefinition> = {
   'urban-padrao': {
     id: 'urban-padrao',
-    component: UrbanPadraoLayout,
+    component: null as any,
     isLegacy: true,
     manifest: {
       id: 'urban-padrao',
@@ -57,20 +69,11 @@ export const THEME_REGISTRY: Record<string, ThemeDefinition> = {
       spacing: 'comfortable',
       animations: true
     },
-    pages: {
-      home: UrbanPadraoLayout,
-      about: SobreClientPage,
-      contact: FaleConoscoClientPage,
-      services: ServicosClientPage,
-      search: SearchResults,
-      listing: SearchResults,
-      property: PropertyDetailsPage,
-      map: MapClientPage
-    }
+    pages: {}
   },
   'domus': {
     id: 'domus',
-    component: DomusLayout,
+    component: null as any,
     isLegacy: true,
     manifest: {
       id: 'domus',
@@ -88,19 +91,11 @@ export const THEME_REGISTRY: Record<string, ThemeDefinition> = {
       spacing: 'loose',
       glass: true
     },
-    pages: {
-      home: DomusLayout,
-      about: DomusSobrePage,
-      contact: DomusFaleConoscoPage,
-      search: DomusSearchPage,
-      listing: DomusSearchPage,
-      property: DomusPropertyDetailsPage,
-      map: DomusMapClientPage
-    }
+    pages: {}
   },
   'living': {
     id: 'living',
-    component: LivingLayout,
+    component: null as any,
     isLegacy: true,
     manifest: {
       id: 'living',
@@ -117,28 +112,23 @@ export const THEME_REGISTRY: Record<string, ThemeDefinition> = {
     config: {
       spacing: 'comfortable'
     },
-    pages: {
-      home: LivingLayout
-    }
+    pages: {}
   },
   'aura': {
     id: 'aura',
-    component: AuraLayout,
+    component: null as any,
     isLegacy: false,
     manifest: auraManifest,
     config: auraConfig as any,
-    pages: {
-      home: AuraLayout
-    }
+    pages: {}
   },
   'vertex': {
     id: 'vertex',
-    component: VertexLayout,
+    component: null as any,
     isLegacy: false,
     manifest: vertexManifest,
     config: vertexConfig as any,
-    pages: {
-      home: VertexLayout
-    }
+    pages: {}
   }
 };
+

@@ -54,9 +54,11 @@ type Lead = {
     id: string;
     name: string;
     propertyInterest?: string;
+    propertyName?: string;
     phone: string;
     email: string;
     source: string;
+    origin?: 'whatsapp' | 'form';
     createdAt: Timestamp;
     status: LeadStatus;
     tempoPorEtapa?: { [key: string]: number };
@@ -102,6 +104,21 @@ const qualificationIcons: { [key: string]: string } = {
     'Frio': 'ac_unit',
 };
 
+const originStyles: { [key: string]: string } = {
+    'whatsapp': 'bg-green-100 text-green-700 border-green-200',
+    'form': 'bg-blue-100 text-blue-700 border-blue-200',
+};
+
+const originIcons: { [key: string]: string } = {
+    'whatsapp': 'chat',
+    'form': 'description',
+};
+
+const originLabels: { [key: string]: string } = {
+    'whatsapp': 'WhatsApp',
+    'form': 'Formulário',
+};
+
 
 const LeadCard = ({ lead, columns, onMove, onDragStart, onDeleteClick }: { lead: Lead, columns: LeadFunnelColumn[], onMove: (leadId: string, direction: 'prev' | 'next') => void, onDragStart: (e: React.DragEvent<HTMLDivElement>, leadId: string) => void, onDeleteClick: (lead: Lead) => void }) => {
     const columnIndex = columns.findIndex(col => col.id === lead.status);
@@ -125,6 +142,12 @@ const LeadCard = ({ lead, columns, onMove, onDragStart, onDeleteClick }: { lead:
             <div className="mb-3">
                 <h4 className="font-bold text-text-main">{lead.name}</h4>
                 <p className="text-xs text-text-secondary line-clamp-1">{lead.propertyInterest || 'Nenhum interesse específico'}</p>
+                {lead.propertyName && (
+                    <div className="mt-2 pt-2 border-t border-gray-50">
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">🏢 Imóvel de interesse</p>
+                        <p className="text-xs font-semibold text-text-main line-clamp-1">{lead.propertyName}</p>
+                    </div>
+                )}
             </div>
             <div className="space-y-2 mb-4">
                 <div className="flex items-center gap-2 text-xs text-text-secondary">
@@ -137,10 +160,16 @@ const LeadCard = ({ lead, columns, onMove, onDragStart, onDeleteClick }: { lead:
                 </div>
             </div>
             <div className="flex items-center justify-between border-t border-gray-50 pt-3 mt-3">
-                <div className="flex items-center gap-2">
-                    <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium ${sourceStyles[lead.source] || 'bg-gray-100 text-gray-800'}`}>
-                        <span className="material-symbols-outlined text-[12px]">{sourceIcons[lead.source] || 'help'}</span> {lead.source}
-                    </span>
+                <div className="flex items-center gap-2 flex-wrap">
+                    {lead.origin ? (
+                        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-bold ${originStyles[lead.origin] || 'bg-gray-100 text-gray-800'}`}>
+                            <span className="material-symbols-outlined text-[12px]">{originIcons[lead.origin] || 'help'}</span> {originLabels[lead.origin] || lead.origin}
+                        </span>
+                    ) : (
+                        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium ${sourceStyles[lead.source] || 'bg-gray-100 text-gray-800'}`}>
+                            <span className="material-symbols-outlined text-[12px]">{sourceIcons[lead.source] || 'help'}</span> {lead.source}
+                        </span>
+                    )}
                     {lead.leadQualification && (
                         <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium ${qualificationStyles[lead.leadQualification]}`}>
                             <span className="material-symbols-outlined text-[12px]">{qualificationIcons[lead.leadQualification]}</span> {lead.leadQualification}
@@ -590,6 +619,15 @@ export default function LeadsPage() {
                                     <TableCell>
                                         <div className="font-bold">{lead.name}</div>
                                         <div className="text-xs text-muted-foreground">{lead.email}</div>
+                                        {lead.propertyName && (
+                                            <div className="mt-1.5 flex items-center gap-1.5 p-2 bg-slate-50 rounded-lg border border-slate-100 w-fit">
+                                                <span className="material-symbols-outlined text-[14px] text-primary">apartment</span>
+                                                <div className="text-[10px] font-medium text-slate-600">
+                                                    <span className="font-bold text-slate-400 uppercase tracking-tighter mr-1">Imóvel:</span>
+                                                    {lead.propertyName}
+                                                </div>
+                                            </div>
+                                        )}
                                     </TableCell>
                                     <TableCell>
                                        <DropdownMenu>
@@ -610,9 +648,15 @@ export default function LeadsPage() {
                                         </DropdownMenu>
                                     </TableCell>
                                     <TableCell>
-                                        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium ${sourceStyles[lead.source] || 'bg-gray-100 text-gray-800'}`}>
-                                            <span className="material-symbols-outlined text-[12px]">{sourceIcons[lead.source] || 'help'}</span> {lead.source}
-                                        </span>
+                                        {lead.origin ? (
+                                            <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-bold ${originStyles[lead.origin] || 'bg-gray-100 text-gray-800'}`}>
+                                                <span className="material-symbols-outlined text-[12px]">{originIcons[lead.origin] || 'help'}</span> {originLabels[lead.origin] || lead.origin}
+                                            </span>
+                                        ) : (
+                                            <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium ${sourceStyles[lead.source] || 'bg-gray-100 text-gray-800'}`}>
+                                                <span className="material-symbols-outlined text-[12px]">{sourceIcons[lead.source] || 'help'}</span> {lead.source}
+                                            </span>
+                                        )}
                                     </TableCell>
                                     <TableCell>
                                         {lead.createdAt && <ClientSideDate date={lead.createdAt.toDate()} />}

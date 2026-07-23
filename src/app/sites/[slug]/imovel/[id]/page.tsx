@@ -3,7 +3,7 @@ import { adminDb } from '@/firebase/index.server';
 import { notFound } from 'next/navigation';
 import { getThemePage } from '@/layouts/registry';
 import type { Metadata } from 'next';
-import { getBrokerData, getPropertyData } from '../../../utils.server';
+import { getBrokerData, getPropertyData, serializeForClient } from '../../../utils.server';
 import { FieldValue } from 'firebase-admin/firestore';
 import { headers } from 'next/headers';
 import { getCanonicalUrl, getRobotsRules, generatePropertyJsonLd, generateBrokerJsonLd } from '@/lib/seo';
@@ -126,16 +126,16 @@ export default async function BrokerPropertyDetailsPage({ params }: { params: Pr
   const brokerJsonLd = generateBrokerJsonLd(broker);
   const layoutId = (broker as any).layoutId;
 
-  const PropertyPage = getThemePage(layoutId, 'property');
+  const PropertyPage = await getThemePage(layoutId, 'property');
 
   return (
     <>
       <JsonLd data={propertyJsonLd} />
       <JsonLd data={brokerJsonLd} />
       <PropertyPage 
-        broker={broker as any} 
-        property={property as any} 
-        similarProperties={similarProperties as any} 
+        broker={serializeForClient(broker) as any} 
+        property={serializeForClient(property) as any} 
+        similarProperties={serializeForClient(similarProperties) as any} 
       />
     </>
   );

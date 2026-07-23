@@ -135,6 +135,25 @@ function hslToHex(hslStr: string | undefined): string {
     return `#${f(0)}${f(8)}${f(4)}`;
 }
 
+function getWhatsAppNumber(broker: any): string | null {
+  const fields = ['whatsapp', 'phone', 'contactPhone', 'mobilePhone', 'footerContactPhone'];
+  let rawPhone = '';
+  
+  for (const field of fields) {
+    if (broker[field] && typeof broker[field] === 'string' && broker[field].trim() !== '') {
+      rawPhone = broker[field];
+      break;
+    }
+  }
+  
+  if (!rawPhone) return null;
+  
+  const cleaned = rawPhone.replace(/\D/g, '');
+  if (cleaned.length < 10) return null;
+  
+  return cleaned.startsWith('55') ? cleaned : `55${cleaned}`;
+}
+
 export default function DomusPropertyDetailsPage({ broker, property, similarProperties }: { broker: Broker; property: Property; similarProperties: Property[] }) {
   const { informacoesbasicas, midia, caracteristicasimovel, localizacao, areascomuns, youtubeVideoUrl } = property;
   const [isGalleryOpen, setIsGalleryOpen] = useState(false);
@@ -179,11 +198,55 @@ export default function DomusPropertyDetailsPage({ broker, property, similarProp
       phone: data.phone,
       propertyInterest: property.informacoesbasicas.nome,
       message: data.message,
-      source: 'Contato Detalhes Imóvel (Domus)',
+      source: 'property_form',
+      origin: 'form',
     });
 
     if (result.success) {
       toast({ title: 'Mensagem Enviada!', description: 'Nossa equipe retornará em breve.' });
+      form.reset();
+    } else {
+      toast({ variant: 'destructive', title: 'Erro ao Enviar', description: result.message });
+    }
+    setIsSubmitting(false);
+  };
+
+  const onWhatsAppSubmit = async () => {
+    const isValid = await form.trigger(['name', 'email', 'phone']);
+    if (!isValid) return;
+    
+    const waNumber = getWhatsAppNumber(broker);
+    if (!waNumber) {
+      toast({
+        variant: 'destructive',
+        title: 'WhatsApp não disponível',
+        description: 'Este corretor ainda não possui um número de WhatsApp cadastrado.',
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+    const data = form.getValues();
+    
+    const result = await createLead({
+      brokerId: broker.id,
+      name: data.name,
+      email: data.email,
+      phone: data.phone,
+      propertyInterest: property.informacoesbasicas.nome,
+      message: data.message,
+      source: 'property_whatsapp',
+      origin: 'whatsapp',
+      propertyId: property.id,
+      propertyName: property.informacoesbasicas.nome,
+      pageType: 'property',
+      pageUrl: typeof window !== 'undefined' ? window.location.href : '',
+    });
+
+    if (result.success) {
+      const message = `Olá!\n\nMeu nome é ${data.name}.\n\nTenho interesse em saber mais sobre o empreendimento "${property.informacoesbasicas.nome}".\n\nPoderia me passar mais informações?`;
+      const waUrl = `https://wa.me/${waNumber}?text=${encodeURIComponent(message)}`;
+      window.location.href = waUrl;
       form.reset();
     } else {
       toast({ variant: 'destructive', title: 'Erro ao Enviar', description: result.message });
@@ -443,6 +506,15 @@ export default function DomusPropertyDetailsPage({ broker, property, similarProp
                   <Button disabled={isSubmitting} className="w-full h-16 bg-primary text-black font-black uppercase tracking-[0.2em] text-xs rounded-2xl shadow-glow hover:brightness-110 transition-all mt-6">
                     {isSubmitting ? 'Enviando...' : 'Solicitar Atendimento'}
                   </Button>
+                  <Button 
+                    type="button" 
+                    onClick={onWhatsAppSubmit} 
+                    disabled={isSubmitting}
+                    className="w-full h-16 bg-[#25D366] hover:bg-[#20ba5a] text-white font-black uppercase tracking-[0.2em] text-xs rounded-2xl shadow-lg flex items-center justify-center gap-2 mt-4"
+                  >
+                    <span className="material-symbols-outlined text-lg font-bold">chat</span>
+                    Conversar pelo WhatsApp
+                  </Button>
                 </form>
               </div>
             </aside>
@@ -477,7 +549,7 @@ export default function DomusPropertyDetailsPage({ broker, property, similarProp
         )}
       </main>
       <DomusFooter broker={broker as any} />
-      <WhatsAppWidget brokerId={broker.id} />
+      <WhatsAppWidget brokerId={broker.id} source="property_whatsapp" />
       
       {isGalleryOpen && property.midia && (
         <div className="fixed inset-0 z-[100] flex flex-col bg-black/95 backdrop-blur-md animate-in fade-in duration-300">

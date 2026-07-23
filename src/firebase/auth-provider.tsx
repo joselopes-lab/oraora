@@ -5,7 +5,6 @@ import React, { createContext, useContext, useEffect, useState, ReactNode, useMe
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { useFirebase } from './provider'; 
-import Loading from '@/app/dashboard/loading';
 
 export interface UserProfile {
   id: string;
@@ -91,12 +90,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     profileLoading, 
     isReady 
   }), [user, userProfile, authLoading, profileLoading, isReady]);
-
-  // Bloqueia a renderização de qualquer filho enquanto o estado não for resolvido
-  // Isso impede que componentes do Dashboard disparem queries sem estarem autenticados
-  if (authLoading) {
-    return <Loading />;
-  }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

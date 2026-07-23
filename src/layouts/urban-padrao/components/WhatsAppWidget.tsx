@@ -15,9 +15,10 @@ type LeadFormData = z.infer<typeof leadSchema>;
 
 type WhatsAppWidgetProps = {
   brokerId: string;
+  source?: string;
 };
 
-export function WhatsAppWidget({ brokerId }: WhatsAppWidgetProps) {
+export function WhatsAppWidget({ brokerId, source = 'floating_widget' }: WhatsAppWidgetProps) {
   const [isOpen, setIsOpen] = useState(false);
   const { toast } = useToast();
   const form = useForm<LeadFormData>({
@@ -38,7 +39,8 @@ export function WhatsAppWidget({ brokerId }: WhatsAppWidgetProps) {
       name: data.name,
       email: `${data.phone.replace(/\D/g, '')}@whatsapp.lead`, // Create a placeholder email
       phone: data.phone,
-      source: 'WhatsApp',
+      source: source,
+      origin: 'whatsapp',
       message: 'Lead capturado pelo widget do WhatsApp.',
     });
 

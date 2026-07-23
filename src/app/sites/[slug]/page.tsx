@@ -1,7 +1,7 @@
 import { adminDb } from '@/firebase/index.server';
 import { notFound } from 'next/navigation';
-import { getBrokerData } from '../utils.server';
-import { FieldValue } from 'firebase-admin/firestore';
+import { getBrokerData, serializeForClient } from '../utils.server';
+import { FieldValue, FieldPath } from 'firebase-admin/firestore';
 import { LayoutProps } from '@/layouts/sdk.types';
 import { getTheme, getThemePage } from '@/layouts/registry';
 import { JsonLd } from '@/components/JsonLd';
@@ -37,7 +37,7 @@ type Property = {
   };
 };
 
-async function getPortfolioProperties(brokerId: string, enabledTransactions: string[]): Promise<Property[]> {
+async function getPortfolioProperties(brokerId: string): Promise<Property[]> {
   const portfolioRef = adminDb.collection('portfolios').doc(brokerId);
   const portfolioSnap = await portfolioRef.get();
 
@@ -45,8 +45,8 @@ async function getPortfolioProperties(brokerId: string, enabledTransactions: str
     return [];
   }
 
-  const propertyIds = portfolioSnap.data()?.propertyIds || [];
-  if (propertyIds.length === 0) {
+  const propertyIds: string[] = portfolioSnap.data()?.propertyIds || [];
+  if (!Array.isArray(propertyIds) || propertyIds.length === 0) {
     return [];
   }
   
@@ -55,16 +55,12 @@ async function getPortfolioProperties(brokerId: string, enabledTransactions: str
 
   for (let i = 0; i < propertyIds.length; i += 30) {
     const batch = propertyIds.slice(i, i + 30);
-    if (batch.length > 0) {
-        const snap = await propertiesRef.where('__name__', 'in', batch).get();
+    if (batch && batch.length > 0) {
+        const snap = await propertiesRef.where(FieldPath.documentId(), 'in', batch).get();
         snap.forEach(docSnap => {
             const data = docSnap.data() as any;
             if (data.isVisibleOnSite !== false) {
-                const propTypes = data.informacoesbasicas?.transactionTypes || ['sale'];
-                const hasMatch = propTypes.some((t: string) => enabledTransactions.includes(t));
-                if (hasMatch) {
-                    propertiesData.push({ id: docSnap.id, ...data });
-                }
+                propertiesData.push({ id: docSnap.id, ...data });
             }
         });
     }
@@ -73,18 +69,13 @@ async function getPortfolioProperties(brokerId: string, enabledTransactions: str
   return propertiesData;
 }
 
-async function getBrokerProperties(brokerId: string, enabledTransactions: string[]): Promise<Property[]> {
+async function getBrokerProperties(brokerId: string): Promise<Property[]> {
   const snap = await adminDb.collection('brokerProperties')
     .where('brokerId', '==', brokerId)
     .where('isVisibleOnSite', '==', true)
     .get();
   
-  const allProps = snap.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as any));
-  
-  return allProps.filter((p: any) => {
-      const propTypes = p.informacoesbasicas?.transactionTypes || ['sale'];
-      return propTypes.some((t: string) => enabledTransactions.includes(t));
-  });
+  return snap.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as any));
 }
 
 export default async function BrokerSitePage({ params }: { params: Promise<{ slug: string }> }) {
@@ -108,8 +99,8 @@ export default async function BrokerSitePage({ params }: { params: Promise<{ slu
   }
 
   const [portfolioProperties, brokerProperties] = await Promise.all([
-    getPortfolioProperties(broker.id, enabledTransactions),
-    getBrokerProperties(broker.id, enabledTransactions)
+    getPortfolioProperties(broker.id),
+    getBrokerProperties(broker.id)
   ]);
 
   const allProperties = [...portfolioProperties, ...brokerProperties];
@@ -135,10 +126,10 @@ export default async function BrokerSitePage({ params }: { params: Promise<{ slu
 
   // --- ORAORA PAGE LOADER 1.0 ---
   const theme = getTheme(layoutId);
-  const ThemePage = getThemePage(layoutId, 'home');
+  const ThemePage = await getThemePage(layoutId, 'home');
 
   // --- ORAORA THEME SDK 1.0 - PREPARE PROPS ---
-  const sdkProps: LayoutProps = {
+  const sdkProps: LayoutProps = serializeForClient({
     broker: {
       id: broker.id,
       brandName: broker.brandName,
@@ -169,10 +160,10 @@ export default async function BrokerSitePage({ params }: { params: Promise<{ slu
       enabledTransactions,
     },
     version: theme.manifest.version
-  };
+  });
 
   if (theme.isLegacy) {
-    return <ThemePage broker={broker as any} properties={sortedProperties as any} />;
+    return <ThemePage broker={serializeForClient(broker) as any} properties={serializeForClient(sortedProperties) as any} />;
   }
 
   return (

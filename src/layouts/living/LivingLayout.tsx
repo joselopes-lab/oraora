@@ -47,6 +47,9 @@ type Property = {
     nome: string;
     status: string;
     valor?: number;
+    salePrice?: number;
+    rentPrice?: number;
+    transactionTypes?: string[];
     slug?: string;
   };
   localizacao: {
@@ -102,6 +105,34 @@ export default function LivingLayout({ broker, properties }: LivingLayoutProps) 
     return String(quartosData);
   };
 
+
+  const renderBadges = (property: Property) => {
+    const types = property.informacoesbasicas.transactionTypes || ['sale'];
+    const badges = [];
+    if (types.includes('sale')) badges.push("À Venda");
+    if (types.includes('rent')) badges.push("Para Aluguel");
+    return badges;
+  };
+
+  const renderPrice = (property: Property) => {
+    const types = property.informacoesbasicas.transactionTypes || ['sale'];
+    const salePrice = property.informacoesbasicas.salePrice || property.informacoesbasicas.valor;
+    const rentPrice = property.informacoesbasicas.rentPrice;
+    const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+    if (types.includes('sale') && types.includes('rent')) {
+      return (
+        <div className="flex flex-col items-end">
+          <span className="text-white font-black text-xl">{fmt(salePrice || 0)}</span>
+          <span className="text-primary font-black text-sm">{fmt(rentPrice || 0)}/mês</span>
+        </div>
+      );
+    }
+    if (types.includes('rent')) {
+      return <span className="text-primary font-black text-2xl">{fmt(rentPrice || 0)}/mês</span>;
+    }
+    return <span className="text-primary font-black text-2xl">{fmt(salePrice || 0)}</span>;
+  };
 
   return (
     <div className="font-sans bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 transition-colors duration-300">
@@ -178,7 +209,9 @@ export default function LivingLayout({ broker, properties }: LivingLayoutProps) 
                         <Image alt={property.informacoesbasicas.nome} className="w-full h-full object-cover property-image transition-transform duration-700" width={400} height={440} src={property.midia?.[0] || 'https://picsum.photos/400/440'} />
                         <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-transparent to-transparent opacity-60"></div>
                         <div className="absolute top-6 left-6 flex flex-col gap-2">
-                        <span className="bg-white/10 backdrop-blur-md text-white text-[10px] font-black px-4 py-2 rounded-lg uppercase border border-white/20">{property.informacoesbasicas.status}</span>
+                          {renderBadges(property).map((badge, idx) => (
+                            <span key={idx} className="bg-white/10 backdrop-blur-md text-white text-[10px] font-black px-4 py-2 rounded-lg uppercase border border-white/20">{badge}</span>
+                          ))}
                         </div>
                         <div className="absolute top-6 right-6">
                           <button className="bg-white/10 backdrop-blur-md p-3 rounded-2xl border border-white/20 text-white hover:bg-white hover:text-navy-900 transition-all">
@@ -192,9 +225,7 @@ export default function LivingLayout({ broker, properties }: LivingLayoutProps) 
                             </p>
                         </div>
                         <div className="absolute bottom-6 right-6">
-                            <span className="text-primary font-black text-3xl block mb-1">
-                                {property.informacoesbasicas.valor?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) || 'Consulte'}
-                            </span>
+                            {renderPrice(property)}
                         </div>
                     </div>
                 </div>

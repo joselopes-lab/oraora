@@ -98,7 +98,7 @@ export default function BrokerHomePage() {
       brokerId: 'oraora-main-site',
       name: `Lead Newsletter`,
       email: values.email,
-      source: 'Newsletter',
+      source: 'home',
     });
     if (result.success) {
       toast({ title: 'Inscrição realizada!', description: 'Você foi adicionado à nossa newsletter.' });

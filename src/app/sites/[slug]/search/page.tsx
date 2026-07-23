@@ -59,6 +59,8 @@ export default function BrokerSearchPage({ params }: { params: Promise<{ slug: s
   const [loading, setLoading] = useState(true);
   const firestore = useFirestore();
 
+  const [SearchPageComponent, setSearchPageComponent] = useState<React.ComponentType<any> | null>(null);
+
   useEffect(() => {
     async function fetchData() {
       if (!firestore || !slug) return;
@@ -73,6 +75,9 @@ export default function BrokerSearchPage({ params }: { params: Promise<{ slug: s
 
         setBroker(brokerData as Broker);
         const enabledTransactions = brokerData.businessSettings?.enabledTransactions || ['sale', 'rent'];
+
+        const LoadedSearchPage = await getThemePage(brokerData.layoutId, 'search');
+        setSearchPageComponent(() => LoadedSearchPage);
 
         // Increment access metrics
         await incrementMetric(brokerData.id, 'siteHits');
@@ -93,11 +98,7 @@ export default function BrokerSearchPage({ params }: { params: Promise<{ slug: s
                     propertiesSnap.forEach(docSnap => {
                         const data = docSnap.data() as any;
                         if (data.isVisibleOnSite !== false) {
-                            const propTypes = data.informacoesbasicas?.transactionTypes || ['sale'];
-                            const hasMatch = propTypes.some((t: string) => enabledTransactions.includes(t));
-                            if (hasMatch) {
-                                fetchedPortfolioProperties.push({ id: docSnap.id, ...data } as Property);
-                            }
+                            fetchedPortfolioProperties.push({ id: docSnap.id, ...data } as Property);
                         }
                     });
                 }
@@ -109,11 +110,7 @@ export default function BrokerSearchPage({ params }: { params: Promise<{ slug: s
         const brokerPropsQuery = query(brokerPropertiesRef, where('brokerId', '==', brokerData.id), where('isVisibleOnSite', '==', true));
         const brokerPropsSnapshot = await getDocs(brokerPropsQuery);
         const fetchedBrokerProperties = brokerPropsSnapshot.docs
-            .map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as any))
-            .filter(p => {
-                const propTypes = p.informacoesbasicas?.transactionTypes || ['sale'];
-                return propTypes.some((t: string) => enabledTransactions.includes(t));
-            });
+            .map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as any));
 
         setProperties([...fetchedPortfolioProperties, ...fetchedBrokerProperties]);
         
@@ -127,7 +124,7 @@ export default function BrokerSearchPage({ params }: { params: Promise<{ slug: s
     fetchData();
   }, [firestore, slug]);
 
-  if (loading) {
+  if (loading || !SearchPageComponent) {
       return (
           <div className="flex h-screen w-full items-center justify-center">
               <div className="animate-spin size-8 border-4 border-primary border-t-transparent rounded-full"></div>
@@ -139,8 +136,5 @@ export default function BrokerSearchPage({ params }: { params: Promise<{ slug: s
       return notFound();
   }
 
-  // --- ORAORA PAGE LOADER 1.0 ---
-  const SearchPage = getThemePage(broker.layoutId, 'search');
-
-  return <SearchPage broker={broker as any} properties={properties} />;
+  return <SearchPageComponent broker={broker as any} properties={properties} />;
 }

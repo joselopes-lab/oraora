@@ -12,6 +12,11 @@ interface LeadFormData {
   message?: string;
   brokerId: string;
   source?: string;
+  origin?: 'whatsapp' | 'form';
+  propertyId?: string;
+  propertyName?: string;
+  pageType?: string;
+  pageUrl?: string;
 }
 
 /**
@@ -25,7 +30,7 @@ export async function createLead(data: LeadFormData) {
 
     // Cálculo básico de score para o lead
     let score = 20; 
-    if (data.source === 'WhatsApp') {
+    if (data.source === 'WhatsApp' || data.origin === 'whatsapp' || data.source === 'property_whatsapp') {
       score += 20;
     }
     if (data.message && data.message.length > 80) {
@@ -55,6 +60,11 @@ export async function createLead(data: LeadFormData) {
       message: data.message || '',
       status: 'new',
       source: data.source || 'Site Público',
+      origin: data.origin || 'form',
+      propertyId: data.propertyId || '',
+      propertyName: data.propertyName || '',
+      pageType: data.pageType || '',
+      pageUrl: data.pageUrl || '',
       createdAt: FieldValue.serverTimestamp(),
       leadScore: score,
       leadQualification: qualification,

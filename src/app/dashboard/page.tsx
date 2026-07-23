@@ -68,6 +68,7 @@ type Lead = {
   createdAt: Timestamp;
   status: string;
   propertyInterest?: string;
+  propertyName?: string;
   email: string;
   phone: string;
   personaIds?: string[];
@@ -551,7 +552,15 @@ export default function DashboardPage() {
                                                 </div>
                                             </div>
                                         </TableCell>
-                                        <TableCell className="text-xs text-slate-500 font-medium max-w-[200px] truncate">{lead.propertyInterest || 'N/A'}</TableCell>
+                                        <TableCell className="text-xs text-slate-500 font-medium max-w-[200px] truncate">
+                                            <div>{lead.propertyInterest || 'N/A'}</div>
+                                            {lead.propertyName && (
+                                                <div className="mt-1 flex items-center gap-1 text-[9px] font-bold text-primary uppercase">
+                                                    <span className="material-symbols-outlined text-[12px]">apartment</span>
+                                                    {lead.propertyName}
+                                                </div>
+                                            )}
+                                        </TableCell>
                                         <TableCell className="text-center"><Badge variant="outline" className={cn("font-bold text-[9px] uppercase tracking-tighter", getStatusBadgeClass(lead.status))}>{lead.status}</Badge></TableCell>
                                         <TableCell className="text-right pr-6">
                                             <Button asChild variant="ghost" size="icon" className="size-8 rounded-lg text-slate-300 hover:text-primary transition-colors"><Link href={`/dashboard/clientes/${lead.id}`}><span className="material-symbols-outlined">more_horiz</span></Link></Button>

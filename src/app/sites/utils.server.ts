@@ -5,6 +5,58 @@ import { adminDb } from '@/firebase/index.server';
  * Implementa serialização rigorosa para evitar erros de transferência entre Server e Client Components.
  */
 
+export function serializeForClient(obj: any): any {
+  if (obj === null || obj === undefined) {
+    return obj;
+  }
+
+  if (obj instanceof Date) {
+    return obj.toISOString();
+  }
+
+  if (typeof obj.toDate === 'function') {
+    try {
+      return obj.toDate().toISOString();
+    } catch {
+      // fallback
+    }
+  }
+
+  if (typeof obj.seconds === 'number' && typeof obj.nanoseconds === 'number') {
+    return new Date(obj.seconds * 1000 + obj.nanoseconds / 1000000).toISOString();
+  }
+
+  if (obj.id && typeof obj.path === 'string' && (obj.firestore || typeof obj.get === 'function')) {
+    return obj.id;
+  }
+
+  if (obj.constructor && obj.constructor.name === 'DocumentReference') {
+    return obj.id;
+  }
+
+  if (typeof obj.latitude === 'number' && typeof obj.longitude === 'number') {
+    return { latitude: obj.latitude, longitude: obj.longitude };
+  }
+
+  if (obj.constructor && obj.constructor.name === 'GeoPoint') {
+    return { latitude: obj.latitude, longitude: obj.longitude };
+  }
+
+  if (Array.isArray(obj)) {
+    return obj.map(item => serializeForClient(item));
+  }
+
+  if (typeof obj === 'object') {
+    const result: any = {};
+    for (const key of Object.keys(obj)) {
+      result[key] = serializeForClient(obj[key]);
+    }
+    return result;
+  }
+
+  return obj;
+}
+
 /**
  * Busca dados do corretor pelo slug ou domínio personalizado.
  * Garante que objetos complexos (como Timestamps) sejam convertidos em dados primitivos.
@@ -18,6 +70,14 @@ export async function getBrokerData(slug: string) {
     let snap = await adminDb.collection('brokers').where('slug', '==', slug).limit(1).get();
     
     if (snap.empty) {
+      // 1.5. Tenta buscar diretamente pelo ID do documento (caso o slug seja o ID/UID)
+      const docSnap = await adminDb.collection('brokers').doc(slug).get();
+      if (docSnap.exists) {
+        const data = { id: docSnap.id, ...docSnap.data() };
+        console.log("[THEME_DEBUG] Broker encontrado via ID de documento. ID:", docSnap.id, "LayoutId:", data.layoutId);
+        return JSON.parse(JSON.stringify(data));
+      }
+
       // 2. Se não achou, tenta buscar pelo domínio customizado na coleção 'domains'
       const domainSnap = await adminDb.collection('domains').doc(slug).get();
       

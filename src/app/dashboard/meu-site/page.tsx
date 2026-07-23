@@ -231,7 +231,7 @@ export default function EditUrbanPadraoPage() {
             </div>
             <div className="flex items-center gap-3">
               <Button asChild variant="outline" className="h-11 px-6 rounded-xl border-slate-200 font-bold">
-                 <Link href={`/sites/${brokerData?.slug}`} target="_blank">
+                 <Link href={`/sites/${brokerData?.slug || user?.uid}`} target="_blank">
                     <span className="material-symbols-outlined mr-2">visibility</span>
                     Ver Site Público
                  </Link>

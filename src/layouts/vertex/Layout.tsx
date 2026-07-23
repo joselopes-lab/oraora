@@ -176,7 +176,7 @@ export default function VertexLayout({
       <Vertex.VertexFooter broker={broker} />
 
       {/* Widget Global */}
-      <WhatsAppWidget brokerId={broker.id} />
+      <WhatsAppWidget brokerId={broker.id} source="home" />
     </div>
   );
 }

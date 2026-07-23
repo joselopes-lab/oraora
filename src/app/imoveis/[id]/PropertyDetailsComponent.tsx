@@ -26,6 +26,7 @@ import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import SearchFilters from '@/components/SearchFilters';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { WhatsAppWidget } from '@/layouts/urban-padrao/components/WhatsAppWidget';
+import { WhatsAppLeadModal } from '@/components/WhatsAppLeadModal';
 import { Skeleton } from '@/components/ui/skeleton';
 
 type Property = {
@@ -99,6 +100,7 @@ export default function PropertyDetailsComponent() {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
   const [isGalleryOpen, setIsGalleryOpen] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const router = useRouter();
@@ -363,7 +365,7 @@ export default function PropertyDetailsComponent() {
       name: data.name, email: data.email, phone: data.phone,
       propertyInterest: property.informacoesbasicas.nome,
       message: data.message,
-      source: 'Formulário Portal'
+      source: 'property_form'
     });
     if (result.success) {
       toast({ title: 'Mensagem Enviada!' });
@@ -373,6 +375,8 @@ export default function PropertyDetailsComponent() {
     }
     setIsSubmitting(false);
   };
+
+  const closeGallery = () => { setIsGalleryOpen(false); };
 
   const videoEmbedUrl = getEmbedUrl(property?.youtubeVideoUrl);
   const mapSrc = extractMapSrc(property?.localizacao.googleMapsLink);
@@ -398,8 +402,8 @@ export default function PropertyDetailsComponent() {
   }
 
   const isSavedProp = property && savedPropertyIds.includes(property.id);
-  const whatsappNumber = (brokerInfo?.whatsapp || brokerInfo?.phone || '').replace(/\D/g, '');
-  const whatsappLink = whatsappNumber ? `https://wa.me/55${whatsappNumber}?text=${encodeURIComponent(`Olá! Vi o imóvel ${property.informacoesbasicas.nome} no portal Oraora e gostaria de mais informações.`)}` : '#';
+  const whatsappNumber = getWhatsAppNumber(brokerInfo);
+  const whatsappLink = whatsappNumber ? `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(`Olá! Vi o imóvel ${property.informacoesbasicas.nome} no portal Oraora e gostaria de mais informações.`)}` : '#';
 
   return (
     <div className="bg-background-light overflow-x-hidden w-full flex flex-col min-h-screen">
@@ -653,11 +657,22 @@ export default function PropertyDetailsComponent() {
                     <Button disabled={isSubmitting} type="submit" className="w-full h-14 bg-slate-900 hover:bg-black font-bold text-white uppercase tracking-widest text-xs rounded-xl shadow-lg">
                       {isSubmitting ? 'Enviando...' : 'ENVIAR MENSAGEM'}
                     </Button>
+                    <Button 
+                      type="button" 
+                      onClick={() => setIsWhatsAppModalOpen(true)} 
+                      disabled={isSubmitting}
+                      className="w-full h-14 bg-[#25D366] hover:bg-[#20ba5a] text-white font-black rounded-xl shadow-lg flex items-center justify-center gap-2 uppercase text-xs tracking-widest mt-4"
+                    >
+                      <span className="material-symbols-outlined text-xl font-bold">chat</span>
+                      Conversar pelo WhatsApp
+                    </Button>
                   </form>
                   {whatsappNumber && (
                     <div className="mt-6 space-y-4">
                         <div className="relative flex py-2 items-center"><div className="flex-grow border-t border-slate-100"></div><span className="flex-shrink mx-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">ou</span><div className="flex-grow border-t border-slate-100"></div></div>
-                        <a href={whatsappLink} target="_blank" rel="noopener noreferrer" className="w-full h-14 bg-primary hover:bg-primary-hover text-black font-black rounded-xl shadow-lg shadow-primary/20 transition-all flex items-center justify-center gap-2 uppercase text-xs tracking-widest"><span className="material-symbols-outlined text-xl font-bold">chat</span> Falar no WhatsApp</a>
+                        <div className="text-center text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                          Preencha o formulário acima para iniciar pelo WhatsApp
+                        </div>
                     </div>
                   )}
                 </div>
@@ -750,7 +765,16 @@ export default function PropertyDetailsComponent() {
             </div>
         </div>
       </footer>
-      <WhatsAppWidget brokerId="oraora-main-site" />
+      <WhatsAppWidget broker={brokerInfo} property={property} source="property_whatsapp" />
+
+      <WhatsAppLeadModal 
+        isOpen={isWhatsAppModalOpen}
+        onClose={() => setIsWhatsAppModalOpen(false)}
+        broker={brokerInfo}
+        property={property}
+        source="property_whatsapp"
+        origin="whatsapp"
+      />
 
       {isGalleryOpen && property.midia && (
         <div className="fixed inset-0 z-[100] bg-black/95 flex flex-col animate-in fade-in duration-300">

@@ -72,7 +72,8 @@ export default function FaleConoscoClientPage({ broker }: FaleConoscoPageProps) 
       phone: data.phone,
       propertyInterest: data.subject,
       message: data.message,
-      source: 'Formulário de Contato',
+      source: 'contact_page',
+      origin: 'form',
     });
 
     if (result.success) {
@@ -339,7 +340,7 @@ export default function FaleConoscoClientPage({ broker }: FaleConoscoPageProps) 
         </div>
       </main>
       <UrbanPadraoFooter broker={broker} />
-      <WhatsAppWidget brokerId={broker.id} />
+      <WhatsAppWidget brokerId={broker.id} source="contact_page" />
     </div>
   );
 }

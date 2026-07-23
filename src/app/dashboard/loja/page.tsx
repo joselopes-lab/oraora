@@ -119,7 +119,7 @@ export default function LayoutStorePage() {
                                                 </Link>
                                             </Button>
                                             <Button variant="secondary" asChild className="bg-white text-slate-900 font-black text-[10px] uppercase tracking-widest h-11 px-8 rounded-xl hover:scale-[1.05] transition-transform">
-                                                <Link href={`/sites/${brokerProfile?.slug}`} target="_blank">
+                                                <Link href={`/sites/${brokerProfile?.slug || brokerProfile?.id || user?.uid}`} target="_blank">
                                                     <Eye className="size-4 mr-2" />
                                                     Live Site
                                                 </Link>

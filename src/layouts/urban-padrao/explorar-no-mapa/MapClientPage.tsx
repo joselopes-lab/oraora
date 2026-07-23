@@ -8,7 +8,6 @@ import { GoogleMap, useJsApiLoader, Marker, InfoWindow, Libraries } from '@react
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
-import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 
 type Broker = {
   id: string;

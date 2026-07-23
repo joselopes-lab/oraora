@@ -17,6 +17,12 @@ export async function getBrokerData(firestore: Firestore, identifier: string) {
       const d = snap.docs[0];
       return { id: d.id, ...d.data() };
     } else {
+      // Tenta buscar diretamente pelo ID do documento
+      const docSnap = await getDoc(doc(firestore, 'brokers', identifier));
+      if (docSnap.exists()) {
+        return { id: docSnap.id, ...docSnap.data() };
+      }
+
       // Tenta buscar no mapeamento de domínios customizados
       const domainRef = doc(firestore, 'domains', identifier);
       const domainSnap = await getDoc(domainRef);

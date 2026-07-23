@@ -70,7 +70,7 @@ export default function AuraLayout({
       </main>
 
       <UrbanPadraoFooter broker={broker as any} />
-      <WhatsAppWidget brokerId={broker.id} />
+      <WhatsAppWidget brokerId={broker.id} source="home" />
     </div>
   );
 }

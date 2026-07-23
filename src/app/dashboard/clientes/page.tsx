@@ -46,6 +46,7 @@ type Lead = {
   email: string;
   phone: string;
   propertyInterest: string;
+  propertyName?: string;
   source: string;
   status: 'new' | 'contacted' | 'qualified' | 'proposal' | 'converted' | 'lost';
   createdAt: Timestamp;
@@ -238,6 +239,14 @@ export default function ClientListPage() {
                   </td>
                   <td className="px-6 py-4">
                     <div className="text-text-main font-medium">{client.propertyInterest || 'Não especificado'}</div>
+                    {client.propertyName && (
+                      <div className="mt-1 flex items-center gap-1.5 p-1.5 bg-slate-50 rounded border border-slate-100 w-fit">
+                        <span className="material-symbols-outlined text-[12px] text-primary">apartment</span>
+                        <div className="text-[10px] font-bold text-slate-500 truncate max-w-[150px]">
+                          {client.propertyName}
+                        </div>
+                      </div>
+                    )}
                     <div className="text-xs text-text-secondary mt-0.5 flex items-center gap-1">
                       <span className="material-symbols-outlined text-[14px]">link</span> {client.source || 'N/A'}
                     </div>

@@ -20,6 +20,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { WhatsAppWidget } from '../components/WhatsAppWidget';
+import { WhatsAppLeadModal } from '@/components/WhatsAppLeadModal';
 import { Badge } from '@/components/ui/badge';
 
 type Broker = {
@@ -87,6 +88,7 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
   
   const router = useRouter();
   const { user } = useUser();
@@ -113,7 +115,8 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
       phone: data.phone,
       propertyInterest: informacoesbasicas.nome,
       message: data.message,
-      source: 'Lead Detalhes Imóvel',
+      source: 'property_form',
+      origin: 'form',
     });
     if (result.success) {
       toast({ title: 'Mensagem Enviada!' });
@@ -122,6 +125,15 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
       toast({ variant: 'destructive', title: 'Erro', description: result.message });
     }
     setIsSubmitting(false);
+  };
+
+  const openGallery = (index: number) => {
+    setSelectedImageIndex(index);
+    setIsGalleryOpen(true);
+  };
+
+  const closeGallery = () => {
+    setIsGalleryOpen(false);
   };
 
   const handleRadarClick = (e: React.MouseEvent, propertyId: string) => {
@@ -302,6 +314,15 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
                   <Button disabled={isSubmitting} className="w-full h-14 bg-black dark:bg-primary text-white dark:text-black font-black uppercase tracking-widest text-xs shadow-lg mt-4">
                     {isSubmitting ? 'Enviando...' : 'Solicitar Atendimento'}
                   </Button>
+                  <Button 
+                    type="button" 
+                    onClick={() => setIsWhatsAppModalOpen(true)} 
+                    disabled={isSubmitting}
+                    className="w-full h-14 bg-[#25D366] hover:bg-[#20ba5a] text-white font-black uppercase tracking-widest text-xs shadow-lg mt-4 flex items-center justify-center gap-2"
+                  >
+                    <span className="material-symbols-outlined text-lg font-bold">chat</span>
+                    Conversar pelo WhatsApp
+                  </Button>
                 </form>
               </div>
             </aside>
@@ -336,6 +357,16 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
         )}
       </main>
       <UrbanPadraoFooter broker={broker} />
+      <WhatsAppWidget broker={broker} property={property} source="property_whatsapp" />
+
+      <WhatsAppLeadModal 
+        isOpen={isWhatsAppModalOpen}
+        onClose={() => setIsWhatsAppModalOpen(false)}
+        broker={broker}
+        property={property}
+        source="property_whatsapp"
+        origin="whatsapp"
+      />
     </div>
   );
 }

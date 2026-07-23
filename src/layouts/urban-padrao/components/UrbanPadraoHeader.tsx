@@ -6,7 +6,6 @@ import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useState, useEffect } from 'react';
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
-import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { Button } from '@/components/ui/button';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { useNavigation } from '@/lib/navigation/navigationService';
@@ -149,10 +148,10 @@ export function UrbanPadraoHeader({ broker }: { broker: Broker }) {
                   </SheetTrigger>
                   <SheetContent style={dynamicSheetStyles} side="right" className="p-0 flex flex-col bg-white text-left">
                       <SheetHeader className="p-6 border-b text-left">
-                        <VisuallyHidden>
+                        <span className="sr-only">
                             <SheetTitle>Menu Principal</SheetTitle>
                             <SheetDescription>Navegue pelas seções do site.</SheetDescription>
-                        </VisuallyHidden>
+                        </span>
                         <Link href={nav.home()} onClick={() => setIsMobileMenuOpen(false)}>
                             <Image src={broker.logoUrl || defaultLogo || ""} alt="Logo" width={160} height={40} className="h-[30px] w-auto object-contain" style={{ width: 'auto' }} />
                         </Link>

@@ -11,7 +11,6 @@ import { arrayRemove, arrayUnion, doc, collection, query, where, getDocs, getDoc
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { useState, useEffect, Suspense, useMemo } from 'react';
 import SearchFilters from '@/components/SearchFilters';
 import { Badge } from '@/components/ui/badge';
@@ -259,11 +258,12 @@ export default function UrbanPadraoLayout({ broker, properties }: UrbanPadraoPag
     );
   };
 
-  const renderBadge = (property: Property) => {
+  const renderBadges = (property: Property) => {
     const types = property.informacoesbasicas.transactionTypes || ['sale'];
-    if (types.includes('sale') && types.includes('rent')) return "Venda + Aluguel";
-    if (types.includes('rent')) return "Para Aluguel";
-    return "À Venda";
+    const badges = [];
+    if (types.includes('sale')) badges.push("À Venda");
+    if (types.includes('rent')) badges.push("Para Aluguel");
+    return badges;
   };
 
   const availableStates = useMemo(() => {
@@ -304,12 +304,12 @@ export default function UrbanPadraoLayout({ broker, properties }: UrbanPadraoPag
                   </DialogTrigger>
                   <DialogContent className="p-0 bg-black border-0 max-w-4xl">
                      <DialogHeader>
-                          <VisuallyHidden>
+                          <span className="sr-only">
                               <DialogTitle>Vídeo de Apresentação</DialogTitle>
                               <DialogDescription>
                                   Vídeo de apresentação do corretor ou do imóvel.
                               </DialogDescription>
-                          </VisuallyHidden>
+                          </span>
                       </DialogHeader>
                     <div className="aspect-video">
                       <iframe
@@ -401,17 +401,22 @@ export default function UrbanPadraoLayout({ broker, properties }: UrbanPadraoPag
                 return (
                 <Link href={propertyUrl} key={property.id} className="flex flex-col bg-white rounded-2xl overflow-hidden shadow-soft hover:shadow-card transition-all duration-300 group">
                   <div className="relative h-60 w-full overflow-hidden">
-                    <div 
-                        className={cn(
-                            "absolute top-4 left-4 z-10 px-3 py-1 rounded-md text-xs font-bold uppercase tracking-wider shadow-sm",
-                            !statusTagBgColor && "bg-primary text-black"
-                        )}
-                        style={{
-                            backgroundColor: statusTagBgColor,
-                            color: statusTagTextColor
-                        }}
-                    >
-                        {renderBadge(property)}
+                    <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
+                        {renderBadges(property).map((badge, idx) => (
+                            <div 
+                                key={idx}
+                                className={cn(
+                                    "px-3 py-1 rounded-md text-xs font-bold uppercase tracking-wider shadow-sm w-fit",
+                                    !statusTagBgColor && "bg-primary text-black"
+                                )}
+                                style={{
+                                    backgroundColor: statusTagBgColor,
+                                    color: statusTagTextColor
+                                }}
+                            >
+                                {badge}
+                            </div>
+                        ))}
                     </div>
                     <button onClick={(e) => handleRadarClick(e, property.id)} className={cn("absolute top-4 right-4 z-10 flex size-9 items-center justify-center rounded-full bg-white/30 backdrop-blur-md text-white hover:bg-white hover:text-primary transition-all", isSaved && "text-primary bg-white")}>
                       <span className="material-symbols-outlined" style={{ fontVariationSettings: isSaved ? "'FILL' 1" : "" }}>radar</span>
@@ -585,7 +590,7 @@ export default function UrbanPadraoLayout({ broker, properties }: UrbanPadraoPag
         </section>
       </main>
       <UrbanPadraoFooter broker={broker} />
-      <WhatsAppWidget brokerId={broker.id} />
+      <WhatsAppWidget brokerId={broker.id} source="home" />
     </div>
   );
 }

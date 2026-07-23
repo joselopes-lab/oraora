@@ -19,6 +19,7 @@ import { arrayRemove, arrayUnion, doc } from 'firebase/firestore';
 import { useRouter, usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { WhatsAppWidget } from '@/app/sites/urban-padrao/components/WhatsAppWidget';
+import { WhatsAppLeadModal } from '@/components/WhatsAppLeadModal';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -141,6 +142,7 @@ export default function DomusPropertyDetailsPage({ broker, property, similarProp
   const firestore = useFirestore();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
   const [isGalleryOpen, setIsGalleryOpen] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const content = broker.homepage || {};
@@ -173,7 +175,8 @@ export default function DomusPropertyDetailsPage({ broker, property, similarProp
       phone: data.phone,
       propertyInterest: property.informacoesbasicas.nome,
       message: data.message,
-      source: 'Contato Detalhes Imóvel (Domus)',
+      source: 'property_form',
+      origin: 'form',
     });
 
     if (result.success) {
@@ -436,6 +439,15 @@ export default function DomusPropertyDetailsPage({ broker, property, similarProp
                   <Button disabled={isSubmitting} className="w-full h-16 bg-primary text-black font-black uppercase tracking-[0.2em] text-xs rounded-2xl shadow-glow hover:brightness-110 transition-all mt-6">
                     {isSubmitting ? 'Enviando...' : 'Solicitar Atendimento'}
                   </Button>
+                  <Button 
+                    type="button" 
+                    onClick={() => setIsWhatsAppModalOpen(true)} 
+                    disabled={isSubmitting}
+                    className="w-full h-16 bg-[#25D366] hover:bg-[#20ba5a] text-white font-black uppercase tracking-[0.2em] text-xs rounded-2xl shadow-lg flex items-center justify-center gap-2 mt-4"
+                  >
+                    <span className="material-symbols-outlined text-lg font-bold">chat</span>
+                    Conversar pelo WhatsApp
+                  </Button>
                 </form>
               </div>
             </aside>
@@ -470,7 +482,16 @@ export default function DomusPropertyDetailsPage({ broker, property, similarProp
         )}
       </main>
       <DomusFooter broker={broker as any} />
-      <WhatsAppWidget brokerId={broker.id} />
+      <WhatsAppWidget broker={broker} property={property} source="property_whatsapp" />
+
+      <WhatsAppLeadModal 
+        isOpen={isWhatsAppModalOpen}
+        onClose={() => setIsWhatsAppModalOpen(false)}
+        broker={broker}
+        property={property}
+        source="property_whatsapp"
+        origin="whatsapp"
+      />
       
       {isGalleryOpen && property.midia && (
         <div className="fixed inset-0 z-[100] flex flex-col bg-black/95 backdrop-blur-md animate-in fade-in duration-300">

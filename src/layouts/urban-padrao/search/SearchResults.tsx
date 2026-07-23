@@ -80,7 +80,7 @@ export default function SearchResults({ broker, properties }: SearchResultsPageP
         return Array.from(new Set(properties.map(p => p.localizacao.estado))).filter(Boolean);
     }, [properties]);
 
-    const finality = searchParams.get('finality') || 'sale';
+    const finality = searchParams.get('finality');
 
     const filteredProperties = useMemo(() => {
         const propertyTypeParam = searchParams.get('type');
@@ -95,7 +95,7 @@ export default function SearchResults({ broker, properties }: SearchResultsPageP
         return properties.filter(property => {
             // Filter by Finality
             const types = property.informacoesbasicas.transactionTypes || ['sale'];
-            if (!types.includes(finality)) return false;
+            if (finality && finality !== 'all' && !types.includes(finality)) return false;
 
             const searchTermLower = searchTerm.toLowerCase();
             const matchesSearchTerm = searchTermLower === '' ||
@@ -127,9 +127,9 @@ export default function SearchResults({ broker, properties }: SearchResultsPageP
               if (!hasMatchingRoom) return false;
             }
             
-            const priceToCompare = finality === 'sale' 
-                ? (property.informacoesbasicas.salePrice || property.informacoesbasicas.valor || 0)
-                : (property.informacoesbasicas.rentPrice || 0);
+            const priceToCompare = finality === 'rent' 
+                ? (property.informacoesbasicas.rentPrice || 0)
+                : (property.informacoesbasicas.salePrice || property.informacoesbasicas.valor || 0);
 
             if (minPriceParam && priceToCompare < parseInt(minPriceParam)) return false;
             if (maxPriceParam && priceToCompare > parseInt(maxPriceParam)) return false;
@@ -142,7 +142,7 @@ export default function SearchResults({ broker, properties }: SearchResultsPageP
     
     const sortedProperties = useMemo(() => {
         let tempProperties = [...filteredProperties];
-        const getPrice = (p: Property) => finality === 'sale' ? (p.informacoesbasicas.salePrice || p.informacoesbasicas.valor || 0) : (p.informacoesbasicas.rentPrice || 0);
+        const getPrice = (p: Property) => finality === 'rent' ? (p.informacoesbasicas.rentPrice || 0) : (p.informacoesbasicas.salePrice || p.informacoesbasicas.valor || 0);
         switch (sortBy) {
             case 'price_asc': tempProperties.sort((a, b) => getPrice(a) - getPrice(b)); break;
             case 'price_desc': tempProperties.sort((a, b) => getPrice(b) - getPrice(a)); break;
@@ -219,11 +219,12 @@ export default function SearchResults({ broker, properties }: SearchResultsPageP
         );
     };
 
-    const renderBadge = (property: Property) => {
+    const renderBadges = (property: Property) => {
         const types = property.informacoesbasicas.transactionTypes || ['sale'];
-        if (types.includes('sale') && types.includes('rent')) return "Venda + Aluguel";
-        if (types.includes('rent')) return "Para Aluguel";
-        return "À Venda";
+        const badges = [];
+        if (types.includes('sale')) badges.push("À Venda");
+        if (types.includes('rent')) badges.push("Para Aluguel");
+        return badges;
     };
 
     const dynamicStyles = {
@@ -280,8 +281,10 @@ export default function SearchResults({ broker, properties }: SearchResultsPageP
                                     {paginatedProperties.map((property) => (
                                     <Link key={property.id} href={`/sites/${broker.slug}/imovel/${property.informacoesbasicas.slug || property.id}`} className="group relative flex flex-col rounded-2xl bg-white border border-transparent shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-[0_12px_24px_rgba(0,0,0,0.08)] hover:border-primary/50 transition-all duration-300 overflow-hidden">
                                         <div className="relative aspect-[4/3] w-full overflow-hidden bg-gray-100">
-                                            <div className="absolute top-3 left-3 z-10">
-                                                <Badge className="bg-white/90 backdrop-blur-sm text-black border-none font-bold text-[9px] uppercase px-3 py-1 tracking-widest">{renderBadge(property)}</Badge>
+                                            <div className="absolute top-3 left-3 z-10 flex flex-col gap-1">
+                                                {renderBadges(property).map((badge, idx) => (
+                                                    <Badge key={idx} className="bg-white/90 backdrop-blur-sm text-black border-none font-bold text-[9px] uppercase px-3 py-1 tracking-widest w-fit">{badge}</Badge>
+                                                ))}
                                             </div>
                                             <button onClick={(e) => handleRadarClick(e, property.id)} className={cn("absolute top-3 right-3 z-10 flex size-8 items-center justify-center rounded-full bg-white/20 backdrop-blur-md text-white hover:bg-white transition-all shadow-sm", savedPropertyIds.includes(property.id) && "text-primary bg-white")}>
                                                 <span className="material-symbols-outlined" style={{ fontVariationSettings: savedPropertyIds.includes(property.id) ? "'FILL' 1" : "" }}>radar</span>

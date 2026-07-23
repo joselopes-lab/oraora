@@ -2,7 +2,7 @@
  * @fileOverview themeLoader.ts - Motor de Carregamento de Temas e Páginas
  */
 
-import { THEME_REGISTRY } from './themeRegistry';
+import { THEME_REGISTRY, THEME_PAGE_LOADERS } from './themeRegistry';
 import { ThemeDefinition, PageKey } from './types';
 
 /**
@@ -23,29 +23,28 @@ export function getTheme(themeId: string | undefined): ThemeDefinition {
 
 /**
  * Motor de Resolução de Páginas (Page Loader 1.0).
- * Retorna o componente específico do tema ou o fallback do Urban Padrão.
+ * Retorna o componente específico do tema sob demanda via importação assíncrona.
  */
-export function getThemePage(themeId: string | undefined, pageKey: PageKey): React.ComponentType<any> {
-  const activeTheme = getTheme(themeId);
-  const urbanTheme = THEME_REGISTRY['urban-padrao'];
+export async function getThemePage(themeId: string | undefined, pageKey: PageKey): Promise<React.ComponentType<any>> {
+  const id = themeId || 'urban-padrao';
+  const themeLoaders = THEME_PAGE_LOADERS[id] || THEME_PAGE_LOADERS['urban-padrao'];
 
-  // 1. Tenta obter a página do tema ativo
-  const ThemePage = activeTheme.pages[pageKey];
+  let loader = themeLoaders?.[pageKey];
 
-  if (ThemePage) {
-    return ThemePage;
+  if (!loader) {
+    loader = THEME_PAGE_LOADERS['urban-padrao']?.[pageKey];
   }
 
-  // 2. Fallback para a página correspondente no Urban Padrão
-  const FallbackPage = urbanTheme.pages[pageKey];
-  
-  if (FallbackPage) {
-    console.log(`[THEME_LOADER] Página "${pageKey}" não encontrada no tema "${activeTheme.id}". Usando fallback Urban.`);
-    return FallbackPage;
+  if (!loader) {
+    loader = THEME_PAGE_LOADERS['urban-padrao']?.['home'];
   }
 
-  // 3. Fallback final para a Homepage do Urban (segurança extrema)
-  return urbanTheme.component;
+  if (!loader) {
+    throw new Error(`[THEME_LOADER] Não foi possível carregar página "${pageKey}" para o tema "${id}".`);
+  }
+
+  const module = await loader();
+  return module.default;
 }
 
 /**
@@ -71,3 +70,4 @@ export function getAvailableThemes(filters?: { premium?: boolean, category?: str
   
   return list;
 }
+

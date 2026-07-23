@@ -82,7 +82,7 @@ export default function DomusSearchPage({ broker, properties }: { broker: Broker
         return Array.from(new Set(properties.map(p => p.localizacao.estado))).filter(Boolean);
     }, [properties]);
 
-    const finality = searchParams.get('finality') || 'sale';
+    const finality = searchParams.get('finality');
 
     const filteredProperties = useMemo(() => {
         const propertyTypeParam = searchParams.get('type');
@@ -96,7 +96,7 @@ export default function DomusSearchPage({ broker, properties }: { broker: Broker
 
         return properties.filter(property => {
             const types = property.informacoesbasicas.transactionTypes || ['sale'];
-            if (!types.includes(finality)) return false;
+            if (finality && finality !== 'all' && !types.includes(finality)) return false;
 
             const searchTermLower = searchTerm.toLowerCase();
             const matchesSearch = searchTermLower === '' ||
@@ -112,9 +112,9 @@ export default function DomusSearchPage({ broker, properties }: { broker: Broker
             const searchNeighborhoods = neighborhoodsParam ? neighborhoodsParam.split(',') : [];
             const matchesNeighborhood = searchNeighborhoods.length === 0 || searchNeighborhoods.includes(property.localizacao.bairro);
 
-            const priceToCompare = finality === 'sale' 
-                ? (property.informacoesbasicas.salePrice || property.informacoesbasicas.valor || 0)
-                : (property.informacoesbasicas.rentPrice || 0);
+            const priceToCompare = finality === 'rent' 
+                ? (property.informacoesbasicas.rentPrice || 0)
+                : (property.informacoesbasicas.salePrice || property.informacoesbasicas.valor || 0);
 
             if (minPriceParam && priceToCompare < parseInt(minPriceParam)) return false;
             if (maxPriceParam && priceToCompare > parseInt(maxPriceParam)) return false;
@@ -126,7 +126,7 @@ export default function DomusSearchPage({ broker, properties }: { broker: Broker
     const sortBy = searchParams.get('sortBy') || 'relevance';
     const sortedProperties = useMemo(() => {
         let temp = [...filteredProperties];
-        const getPrice = (p: Property) => finality === 'sale' ? (p.informacoesbasicas.salePrice || p.informacoesbasicas.valor || 0) : (p.informacoesbasicas.rentPrice || 0);
+        const getPrice = (p: Property) => finality === 'rent' ? (p.informacoesbasicas.rentPrice || 0) : (p.informacoesbasicas.salePrice || p.informacoesbasicas.valor || 0);
         if (sortBy === 'price_asc') temp.sort((a, b) => getPrice(a) - getPrice(b));
         else if (sortBy === 'price_desc') temp.sort((a, b) => getPrice(b) - getPrice(a));
         return temp;
@@ -168,11 +168,12 @@ export default function DomusSearchPage({ broker, properties }: { broker: Broker
         );
     };
 
-    const renderBadge = (property: Property) => {
+    const renderBadges = (property: Property) => {
         const types = property.informacoesbasicas.transactionTypes || ['sale'];
-        if (types.includes('sale') && types.includes('rent')) return "Venda + Aluguel";
-        if (types.includes('rent')) return "Para Aluguel";
-        return "À Venda";
+        const badges = [];
+        if (types.includes('sale')) badges.push("À Venda");
+        if (types.includes('rent')) badges.push("Para Aluguel");
+        return badges;
     };
 
     const handleRadarClick = (e: React.MouseEvent, propertyId: string) => {
@@ -244,8 +245,10 @@ export default function DomusSearchPage({ broker, properties }: { broker: Broker
                         {paginatedProperties.map((property) => (
                             <Link href={`/sites/${broker.slug}/imovel/${property.informacoesbasicas.slug || property.id}`} key={property.id} className="group flex flex-col gap-6 bg-white dark:bg-slate-900 rounded-[2.5rem] overflow-hidden border border-slate-100 dark:border-slate-800 shadow-soft hover:shadow-2xl transition-all">
                                 <div className="relative aspect-[4/3] overflow-hidden bg-gray-100">
-                                    <div className="absolute top-6 left-6 z-10">
-                                      <Badge className="bg-white/90 backdrop-blur-sm text-black border-none font-black text-[9px] uppercase px-3 py-1 shadow-sm tracking-widest">{renderBadge(property)}</Badge>
+                                    <div className="absolute top-6 left-6 z-10 flex flex-col gap-2">
+                                      {renderBadges(property).map((badge, idx) => (
+                                        <Badge key={idx} className="bg-white/90 backdrop-blur-sm text-black border-none font-black text-[9px] uppercase px-3 py-1 shadow-sm tracking-widest w-fit">{badge}</Badge>
+                                      ))}
                                     </div>
                                     <button onClick={(e) => handleRadarClick(e, property.id)} className={cn("absolute top-6 right-6 z-10 flex size-10 items-center justify-center rounded-full bg-white/20 backdrop-blur-md text-white hover:bg-white transition-all shadow-sm", savedPropertyIds.includes(property.id) && "text-primary bg-white")}>
                                         <span className="material-symbols-outlined text-[24px]" style={{ fontVariationSettings: savedPropertyIds.includes(property.id) ? "'FILL' 1" : "" }}>radar</span>

@@ -352,7 +352,7 @@ export default function DashboardCore({
         <div className="max-w-[1440px] mx-auto px-6 md:px-10 h-16 flex items-center justify-between">
           <div className="flex items-center gap-10 h-full">
             <Link href="/dashboard" className="flex items-center gap-3">
-              <Image src={siteData?.logoUrl || defaultLogo || ""} alt="Oraora Logo" width={128} height={32} className="h-6 w-auto" style={{ width: 'auto' }} />
+              <img src={siteData?.logoUrl || defaultLogo || ""} alt="Oraora Logo" className="h-8 max-h-8 w-auto object-contain shrink-0" />
             </Link>
             <nav className="hidden md:flex items-center gap-6 h-full">
                 {userProfile.userType === 'broker' && (

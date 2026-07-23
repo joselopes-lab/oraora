@@ -140,11 +140,11 @@ export function UserMenu() {
 
     const brokerSiteUrl = brokerProfile?.domain 
         ? `https://${brokerProfile.domain}` 
-        : (brokerProfile?.slug ? `/sites/${brokerProfile.slug}` : null);
+        : ((brokerProfile?.slug || user?.uid) ? `/sites/${brokerProfile?.slug || user?.uid}` : null);
 
-    const siteUrl = isAdmin ? '/' : brokerSiteUrl || '#';
+    const siteUrl = isAdmin ? '/' : brokerSiteUrl || (user?.uid ? `/sites/${user.uid}` : '#');
 
-    const canViewSite = isAdmin || (isBroker && brokerSiteUrl);
+    const canViewSite = isAdmin || (isBroker && (brokerSiteUrl || user?.uid));
 
     const siteTooltip = isAdmin 
         ? 'Ver site principal' 
@@ -255,16 +255,8 @@ export function UserMenu() {
             <div className="h-8 w-px bg-gray-200"></div>
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                    <button type="button" className="flex items-center gap-3 cursor-pointer group outline-none">
-                        <span className="text-right hidden sm:block">
-                            <span className="block text-sm font-bold text-text-main">{user?.displayName || 'Usuário'}</span>
-                            <span className="block text-xs text-text-secondary uppercase font-bold tracking-tighter">
-                                {userProfile?.userType === 'admin' ? 'Admin Master' : 
-                                 userProfile?.userType === 'broker' ? 'Corretor' : 
-                                 userProfile?.userType === 'constructor' ? 'Construtora' : 'Cliente'}
-                            </span>
-                        </span>
-                        <span className="block size-9 rounded-full bg-gray-200 overflow-hidden border border-gray-100">
+                    <button type="button" className="flex items-center cursor-pointer group outline-none focus:ring-2 focus:ring-primary/20 rounded-full" title={user?.displayName || "Perfil"}>
+                        <span className="block size-9 rounded-full bg-gray-200 overflow-hidden border border-gray-100 hover:ring-2 hover:ring-primary/30 transition-all">
                             <Avatar>
                                 <AvatarImage src={user?.photoURL || ""} alt="Avatar"/>
                                 <AvatarFallback>{user?.displayName?.charAt(0) || 'U'}</AvatarFallback>

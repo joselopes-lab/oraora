@@ -190,7 +190,8 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
       phone: data.phone,
       propertyInterest: informacoesbasicas.nome,
       message: data.message,
-      source: 'Formulário de Contato do Imóvel',
+      source: 'property_form',
+      origin: 'form',
     });
 
     if (result.success) {
@@ -507,7 +508,7 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
         </section>
       </main>
       <UrbanPadraoFooter broker={broker} />
-      <WhatsAppWidget brokerId={broker.id} />
+      <WhatsAppWidget brokerId={broker.id} source="property_whatsapp" />
 
       {isGalleryOpen && midia && (
         <div className="fixed inset-0 z-[100] flex flex-col bg-black/95 backdrop-blur-md animate-in fade-in duration-300">
