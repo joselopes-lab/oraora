@@ -369,7 +369,7 @@ export default function UrbanPadraoLayout({ broker, properties }: UrbanPadraoPag
                     <div
                       className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"
                       style={{
-                        backgroundImage: `url(${property.midia?.[0] || 'https://picsum.photos/seed/placeholder/400/300'})`,
+                        backgroundImage: `url(${property.midia?.[0] || (property as any).media?.[0] || 'https://picsum.photos/seed/placeholder/400/300'})`,
                       }}
                     ></div>
                   </div>

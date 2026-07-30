@@ -80,15 +80,6 @@ export default function NewAvulsoPropertyPage() {
             }
             // --- END LIMIT CHECK ---
 
-            const propertiesCollectionRef = collection(firestore, 'brokerProperties');
-            const dataToSave = {
-              ...data,
-              brokerId: user.uid,
-              builderId: user.uid,
-            };
-
-            await addDocumentNonBlocking(propertiesCollectionRef, dataToSave);
-            
             toast({
                 title: 'Imóvel Cadastrado!',
                 description: `O imóvel "${data.informacoesbasicas.nome}" foi salvo com sucesso.`,

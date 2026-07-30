@@ -18,6 +18,8 @@ import { useUser, useDoc, useFirestore, useMemoFirebase, setDocumentNonBlocking 
 import { arrayRemove, arrayUnion, doc } from 'firebase/firestore';
 import { useRouter, usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { StreetViewPanoramaView } from '@/components/StreetViewPanorama';
 import { WhatsAppWidget } from '@/app/sites/urban-padrao/components/WhatsAppWidget';
 import { WhatsAppLeadModal } from '@/components/WhatsAppLeadModal';
 import { Input } from '@/components/ui/input';
@@ -137,6 +139,7 @@ function hslToHex(hslStr: string): string {
 }
 
 export default function DomusPropertyDetailsPage({ broker, property, similarProperties }: { broker: Broker; property: Property; similarProperties: Property[] }) {
+  const displayMidia = property.midia && property.midia.length > 0 ? property.midia : ((property as any).media || []);
   const router = useRouter();
   const { user } = useUser();
   const firestore = useFirestore();
@@ -145,6 +148,7 @@ export default function DomusPropertyDetailsPage({ broker, property, similarProp
   const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
   const [isGalleryOpen, setIsGalleryOpen] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [streetViewAvailable, setStreetViewAvailable] = useState<boolean>(true);
   const content = broker.homepage || {};
 
   const pathname = usePathname();
@@ -251,7 +255,25 @@ export default function DomusPropertyDetailsPage({ broker, property, similarProp
   };
 
   const videoEmbedUrl = getEmbedUrl(property.youtubeVideoUrl);
-  const mapSrc = extractMapSrc(property.localizacao.googleMapsLink);
+
+  const localizacao = property.localizacao;
+  const addressRaw = (localizacao?.address || (localizacao as any)?.endereco || '').trim();
+  const bairro = localizacao?.bairro || '';
+  const cidade = localizacao?.cidade || '';
+  const estado = localizacao?.estado || (localizacao as any)?.state || '';
+
+  let fullAddress = addressRaw;
+  if (!fullAddress) {
+    fullAddress = [bairro, cidade, estado].filter(Boolean).join(', ');
+  } else if (cidade && !addressRaw.toLowerCase().includes(cidade.toLowerCase())) {
+    const extra = [bairro, `${cidade}${estado ? ` - ${estado}` : ''}`].filter(Boolean).join(', ');
+    fullAddress = `${addressRaw}, ${extra}`;
+  }
+
+  const mapSrc = extractMapSrc(localizacao?.googleMapsLink) || (fullAddress ? `https://maps.google.com/maps?q=${encodeURIComponent(fullAddress)}&t=&z=15&ie=UTF8&iwloc=&output=embed` : null);
+  const streetViewSrc = extractMapSrc(localizacao?.googleStreetViewLink) || (fullAddress ? `https://maps.google.com/maps?q=${encodeURIComponent(fullAddress)}&layer=c&cbll=&cbp=12,0,0,0,0&output=embed` : null);
+
+  const showLocationSection = localizacao?.exibirLocalizacao !== false && (property as any)?.exibirLocalizacao !== false && Boolean(fullAddress);
 
   const dynamicStyles = {
     '--background': broker.backgroundColor || '90 20% 97%',
@@ -331,15 +353,15 @@ export default function DomusPropertyDetailsPage({ broker, property, similarProp
 
         <section className="grid grid-cols-12 gap-4 mb-12 md:h-[550px]">
           <div onClick={() => openGallery(0)} className="col-span-12 md:col-span-8 relative overflow-hidden rounded-[2.5rem] group cursor-pointer shadow-2xl">
-            <Image alt="Main" src={property.midia?.[0] || 'https://picsum.photos/seed/main/800/600'} fill className="object-cover transition-transform duration-1000 group-hover:scale-105" />
+            <Image alt="Main" src={displayMidia[0] || 'https://picsum.photos/seed/main/800/600'} fill className="object-cover transition-transform duration-1000 group-hover:scale-105" />
             <div className="absolute top-8 left-8"><Badge className="bg-white/90 backdrop-blur-sm text-black border-none font-black uppercase py-1.5 px-4 tracking-widest shadow-sm text-[10px]">{renderBadge(property)}</Badge></div>
           </div>
           <div className="hidden md:flex col-span-4 flex-col gap-4">
              <div onClick={() => openGallery(1)} className="flex-1 relative rounded-[2rem] overflow-hidden cursor-pointer shadow-md">
-               <Image alt="2" src={property.midia?.[1] || 'https://picsum.photos/seed/2/400/300'} fill className="object-cover" />
+               <Image alt="2" src={displayMidia[1] || 'https://picsum.photos/seed/2/400/300'} fill className="object-cover" />
              </div>
              <div onClick={() => openGallery(2)} className="flex-1 relative rounded-[2rem] overflow-hidden cursor-pointer shadow-md">
-               <Image alt="3" src={property.midia?.[2] || 'https://picsum.photos/seed/3/400/300'} fill className="object-cover" />
+               <Image alt="3" src={displayMidia[2] || 'https://picsum.photos/seed/3/400/300'} fill className="object-cover" />
              </div>
           </div>
         </section>
@@ -412,19 +434,62 @@ export default function DomusPropertyDetailsPage({ broker, property, similarProp
                 </div>
             )}
 
-            <div>
-              <h2 className="text-3xl font-black uppercase tracking-tight text-slate-900 dark:text-white mb-8">Localização Estratégica</h2>
-              <div className="w-full h-[300px] sm:h-[450px] rounded-[2.5rem] bg-slate-100 dark:bg-slate-800 overflow-hidden relative border border-slate-100 dark:border-slate-800 shadow-inner">
-                {mapSrc ? (
-                    <iframe src={mapSrc} width="100%" height="100%" style={{ border: 0 }} allowFullScreen={false} loading="lazy" className="grayscale dark:invert opacity-70" />
-                ) : (
-                    <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-4">
-                        <span className="material-symbols-outlined text-6xl">map</span>
-                        <p className="font-bold uppercase tracking-widest text-xs">Aguardando coordenadas do mapa</p>
+            {/* Seção LOCALIZAÇÃO */}
+            {showLocationSection && (
+              <div className="text-left space-y-6">
+                <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
+                  <h2 className="text-3xl font-black uppercase tracking-tight text-slate-900 dark:text-white">
+                    LOCALIZAÇÃO
+                  </h2>
+                  <p className="text-sm text-slate-500 font-medium mt-1 flex items-center gap-1.5">
+                    <span className="material-symbols-outlined text-primary text-base">location_on</span>
+                    {fullAddress}
+                  </p>
+                </div>
+
+                <Tabs defaultValue="map" className="w-full">
+                  <TabsList className="grid w-full grid-cols-2 max-w-xs h-12 p-1 bg-gray-100 dark:bg-slate-800 rounded-xl mb-4">
+                    <TabsTrigger value="map" className="rounded-lg font-bold flex items-center justify-center gap-2 transition-all">
+                      <span className="material-symbols-outlined text-sm">map</span> Mapa
+                    </TabsTrigger>
+                    <TabsTrigger value="streetview" className="rounded-lg font-bold flex items-center justify-center gap-2 transition-all">
+                      <span className="material-symbols-outlined text-sm">streetview</span> Street View
+                    </TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="map" className="mt-0">
+                    <div className="bg-gray-100 dark:bg-slate-900 rounded-[2.5rem] h-[450px] w-full overflow-hidden border border-slate-100 dark:border-slate-800 shadow-sm">
+                      {mapSrc ? (
+                        <iframe
+                          src={mapSrc}
+                          width="100%"
+                          height="100%"
+                          style={{ border: 0 }}
+                          allowFullScreen={false}
+                          loading="lazy"
+                          title="Mapa Google"
+                        />
+                      ) : (
+                        <div className="flex items-center justify-center h-full text-slate-400 font-medium">
+                          Mapa não disponível para este endereço.
+                        </div>
+                      )}
                     </div>
-                )}
+                  </TabsContent>
+
+                  <TabsContent value="streetview" className="mt-0">
+                    <div className="bg-gray-100 dark:bg-slate-900 rounded-[2.5rem] h-[450px] w-full overflow-hidden border border-slate-100 dark:border-slate-800 shadow-sm relative flex items-center justify-center">
+                      <StreetViewPanoramaView
+                        fullAddress={fullAddress}
+                        lat={localizacao?.latitude}
+                        lng={localizacao?.longitude}
+                        streetViewLink={localizacao?.googleStreetViewLink}
+                      />
+                    </div>
+                  </TabsContent>
+                </Tabs>
               </div>
-            </div>
+            )}
           </div>
 
           <div className="lg:col-span-4">
@@ -468,7 +533,7 @@ export default function DomusPropertyDetailsPage({ broker, property, similarProp
                         <Link key={sim.id} href={isPortalAccess ? `/sites/${broker.slug}/imovel/${sim.informacoesbasicas.slug || sim.id}` : `/imovel/${sim.informacoesbasicas.slug || sim.id}`} className="flex flex-col bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-100 dark:border-slate-800 overflow-hidden shadow-soft hover:shadow-2xl transition-all group">
                             <div className="relative aspect-square overflow-hidden">
                                 <Badge className="absolute top-5 left-5 z-10 bg-white/90 text-black border-none font-black uppercase py-1 px-3 text-[8px] tracking-widest">{renderBadge(sim)}</Badge>
-                                <Image alt="Sim" src={sim.midia?.[0] || 'https://picsum.photos/seed/sim/400/400'} fill className="object-cover group-hover:scale-110 transition-transform duration-1000" />
+                                <Image alt="Sim" src={sim.midia?.[0] || sim.media?.[0] || 'https://picsum.photos/seed/sim/400/400'} fill className="object-cover group-hover:scale-110 transition-transform duration-1000" />
                             </div>
                             <div className="p-8">
                                 <h3 className="font-black text-lg text-slate-900 dark:text-white uppercase truncate mb-2 tracking-tight">{sim.informacoesbasicas.nome}</h3>
@@ -493,20 +558,20 @@ export default function DomusPropertyDetailsPage({ broker, property, similarProp
         origin="whatsapp"
       />
       
-      {isGalleryOpen && property.midia && (
+      {isGalleryOpen && displayMidia.length > 0 && (
         <div className="fixed inset-0 z-[100] flex flex-col bg-black/95 backdrop-blur-md animate-in fade-in duration-300">
           <header className="p-6 flex items-center justify-between text-white border-b border-white/10">
-            <span className="text-xs font-bold uppercase tracking-widest">{selectedImageIndex + 1} / {property.midia.length}</span>
+            <span className="text-xs font-bold uppercase tracking-widest">{selectedImageIndex + 1} / {displayMidia.length}</span>
             <button onClick={closeGallery} className="size-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors">
               <span className="material-symbols-outlined">close</span>
             </button>
           </header>
           <div className="flex-1 relative flex items-center justify-center p-4">
-            <button onClick={() => setSelectedImageIndex(prev => (prev - 1 + property.midia.length) % property.midia.length)} className="absolute left-6 p-4 rounded-full bg-white/5 text-white hover:bg-primary hover:text-black transition-all"><span className="material-symbols-outlined text-4xl">chevron_left</span></button>
+            <button onClick={() => setSelectedImageIndex(prev => (prev - 1 + displayMidia.length) % displayMidia.length)} className="absolute left-6 p-4 rounded-full bg-white/5 text-white hover:bg-primary hover:text-black transition-all"><span className="material-symbols-outlined text-4xl">chevron_left</span></button>
             <div className="relative h-full w-full flex items-center justify-center">
-               <Image alt="Full" src={property.midia[selectedImageIndex]} fill className="object-contain" />
+               <Image alt="Full" src={displayMidia[selectedImageIndex]} fill className="object-contain" />
             </div>
-            <button onClick={() => setSelectedImageIndex(prev => (prev + 1) % property.midia.length)} className="absolute right-6 p-4 rounded-full bg-white/5 text-white hover:bg-primary hover:text-black transition-all"><span className="material-symbols-outlined text-4xl">chevron_right</span></button>
+            <button onClick={() => setSelectedImageIndex(prev => (prev + 1) % displayMidia.length)} className="absolute right-6 p-4 rounded-full bg-white/5 text-white hover:bg-primary hover:text-black transition-all"><span className="material-symbols-outlined text-4xl">chevron_right</span></button>
           </div>
         </div>
       )}

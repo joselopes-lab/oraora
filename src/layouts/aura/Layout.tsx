@@ -47,17 +47,24 @@ export default function AuraLayout({
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 text-left">
-            {properties.slice(0, 3).map(prop => (
-                <Link key={prop.id} href={nav.property(prop.informacoesbasicas.slug || prop.id)} className="bg-card p-4 rounded-3xl border border-border shadow-sm hover:shadow-md transition-all">
-                    <div className="aspect-video relative rounded-2xl overflow-hidden mb-4 bg-muted">
-                        <img src={prop.midia[0]} alt={prop.informacoesbasicas.nome} className="object-cover w-full h-full" />
-                    </div>
-                    <h3 className="font-bold">{prop.informacoesbasicas.nome}</h3>
-                    <p className="text-primary font-black mt-2">
-                        {prop.informacoesbasicas.valor?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                    </p>
-                </Link>
-            ))}
+            {properties.slice(0, 3).map((prop: any) => {
+                const displayImage = prop.midia?.[0] || prop.media?.[0] || "/images/property-placeholder.jpg";
+                return (
+                    <Link 
+                      key={prop.id} 
+                      href={nav.property(prop.informacoesbasicas.slug || prop.id)} 
+                      className="bg-card p-4 rounded-3xl border border-border shadow-sm hover:shadow-md transition-all"
+                    >
+                        <div className="aspect-video relative rounded-2xl overflow-hidden mb-4 bg-muted">
+                            <img src={displayImage} alt={prop.informacoesbasicas.nome} className="object-cover w-full h-full" />
+                        </div>
+                        <h3 className="font-bold">{prop.informacoesbasicas.nome}</h3>
+                        <p className="text-primary font-black mt-2">
+                            {prop.informacoesbasicas.valor?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                        </p>
+                    </Link>
+                );
+            })}
         </div>
 
         <div className="mt-20 p-10 bg-secondary rounded-[3rem] text-secondary-foreground">

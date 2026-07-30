@@ -8,6 +8,7 @@ import { collection, getDocs, query, doc, arrayRemove, arrayUnion, where } from 
 import { useFirestore, useUser, useDoc, useMemoFirebase, setDocumentNonBlocking, useAuthContext, useAuth } from '@/firebase';
 import { useEffect, useState, useMemo, Suspense } from 'react';
 import { cn } from '@/lib/utils';
+import { fetchPublishedProperties } from '@/app/sites/utils';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { signOut } from 'firebase/auth';
@@ -140,11 +141,8 @@ export default function BrokerHomePage() {
     async function fetchProperties() {
       if (!firestore) return;
       try {
-        const propertiesRef = collection(firestore, 'properties');
-        const q = query(propertiesRef, where('isVisibleOnSite', '==', true));
-        const propertiesSnap = await getDocs(q);
-        const props = propertiesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Property));
-        setAllProperties(props);
+        const props = await fetchPublishedProperties(firestore);
+        setAllProperties(props as Property[]);
       } catch (error) {
         console.error("Failed to fetch properties:", error);
       } finally {
@@ -372,7 +370,7 @@ export default function BrokerHomePage() {
                       <button onClick={(e) => handleRadarClick(e, property.id)} className={cn("absolute top-4 right-4 z-10 flex size-9 items-center justify-center rounded-full bg-white/20 backdrop-blur-md text-white hover:bg-white transition-colors group/radar shadow-sm", isSaved && "text-primary bg-white")}>
                           <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: isSaved ? "'FILL' 1" : "" }}>radar</span>
                       </button>
-                      <Image alt={property.informacoesbasicas.nome} className="h-full w-full object-cover transition duration-700 group-hover:scale-110" src={property.midia[0] || "https://picsum.photos/seed/prop/400/300"} width={400} height={300} />
+                      <Image alt={property.informacoesbasicas.nome} className="h-full w-full object-cover transition duration-700 group-hover:scale-110" src={property.midia?.[0] || property.media?.[0] || "https://picsum.photos/seed/prop/400/300"} width={400} height={300} />
                     </div>
                     <div className="p-6 flex flex-col flex-1 text-left">
                       <h3 className="font-bold text-lg text-slate-900 group-hover:text-primary transition-colors truncate mb-1 uppercase tracking-tight">{property.informacoesbasicas.nome}</h3>

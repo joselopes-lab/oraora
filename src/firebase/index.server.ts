@@ -1,43 +1,41 @@
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
 import { firebaseConfig } from '@/firebase/config';
 import { initializeApp, getApps, getApp, App, cert, applicationDefault } from 'firebase-admin/app';
 import { getFirestore, Firestore } from 'firebase-admin/firestore';
 import { getAuth, Auth } from 'firebase-admin/auth';
 import { GoogleAuth } from 'google-auth-library';
+import fs from 'fs';
+import path from 'path';
 
 /**
- * Initializes the Firebase Admin SDK on the server using ADC (Application Default Credentials).
- * Bypasses client-side security rules for sensitive backend operations.
+ * Initializes the Firebase Admin SDK on the server using service-account.json or ADC.
  */
 function initializeAdmin(): App {
   if (!getApps().length) {
-    // Se estivermos em produção (App Hosting), usa as credenciais padrão do servidor
-    if (process.env.NODE_ENV === 'production') {
+    try {
+      const saPath = path.join(process.cwd(), 'service-account.json');
+      if (fs.existsSync(saPath)) {
+        const serviceAccount = JSON.parse(fs.readFileSync(saPath, 'utf8'));
+        return initializeApp({
+          credential: cert(serviceAccount),
+          projectId: firebaseConfig.projectId || serviceAccount.project_id,
+        });
+      }
+    } catch (e) {
+      console.warn("Failed to initialize Firebase Admin with service-account.json:", e);
+    }
+
+    try {
       return initializeApp({
         credential: applicationDefault(),
         projectId: firebaseConfig.projectId,
       });
-    }
-
-    // Se estivermos rodando LOCALMENTE, usamos o arquivo JSON
-    const credentialPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
-    if (credentialPath) {
-      const resolvedCredentialPath = resolve(process.cwd(), credentialPath);
-      const serviceAccount = JSON.parse(readFileSync(resolvedCredentialPath, 'utf8'));
-
+    } catch (e) {
+      console.warn("Failed to initialize Firebase Admin with applicationDefault():", e);
       return initializeApp({
-        credential: cert(serviceAccount),
-        projectId: firebaseConfig.projectId,
-      });
+        projectId: firebaseConfig.projectId || 'studio-5937631195-8ebfd',
+      }, 'fallback-app');
     }
-
-    // Fallback de segurança
-    return initializeApp({
-      credential: applicationDefault(),
-      projectId: firebaseConfig.projectId,
-    });
   } else {
     return getApp();
   }

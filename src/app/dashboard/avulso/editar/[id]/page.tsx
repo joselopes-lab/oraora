@@ -49,6 +49,7 @@ export default function EditAvulsoPropertyPage() {
                 title: 'Imóvel Avulso Atualizado!',
                 description: `Os dados de "${data.informacoesbasicas.nome}" foram salvos com sucesso.`,
             });
+            router.push('/dashboard/avulso');
         } catch (error: any) {
             console.error("Erro ao atualizar imóvel avulso:", error);
             toast({

@@ -65,6 +65,7 @@ type Property = {
     vagas?: string;
   };
   areascomuns?: string[];
+  caracteristicas?: string[];
 };
 
 type RadarList = {
@@ -87,26 +88,6 @@ const leadSchema = z.object({
 type LeadFormData = z.infer<typeof leadSchema>;
 
 const googleMapsLibraries: Libraries = ['places'];
-
-function getWhatsAppNumber(broker: any): string | null {
-  if (!broker) return null;
-  const fields = ['whatsapp', 'phone', 'contactPhone', 'mobilePhone', 'footerContactPhone'];
-  let rawPhone = '';
-  
-  for (const field of fields) {
-    if (broker[field] && typeof broker[field] === 'string' && broker[field].trim() !== '') {
-      rawPhone = broker[field];
-      break;
-    }
-  }
-  
-  if (!rawPhone) return null;
-  
-  const cleaned = rawPhone.replace(/\D/g, '');
-  if (cleaned.length < 10) return null;
-  
-  return cleaned.startsWith('55') ? cleaned : `55${cleaned}`;
-}
 
 export default function PropertyDetailsComponent() {
   const params = useParams();
@@ -420,8 +401,6 @@ export default function PropertyDetailsComponent() {
   }
 
   const isSavedProp = property && savedPropertyIds.includes(property.id);
-  const whatsappNumber = getWhatsAppNumber(brokerInfo);
-  const whatsappLink = whatsappNumber ? `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(`Olá! Vi o imóvel ${property.informacoesbasicas.nome} no portal Oraora e gostaria de mais informações.`)}` : '#';
 
   return (
     <div className="bg-background-light overflow-x-hidden w-full flex flex-col min-h-screen">
@@ -636,9 +615,23 @@ export default function PropertyDetailsComponent() {
 
               {property.areascomuns && property.areascomuns.length > 0 && (
                 <div className="text-left">
-                  <h2 className="text-2xl font-bold mb-6 text-slate-900 uppercase tracking-tight">Diferenciais</h2>
+                  <h2 className="text-2xl font-bold mb-6 text-slate-900 uppercase tracking-tight">Diferenciais e Lazer</h2>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-y-4 gap-x-8">
                     {property.areascomuns.map((item, idx) => (
+                      <div key={`${item}-${idx}`} className="flex items-center gap-3 text-gray-600">
+                        <span className="material-symbols-outlined text-primary font-bold">check_circle</span>
+                        <span className="font-bold text-slate-900 text-sm">{item}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {property.caracteristicas && property.caracteristicas.length > 0 && (
+                <div className="text-left">
+                  <h2 className="text-2xl font-bold mb-6 text-slate-900 uppercase tracking-tight">Características do Imóvel</h2>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-y-4 gap-x-8">
+                    {property.caracteristicas.map((item, idx) => (
                       <div key={`${item}-${idx}`} className="flex items-center gap-3 text-gray-600">
                         <span className="material-symbols-outlined text-primary font-bold">check_circle</span>
                         <span className="font-bold text-slate-900 text-sm">{item}</span>
@@ -685,14 +678,6 @@ export default function PropertyDetailsComponent() {
                       Conversar pelo WhatsApp
                     </Button>
                   </form>
-                  {whatsappNumber && (
-                    <div className="mt-6 space-y-4">
-                        <div className="relative flex py-2 items-center"><div className="flex-grow border-t border-slate-100"></div><span className="flex-shrink mx-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">ou</span><div className="flex-grow border-t border-slate-100"></div></div>
-                        <div className="text-center text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                          Preencha o formulário acima para iniciar pelo WhatsApp
-                        </div>
-                    </div>
-                  )}
                 </div>
               </aside>
             </div>

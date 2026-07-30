@@ -398,7 +398,8 @@ export default function UrbanPadraoLayout({ broker, properties }: UrbanPadraoPag
                 const propertyUrl = isPortalAccess 
                     ? `/sites/${broker.slug}/imovel/${property.id}`
                     : `/imovel/${property.id}`;
-                return (
+                const displayImage = property.midia?.[0] || property.media?.[0] || "/images/property-placeholder.jpg";
+                 return (
                 <Link href={propertyUrl} key={property.id} className="flex flex-col bg-white rounded-2xl overflow-hidden shadow-soft hover:shadow-card transition-all duration-300 group">
                   <div className="relative h-60 w-full overflow-hidden">
                     <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
@@ -421,12 +422,13 @@ export default function UrbanPadraoLayout({ broker, properties }: UrbanPadraoPag
                     <button onClick={(e) => handleRadarClick(e, property.id)} className={cn("absolute top-4 right-4 z-10 flex size-9 items-center justify-center rounded-full bg-white/30 backdrop-blur-md text-white hover:bg-white hover:text-primary transition-all", isSaved && "text-primary bg-white")}>
                       <span className="material-symbols-outlined" style={{ fontVariationSettings: isSaved ? "'FILL' 1" : "" }}>radar</span>
                     </button>
-                    <div
-                      className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"
-                      style={{
-                        backgroundImage: `url(${property.midia?.[0] || 'https://picsum.photos/seed/placeholder/400/300'})`,
-                      }}
-                    ></div>
+                    <Image
+                      src={displayImage}
+                      alt={property.informacoesbasicas.nome}
+                      fill
+                      className="object-cover transition-transform duration-500 group-hover:scale-110"
+                      unoptimized
+                    />
                   </div>
                   <div className="flex flex-col p-5 gap-3">
                     <div className="flex flex-col gap-1">

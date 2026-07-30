@@ -203,10 +203,18 @@ export default function LivingLayout({ broker, properties }: LivingLayoutProps) 
                 <p className="text-slate-500 dark:text-slate-400 max-w-2xl mx-auto">{content.featuredSubtitle || defaultContent.featuredSubtitle}</p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {featuredProperties.map(property => (
-                <div className="group" key={property.id}>
-                    <div className="relative overflow-hidden rounded-[2rem] mb-8 aspect-[10/11] property-card">
-                        <Image alt={property.informacoesbasicas.nome} className="w-full h-full object-cover property-image transition-transform duration-700" width={400} height={440} src={property.midia?.[0] || 'https://picsum.photos/400/440'} />
+                {featuredProperties.map((property: any) => {
+                  const displayImage = property.midia?.[0] || property.media?.[0] || "/images/property-placeholder.jpg";
+                  return (
+                    <div className="group" key={property.id}>
+                      <div className="relative overflow-hidden rounded-[2rem] mb-8 aspect-[10/11] property-card">
+                        <Image 
+                          alt={property.informacoesbasicas.nome} 
+                          className="w-full h-full object-cover property-image transition-transform duration-700" 
+                          width={400} 
+                          height={440} 
+                          src={displayImage} 
+                        />
                         <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-transparent to-transparent opacity-60"></div>
                         <div className="absolute top-6 left-6 flex flex-col gap-2">
                           {renderBadges(property).map((badge, idx) => (
@@ -227,9 +235,10 @@ export default function LivingLayout({ broker, properties }: LivingLayoutProps) 
                         <div className="absolute bottom-6 right-6">
                             {renderPrice(property)}
                         </div>
+                      </div>
                     </div>
-                </div>
-                ))}
+                  );
+                })}
             </div>
             </div>
         </section>

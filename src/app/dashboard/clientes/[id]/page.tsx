@@ -227,6 +227,8 @@ export default function ClientDetailPage() {
                         <div className="flex flex-wrap justify-center md:justify-start gap-3">
                             <Badge variant="outline" className="px-4 py-1.5 rounded-lg bg-primary/5 text-green-700 font-bold uppercase text-[10px]">{client.clientType || 'Comprador'}</Badge>
                             <Badge variant="outline" className="px-4 py-1.5 rounded-lg font-bold uppercase text-[10px] bg-slate-50 text-slate-600 border-slate-200">Status: {statusTranslations[client.status] || client.status}</Badge>
+                            {client.source && <Badge variant="outline" className="px-4 py-1.5 rounded-lg font-bold uppercase text-[10px] bg-emerald-50 text-emerald-800 border-emerald-200">Origem: {client.source}</Badge>}
+                            {client.address?.city && <Badge variant="outline" className="px-4 py-1.5 rounded-lg font-bold uppercase text-[10px] bg-slate-50 text-slate-600 border-slate-200">📍 {client.address.city}{client.address.state ? `, ${client.address.state}` : ''}</Badge>}
                             {client.network?.published && <Badge className="px-4 py-1.5 rounded-lg bg-slate-900 text-white font-black uppercase text-[10px] tracking-widest"><Zap className="size-3 mr-1 text-primary fill-current" /> ATIVO NA REDE</Badge>}
                         </div>
                     </div>

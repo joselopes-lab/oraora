@@ -19,6 +19,7 @@ import { arrayRemove, arrayUnion, doc } from 'firebase/firestore';
 import { useRouter, usePathname, notFound } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { StreetViewPanoramaView } from '@/components/StreetViewPanorama';
 import { WhatsAppWidget } from '../../components/WhatsAppWidget';
 import { WhatsAppLeadModal } from '@/components/WhatsAppLeadModal';
 import { Badge } from '@/components/ui/badge';
@@ -154,8 +155,10 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
+  const [streetViewAvailable, setStreetViewAvailable] = useState<boolean>(true);
   
   const { informacoesbasicas, midia, caracteristicasimovel, localizacao, areascomuns, youtubeVideoUrl } = property;
+  const displayMidia = midia && midia.length > 0 ? midia : ((property as any).media || []);
   const [isGalleryOpen, setIsGalleryOpen] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   
@@ -262,8 +265,24 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
   };
 
   const videoEmbedUrl = getYoutubeEmbedUrl(youtubeVideoUrl);
-  const mapSrc = extractMapSrc(localizacao?.googleMapsLink);
-  const streetViewSrc = extractMapSrc(localizacao?.googleStreetViewLink);
+
+  const addressRaw = (localizacao?.address || (localizacao as any)?.endereco || '').trim();
+  const bairro = localizacao?.bairro || '';
+  const cidade = localizacao?.cidade || '';
+  const estado = localizacao?.estado || (localizacao as any)?.state || '';
+
+  let fullAddress = addressRaw;
+  if (!fullAddress) {
+    fullAddress = [bairro, cidade, estado].filter(Boolean).join(', ');
+  } else if (cidade && !addressRaw.toLowerCase().includes(cidade.toLowerCase())) {
+    const extra = [bairro, `${cidade}${estado ? ` - ${estado}` : ''}`].filter(Boolean).join(', ');
+    fullAddress = `${addressRaw}, ${extra}`;
+  }
+
+  const mapSrc = extractMapSrc(localizacao?.googleMapsLink) || (fullAddress ? `https://maps.google.com/maps?q=${encodeURIComponent(fullAddress)}&t=&z=15&ie=UTF8&iwloc=&output=embed` : null);
+  const streetViewSrc = extractMapSrc(localizacao?.googleStreetViewLink) || (fullAddress ? `https://maps.google.com/maps?q=${encodeURIComponent(fullAddress)}&layer=c&cbll=&cbp=12,0,0,0,0&output=embed` : null);
+
+  const showLocationSection = localizacao?.exibirLocalizacao !== false && (property as any)?.exibirLocalizacao !== false && Boolean(fullAddress);
   const content = broker.homepage || {};
   const statusTagBgColor = content.statusTagBgColor ? hslToHex(content.statusTagBgColor) : undefined;
   const statusTagTextColor = content.statusTagTextColor ? hslToHex(content.statusTagTextColor) : undefined;
@@ -314,7 +333,7 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
         <section className="w-full max-w-[1280px] px-6 mt-6">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 h-[300px] md:h-[500px]">
             <div onClick={() => openGallery(0)} className="md:col-span-2 md:row-span-2 relative rounded-2xl overflow-hidden group cursor-pointer shadow-soft h-full">
-              <div className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105" style={{ backgroundImage: `url("${midia?.[0] || ''}")` }}></div>
+              <div className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105" style={{ backgroundImage: `url("${displayMidia[0] || ''}")` }}></div>
               <div className="absolute bottom-4 left-4 bg-black/60 text-white px-3 py-1.5 rounded-lg backdrop-blur-md text-sm font-bold flex items-center gap-2 hover:bg-black/80 transition-colors">
                 <span className="material-symbols-outlined text-base">photo_camera</span> Ver fotos
               </div>
@@ -325,7 +344,7 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
                 {informacoesbasicas.status}
               </div>
             </div>
-            {midia.slice(1, 5).map((img, idx) => (
+            {displayMidia.slice(1, 5).map((img, idx) => (
               <div key={idx} onClick={() => openGallery(idx + 1)} className="hidden md:block relative rounded-2xl overflow-hidden group cursor-pointer shadow-soft">
                 <Image alt="img" src={img} fill className="object-cover transition-transform duration-700 group-hover:scale-105" />
               </div>
@@ -380,27 +399,58 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
                 ))}
               </div>
             </div>
-            {/* Mapa e Street View */}
-            {(mapSrc || streetViewSrc) && (
-              <div className="mt-12">
+            {/* Seção LOCALIZAÇÃO */}
+            {showLocationSection && (
+              <div className="text-left space-y-6 mt-12">
+                <div className="border-b border-gray-100 dark:border-slate-800 pb-4">
+                  <h2 className="text-2xl font-bold uppercase tracking-tight text-text-main dark:text-white">
+                    LOCALIZAÇÃO
+                  </h2>
+                  <p className="text-sm text-text-muted font-medium mt-1 flex items-center gap-1.5">
+                    <span className="material-symbols-outlined text-primary text-base">location_on</span>
+                    {fullAddress}
+                  </p>
+                </div>
+
                 <Tabs defaultValue="map" className="w-full">
-                  <TabsList className="grid w-full grid-cols-2 h-14 p-1.5 bg-gray-100 dark:bg-slate-800 rounded-xl">
-                      <TabsTrigger value="map" className="rounded-lg font-bold flex items-center gap-2 transition-all">
-                        <span className="material-symbols-outlined text-lg">map</span> Mapa
-                      </TabsTrigger>
-                      <TabsTrigger value="streetview" className="rounded-lg font-bold flex items-center gap-2 transition-all">
-                        <span className="material-symbols-outlined text-lg">streetview</span> Street View
-                      </TabsTrigger>
+                  <TabsList className="grid w-full grid-cols-2 max-w-xs h-12 p-1 bg-gray-100 dark:bg-slate-800 rounded-xl mb-4">
+                    <TabsTrigger value="map" className="rounded-lg font-bold flex items-center justify-center gap-2 transition-all">
+                      <span className="material-symbols-outlined text-sm">map</span> Mapa
+                    </TabsTrigger>
+                    <TabsTrigger value="streetview" className="rounded-lg font-bold flex items-center justify-center gap-2 transition-all">
+                      <span className="material-symbols-outlined text-sm">streetview</span> Street View
+                    </TabsTrigger>
                   </TabsList>
-                  <TabsContent value="map">
-                    {mapSrc && (
-                      <iframe src={mapSrc} className="w-full h-[450px] border-0 rounded-2xl shadow-inner mt-4" allowFullScreen loading="lazy" referrerPolicy="no-referrer-when-downgrade" />
-                    )}
+
+                  <TabsContent value="map" className="mt-0">
+                    <div className="bg-gray-100 dark:bg-slate-900 rounded-2xl h-[450px] w-full overflow-hidden border border-gray-100 dark:border-slate-800 shadow-sm">
+                      {mapSrc ? (
+                        <iframe
+                          src={mapSrc}
+                          width="100%"
+                          height="100%"
+                          style={{ border: 0 }}
+                          allowFullScreen={false}
+                          loading="lazy"
+                          title="Mapa Google"
+                        />
+                      ) : (
+                        <div className="flex items-center justify-center h-full text-slate-400 font-medium">
+                          Mapa não disponível para este endereço.
+                        </div>
+                      )}
+                    </div>
                   </TabsContent>
-                  <TabsContent value="streetview">
-                    {streetViewSrc && (
-                      <iframe src={streetViewSrc} className="w-full h-[450px] border-0 rounded-2xl shadow-inner mt-4" allowFullScreen loading="lazy" referrerPolicy="no-referrer-when-downgrade" />
-                    )}
+
+                  <TabsContent value="streetview" className="mt-0">
+                    <div className="bg-gray-100 dark:bg-slate-900 rounded-2xl h-[450px] w-full overflow-hidden border border-gray-100 dark:border-slate-800 shadow-sm relative flex items-center justify-center">
+                      <StreetViewPanoramaView
+                        fullAddress={fullAddress}
+                        lat={localizacao?.latitude}
+                        lng={localizacao?.longitude}
+                        streetViewLink={localizacao?.googleStreetViewLink}
+                      />
+                    </div>
                   </TabsContent>
                 </Tabs>
               </div>
@@ -461,7 +511,7 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
                         <button onClick={(e) => handleRadarClick(e, similarProperty.id)} className={cn("absolute top-3 right-3 z-10 flex size-8 items-center justify-center rounded-full bg-white/80 backdrop-blur-sm text-black hover:text-red-500 hover:bg-white transition-colors", isSaved && "text-primary bg-white")}>
                             <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: isSaved ? "'FILL' 1" : "" }}>radar</span>
                         </button>
-                        <Image alt={similarProperty.informacoesbasicas.nome} width={400} height={300} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" src={similarProperty.midia?.[0] || 'https://picsum.photos/seed/prop/400/300'}/>
+                        <Image alt={similarProperty.informacoesbasicas.nome} width={400} height={300} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" src={similarProperty.midia?.[0] || (similarProperty as any).media?.[0] || 'https://picsum.photos/seed/prop/400/300'}/>
                         <div className="absolute bottom-0 left-0 w-full bg-gradient-to-t from-black/60 to-transparent p-4 pt-12">
                             {similarProperty.informacoesbasicas.valor && (
                             <p className="text-white font-bold text-2xl tracking-tight">
@@ -519,18 +569,18 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
         origin="whatsapp"
       />
 
-      {isGalleryOpen && midia && (
+      {isGalleryOpen && displayMidia.length > 0 && (
         <div className="fixed inset-0 z-[100] flex flex-col bg-black/95 backdrop-blur-md animate-in fade-in duration-300">
           <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
-            <span className="text-white text-sm font-bold">{selectedImageIndex + 1} / {midia.length}</span>
+            <span className="text-white text-sm font-bold">{selectedImageIndex + 1} / {displayMidia.length}</span>
             <button onClick={closeGallery} className="size-10 rounded-full bg-white/10 text-white hover:bg-white/20 transition-all flex items-center justify-center">
               <span className="material-symbols-outlined text-xl">close</span>
             </button>
           </div>
           <div className="flex-1 relative flex items-center justify-center p-4">
-            <button onClick={() => setSelectedImageIndex(prev => (prev - 1 + midia.length) % midia.length)} className="absolute left-4 p-2 text-white hover:text-primary transition-colors"><span className="material-symbols-outlined text-4xl">chevron_left</span></button>
-            <div className="relative max-h-full max-w-full"><img alt="Gallery" className="max-h-[80vh] w-auto object-contain" src={midia[selectedImageIndex]} /></div>
-            <button onClick={() => setSelectedImageIndex(prev => (prev + 1) % midia.length)} className="absolute right-4 p-2 text-white hover:text-primary transition-colors"><span className="material-symbols-outlined text-4xl">chevron_right</span></button>
+            <button onClick={() => setSelectedImageIndex(prev => (prev - 1 + displayMidia.length) % displayMidia.length)} className="absolute left-4 p-2 text-white hover:text-primary transition-colors"><span className="material-symbols-outlined text-4xl">chevron_left</span></button>
+            <div className="relative max-h-full max-w-full"><img alt="Gallery" className="max-h-[80vh] w-auto object-contain" src={displayMidia[selectedImageIndex]} /></div>
+            <button onClick={() => setSelectedImageIndex(prev => (prev + 1) % displayMidia.length)} className="absolute right-4 p-2 text-white hover:text-primary transition-colors"><span className="material-symbols-outlined text-4xl">chevron_right</span></button>
           </div>
         </div>
       )}

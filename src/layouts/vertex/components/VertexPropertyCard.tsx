@@ -17,6 +17,7 @@ interface VertexPropertyCardProps {
 
 export function VertexPropertyCard({ property, href = "#" }: VertexPropertyCardProps) {
   const price = property.informacoesbasicas.valor || property.informacoesbasicas.salePrice || 0;
+  const displayImage = property.midia?.[0] || property.media?.[0] || "/images/property-placeholder.jpg";
 
   return (
     <motion.div 
@@ -26,7 +27,7 @@ export function VertexPropertyCard({ property, href = "#" }: VertexPropertyCardP
       {/* Media Area */}
       <div className="relative aspect-[4/3] w-full overflow-hidden">
         <Image 
-          src={property.midia?.[0] || 'https://picsum.photos/seed/prop/600/450'} 
+          src={displayImage} 
           alt={property.informacoesbasicas.nome} 
           fill 
           className="object-cover transition-transform duration-1000 group-hover:scale-110" 

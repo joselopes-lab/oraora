@@ -1,60 +1,35 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { useAuthContext, useFirestore, useMemoFirebase, useCollection } from '@/firebase';
+import { useAuthContext, useFirestore, useMemoFirebase, useCollection, useFirebase } from '@/firebase';
+import { uploadFile } from '@/lib/storage';
 import { collection, query, where } from 'firebase/firestore';
 import { 
   CartorioService, 
   CartorioServiceItem, 
   CartorioProcess, 
-  ProcessDocument, 
-  ProcessMessage 
+  ProcessDocument,
+  normalizeProcess
 } from '@/services/cartorioService';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { cn } from '@/lib/utils';
-import { 
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from '@/components/ui/dialog';
-import { 
-  FileText, 
-  CheckCircle2, 
-  XCircle, 
-  AlertCircle, 
-  Send, 
-  RefreshCw, 
-  Sparkles, 
-  ArrowLeft, 
-  Clock, 
-  Coins, 
-  UploadCloud, 
-  User, 
-  Bot, 
-  Activity,
-  FileCheck,
-  ChevronRight,
-  MessageSquare,
-  Search,
-  ArrowUpDown,
-  Filter,
-  UserCheck,
-  Sparkle
-} from 'lucide-react';
-import PublicRequest from './components/PublicRequest';
+
+import CartorioTabs from './components/CartorioTabs';
+import ServicesTab from './components/ServicesTab';
+import ProcessesTab from './components/ProcessesTab';
+import AboutTab from './components/AboutTab';
+import ProcessDetailView from './components/ProcessDetailView';
+import RequestDialog from './components/RequestDialog';
 
 const cartorioService = CartorioService.getInstance();
 
 export default function CartorioIntegrationPage() {
   const { user } = useAuthContext();
   const firestore = useFirestore();
+  const { storage } = useFirebase();
   const { toast } = useToast();
 
-  const [activeTab, setActiveTab] = useState<'servicos' | 'processos'>('servicos');
+  const [activeTab, setActiveTab] = useState<'servicos' | 'processos' | 'como-funciona'>('como-funciona');
   const [services, setServices] = useState<CartorioServiceItem[]>([]);
   const [processes, setProcesses] = useState<CartorioProcess[]>([]);
   const [selectedProcessId, setSelectedProcessId] = useState<string | null>(null);
@@ -86,18 +61,18 @@ export default function CartorioIntegrationPage() {
   const [chatInput, setChatInput] = useState('');
   const chatBottomRef = useRef<HTMLDivElement>(null);
 
-  const brokerId = user?.uid || 'broker-demo-id';
+  const brokerId = user?.uid || '';
 
   // Load CRM Clients dynamically from Firestore
   const leadsQuery = useMemoFirebase(
     () => {
-      if (!firestore || !user?.uid) return null;
+      if (!firestore || !brokerId) return null;
       return query(
         collection(firestore, 'leads'),
-        where('brokerId', '==', user.uid)
+        where('brokerId', '==', brokerId)
       );
     },
-    [firestore, user?.uid]
+    [firestore, brokerId]
   );
 
   const { data: crmClients, isLoading: loadingClients } = useCollection<{
@@ -112,8 +87,8 @@ export default function CartorioIntegrationPage() {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const tabParam = params.get('tab');
-      if (tabParam === 'servicos' || tabParam === 'processos') {
-        setActiveTab(tabParam);
+      if (tabParam === 'servicos' || tabParam === 'processos' || tabParam === 'como-funciona' || tabParam === 'sobre') {
+        setActiveTab(tabParam === 'sobre' ? 'como-funciona' : tabParam);
       }
     }
   }, []);
@@ -136,6 +111,7 @@ export default function CartorioIntegrationPage() {
   }, [toast]);
 
   const loadProcesses = useCallback(async () => {
+    if (!brokerId) return;
     setLoadingProcesses(true);
     try {
       const list = await cartorioService.listBrokerProcesses(brokerId);
@@ -154,10 +130,16 @@ export default function CartorioIntegrationPage() {
 
   // Carregar detalhes do processo selecionado
   const loadProcessDetails = useCallback(async (id: string) => {
+    const localProcess = processes.find((p) => p.id === id);
+    if (localProcess && (localProcess.status?.toLowerCase() === 'rascunho' || id.startsWith('RASCUNHO-'))) {
+      setSelectedProcess(normalizeProcess(localProcess));
+      return;
+    }
+
     try {
       const p = await cartorioService.getProcessDetails(id);
       if (p) {
-        setSelectedProcess(p);
+        setSelectedProcess(normalizeProcess(p));
       }
     } catch (error) {
       toast({
@@ -166,7 +148,7 @@ export default function CartorioIntegrationPage() {
         description: 'Não foi possível carregar os detalhes do processo.',
       });
     }
-  }, [toast]);
+  }, [processes, toast]);
 
   // Configurar Pooling (Tempo real) do Processo selecionado
   useEffect(() => {
@@ -176,16 +158,22 @@ export default function CartorioIntegrationPage() {
       return;
     }
 
+    const localProcess = processes.find((p) => p.id === selectedProcessId);
+    if (localProcess && (localProcess.status?.toLowerCase() === 'rascunho' || selectedProcessId.startsWith('RASCUNHO-'))) {
+      setSelectedProcess(normalizeProcess(localProcess));
+      return;
+    }
+
     loadProcessDetails(selectedProcessId);
 
     const unsubscribe = cartorioService.onProcessUpdate(selectedProcessId, (updatedProcess) => {
-      setSelectedProcess(updatedProcess);
+      setSelectedProcess(normalizeProcess(updatedProcess));
     });
 
     return () => {
       unsubscribe();
     };
-  }, [selectedProcessId, loadProcessDetails]);
+  }, [selectedProcessId, loadProcessDetails, processes]);
 
   // Autoscroll do chat quando chegam novas mensagens
   useEffect(() => {
@@ -200,24 +188,33 @@ export default function CartorioIntegrationPage() {
 
     if (searchTerm.trim() !== '') {
       const lower = searchTerm.toLowerCase();
-      result = result.filter(s => 
-        s.name.toLowerCase().includes(lower) ||
-        s.description.toLowerCase().includes(lower) ||
-        s.category.toLowerCase().includes(lower)
-      );
+      result = result.filter(s => {
+        const name = s.name || s.title || "";
+        const desc = s.description || s.summary || "";
+        const cat = s.category || "";
+        return name.toLowerCase().includes(lower) ||
+               desc.toLowerCase().includes(lower) ||
+               cat.toLowerCase().includes(lower);
+      });
     }
 
     if (selectedCategory !== 'todos') {
-      result = result.filter(s => s.category === selectedCategory);
+      result = result.filter(s => (s.category || "") === selectedCategory);
     }
 
     result.sort((a, b) => {
       if (sortBy === 'nome') {
-        return a.name.localeCompare(b.name);
+        const nameA = a.name ?? a.title ?? '';
+        const nameB = b.name ?? b.title ?? '';
+        return nameA.localeCompare(nameB, 'pt-BR');
       } else if (sortBy === 'prazo') {
-        return a.estimatedDays - b.estimatedDays;
+        const daysA = a.estimatedDays ?? (parseInt(String(a.duration || a.estimatedTime)) || Number.MAX_SAFE_INTEGER);
+        const daysB = b.estimatedDays ?? (parseInt(String(b.duration || b.estimatedTime)) || Number.MAX_SAFE_INTEGER);
+        return daysA - daysB;
       } else if (sortBy === 'valor') {
-        return a.price - b.price;
+        const priceA = Number(a.price ?? 0);
+        const priceB = Number(b.price ?? 0);
+        return priceA - priceB;
       }
       return 0;
     });
@@ -247,7 +244,52 @@ export default function CartorioIntegrationPage() {
   const handleSelectClient = (client: typeof filteredClients[0]) => {
     setSelectedCrmClient(client);
     setClientSelectionOpen(false);
-    setPublicRequestOpen(true);
+
+    if (solicitarService && brokerId) {
+      const docsConfig = solicitarService.documentsConfig || solicitarService.documents || [];
+      const newProcess: CartorioProcess = normalizeProcess({
+        id: `RASCUNHO-${Date.now()}`,
+        serviceId: solicitarService.id,
+        serviceName: solicitarService.name,
+        brokerId,
+        clientId: client.id,
+        clientName: client.name,
+        clientEmail: client.email,
+        status: 'rascunho',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        messages: [],
+        history: [],
+        events: [],
+        documents: docsConfig.map((doc: any, idx: number) => ({
+          id: typeof doc === 'string' ? `doc-${idx}` : (doc.id || `doc-${idx}`),
+          name: typeof doc === 'string' ? doc : (doc.name || doc.nome || 'Documento'),
+          required: true,
+          status: 'pending'
+        })),
+        timeline: [
+          {
+            id: 'step-1',
+            title: 'Rascunho Criado',
+            description: 'Aguardando envio de documentos e confirmação.',
+            status: 'current',
+            date: new Date().toLocaleDateString('pt-BR')
+          },
+          {
+            id: 'step-2',
+            title: 'Enviado ao Cartório',
+            description: 'Aguardando recepção pelo escrevente.',
+            status: 'pending'
+          }
+        ]
+      });
+
+      setProcesses(prev => [newProcess, ...prev]);
+      setSelectedProcessId(newProcess.id);
+      setActiveTab('processos');
+      setSolicitarService(null);
+      setSelectedCrmClient(null);
+    }
   };
 
   const handleRequestSuccess = async (newProcess: CartorioProcess) => {
@@ -287,37 +329,161 @@ export default function CartorioIntegrationPage() {
     }
   };
 
-  // Upload simulado de documento com conversão Base64
+  // Upload de documento para o Firebase Storage e salvamento de metadados
   const handleFileUpload = async (docId: string, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !selectedProcessId) return;
+    if (!file || !selectedProcessId || !storage) return;
 
     setUploadingDocId(docId);
     try {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = async () => {
-        const base64String = (reader.result as string).split(',')[1];
-        const updated = await cartorioService.uploadComplementaryDocument(
-          selectedProcessId,
-          docId,
-          file.name,
-          base64String
-        );
-        setSelectedProcess(updated);
-        toast({
-          title: 'Documento Recebido!',
-          description: `O arquivo "${file.name}" foi enviado ao Oficial para análise.`,
+      const path = `cartorio/${selectedProcessId}`;
+      const downloadURL = await uploadFile(storage, path, file, () => {});
+      const storagePath = `${path}/${file.name}`;
+      const nowStr = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+      const isDraft = selectedProcess?.status?.toLowerCase() === 'rascunho' || selectedProcessId.startsWith('RASCUNHO-');
+
+      if (isDraft && selectedProcess) {
+        const updatedDocs = selectedProcess.documents.map(d => {
+          if (d.id === docId) {
+            return {
+              ...d,
+              status: 'submitted' as const,
+              fileName: file.name,
+              fileUrl: downloadURL,
+              downloadURL,
+              storagePath,
+              tipo: file.type,
+              tamanho: file.size,
+              uploadedAt: nowStr,
+              uploadedBy: user?.uid
+            };
+          }
+          return d;
         });
-      };
+        const updatedProc = {
+          ...selectedProcess,
+          documents: updatedDocs,
+          updatedAt: new Date().toISOString()
+        };
+        setSelectedProcess(updatedProc);
+        setProcesses(prev => prev.map(p => p.id === updatedProc.id ? updatedProc : p));
+      } else {
+        try {
+          const updated = await cartorioService.uploadComplementaryDocument(
+            selectedProcessId,
+            docId,
+            file.name,
+            downloadURL,
+            storagePath,
+            file.type,
+            file.size,
+            user?.uid
+          );
+          setSelectedProcess(updated);
+          setProcesses(prev => prev.map(p => p.id === updated.id ? updated : p));
+        } catch (error) {
+          if (selectedProcess) {
+            const updatedDocs = selectedProcess.documents.map(d => {
+              if (d.id === docId) {
+                return {
+                  ...d,
+                  status: 'submitted' as const,
+                  fileName: file.name,
+                  fileUrl: downloadURL,
+                  downloadURL,
+                  storagePath,
+                  tipo: file.type,
+                  tamanho: file.size,
+                  uploadedAt: nowStr,
+                  uploadedBy: user?.uid
+                };
+              }
+              return d;
+            });
+            const updatedProc = {
+              ...selectedProcess,
+              documents: updatedDocs,
+              updatedAt: new Date().toISOString()
+            };
+            setSelectedProcess(updatedProc);
+            setProcesses(prev => prev.map(p => p.id === updatedProc.id ? updatedProc : p));
+          }
+        }
+      }
+
+      toast({
+        title: 'Documento Enviado!',
+        description: `O arquivo "${file.name}" foi enviado com sucesso para o Firebase Storage.`,
+      });
     } catch (error) {
       toast({
         variant: 'destructive',
         title: 'Erro no envio',
-        description: 'Não foi possível enviar o arquivo.',
+        description: 'Não foi possível enviar o arquivo para o Firebase Storage.',
       });
     } finally {
       setUploadingDocId(null);
+      e.target.value = '';
+    }
+  };
+
+  const handleViewDocument = (doc: ProcessDocument) => {
+    if (doc.fileUrl) {
+      const win = window.open();
+      if (win) {
+        win.document.write(`<iframe src="${doc.fileUrl}" frameborder="0" style="border:0; top:0; left:0; bottom:0; right:0; width:100%; height:100%;" allowfullscreen></iframe>`);
+      } else {
+        window.open(doc.fileUrl, '_blank');
+      }
+    } else {
+      toast({
+        title: 'Visualizar Documento',
+        description: `Arquivo: ${doc.fileName || doc.name}`,
+      });
+    }
+  };
+
+  const handleDeleteDocument = async (docId: string) => {
+    if (!selectedProcess || !selectedProcessId) return;
+
+    try {
+      try {
+        await cartorioService.uploadComplementaryDocument(selectedProcessId, docId, '', '');
+      } catch (err) {
+        // ignore backend failure on delete
+      }
+
+      const updatedDocs = selectedProcess.documents.map(d => {
+        if (d.id === docId) {
+          return {
+            ...d,
+            status: 'pending' as const,
+            fileName: undefined,
+            fileUrl: undefined,
+            uploadedAt: undefined,
+            feedback: undefined
+          };
+        }
+        return d;
+      });
+
+      setSelectedProcess({
+        ...selectedProcess,
+        documents: updatedDocs,
+        updatedAt: new Date().toISOString()
+      });
+
+      toast({
+        title: 'Documento Excluído',
+        description: 'O documento retornou para o status Pendente.',
+      });
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro ao excluir',
+        description: 'Não foi possível excluir o documento.',
+      });
     }
   };
 
@@ -347,8 +513,87 @@ export default function CartorioIntegrationPage() {
     }
   };
 
+  // Envio formal do Rascunho para o Cartório
+  const handleSubmitToCartorio = async () => {
+    if (!selectedProcess || !brokerId) return;
+
+    try {
+      const draftId = selectedProcess.id;
+      const customData = {
+        origin: 'BROKER',
+        originName: 'OraOra Corretor',
+        brokerId,
+        clientId: selectedProcess.clientId,
+        clientName: selectedProcess.clientName,
+        clientEmail: selectedProcess.clientEmail,
+        status: 'em_analise',
+        documents: selectedProcess.documents,
+        messages: selectedProcess.messages,
+      };
+
+      const apiResult = await cartorioService.openRequest(
+        selectedProcess.serviceId,
+        brokerId,
+        customData
+      );
+
+      const officialStatus = (apiResult.status && apiResult.status !== 'rascunho') ? apiResult.status : 'em_analise';
+      const updatedProcess: CartorioProcess = {
+        ...selectedProcess,
+        ...apiResult,
+        id: apiResult.id || selectedProcess.id,
+        protocol: apiResult.protocol || selectedProcess.protocol || apiResult.id,
+        status: officialStatus as any,
+        createdAt: apiResult.createdAt || selectedProcess.createdAt,
+        updatedAt: apiResult.updatedAt || new Date().toISOString(),
+        documents: (apiResult.documents && apiResult.documents.length > 0) 
+          ? apiResult.documents 
+          : selectedProcess.documents,
+        messages: (apiResult.messages && apiResult.messages.length > 0) 
+          ? apiResult.messages 
+          : selectedProcess.messages,
+        timeline: (apiResult.timeline && apiResult.timeline.length > 0) 
+          ? apiResult.timeline 
+          : [
+              {
+                id: 'step-1',
+                title: 'Rascunho Criado',
+                description: 'Solicitação criada.',
+                status: 'done',
+                date: new Date().toLocaleDateString('pt-BR')
+              },
+              {
+                id: 'step-2',
+                title: 'Enviado ao Cartório',
+                description: 'Processo enviado para qualificação do escrevente.',
+                status: 'current',
+                date: new Date().toLocaleDateString('pt-BR')
+              }
+            ]
+      };
+
+      setProcesses(prev => prev.map(p => p.id === draftId ? updatedProcess : p));
+      setSelectedProcessId(updatedProcess.id);
+      setSelectedProcess(updatedProcess);
+
+      toast({
+        title: 'Enviado ao Cartório!',
+        description: `O processo foi enviado com sucesso sob o protocolo ${updatedProcess.protocol || updatedProcess.id}.`,
+      });
+    } catch (error) {
+      console.error('Erro ao enviar processo ao cartório:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Falha no envio',
+        description: 'Ocorreu um erro ao enviar a solicitação ao Cartório.',
+      });
+    }
+  };
+
   const getStatusBadge = (status: CartorioProcess['status']) => {
     switch (status) {
+      case 'rascunho':
+        return <Badge className="bg-slate-100 text-slate-700 hover:bg-slate-200 border-none">Rascunho</Badge>;
       case 'novo':
         return <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-200 border-none">Recebido no Cartório</Badge>;
       case 'em_analise':
@@ -364,623 +609,83 @@ export default function CartorioIntegrationPage() {
 
   return (
     <div id="cartorio-integration-hub" className="text-left animate-in fade-in duration-500 max-w-[1440px] mx-auto p-6 md:p-10">
-      
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
-        <div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight uppercase flex items-center gap-3">
-            <span className="material-symbols-outlined text-primary text-4xl">gavel</span>
-            Integração Cartórios de Registro
-          </h1>
-          <p className="text-slate-500 mt-2 text-sm md:text-base">
-            Conecte o App do Corretor diretamente à serventia extrajudicial. Envie documentos, consulte exigências e obtenha certidões em tempo real.
-          </p>
-        </div>
-        <div className="flex gap-2 shrink-0">
-          <Button 
-            variant="outline" 
-            onClick={loadProcesses} 
-            disabled={loadingProcesses}
-            className="border-slate-200 h-11 px-5 rounded-xl text-slate-600 hover:bg-slate-50 cursor-pointer"
-          >
-            <RefreshCw className={cn("size-4 mr-2", loadingProcesses && "animate-spin")} />
-            Sincronizar
-          </Button>
-        </div>
-      </div>
-
       {selectedProcessId && selectedProcess ? (
-        /* ================= VISTA DO DETALHE DO PROCESSO SELECIONADO ================= */
-        <div className="space-y-8">
-          <button 
-            onClick={() => setSelectedProcessId(null)}
-            className="inline-flex items-center gap-2 text-slate-500 hover:text-slate-800 font-bold text-sm bg-transparent border-none cursor-pointer p-1"
-          >
-            <ArrowLeft className="size-4" /> Voltar para a lista de processos
-          </button>
-
-          <div className="grid lg:grid-cols-3 gap-8">
-            {/* Coluna Central: Dados Gerais, Documentos e Linha do Tempo */}
-            <div className="lg:col-span-2 space-y-8">
-              
-              {/* Card de Informação do Processo */}
-              <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 md:p-8">
-                <div className="flex flex-wrap justify-between items-start gap-4 border-b border-slate-100 pb-6">
-                  <div>
-                    <span className="text-xs font-bold text-primary uppercase tracking-widest">Processo ID: {selectedProcess.id}</span>
-                    <h2 className="text-2xl font-black text-slate-900 tracking-tight mt-1">{selectedProcess.serviceName}</h2>
-                    <p className="text-slate-400 text-xs mt-1 font-semibold">Aberto em {new Date(selectedProcess.createdAt).toLocaleDateString('pt-BR')} • Atualizado em tempo real</p>
-                  </div>
-                  <div className="flex flex-col items-end gap-2">
-                    {getStatusBadge(selectedProcess.status)}
-                    <span className="text-xs text-slate-400 italic font-medium flex items-center gap-1.5">
-                      <Clock className="size-3.5" /> Atualizado há poucos segundos
-                    </span>
-                  </div>
-                </div>
-
-                {/* Linha do Tempo */}
-                <div className="mt-8">
-                  <h3 className="font-bold text-slate-900 text-sm uppercase tracking-wider mb-6 flex items-center gap-2">
-                    <Activity className="size-4 text-primary" /> Estágios de Qualificação do Cartório
-                  </h3>
-                  <div className="grid md:grid-cols-3 gap-6 relative">
-                    {selectedProcess.timeline.map((milestone, idx) => (
-                      <div key={milestone.id} className="relative flex flex-col gap-2 p-4 rounded-xl border border-slate-100 bg-slate-50/40">
-                        <div className="flex items-center justify-between">
-                          <span className={cn(
-                            "size-6 rounded-full flex items-center justify-center font-bold text-xs shrink-0",
-                            milestone.status === 'done' ? "bg-emerald-100 text-emerald-800" :
-                            milestone.status === 'current' ? "bg-amber-100 text-amber-800 animate-pulse" :
-                            "bg-slate-100 text-slate-400"
-                          )}>
-                            {milestone.status === 'done' ? '✓' : idx + 1}
-                          </span>
-                          {milestone.date && <span className="text-[10px] font-bold text-slate-400">{milestone.date}</span>}
-                        </div>
-                        <h4 className="font-bold text-slate-900 text-sm mt-2">{milestone.title}</h4>
-                        <p className="text-slate-500 text-xs leading-relaxed">{milestone.description}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Checklist de Documentos solicitados */}
-              <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 md:p-8">
-                <h3 className="font-black text-slate-900 text-lg tracking-tight mb-2 flex items-center gap-2">
-                  <FileCheck className="size-5 text-primary" /> Documentos Necessários (Conformidade Legal)
-                </h3>
-                <p className="text-slate-500 text-xs mb-6">Insira arquivos em PDF de alta resolução de acordo com os requisitos estabelecidos.</p>
-
-                <div className="space-y-4">
-                  {selectedProcess.documents.map((doc) => (
-                    <div key={doc.id} className="p-4 md:p-6 rounded-xl border border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-6 hover:shadow-sm transition-shadow">
-                      <div className="flex items-start gap-4 text-left">
-                        <div className={cn(
-                          "p-3 rounded-xl shrink-0 mt-0.5",
-                          doc.status === 'approved' ? "bg-emerald-50 text-emerald-600" :
-                          doc.status === 'rejected' ? "bg-rose-50 text-rose-600" :
-                          doc.status === 'submitted' ? "bg-amber-50 text-amber-600" : "bg-slate-50 text-slate-400"
-                        )}>
-                          {doc.status === 'approved' ? <CheckCircle2 className="size-6" /> :
-                           doc.status === 'rejected' ? <XCircle className="size-6" /> :
-                           doc.status === 'submitted' ? <Clock className="size-6" /> : <FileText className="size-6" />}
-                        </div>
-                        <div className="space-y-1">
-                          <h4 className="font-bold text-slate-900 text-sm md:text-base flex items-center gap-2">
-                            {doc.name}
-                            {doc.status === 'pending' && <Badge variant="outline" className="text-[10px] text-slate-400 border-slate-200">Pendente</Badge>}
-                            {doc.status === 'submitted' && <Badge className="text-[10px] bg-amber-100 text-amber-800 border-none">Recebido</Badge>}
-                            {doc.status === 'approved' && <Badge className="text-[10px] bg-emerald-100 text-emerald-800 border-none">Qualificado e Aceito</Badge>}
-                            {doc.status === 'rejected' && <Badge className="text-[10px] bg-rose-100 text-rose-800 border-none">Exigência Emitida</Badge>}
-                          </h4>
-                          <p className="text-slate-400 text-xs font-semibold">Exigência cartorial para análise do ato imobiliário.</p>
-                          {doc.fileName && (
-                            <p className="text-slate-600 text-xs font-semibold flex items-center gap-1">
-                              Anexo: <span className="underline font-bold">{doc.fileName}</span>
-                            </p>
-                          )}
-                          {doc.feedback && (
-                            <p className="text-rose-600 text-xs font-medium flex items-center gap-1.5 bg-rose-50 p-2.5 rounded-lg border border-rose-100 mt-2">
-                              <AlertCircle className="size-3.5 shrink-0" /> Exigência: {doc.feedback}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Ações para o Documento */}
-                      <div className="shrink-0 flex items-center">
-                        {doc.status !== 'approved' ? (
-                          <div className="relative">
-                            <input 
-                              type="file" 
-                              accept="application/pdf"
-                              id={`upload-${doc.id}`}
-                              className="hidden"
-                              onChange={(e) => handleFileUpload(doc.id, e)}
-                              disabled={uploadingDocId === doc.id}
-                            />
-                            <Button 
-                              variant="outline" 
-                              asChild
-                              className="border-slate-200 text-xs font-bold h-10 rounded-xl hover:bg-slate-50 cursor-pointer"
-                            >
-                              <label htmlFor={`upload-${doc.id}`}>
-                                {uploadingDocId === doc.id ? (
-                                  <RefreshCw className="size-3.5 mr-2 animate-spin" />
-                                ) : (
-                                  <UploadCloud className="size-4 mr-2" />
-                                )}
-                                {doc.status === 'rejected' ? 'Reenviar Documento' : 'Enviar Documento'}
-                              </label>
-                            </Button>
-                          </div>
-                        ) : (
-                          <span className="text-emerald-600 font-bold text-xs flex items-center gap-1 bg-emerald-50 px-3 py-1.5 rounded-full">
-                            <CheckCircle2 className="size-3.5" /> Pronto
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Coluna Lateral: Chat em Tempo Real com Escreventes e Análise de IA */}
-            <div className="space-y-8">
-              
-              {/* Card Analista de IA Decoupled */}
-              <div className="bg-slate-900 rounded-2xl shadow-xl border border-white/5 p-6 md:p-8 text-white relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-[200px] h-[200px] bg-primary/15 rounded-full blur-[60px] -z-0 pointer-events-none translate-x-12 -translate-y-12"></div>
-                
-                <div className="relative space-y-4">
-                  <div className="flex items-center gap-2.5">
-                    <div className="size-9 rounded-xl bg-primary/20 flex items-center justify-center border border-primary/30 shrink-0">
-                      <Sparkles className="size-4.5 text-primary" />
-                    </div>
-                    <div>
-                      <h3 className="font-black text-white text-base tracking-tight">Parecer do Consultor de IA</h3>
-                      <p className="text-slate-400 text-[10px] uppercase tracking-wider font-semibold">Gemini Flash Integration</p>
-                    </div>
-                  </div>
-
-                  <p className="text-slate-300 text-xs leading-relaxed text-left">
-                    Dúvidas com exigências, prazos ou termos jurídicos do Cartório? Solicite um diagnóstico do nosso analista de conformidade jurídica alimentado por IA.
-                  </p>
-
-                  <Button 
-                    onClick={handleAnalyzeProcess}
-                    disabled={analyzingProcess}
-                    className="w-full bg-primary hover:bg-primary-hover text-slate-900 font-bold h-11 rounded-xl transition-all border-none shadow-[0_4px_20px_rgba(0,233,0,0.15)] flex items-center justify-center gap-2 cursor-pointer"
-                  >
-                    {analyzingProcess ? (
-                      <>
-                        <RefreshCw className="size-4 mr-1 animate-spin" />
-                        Qualificando Processo...
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="size-4 mr-1" />
-                        Analisar com IA
-                      </>
-                    )}
-                  </Button>
-
-                  {/* Resultado do Parecer da IA */}
-                  {aiAnalysis && (
-                    <div className="bg-white/5 border border-white/5 rounded-xl p-4 md:p-5 mt-4 text-left max-h-[380px] overflow-y-auto space-y-3 font-sans scrollbar-thin">
-                      <h4 className="text-primary font-bold text-xs flex items-center gap-1.5 uppercase tracking-widest border-b border-white/5 pb-2">
-                        <Sparkles className="size-3.5" /> Diagnóstico Legal & Recomendações
-                      </h4>
-                      <div className="text-xs text-slate-200 space-y-3 leading-relaxed">
-                        {aiAnalysis.split('\n').map((line, idx) => {
-                          if (line.trim().startsWith('###')) {
-                            return <h5 key={idx} className="font-bold text-white text-sm mt-4 mb-2">{line.replace('###', '').trim()}</h5>;
-                          }
-                          if (line.trim().startsWith('**')) {
-                            return <p key={idx} className="font-bold text-slate-200 mt-2">{line.replace(/\*\*/g, '').trim()}</p>;
-                          }
-                          if (line.trim().startsWith('-')) {
-                            return <li key={idx} className="ml-3 list-disc text-slate-300 pl-1">{line.replace('-', '').trim()}</li>;
-                          }
-                          return <p key={idx} className="text-slate-300">{line}</p>;
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Canal de Atendimento do Cartório (Chat) */}
-              <div className="bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col h-[520px] overflow-hidden">
-                <header className="p-4 border-b border-slate-100 flex items-center justify-between shrink-0">
-                  <div className="flex items-center gap-3">
-                    <div className="relative">
-                      <div className="size-9 bg-slate-100 rounded-full flex items-center justify-center border border-slate-200 font-bold text-slate-600">
-                        CT
-                      </div>
-                      <span className="absolute bottom-0 right-0 size-2.5 bg-emerald-500 border-2 border-white rounded-full"></span>
-                    </div>
-                    <div className="text-left">
-                      <h4 className="text-sm font-bold text-slate-900 leading-tight">Serventia Extrajudicial</h4>
-                      <p className="text-[10px] text-emerald-600 font-bold uppercase tracking-wider">Escrevente Conectado</p>
-                    </div>
-                  </div>
-                </header>
-
-                {/* Mensagens do Chat */}
-                <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/40">
-                  {selectedProcess.messages.map((message) => {
-                    const isSystem = message.sender === 'system';
-                    const isBroker = message.sender === 'broker';
-
-                    if (isSystem) {
-                      return (
-                        <div key={message.id} className="flex justify-center my-2">
-                          <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-3 py-1 rounded-full text-center max-w-[90%] leading-relaxed">
-                            {message.text}
-                          </span>
-                        </div>
-                      );
-                    }
-
-                    return (
-                      <div 
-                        key={message.id} 
-                        className={cn(
-                          "flex flex-col max-w-[85%] text-left",
-                          isBroker ? "ml-auto items-end" : "items-start"
-                        )}
-                      >
-                        <div className={cn(
-                          "p-3 rounded-2xl shadow-sm text-sm leading-relaxed",
-                          isBroker 
-                            ? "bg-[#00e900]/10 text-slate-900 rounded-tr-none border border-[#00e900]/20" 
-                            : "bg-white border border-slate-100 text-slate-800 rounded-tl-none"
-                        )}>
-                          {message.text}
-                        </div>
-                        <span className="text-[9px] text-slate-400 mt-1 ml-1 flex items-center gap-1">
-                          {isBroker ? <User className="size-2.5" /> : <Bot className="size-2.5 text-primary" />}
-                          {isBroker ? 'Você' : 'Oficial de Registro'} • {new Date(message.createdAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                      </div>
-                    );
-                  })}
-                  <div ref={chatBottomRef} />
-                </div>
-
-                {/* Input do Chat */}
-                <footer className="p-4 bg-white border-t border-slate-100 shrink-0">
-                  <form onSubmit={handleSendMessage} className="relative flex items-center gap-2">
-                    <input 
-                      type="text"
-                      value={chatInput}
-                      onChange={(e) => setChatInput(e.target.value)}
-                      placeholder="Tire dúvidas sobre exigências..." 
-                      className="w-full pl-4 pr-12 py-3 bg-slate-50 border-none focus:ring-2 focus:ring-primary rounded-xl text-sm placeholder:text-slate-400 text-slate-800 outline-none" 
-                    />
-                    <button 
-                      type="submit" 
-                      disabled={sendingMsg || !chatInput.trim()}
-                      className="absolute right-2 p-2 bg-[#00e900] text-black rounded-lg hover:brightness-105 transition-all cursor-pointer border-none disabled:opacity-40"
-                    >
-                      <Send className="size-4" />
-                    </button>
-                  </form>
-                </footer>
-              </div>
-
-            </div>
-          </div>
-        </div>
+        <ProcessDetailView 
+          selectedProcess={selectedProcess}
+          onBack={() => setSelectedProcessId(null)}
+          getStatusBadge={getStatusBadge}
+          uploadingDocId={uploadingDocId}
+          onFileUpload={handleFileUpload}
+          onViewDocument={handleViewDocument}
+          onDeleteDocument={handleDeleteDocument}
+          analyzingProcess={analyzingProcess}
+          aiAnalysis={aiAnalysis}
+          onAnalyzeProcess={handleAnalyzeProcess}
+          chatInput={chatInput}
+          setChatInput={setChatInput}
+          sendingMsg={sendingMsg}
+          onSendMessage={handleSendMessage}
+          chatBottomRef={chatBottomRef}
+          onSubmitToCartorio={handleSubmitToCartorio}
+        />
       ) : (
-        /* ================= VISTA DE LISTA DE SERVIÇOS E PROCESSOS ATIVOS ================= */
         <div className="space-y-8 animate-in fade-in duration-300">
-          
-          {/* Abas Segmentadas */}
-          <div className="flex border-b border-slate-100 gap-6 shrink-0">
-            <button 
-              onClick={() => setActiveTab('servicos')}
-              className={cn(
-                "py-4 text-sm font-bold tracking-wide uppercase cursor-pointer border-none bg-transparent transition-all relative",
-                activeTab === 'servicos' ? "text-slate-900 border-b-2 border-primary font-black" : "text-slate-400 hover:text-slate-600"
-              )}
-            >
-              Serviços Disponíveis ({filteredAndSortedServices.length})
-            </button>
-            <button 
-              onClick={() => setActiveTab('processos')}
-              className={cn(
-                "py-4 text-sm font-bold tracking-wide uppercase cursor-pointer border-none bg-transparent transition-all relative",
-                activeTab === 'processos' ? "text-slate-900 border-b-2 border-primary font-black" : "text-slate-400 hover:text-slate-600"
-              )}
-            >
-              Processos do Corretor ({processes.length})
-            </button>
+          <div className="space-y-1">
+            <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">Consultoria Cartorial</h1>
+            <p className="text-slate-500 text-sm font-medium">Serviços</p>
           </div>
 
-          {activeTab === 'servicos' ? (
-            /* LISTA DE SERVIÇOS COM FILTROS DE BUSCA */
-            <div className="space-y-6">
-              
-              {/* Barra de Filtros e Busca */}
-              <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm text-left">
-                <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4">
-                  
-                  {/* Busca por Nome */}
-                  <div className="flex-1 relative">
-                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
-                      <Search className="size-4.5" />
-                    </span>
-                    <input 
-                      type="text"
-                      placeholder="Pesquisar por nome ou descrição do serviço..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-sm placeholder:text-slate-400 text-slate-800 outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-                    />
-                  </div>
+          <CartorioTabs 
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+            servicesCount={filteredAndSortedServices.length}
+            processesCount={processes.length}
+          />
 
-                  {/* Filtros de Categoria e Ordenação */}
-                  <div className="flex flex-wrap items-center gap-3">
-                    
-                    <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100">
-                      <Filter className="size-3.5 text-slate-400" />
-                      <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Categoria:</span>
-                      <select 
-                        value={selectedCategory} 
-                        onChange={(e) => setSelectedCategory(e.target.value)}
-                        className="bg-transparent text-xs font-bold text-slate-700 outline-none border-none cursor-pointer"
-                      >
-                        <option value="todos">Todas</option>
-                        <option value="escritura">Escritura</option>
-                        <option value="registro">Registro</option>
-                        <option value="documental">Documental</option>
-                        <option value="financeiro">Financeiro</option>
-                      </select>
-                    </div>
-
-                    <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100">
-                      <ArrowUpDown className="size-3.5 text-slate-400" />
-                      <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Ordenar por:</span>
-                      <select 
-                        value={sortBy} 
-                        onChange={(e) => setSortBy(e.target.value as any)}
-                        className="bg-transparent text-xs font-bold text-slate-700 outline-none border-none cursor-pointer"
-                      >
-                        <option value="nome">Nome</option>
-                        <option value="prazo">Prazo Estimado</option>
-                        <option value="valor">Valor</option>
-                      </select>
-                    </div>
-
-                  </div>
-
-                </div>
-              </div>
-
-              {/* Grid de Serviços */}
-              <div className="grid md:grid-cols-2 gap-6">
-                {loadingServices ? (
-                  <div className="col-span-2 text-center py-20 text-slate-400 italic font-semibold">Carregando catálogo de serviços imobiliários...</div>
-                ) : filteredAndSortedServices.length > 0 ? (
-                  filteredAndSortedServices.map((service) => {
-                    // Calculate a realistic average completion time
-                    const averageDays = service.estimatedDays > 2 ? service.estimatedDays - 2 : service.estimatedDays;
-                    return (
-                      <div 
-                        key={service.id} 
-                        className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 flex flex-col justify-between hover:shadow-md transition-all gap-6 text-left relative overflow-hidden"
-                      >
-                        <div className="space-y-4">
-                          <div className="flex items-center justify-between">
-                            <Badge className="bg-primary/10 text-primary hover:bg-primary/25 border-none font-black text-[10px] uppercase tracking-wider py-1 px-3 rounded-full">
-                              {service.category}
-                            </Badge>
-                            <div className="flex flex-wrap items-center text-slate-600 font-bold text-xs gap-x-3 gap-y-1">
-                              <span className="flex items-center gap-1">
-                                <Clock className="size-3.5 text-slate-400" /> Prazo: {service.estimatedDays} dias
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <Coins className="size-3.5 text-slate-400" /> R$ {service.price.toFixed(2)}
-                              </span>
-                            </div>
-                          </div>
-
-                          <div className="space-y-2">
-                            <h3 className="font-black text-slate-900 text-lg tracking-tight leading-tight">{service.name}</h3>
-                            <p className="text-slate-500 text-xs md:text-sm leading-relaxed">{service.description}</p>
-                          </div>
-
-                          {/* Historical Average Concluded Time info block */}
-                          <div className="flex items-center gap-2 bg-emerald-50/50 border border-emerald-50 p-3 rounded-xl">
-                            <Sparkle className="size-4 text-emerald-500 animate-pulse" />
-                            <div className="text-left">
-                              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tempo Médio de Conclusão</p>
-                              <p className="text-xs font-bold text-emerald-700">{averageDays} dias úteis (Média do Cartório)</p>
-                            </div>
-                          </div>
-
-                          {/* Required Documents list preview */}
-                          <div className="bg-slate-50/50 p-4 rounded-xl space-y-2">
-                            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Documentos Obrigatórios:</h4>
-                            <ul className="text-xs text-slate-600 space-y-1 pl-4 list-disc">
-                              {service.documentsConfig.map((doc) => (
-                                <li key={doc.id} className="leading-tight">{doc.name}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        </div>
-
-                        <Button 
-                          onClick={() => handleOpenSolicitarFlow(service)}
-                          className="w-full bg-[#00e900] text-black hover:brightness-105 font-bold h-11 rounded-xl transition-all border-none flex items-center justify-center gap-1.5"
-                        >
-                          Solicitar Serviço
-                          <ChevronRight className="size-4" />
-                        </Button>
-                      </div>
-                    );
-                  })
-                ) : (
-                  <div className="col-span-2 text-center py-20 text-slate-400 italic">
-                    Nenhum serviço encontrado para os filtros atuais.
-                  </div>
-                )}
-              </div>
-
-            </div>
-          ) : (
-            /* LISTA DE PROCESSOS ATIVOS DO CORRETOR */
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-              {loadingProcesses ? (
-                <div className="text-center py-20 text-slate-400 italic font-semibold">Carregando seus processos ativos...</div>
-              ) : processes.length > 0 ? (
-                <div className="divide-y divide-slate-100">
-                  {processes.map((p) => (
-                    <div 
-                      key={p.id} 
-                      className="p-6 md:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6 hover:bg-slate-50/50 transition-colors text-left"
-                    >
-                      <div className="space-y-2 flex-1">
-                        <div className="flex flex-wrap items-center gap-3">
-                          <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">ID: {p.id}</span>
-                          {getStatusBadge(p.status)}
-                        </div>
-                        <h3 className="font-black text-slate-900 text-lg tracking-tight leading-none mt-1">{p.serviceName}</h3>
-                        <p className="text-slate-400 text-xs font-semibold">
-                          Iniciado em {new Date(p.createdAt).toLocaleDateString('pt-BR')} • {p.documents.filter(d => d.status === 'approved').length} de {p.documents.length} documentos aprovados
-                        </p>
-                      </div>
-
-                      <div className="shrink-0 flex items-center gap-3">
-                        <Button 
-                          onClick={() => setSelectedProcessId(p.id)}
-                          variant="outline"
-                          className="border-slate-200 text-xs font-bold h-11 px-5 rounded-xl text-slate-600 hover:bg-slate-50 hover:text-slate-800 cursor-pointer"
-                        >
-                          <MessageSquare className="size-4 mr-2" />
-                          Acessar Processo
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center p-20 text-slate-400 italic">
-                  <div className="flex flex-col items-center gap-4 max-w-sm mx-auto">
-                    <span className="material-symbols-outlined text-5xl opacity-20 text-slate-900">gavel</span>
-                    <h3 className="font-bold text-slate-700 text-lg">Nenhum processo em andamento</h3>
-                    <p className="text-xs text-slate-400 leading-relaxed">
-                      Você ainda não iniciou nenhum processo de regularização ou escritura com o Cartório parceiro. Visite a aba de serviços para começar.
-                    </p>
-                    <Button 
-                      onClick={() => setActiveTab('servicos')} 
-                      className="bg-primary hover:bg-primary-hover text-slate-900 font-bold h-10 px-5 rounded-xl border-none cursor-pointer"
-                    >
-                      Ver Serviços Cartoriais
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
+          <div className="mt-8">
+            {activeTab === 'servicos' ? (
+              <ServicesTab 
+                searchTerm={searchTerm}
+                setSearchTerm={setSearchTerm}
+                selectedCategory={selectedCategory}
+                setSelectedCategory={setSelectedCategory}
+                sortBy={sortBy}
+                setSortBy={setSortBy}
+                loadingServices={loadingServices}
+                services={filteredAndSortedServices}
+                onSolicitar={handleOpenSolicitarFlow}
+              />
+            ) : activeTab === 'processos' ? (
+              <ProcessesTab 
+                loadingProcesses={loadingProcesses}
+                processes={processes}
+                services={services}
+                onSelectProcess={setSelectedProcessId}
+                onGoToServices={() => setActiveTab('servicos')}
+                getStatusBadge={getStatusBadge}
+              />
+            ) : (
+              <AboutTab />
+            )}
+          </div>
         </div>
       )}
 
-      {/* ================= FLOW DIALOGS ================= */}
-
-      {/* STEP 1: SELECT CRM CLIENT */}
-      <Dialog open={clientSelectionOpen} onOpenChange={setClientSelectionOpen}>
-        <DialogContent className="max-w-md bg-white rounded-2xl p-6 border-slate-100 text-left">
-          <DialogHeader className="space-y-2">
-            <DialogTitle className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-              <UserCheck className="size-5 text-primary" /> Selecionar Cliente do CRM
-            </DialogTitle>
-            <DialogDescription className="text-slate-400 text-xs">
-              Vincule um cliente já cadastrado no seu CRM à solicitação do serviço cartorial.
-            </DialogDescription>
-          </DialogHeader>
-
-          {/* Search clients input */}
-          <div className="mt-4 relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
-              <Search className="size-4" />
-            </span>
-            <input 
-              type="text"
-              placeholder="Pesquisar por nome, email ou telefone..."
-              value={clientSearchTerm}
-              onChange={(e) => setClientSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-100 rounded-xl text-sm placeholder:text-slate-400 text-slate-800 outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-            />
-          </div>
-
-          {/* Clients list */}
-          <div className="mt-4 max-h-[300px] overflow-y-auto space-y-2 pr-1">
-            {loadingClients ? (
-              <div className="text-center py-10 text-slate-400 italic text-xs">Buscando seus clientes...</div>
-            ) : filteredClients.length > 0 ? (
-              filteredClients.map((client) => (
-                <div 
-                  key={client.id}
-                  onClick={() => handleSelectClient(client)}
-                  className="flex items-center justify-between p-3.5 border border-slate-100 rounded-xl hover:bg-slate-50 transition-colors cursor-pointer text-left"
-                >
-                  <div className="space-y-0.5">
-                    <p className="text-sm font-bold text-slate-800 leading-tight">{client.name}</p>
-                    <p className="text-[11px] text-slate-500 truncate max-w-[220px]">{client.email}</p>
-                  </div>
-                  <Button 
-                    size="sm"
-                    variant="ghost" 
-                    className="text-primary hover:text-primary-hover font-bold text-xs"
-                  >
-                    Selecionar
-                  </Button>
-                </div>
-              ))
-            ) : (
-              <div className="text-center py-10 text-slate-400 space-y-3">
-                <p className="text-xs italic">Nenhum cliente encontrado no CRM.</p>
-                <p className="text-[11px] leading-relaxed max-w-xs mx-auto">
-                  Você precisa ter clientes cadastrados para poder iniciar um processo no Cartório.
-                </p>
-              </div>
-            )}
-          </div>
-
-          <div className="mt-6 flex justify-end">
-            <Button 
-              variant="outline" 
-              onClick={() => setClientSelectionOpen(false)}
-              className="border-slate-200 text-xs font-bold rounded-xl cursor-pointer"
-            >
-              Cancelar
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* STEP 2: PUBLIC REQUEST (PORTAL DE SOLICITAÇÃO) */}
-      <Dialog open={publicRequestOpen} onOpenChange={setPublicRequestOpen}>
-        <DialogContent className="max-w-4xl bg-white rounded-3xl p-6 md:p-8 border-none text-left scrollbar-thin overflow-y-auto max-h-[90vh]">
-          {solicitarService && selectedCrmClient && (
-            <PublicRequest 
-              service={solicitarService}
-              client={selectedCrmClient}
-              brokerId={brokerId}
-              onClose={() => setPublicRequestOpen(false)}
-              onSuccess={handleRequestSuccess}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
-
+      <RequestDialog 
+        solicitarService={solicitarService}
+        clientSelectionOpen={clientSelectionOpen}
+        setClientSelectionOpen={setClientSelectionOpen}
+        clientSearchTerm={clientSearchTerm}
+        setClientSearchTerm={setClientSearchTerm}
+        loadingClients={loadingClients}
+        filteredClients={filteredClients}
+        onSelectClient={handleSelectClient}
+        publicRequestOpen={publicRequestOpen}
+        setPublicRequestOpen={setPublicRequestOpen}
+        selectedCrmClient={selectedCrmClient}
+        brokerId={brokerId}
+        onRequestSuccess={handleRequestSuccess}
+      />
     </div>
   );
 }

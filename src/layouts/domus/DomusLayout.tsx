@@ -448,11 +448,11 @@ export default function DomusLayout({ broker, properties }: DomusLayoutProps) {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {featuredProperties.map((property) => {
-              const isProject = !property.brokerId;
+              const displayImage = property.midia?.[0] || property.media?.[0] || "/images/property-placeholder.jpg";
               return (
               <Link key={property.id} href={`/sites/${broker.slug}/imovel/${property.informacoesbasicas.slug || property.id}`} className="flex flex-col gap-4 group cursor-pointer">
                 <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden shadow-lg">
-                  <div className="absolute inset-0 bg-center bg-no-repeat bg-cover group-hover:scale-110 transition-transform duration-700" style={{ backgroundImage: 'url(' + (property.midia?.[0] || 'https://picsum.photos/seed/prop/400/300') + ')' }}></div>
+                  <div className="absolute inset-0 bg-center bg-no-repeat bg-cover group-hover:scale-110 transition-transform duration-700" style={{ backgroundImage: `url(${displayImage})` }}></div>
                   <div className="absolute top-4 left-4 flex flex-col gap-2">
                     {renderBadges(property).map((badge, idx) => (
                       <span key={idx} className="backdrop-blur-sm text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest" style={{ backgroundColor: 'var(--status-tag-bg)', color: 'var(--status-tag-text)' }}>{badge}</span>

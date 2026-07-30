@@ -36,7 +36,7 @@ import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { ref as storageRef, deleteObject } from "firebase/storage";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Loader2, Trash2, Plus, X } from "lucide-react";
+import { Loader2, Trash2, Plus, X, Star, GripVertical } from "lucide-react";
 import locationData from '@/lib/location-data.json';
 import { savePropertyServer } from '../actions.server';
 
@@ -134,10 +134,12 @@ const propertyFormSchema = z.object({
     bairro: z.string().min(1, "O bairro é obrigatório"),
     googleMapsLink: z.string().optional(),
     googleStreetViewLink: z.string().optional(),
+    exibirLocalizacao: z.boolean().default(true),
   }),
   midia: z.array(z.string()).optional().default([]),
   youtubeVideoUrl: z.string().optional(),
   areascomuns: z.array(z.string()).default([]),
+  caracteristicas: z.array(z.string()).default([]),
   proximidades: z.array(z.string()).default([]),
   statusobra: z.object({
     fundacao: z.number().min(0).max(100).default(0),
@@ -211,6 +213,49 @@ const commonAreasOptions = [
   "Coworking"
 ];
 
+const propertyCharacteristicsOptions = [
+  "Varanda",
+  "Sacada",
+  "Suíte",
+  "Closet",
+  "Lavabo",
+  "Dependência de Empregada",
+  "Escritório",
+  "Sala de Estar",
+  "Sala de Jantar",
+  "Cozinha Americana",
+  "Cozinha Planejada",
+  "Área de Serviço",
+  "Despensa",
+  "Armário na Cozinha",
+  "Armário no Banheiro",
+  "Armário Embutido",
+  "Móvel Planejado",
+  "Box Blindex",
+  "Ar Condicionado",
+  "Aquecimento a Gás",
+  "Aquecimento Solar",
+  "Piso Porcelanato",
+  "Piso Vinílico",
+  "Piso Laminado",
+  "Janela Grande",
+  "Ventilação Natural",
+  "Vista Livre",
+  "Vista Mar",
+  "Nascente",
+  "Poente",
+  "Ambientes Integrados",
+  "Pé Direito Duplo",
+  "Aceita Animais",
+  "Mobiliado",
+  "Semi Mobiliado",
+  "Reformado",
+  "Novo",
+  "Depósito Privativo",
+  "Fechadura Digital",
+  "Automação Residencial"
+];
+
 type UploadState = {
   id: string;
   file: File;
@@ -253,10 +298,11 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
         link: '',
         informacoesbasicas: { nome: '', status: 'Em Construção', valor: 0, salePrice: 0, rentPrice: 0, transactionTypes: ['sale'], slug: '', slogan: '', descricao: '', previsaoentrega: '', condominio: 0, iptu: 0, nomeCondominio: '', exclusivo: false },
         caracteristicasimovel: { tipo: 'Apartamento', quartos: [], suites: [], tamanho: '', vagas: '' },
-        localizacao: { cep: '', estado: '', cidade: '', bairro: '', address: '', googleMapsLink: '', googleStreetViewLink: '' },
+        localizacao: { cep: '', estado: '', cidade: '', bairro: '', address: '', googleMapsLink: '', googleStreetViewLink: '', exibirLocalizacao: true },
         midia: [],
         youtubeVideoUrl: '',
         areascomuns: [],
+        caracteristicas: [],
         proximidades: [],
         statusobra: { fundacao: 0, estrutura: 0, alvenaria: 0, acabamentos: 0 },
         seoTitle: '',
@@ -272,7 +318,11 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
             ...propertyData,
             informacoesbasicas: { ...defaultValues.informacoesbasicas, ...propertyData?.informacoesbasicas },
             caracteristicasimovel: { ...defaultValues.caracteristicasimovel, ...propertyData?.caracteristicasimovel },
-            localizacao: { ...defaultValues.localizacao, ...propertyData?.localizacao },
+            localizacao: {
+                ...defaultValues.localizacao,
+                ...propertyData?.localizacao,
+                exibirLocalizacao: propertyData?.localizacao?.exibirLocalizacao ?? (propertyData as any)?.exibirLocalizacao ?? true
+            },
             statusobra: { ...defaultValues.statusobra, ...propertyData?.statusobra },
         }
     });
@@ -361,6 +411,48 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
     const removeImage = (urlToRemove: string) => {
         const currentMidia = form.getValues('midia') || [];
         form.setValue('midia', currentMidia.filter(url => url !== urlToRemove), { shouldDirty: true });
+    };
+
+    const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+
+    const handleDragStart = (e: React.DragEvent<HTMLDivElement>, index: number) => {
+        setDraggedIndex(index);
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', index.toString());
+    };
+
+    const handleDragOver = (e: React.DragEvent<HTMLDivElement>, index: number) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+    };
+
+    const handleDrop = (e: React.DragEvent<HTMLDivElement>, targetIndex: number) => {
+        e.preventDefault();
+        if (draggedIndex === null || draggedIndex === targetIndex) return;
+
+        const currentMidia = [...(form.getValues('midia') || [])];
+        const itemToMove = currentMidia[draggedIndex];
+
+        currentMidia.splice(draggedIndex, 1);
+        currentMidia.splice(targetIndex, 0, itemToMove);
+
+        form.setValue('midia', currentMidia, { shouldDirty: true });
+        setDraggedIndex(null);
+    };
+
+    const handleDragEnd = () => {
+        setDraggedIndex(null);
+    };
+
+    const setAsPrincipal = (indexToMakePrincipal: number) => {
+        if (indexToMakePrincipal === 0) return;
+        const currentMidia = [...(form.getValues('midia') || [])];
+        const itemToMove = currentMidia[indexToMakePrincipal];
+
+        currentMidia.splice(indexToMakePrincipal, 1);
+        currentMidia.unshift(itemToMove);
+
+        form.setValue('midia', currentMidia, { shouldDirty: true });
     };
 
     return (
@@ -681,6 +773,28 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
                             </FormItem>
                         )} />
                     </div>
+                    <div className="lg:col-span-12 flex items-center justify-between p-4 bg-[#f7f8f5] rounded-lg border border-card-border">
+                        <div className="space-y-0.5">
+                            <FormLabel className="text-sm font-bold text-text-main">Exibir localização no site</FormLabel>
+                            <FormDescription className="text-xs text-text-secondary">
+                                Quando desativado, oculta o mapa e o Street View na página pública do imóvel.
+                            </FormDescription>
+                        </div>
+                        <FormField
+                            control={form.control}
+                            name="localizacao.exibirLocalizacao"
+                            render={({ field }) => (
+                                <FormItem className="flex items-center space-x-2 space-y-0">
+                                    <FormControl>
+                                        <Switch
+                                            checked={field.value !== false}
+                                            onCheckedChange={field.onChange}
+                                        />
+                                    </FormControl>
+                                </FormItem>
+                            )}
+                        />
+                    </div>
                 </div>
             </section>
 
@@ -699,10 +813,30 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
                                 <FormControl>
                                     <select {...field} className="w-full rounded-lg border-card-border bg-[#f7f8f5] focus:border-primary focus:ring-primary h-11 px-3">
                                         <option value="Apartamento">Apartamento</option>
+                                        <option value="Apart Hotel">Apart Hotel</option>
+                                        <option value="Bangalô">Bangalô</option>
                                         <option value="Casa">Casa</option>
-                                        <option value="Terreno">Terreno</option>
+                                        <option value="Casa de Campo">Casa de Campo</option>
+                                        <option value="Casa de Praia">Casa de Praia</option>
+                                        <option value="Casa de Vila">Casa de Vila</option>
+                                        <option value="Casa Geminada">Casa Geminada</option>
+                                        <option value="Chácara">Chácara</option>
                                         <option value="Cobertura">Cobertura</option>
+                                        <option value="Cobertura Duplex">Cobertura Duplex</option>
+                                        <option value="Cobertura Triplex">Cobertura Triplex</option>
                                         <option value="Comercial">Comercial</option>
+                                        <option value="Duplex">Duplex</option>
+                                        <option value="Flat">Flat</option>
+                                        <option value="Kitnet">Kitnet</option>
+                                        <option value="Loft">Loft</option>
+                                        <option value="Lote">Lote</option>
+                                        <option value="Lote em Condomínio">Lote em Condomínio</option>
+                                        <option value="Sítio">Sítio</option>
+                                        <option value="Sobrado">Sobrado</option>
+                                        <option value="Studio">Studio</option>
+                                        <option value="Terreno">Terreno</option>
+                                        <option value="Terreno Residencial">Terreno Residencial</option>
+                                        <option value="Triplex">Triplex</option>
                                     </select>
                                 </FormControl>
                             </FormItem>
@@ -792,6 +926,91 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
                                     </div>
                                 </FormItem>
                             )}
+                        />
+                    </div>
+
+                    <div className="lg:col-span-12">
+                        <FormField
+                            control={form.control}
+                            name="caracteristicas"
+                            render={({ field }) => {
+                                const valueArray = field.value || [];
+                                return (
+                                    <FormItem>
+                                        <div className="mb-2">
+                                            <FormLabel className="text-base font-bold">Características do Imóvel</FormLabel>
+                                            <FormDescription>Selecione as características internas do imóvel ou adicione uma personalizada.</FormDescription>
+                                        </div>
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-4">
+                                            {propertyCharacteristicsOptions.map((opt) => (
+                                                <div key={`char-${opt}`} className="flex flex-row items-center space-x-2 space-y-0">
+                                                    <Checkbox
+                                                        id={`char-${opt}`}
+                                                        checked={valueArray.includes(opt)}
+                                                        onCheckedChange={(checked) => {
+                                                            if (checked) {
+                                                                field.onChange([...valueArray, opt]);
+                                                            } else {
+                                                                field.onChange(valueArray.filter((v: string) => v !== opt));
+                                                            }
+                                                        }}
+                                                    />
+                                                    <label htmlFor={`char-${opt}`} className="text-sm font-normal cursor-pointer select-none">
+                                                        {opt}
+                                                    </label>
+                                                </div>
+                                            ))}
+                                            {valueArray.filter((v: string) => !propertyCharacteristicsOptions.includes(v)).map((opt: string) => (
+                                                <div key={`char-${opt}`} className="flex flex-row items-center space-x-2 space-y-0 bg-primary/10 px-2 py-1 rounded">
+                                                    <Checkbox
+                                                        id={`char-${opt}`}
+                                                        checked={true}
+                                                        onCheckedChange={(checked) => {
+                                                            if (!checked) {
+                                                                field.onChange(valueArray.filter((v: string) => v !== opt));
+                                                            }
+                                                        }}
+                                                    />
+                                                    <label htmlFor={`char-${opt}`} className="text-sm font-bold cursor-pointer select-none text-primary-dark">
+                                                        {opt}
+                                                    </label>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <div className="flex gap-2 max-w-md">
+                                            <Input
+                                                id="custom-char-input"
+                                                placeholder="Adicionar característica personalizada..."
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') {
+                                                        e.preventDefault();
+                                                        const target = e.currentTarget;
+                                                        const val = target.value.trim();
+                                                        if (val && !valueArray.includes(val)) {
+                                                            field.onChange([...valueArray, val]);
+                                                            target.value = '';
+                                                        }
+                                                    }
+                                                }}
+                                            />
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                onClick={() => {
+                                                    const input = document.getElementById('custom-char-input') as HTMLInputElement;
+                                                    const val = input?.value.trim();
+                                                    if (val && !valueArray.includes(val)) {
+                                                        field.onChange([...valueArray, val]);
+                                                        input.value = '';
+                                                    }
+                                                }}
+                                            >
+                                                Adicionar
+                                            </Button>
+                                        </div>
+                                    </FormItem>
+                                );
+                            }}
                         />
                     </div>
 
@@ -907,16 +1126,50 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
                 <div className="p-6">
                     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-6">
                         {form.watch('midia')?.map((url, index) => (
-                            <div key={index} className="relative aspect-square group rounded-lg overflow-hidden border border-card-border">
-                                <Image src={url} alt={`Preview ${index}`} fill className="object-cover" />
-                                <button
-                                    type="button"
-                                    onClick={() => removeImage(url)}
-                                    className="absolute top-1 right-1 bg-white/90 p-1.5 rounded-full text-red-500 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
-                                >
-                                    <Trash2 className="size-4" />
-                                </button>
-                                {index === 0 && <span className="absolute bottom-0 left-0 right-0 bg-primary/90 text-black text-[10px] font-bold py-0.5 text-center">PRINCIPAL</span>}
+                            <div
+                                key={`${url}-${index}`}
+                                draggable
+                                onDragStart={(e) => handleDragStart(e, index)}
+                                onDragOver={(e) => handleDragOver(e, index)}
+                                onDrop={(e) => handleDrop(e, index)}
+                                onDragEnd={handleDragEnd}
+                                className={cn(
+                                    "relative aspect-square group rounded-lg overflow-hidden border transition-all cursor-grab active:cursor-grabbing",
+                                    draggedIndex === index ? "opacity-30 border-2 border-dashed border-primary scale-95" : "border-card-border hover:border-primary/50"
+                                )}
+                            >
+                                <Image src={url} alt={`Foto ${index + 1}`} fill className="object-cover select-none pointer-events-none" />
+                                
+                                <div className="absolute top-1 right-1 flex gap-1 z-10">
+                                    <button
+                                        type="button"
+                                        onClick={(e) => { e.stopPropagation(); removeImage(url); }}
+                                        className="bg-white/90 hover:bg-red-500 hover:text-white p-1.5 rounded-full text-red-500 opacity-0 group-hover:opacity-100 transition-all shadow-sm"
+                                        title="Remover foto"
+                                    >
+                                        <Trash2 className="size-3.5" />
+                                    </button>
+                                </div>
+
+                                <div className="absolute top-1 left-1 bg-black/60 text-white p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                                    <GripVertical className="size-3.5" />
+                                </div>
+
+                                {index === 0 ? (
+                                    <span className="absolute bottom-0 left-0 right-0 bg-primary text-black text-[10px] font-extrabold py-1 text-center flex items-center justify-center gap-1 shadow-sm uppercase tracking-wider">
+                                        <Star className="size-3 fill-black text-black" />
+                                        PRINCIPAL
+                                    </span>
+                                ) : (
+                                    <button
+                                        type="button"
+                                        onClick={(e) => { e.stopPropagation(); setAsPrincipal(index); }}
+                                        className="absolute bottom-1.5 left-1/2 -translate-x-1/2 bg-black/80 hover:bg-primary hover:text-black text-white text-[10px] font-bold px-2 py-1 rounded transition-all opacity-0 group-hover:opacity-100 shadow-md flex items-center gap-1 whitespace-nowrap z-10"
+                                    >
+                                        <Star className="size-3" />
+                                        Definir Principal
+                                    </button>
+                                )}
                             </div>
                         ))}
                         
@@ -933,7 +1186,7 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
                             <input type="file" multiple accept="image/*" className="hidden" onChange={handleImageUploads} />
                         </label>
                     </div>
-                    <p className="text-xs text-text-secondary">Arraste para reordenar (em breve). A primeira imagem será a capa do imóvel.</p>
+                    <p className="text-xs text-text-secondary">Arraste os cards para reordenar as fotos. Clique em &quot;Definir Principal&quot; em qualquer foto para torná-la a foto de capa (posição 0).</p>
                     
                     <div className="border-t border-card-border pt-6 mt-6">
                         <FormField control={form.control} name="youtubeVideoUrl" render={({ field }) => (

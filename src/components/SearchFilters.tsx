@@ -8,8 +8,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from '@/components/ui/checkbox';
-import { Search, MapPin, Building2, Bed, DollarSign, ChevronDown, Zap, Filter } from 'lucide-react';
+import { Search, MapPin, Building2, ChevronDown } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
+import { useFirestore } from '@/firebase';
+import { fetchPublishedProperties } from '@/app/sites/utils';
 
 /**
  * @fileOverview SearchFilters.tsx - ORAORA SEARCH ENGINE 1.0
@@ -26,6 +28,7 @@ interface SearchFiltersProps {
   availableStates?: string[];
   enabledTransactions?: string[];
   variant?: 'urban' | 'domus' | 'vertex' | 'aura' | 'living';
+  properties?: any[];
 }
 
 const propertyTypeOptions = ['Apartamento', 'Casa', 'Cobertura', 'Terreno', 'Studio', 'Comercial'];
@@ -38,12 +41,14 @@ export default function SearchFilters({
     className, 
     availableStates,
     enabledTransactions = ['sale', 'rent'],
-    variant = 'urban'
+    variant = 'urban',
+    properties
 }: SearchFiltersProps) {
     const router = useRouter();
     const pathname = usePathname();
     const searchParams = useSearchParams();
     const { toast } = useToast();
+    const firestore = useFirestore();
 
     // 1. Resolução de Modo Inicial
     const initialMode = useMemo(() => {
@@ -57,7 +62,7 @@ export default function SearchFilters({
     const [searchMode, setSearchMode] = useState<'sale' | 'rent'>(initialMode);
 
     // Estados de Filtro
-    const [query, setQuery] = useState(() => searchParams.get('q') || '');
+    const [queryParam, setQueryParam] = useState(() => searchParams.get('q') || '');
     const [propertyType, setPropertyType] = useState(() => searchParams.get('type') || 'all');
     const [selectedState, setSelectedState] = useState(() => searchParams.get('state') || '');
     const [selectedCities, setSelectedCities] = useState<string[]>(() => searchParams.get('cities')?.split(',').filter(Boolean) || []);
@@ -66,16 +71,178 @@ export default function SearchFilters({
     const [minPrice, setMinPrice] = useState(() => searchParams.get('minPrice') || '');
     const [maxPrice, setMaxPrice] = useState(() => searchParams.get('maxPrice') || '');
 
-    // Estados de Localização
-    const [availableCities, setAvailableCities] = useState<string[]>([]);
+    // Controle de Abertura dos Dropdowns (Apenas um aberto por vez)
+    const [openDropdown, setOpenDropdown] = useState<'city' | 'neighborhood' | null>(null);
+
+    // Busca de imóveis publicados no Firestore caso não tenham sido passados via props
+    const [fetchedProperties, setFetchedProperties] = useState<any[]>([]);
+
+    useEffect(() => {
+        if (properties && properties.length > 0) return;
+        if (!firestore) return;
+
+        let active = true;
+        async function loadPublishedProperties() {
+            try {
+                const props = await fetchPublishedProperties(firestore);
+                if (active) {
+                    setFetchedProperties(props);
+                }
+            } catch (err) {
+                console.error("Erro ao carregar imóveis no filtro:", err);
+            }
+        }
+
+        loadPublishedProperties();
+        return () => { active = false; };
+    }, [firestore, properties]);
+
+    const activeProperties = useMemo(() => {
+        if (properties && properties.length > 0) return properties;
+        return fetchedProperties;
+    }, [properties, fetchedProperties]);
+
+    // Helpers para extrair localização
+    const getPropertyCity = (p: any): string => {
+        const c = p?.localizacao?.cidade || p?.localizacao?.city || '';
+        return typeof c === 'string' ? c.trim() : '';
+    };
+
+    const getPropertyBairro = (p: any): string => {
+        const b = p?.localizacao?.bairro || p?.localizacao?.neighborhood || '';
+        return typeof b === 'string' ? b.trim() : '';
+    };
+
+    const getPropertyEstado = (p: any): string => {
+        const e = p?.localizacao?.estado || p?.localizacao?.uf || p?.localizacao?.state || '';
+        return typeof e === 'string' ? e.trim() : '';
+    };
+
+    // Cálculo das cidades com quantidade de imóveis publicados
+    const citiesWithCount = useMemo(() => {
+        if (!activeProperties || activeProperties.length === 0) return [];
+
+        const cityCounts: { [key: string]: { name: string; count: number } } = {};
+
+        activeProperties.forEach(p => {
+            const estado = getPropertyEstado(p);
+            if (selectedState && estado.toUpperCase() !== selectedState.trim().toUpperCase()) {
+                return;
+            }
+
+            const rawCity = getPropertyCity(p);
+            if (!rawCity) return;
+
+            const key = rawCity.toLowerCase();
+            if (cityCounts[key]) {
+                cityCounts[key].count += 1;
+            } else {
+                cityCounts[key] = { name: rawCity, count: 1 };
+            }
+        });
+
+        return Object.values(cityCounts)
+            .filter(item => item.count > 0)
+            .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+    }, [activeProperties, selectedState]);
+
+    // Cálculo dos bairros com quantidade de imóveis publicados
+    // Se nenhuma cidade estiver selecionada: mostra todos os bairros com imóveis
+    // Se existir cidade selecionada: recalcula considerando apenas os imóveis das cidades selecionadas
+    const neighborhoodsWithCount = useMemo(() => {
+        if (!activeProperties || activeProperties.length === 0) return [];
+
+        const neighborhoodCounts: { [key: string]: { name: string; count: number } } = {};
+
+        activeProperties.forEach(p => {
+            const estado = getPropertyEstado(p);
+            if (selectedState && estado.toUpperCase() !== selectedState.trim().toUpperCase()) {
+                return;
+            }
+
+            const city = getPropertyCity(p);
+
+            if (selectedCities.length > 0) {
+                const isCitySelected = selectedCities.some(sc => sc.trim().toLowerCase() === city.toLowerCase());
+                if (!isCitySelected) return;
+            }
+
+            const rawBairro = getPropertyBairro(p);
+            if (!rawBairro) return;
+
+            const key = rawBairro.toLowerCase();
+            if (neighborhoodCounts[key]) {
+                neighborhoodCounts[key].count += 1;
+            } else {
+                neighborhoodCounts[key] = { name: rawBairro, count: 1 };
+            }
+        });
+
+        return Object.values(neighborhoodCounts)
+            .filter(item => item.count > 0)
+            .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+    }, [activeProperties, selectedState, selectedCities]);
+
+    // Busca interna dentro dos dropdowns
     const [citySearch, setCitySearch] = useState('');
-    const [isCityDropdownOpen, setIsCityDropdownOpen] = useState(false);
-    const cityRef = useRef<HTMLDivElement>(null);
-    
-    const [availableNeighborhoods, setAvailableNeighborhoods] = useState<string[]>([]);
     const [neighborhoodSearch, setNeighborhoodSearch] = useState('');
-    const [isNeighborhoodDropdownOpen, setIsNeighborhoodDropdownOpen] = useState(false);
+
+    const filteredCitiesWithCount = useMemo(() => {
+        if (!citySearch.trim()) return citiesWithCount;
+        const q = citySearch.toLowerCase().trim();
+        return citiesWithCount.filter(item => item.name.toLowerCase().includes(q));
+    }, [citiesWithCount, citySearch]);
+
+    const filteredNeighborhoodsWithCount = useMemo(() => {
+        if (!neighborhoodSearch.trim()) return neighborhoodsWithCount;
+        const q = neighborhoodSearch.toLowerCase().trim();
+        return neighborhoodsWithCount.filter(item => item.name.toLowerCase().includes(q));
+    }, [neighborhoodsWithCount, neighborhoodSearch]);
+
+    // Refs para controle de clique fora
+    const cityRef = useRef<HTMLDivElement>(null);
     const neighborhoodRef = useRef<HTMLDivElement>(null);
+
+    const toggleCityDropdown = () => {
+        setOpenDropdown(prev => prev === 'city' ? null : 'city');
+    };
+
+    const toggleNeighborhoodDropdown = () => {
+        setOpenDropdown(prev => prev === 'neighborhood' ? null : 'neighborhood');
+    };
+
+    // Fechar ao clicar fora
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (
+                cityRef.current && !cityRef.current.contains(event.target as Node) &&
+                neighborhoodRef.current && !neighborhoodRef.current.contains(event.target as Node)
+            ) {
+                setOpenDropdown(null);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    // Fechar ao pressionar ESC
+    useEffect(() => {
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                setOpenDropdown(null);
+            }
+        };
+        document.addEventListener('keydown', handleKeyDown);
+        return () => document.removeEventListener('keydown', handleKeyDown);
+    }, []);
+
+    // Limpar automaticamente bairros selecionados que não existirem nas cidades atualmente selecionadas
+    useEffect(() => {
+        if (selectedCities.length > 0 && neighborhoodsWithCount.length > 0) {
+            const validSet = new Set(neighborhoodsWithCount.map(n => n.name.toLowerCase()));
+            setSelectedNeighborhoods(prev => prev.filter(n => validSet.has(n.toLowerCase())));
+        }
+    }, [selectedCities, neighborhoodsWithCount]);
 
     // Sincronização com URL
     useEffect(() => {
@@ -85,33 +252,12 @@ export default function SearchFilters({
         }
     }, [searchParams]);
 
-    // Resolução de Cidades e Bairros
-    useEffect(() => {
-      if (selectedState) {
-          const stateData = locationData.states.find(s => s.uf === selectedState || s.name === selectedState);
-          setAvailableCities(stateData?.cities.map(c => c.name) || []);
-      }
-    }, [selectedState]);
-
-    useEffect(() => {
-        if (selectedCities.length > 0 && selectedState) {
-            const stateData = locationData.states.find(s => s.uf === selectedState || s.name === selectedState);
-            if(stateData) {
-                const allNeighborhoods = selectedCities.flatMap(cityName => {
-                    const cityData = stateData.cities.find(c => c.name === cityName);
-                    return cityData ? cityData.neighborhoods : [];
-                });
-                setAvailableNeighborhoods([...new Set(allNeighborhoods)]);
-            }
-        }
-    }, [selectedCities, selectedState]);
-
     // Handlers
     const handleSearchSubmit = (e?: React.FormEvent) => {
         if (e) e.preventDefault();
         const params = new URLSearchParams();
         params.set('finality', searchMode);
-        if (query) params.set('q', query);
+        if (queryParam) params.set('q', queryParam);
         if (propertyType !== 'all') params.set('type', propertyType);
         if (selectedState) params.set('state', selectedState);
         if (selectedCities.length > 0) params.set('cities', selectedCities.join(','));
@@ -121,12 +267,14 @@ export default function SearchFilters({
         if (maxPrice) params.set('maxPrice', maxPrice);
         params.set('page', '1');
 
+        setOpenDropdown(null);
+
         if (onSearch) onSearch(params.toString());
         else router.push(`/imoveis?${params.toString()}`);
     };
 
     const handleClearFilters = () => {
-        setQuery('');
+        setQueryParam('');
         setPropertyType('all');
         setSelectedState('');
         setSelectedCities([]);
@@ -134,17 +282,20 @@ export default function SearchFilters({
         setRooms([]);
         setMinPrice('');
         setMaxPrice('');
+        setCitySearch('');
+        setNeighborhoodSearch('');
+        setOpenDropdown(null);
         if (onSearch) onSearch(`finality=${searchMode}`);
         else router.push(`/imoveis?finality=${searchMode}`);
     };
 
     const handleCitySelect = (city: string) => {
         setSelectedCities(prev => prev.includes(city) ? prev.filter(c => c !== city) : [...prev, city]);
-    }
+    };
     
     const handleNeighborhoodSelect = (neighborhood: string) => {
         setSelectedNeighborhoods(prev => prev.includes(neighborhood) ? prev.filter(n => n !== neighborhood) : [...prev, neighborhood]);
-    }
+    };
 
     // Estilização por Variante
     const styles = {
@@ -211,8 +362,8 @@ export default function SearchFilters({
                         <div className="relative group">
                             <Search className={cn("absolute left-4 top-1/2 -translate-y-1/2 size-4", styles.icon)} />
                             <Input 
-                                value={query} 
-                                onChange={e => setQuery(e.target.value)}
+                                value={queryParam} 
+                                onChange={e => setQueryParam(e.target.value)}
                                 className={cn("h-12 pl-12 pr-4 font-bold text-sm transition-all", styles.input)} 
                                 placeholder="Condomínio, nome ou características..." 
                             />
@@ -226,12 +377,12 @@ export default function SearchFilters({
                             <select 
                                 value={propertyType} 
                                 onChange={e => setPropertyType(e.target.value)}
-                                className={cn("w-full h-12 pl-12 pr-10 appearance-none font-bold text-sm outline-none", styles.input)}
+                                className={cn("w-full h-12 pl-12 pr-10 appearance-none font-bold text-sm outline-none cursor-pointer", styles.input)}
                             >
                                 <option value="all">Todos os tipos</option>
                                 {propertyTypeOptions.map(t => <option key={t} value={t}>{t}</option>)}
                             </select>
-                            <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
+                            <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 size-4 text-slate-400 pointer-events-none" />
                         </div>
                     </div>
 
@@ -242,12 +393,12 @@ export default function SearchFilters({
                             <select 
                                 value={selectedState} 
                                 onChange={e => { setSelectedState(e.target.value); setSelectedCities([]); setSelectedNeighborhoods([]); }}
-                                className={cn("w-full h-12 pl-12 pr-10 appearance-none font-bold text-sm outline-none", styles.input)}
+                                className={cn("w-full h-12 pl-12 pr-10 appearance-none font-bold text-sm outline-none cursor-pointer", styles.input)}
                             >
                                 <option value="">Estado (UF)...</option>
                                 {(availableStates || locationData.states.map(s => s.uf)).map(uf => <option key={uf} value={uf}>{uf}</option>)}
                             </select>
-                            <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
+                            <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 size-4 text-slate-400 pointer-events-none" />
                         </div>
                     </div>
                 </div>
@@ -259,21 +410,48 @@ export default function SearchFilters({
                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Cidade(s)</label>
                             <div className="relative" ref={cityRef}>
                                 <div 
-                                    onClick={() => { if(selectedState) setIsCityDropdownOpen(!isCityDropdownOpen); else toast({ title: "Selecione a UF", description: "Escolha o estado primeiro." }); }}
-                                    className={cn("w-full h-12 px-4 flex items-center justify-between cursor-pointer text-sm font-bold truncate", styles.input, !selectedState && "opacity-50")}
+                                    onClick={toggleCityDropdown}
+                                    className={cn("w-full h-12 px-4 flex items-center justify-between cursor-pointer text-sm font-bold truncate select-none transition-colors", styles.input)}
                                 >
-                                    <span>{selectedCities.length > 0 ? `${selectedCities.length} Selecionadas` : 'Escolha a cidade...'}</span>
-                                    <ChevronDown className="size-4 text-slate-400" />
+                                    <span className="truncate">
+                                        {selectedCities.length > 0 
+                                            ? `${selectedCities.length} Selecionada${selectedCities.length > 1 ? 's' : ''}` 
+                                            : 'Escolha a cidade...'}
+                                    </span>
+                                    <ChevronDown className={cn("size-4 text-slate-400 shrink-0 transition-transform duration-200", openDropdown === 'city' && "rotate-180")} />
                                 </div>
-                                {isCityDropdownOpen && (
-                                    <div className="absolute top-full mt-2 w-full bg-white dark:bg-slate-800 rounded-xl border border-slate-100 shadow-xl z-50 p-2 animate-in fade-in zoom-in-95 duration-200">
-                                        <div className="max-h-48 overflow-y-auto space-y-1">
-                                            {availableCities.map(c => (
-                                                <label key={c} className="flex items-center gap-2 p-2 hover:bg-slate-50 rounded-lg cursor-pointer">
-                                                    <Checkbox checked={selectedCities.includes(c)} onCheckedChange={() => handleCitySelect(c)} />
-                                                    <span className="text-xs font-bold">{c}</span>
-                                                </label>
-                                            ))}
+                                {openDropdown === 'city' && (
+                                    <div className="absolute top-full mt-2 w-full bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 shadow-xl z-50 p-2 animate-in fade-in zoom-in-95 duration-150">
+                                        {citiesWithCount.length > 5 && (
+                                            <div className="px-1 pb-2">
+                                                <Input 
+                                                    placeholder="Buscar cidade..." 
+                                                    value={citySearch} 
+                                                    onChange={e => setCitySearch(e.target.value)}
+                                                    onClick={e => e.stopPropagation()}
+                                                    className="h-8 text-xs bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700"
+                                                />
+                                            </div>
+                                        )}
+                                        <div className="max-h-48 overflow-y-auto space-y-1 pr-1">
+                                            {filteredCitiesWithCount.length > 0 ? (
+                                                filteredCitiesWithCount.map(item => (
+                                                    <label key={item.name} className="flex items-center justify-between p-2 hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-lg cursor-pointer select-none transition-colors">
+                                                        <div className="flex items-center gap-2 truncate pr-2">
+                                                            <Checkbox 
+                                                                checked={selectedCities.includes(item.name)} 
+                                                                onCheckedChange={() => handleCitySelect(item.name)} 
+                                                            />
+                                                            <span className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">{item.name}</span>
+                                                        </div>
+                                                        <span className="text-[11px] font-semibold text-slate-400 shrink-0">({item.count})</span>
+                                                    </label>
+                                                ))
+                                            ) : (
+                                                <div className="p-3 text-center text-xs text-slate-400 font-medium">
+                                                    Nenhuma cidade com imóveis
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 )}
@@ -284,21 +462,48 @@ export default function SearchFilters({
                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Bairro(s)</label>
                             <div className="relative" ref={neighborhoodRef}>
                                 <div 
-                                    onClick={() => { if(selectedCities.length) setIsNeighborhoodDropdownOpen(!isNeighborhoodDropdownOpen); else toast({ title: "Selecione a Cidade", description: "Escolha ao menos uma cidade primeiro." }); }}
-                                    className={cn("w-full h-12 px-4 flex items-center justify-between cursor-pointer text-sm font-bold truncate", styles.input, !selectedCities.length && "opacity-50")}
+                                    onClick={toggleNeighborhoodDropdown}
+                                    className={cn("w-full h-12 px-4 flex items-center justify-between cursor-pointer text-sm font-bold truncate select-none transition-colors", styles.input)}
                                 >
-                                    <span>{selectedNeighborhoods.length > 0 ? `${selectedNeighborhoods.length} Selecionados` : 'Bairros...'}</span>
-                                    <ChevronDown className="size-4 text-slate-400" />
+                                    <span className="truncate">
+                                        {selectedNeighborhoods.length > 0 
+                                            ? `${selectedNeighborhoods.length} Selecionado${selectedNeighborhoods.length > 1 ? 's' : ''}` 
+                                            : 'Bairros...'}
+                                    </span>
+                                    <ChevronDown className={cn("size-4 text-slate-400 shrink-0 transition-transform duration-200", openDropdown === 'neighborhood' && "rotate-180")} />
                                 </div>
-                                {isNeighborhoodDropdownOpen && (
-                                    <div className="absolute top-full mt-2 w-full bg-white dark:bg-slate-800 rounded-xl border border-slate-100 shadow-xl z-50 p-2 animate-in fade-in zoom-in-95 duration-200">
-                                        <div className="max-h-48 overflow-y-auto space-y-1">
-                                            {availableNeighborhoods.map(n => (
-                                                <label key={n} className="flex items-center gap-2 p-2 hover:bg-slate-50 rounded-lg cursor-pointer">
-                                                    <Checkbox checked={selectedNeighborhoods.includes(n)} onCheckedChange={() => handleNeighborhoodSelect(n)} />
-                                                    <span className="text-xs font-bold">{n}</span>
-                                                </label>
-                                            ))}
+                                {openDropdown === 'neighborhood' && (
+                                    <div className="absolute top-full mt-2 w-full bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 shadow-xl z-50 p-2 animate-in fade-in zoom-in-95 duration-150">
+                                        {neighborhoodsWithCount.length > 5 && (
+                                            <div className="px-1 pb-2">
+                                                <Input 
+                                                    placeholder="Buscar bairro..." 
+                                                    value={neighborhoodSearch} 
+                                                    onChange={e => setNeighborhoodSearch(e.target.value)}
+                                                    onClick={e => e.stopPropagation()}
+                                                    className="h-8 text-xs bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700"
+                                                />
+                                            </div>
+                                        )}
+                                        <div className="max-h-48 overflow-y-auto space-y-1 pr-1">
+                                            {filteredNeighborhoodsWithCount.length > 0 ? (
+                                                filteredNeighborhoodsWithCount.map(item => (
+                                                    <label key={item.name} className="flex items-center justify-between p-2 hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-lg cursor-pointer select-none transition-colors">
+                                                        <div className="flex items-center gap-2 truncate pr-2">
+                                                            <Checkbox 
+                                                                checked={selectedNeighborhoods.includes(item.name)} 
+                                                                onCheckedChange={() => handleNeighborhoodSelect(item.name)} 
+                                                            />
+                                                            <span className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">{item.name}</span>
+                                                        </div>
+                                                        <span className="text-[11px] font-semibold text-slate-400 shrink-0">({item.count})</span>
+                                                    </label>
+                                                ))
+                                            ) : (
+                                                <div className="p-3 text-center text-xs text-slate-400 font-medium">
+                                                    Nenhum bairro com imóveis
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 )}
@@ -357,3 +562,4 @@ export default function SearchFilters({
         </div>
     );
 }
+

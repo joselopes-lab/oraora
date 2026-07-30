@@ -88,7 +88,7 @@ export default function RadarLoginPage() {
             toast({
                 variant: "destructive",
                 title: "Erro de login",
-                description: "Credenciais inválidas. Verifique seu e-mail e senha.",
+                description: "Credenciais Inválidas. Verifique usuário e senha. Se persistir clique em esqueceu a senha.",
             });
         } finally {
             setIsSubmitting(false);

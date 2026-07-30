@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { CartorioServiceItem, CartorioProcess, CartorioService } from '@/services/cartorioService';
+import { CartorioServiceItem, CartorioProcess, CartorioService, normalizeProcess } from '@/services/cartorioService';
 import { useToast } from '@/hooks/use-toast';
 import { 
   FileText, 
@@ -39,34 +39,84 @@ export default function PublicRequest({
   const { toast } = useToast();
   const [submitting, setSubmitting] = useState(false);
 
+  // Normalize fields for robust rendering
+  const servicePrice = typeof service.price === 'number' ? service.price : 0;
+  const serviceDescription = service.description || service.summary || "";
+  const serviceName = service.name || service.title || "Serviço sem nome";
+  const serviceCategory = service.category || "Geral";
+  
+  // Normalize completion time
+  const rawDays = service.estimatedDays || (parseInt(String(service.duration || service.estimatedTime)) || 0);
+  const displayDuration = service.duration || service.estimatedTime || `${rawDays} dias`;
+
+  // Normalize documents list
+  const normalizedDocs = Array.isArray(service.documentsConfig) 
+    ? service.documentsConfig.map((d: any) => typeof d === 'string' ? d : (d.name || d.nome || "Documento"))
+    : Array.isArray(service.documents)
+      ? service.documents
+      : [];
+
   const handleConfirmRequest = async () => {
+    if (!brokerId) {
+      toast({
+        variant: 'destructive',
+        title: 'Usuário não autenticado',
+        description: 'É necessário estar autenticado para iniciar um processo no Cartório.',
+      });
+      return;
+    }
     setSubmitting(true);
     try {
-      // Pass the origin and client details dynamically as customData
-      const customData = {
-        origin: 'BROKER',
-        originName: 'OraOra Corretor',
+      const docsConfig = service.documentsConfig || service.documents || [];
+      const newProcess: CartorioProcess = normalizeProcess({
+        id: `RASCUNHO-${Date.now()}`,
+        serviceId: service.id,
+        serviceName: service.name,
         brokerId,
         clientId: client.id,
         clientName: client.name,
-        clientEmail: client.email
-      };
-
-      // Calls the centralized CartorioService to create the request
-      const newProcess = await cartorioService.openRequest(service.id, brokerId, customData);
+        clientEmail: client.email,
+        status: 'rascunho',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        messages: [],
+        history: [],
+        events: [],
+        documents: docsConfig.map((doc: any, idx: number) => ({
+          id: typeof doc === 'string' ? `doc-${idx}` : (doc.id || `doc-${idx}`),
+          name: typeof doc === 'string' ? doc : (doc.name || doc.nome || 'Documento'),
+          required: true,
+          status: 'pending'
+        })),
+        timeline: [
+          {
+            id: 'step-1',
+            title: 'Rascunho Criado',
+            description: 'Aguardando envio de documentos e confirmação.',
+            status: 'current',
+            date: new Date().toLocaleDateString('pt-BR')
+          },
+          {
+            id: 'step-2',
+            title: 'Enviado ao Cartório',
+            description: 'Aguardando recepção pelo escrevente.',
+            status: 'pending'
+          }
+        ]
+      });
 
       toast({
-        title: 'Solicitação Iniciada!',
-        description: `O processo de "${service.name}" foi registrado com sucesso no sistema central do Cartório.`,
+        title: 'Rascunho Criado!',
+        description: `Rascunho do processo de "${service.name}" registrado localmente.`,
       });
 
       onSuccess(newProcess);
     } catch (error: any) {
-      console.error('Error opening request in PublicRequest:', error);
+      console.error('Error creating draft in PublicRequest:', error);
       toast({
         variant: 'destructive',
         title: 'Falha na abertura',
-        description: 'Ocorreu um erro ao registrar a solicitação junto ao Cartório.',
+        description: 'Ocorreu um erro ao criar o rascunho.',
       });
     } finally {
       setSubmitting(false);
@@ -83,7 +133,7 @@ export default function PublicRequest({
           <Badge className="bg-primary/20 text-primary border-none text-[10px] uppercase tracking-wider font-bold mb-2">
             Portal de Solicitação do Cartório
           </Badge>
-          <h3 className="text-xl font-black tracking-tight">{service.name}</h3>
+          <h3 className="text-xl font-black tracking-tight">{serviceName}</h3>
           <p className="text-slate-400 text-xs">
             Esta solicitação será transmitida diretamente ao Oficial de Registro parceiro.
           </p>
@@ -98,19 +148,19 @@ export default function PublicRequest({
               <Layers className="size-4 text-primary" /> Detalhes do Ato Cartorial
             </h4>
             
-            <p className="text-slate-600 text-xs leading-relaxed">{service.description}</p>
+            <p className="text-slate-600 text-xs leading-relaxed">{serviceDescription}</p>
             
             <div className="grid grid-cols-2 gap-4 pt-2 border-t border-slate-100">
               <div>
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Prazo Estimado</span>
                 <p className="text-sm font-bold text-slate-800 flex items-center gap-1 mt-0.5">
-                  <Clock className="size-4 text-slate-400" /> {service.estimatedDays} dias
+                  <Clock className="size-4 text-slate-400" /> {displayDuration}
                 </p>
               </div>
               <div>
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Emolumentos (Valor)</span>
                 <p className="text-sm font-bold text-slate-800 flex items-center gap-1 mt-0.5">
-                  <Coins className="size-4 text-slate-400" /> R$ {service.price.toFixed(2)}
+                  <Coins className="size-4 text-slate-400" /> R$ {servicePrice.toFixed(2)}
                 </p>
               </div>
             </div>
@@ -118,26 +168,28 @@ export default function PublicRequest({
             <div className="pt-2">
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Categoria</span>
               <Badge className="bg-primary/10 text-primary hover:bg-primary/20 border-none capitalize text-xs">
-                {service.category}
+                {serviceCategory}
               </Badge>
             </div>
           </div>
 
-          <div className="border border-slate-100 rounded-xl p-5 bg-slate-50/50 space-y-2">
-            <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider">
-              Documentação Necessária para Análise
-            </h4>
-            <p className="text-slate-500 text-[11px]">
-              Os seguintes documentos serão solicitados após o início do processo para qualificação territorial:
-            </p>
-            <ul className="text-xs text-slate-600 space-y-1.5 pl-4 list-disc mt-2">
-              {service.documentsConfig.map((doc) => (
-                <li key={doc.id} className="leading-tight">
-                  <span className="font-semibold text-slate-800">{doc.name}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
+          {normalizedDocs.length > 0 && (
+            <div className="border border-slate-100 rounded-xl p-5 bg-slate-50/50 space-y-2">
+              <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider">
+                Documentação Necessária para Análise
+              </h4>
+              <p className="text-slate-500 text-[11px]">
+                Os seguintes documentos serão solicitados após o início do processo para qualificação territorial:
+              </p>
+              <ul className="text-xs text-slate-600 space-y-1.5 pl-4 list-disc mt-2">
+                {normalizedDocs.map((docName, idx) => (
+                  <li key={`${service.id}-req-${idx}`} className="leading-tight">
+                    <span className="font-semibold text-slate-800">{docName}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
 
         {/* Right Column: Client & Integration metadata */}

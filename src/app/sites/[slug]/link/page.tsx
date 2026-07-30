@@ -204,7 +204,7 @@ export default async function OralinkPublicPage({ params }: { params: Promise<{ 
                   className="bg-white rounded-[2rem] overflow-hidden border border-gray-100 shadow-soft hover:shadow-lg transition-all group"
                 >
                   <div className="relative h-48 w-full bg-gray-100">
-                    <Image src={prop.midia?.[0] || 'https://picsum.photos/seed/prop/400/200'} alt={prop.informacoesbasicas.nome} fill className="object-cover group-hover:scale-105 transition-transform duration-700" />
+                    <Image src={prop.midia?.[0] || (prop as any).media?.[0] || 'https://picsum.photos/seed/prop/400/200'} alt={prop.informacoesbasicas.nome} fill className="object-cover group-hover:scale-105 transition-transform duration-700" />
                     <div className="absolute top-4 left-4">
                       <span className="backdrop-blur text-[10px] font-black px-3 py-1 rounded-lg uppercase tracking-widest" style={{ backgroundColor: tagBgHex, color: tagTextHex }}>{prop.informacoesbasicas.status}</span>
                     </div>

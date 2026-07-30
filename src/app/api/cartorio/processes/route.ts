@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(req: NextRequest) {
   try {
-    const baseUrl = process.env.CARTORIO_API_URL || "https://cartorio.oraora.com.br/api/v1";
+    const baseUrl = process.env.CARTORIO_API_URL || "https://us-central1-oraora---construtora.cloudfunctions.net/api/cartorio";
     const targetUrl = `${baseUrl.replace(/\/$/, "")}/processes${req.nextUrl.search}`;
 
     const response = await fetch(targetUrl, {
@@ -22,7 +22,12 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    const data = await response.json();
+    console.log("Status API:", response.status);
+    const body = await response.json();
+    console.log("Resposta da Cloud Function:", body);
+    console.log("Quantidade recebida:", body.data?.length);
+    console.log("Resposta enviada ao frontend:", body);
+    const data = body;
     return NextResponse.json(data);
   } catch (error: any) {
     console.error("GET /api/cartorio/processes proxy error:", error);
@@ -32,7 +37,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const baseUrl = process.env.CARTORIO_API_URL || "https://cartorio.oraora.com.br/api/v1";
+    const baseUrl = process.env.CARTORIO_API_URL || "https://us-central1-oraora---construtora.cloudfunctions.net/api/cartorio";
     const targetUrl = `${baseUrl.replace(/\/$/, "")}/processes`;
 
     const body = await req.json();

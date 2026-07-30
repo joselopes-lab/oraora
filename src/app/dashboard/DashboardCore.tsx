@@ -17,6 +17,10 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import {
   Dialog,
@@ -367,10 +371,11 @@ export default function DashboardCore({
                         <DropdownMenuTrigger className={dropdownTriggerClasses(["/dashboard/leads", "/dashboard/clientes", "/dashboard/personas"])}>
                           <span className="material-symbols-outlined text-[20px]">group</span>
                           Clientes
+                          <span className="material-symbols-outlined text-[16px] ml-0.5">expand_more</span>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="start" className="w-56" onMouseEnter={() => handleMouseEnter('clientes')} onMouseLeave={handleMouseLeave}>
                           <DropdownMenuItem asChild><Link href="/dashboard/leads">Funil de Vendas</Link></DropdownMenuItem>
-                          <DropdownMenuItem asChild><Link href="/dashboard/clientes">Clientes</Link></DropdownMenuItem>
+                          <DropdownMenuItem asChild><Link href="/dashboard/clientes">Base de Clientes</Link></DropdownMenuItem>
                           <DropdownMenuItem asChild><Link href="/dashboard/personas">Personas</Link></DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -378,14 +383,15 @@ export default function DashboardCore({
 
                     <div onMouseEnter={() => handleMouseEnter('imoveis')} onMouseLeave={handleMouseLeave} className="h-full">
                       <DropdownMenu open={openMenu === 'imoveis'} onOpenChange={(open) => setOpenMenu(open ? 'imoveis' : null)}>
-                        <DropdownMenuTrigger className={dropdownTriggerClasses(["/dashboard/imoveis", "/dashboard/minha-carteira", "/dashboard/avulso"])}>
+                        <DropdownMenuTrigger className={dropdownTriggerClasses(["/dashboard/minha-carteira", "/dashboard/avulso", "/dashboard/imoveis"])}>
                           <span className="material-symbols-outlined text-[20px]">apartment</span>
                           Imóveis
+                          <span className="material-symbols-outlined text-[16px] ml-0.5">expand_more</span>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="start" className="w-56" onMouseEnter={() => handleMouseEnter('imoveis')} onMouseLeave={handleMouseLeave}>
                           <DropdownMenuItem asChild><Link href="/dashboard/minha-carteira">Minha Carteira</Link></DropdownMenuItem>
+                          <DropdownMenuItem asChild><Link href="/dashboard/avulso">Imóveis Avulsos</Link></DropdownMenuItem>
                           <DropdownMenuItem asChild><Link href="/dashboard/imoveis">Construtoras</Link></DropdownMenuItem>
-                          <DropdownMenuItem asChild><Link href="/dashboard/avulso">Meus Imóveis</Link></DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
@@ -395,60 +401,86 @@ export default function DashboardCore({
                         <DropdownMenuTrigger className={dropdownTriggerClasses(["/dashboard/jornada", "/dashboard/propostas", "/dashboard/agenda"])}>
                           <span className="material-symbols-outlined text-[20px]">business_center</span>
                           Negócios
+                          <span className="material-symbols-outlined text-[16px] ml-0.5">expand_more</span>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="start" className="w-56" onMouseEnter={() => handleMouseEnter('negocios')} onMouseLeave={handleMouseLeave}>
-                          <DropdownMenuItem asChild><Link href="/dashboard/jornada">Jornada de Venda</Link></DropdownMenuItem>
+                          <DropdownMenuItem asChild><Link href="/dashboard/jornada">Jornada de Vendas</Link></DropdownMenuItem>
                           <DropdownMenuItem asChild><Link href="/dashboard/propostas">Propostas</Link></DropdownMenuItem>
                           <DropdownMenuItem asChild><Link href="/dashboard/agenda">Agenda</Link></DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
 
-                    <div onMouseEnter={() => handleMouseEnter('cartorio')} onMouseLeave={handleMouseLeave} className="h-full">
-                      <DropdownMenu open={openMenu === 'cartorio'} onOpenChange={(open) => setOpenMenu(open ? 'cartorio' : null)}>
-                        <DropdownMenuTrigger className={dropdownTriggerClasses(["/dashboard/cartorio"])}>
-                          <span className="material-symbols-outlined text-[20px]">gavel</span>
-                          Cartório
+                    <div onMouseEnter={() => handleMouseEnter('mais')} onMouseLeave={handleMouseLeave} className="h-full">
+                      <DropdownMenu open={openMenu === 'mais'} onOpenChange={(open) => setOpenMenu(open ? 'mais' : null)}>
+                        <DropdownMenuTrigger className={dropdownTriggerClasses([
+                          "/dashboard/cartorio",
+                          "/dashboard/financeiro",
+                          "/dashboard/radar-oportunidades",
+                          "/dashboard/solicitacoes-rede",
+                          "/dashboard/meu-site",
+                          "/dashboard/oralink",
+                          "/dashboard/marketing",
+                          "/dashboard/mercado",
+                          "/dashboard/loja",
+                          "/dashboard/ativacao"
+                        ])}>
+                          <span className="material-symbols-outlined text-[20px]">more_horiz</span>
+                          Mais
+                          <span className="material-symbols-outlined text-[16px] ml-0.5">expand_more</span>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start" className="w-56" onMouseEnter={() => handleMouseEnter('cartorio')} onMouseLeave={handleMouseLeave}>
-                          <DropdownMenuItem asChild><Link href="/dashboard/cartorio?tab=servicos">Serviços</Link></DropdownMenuItem>
-                          <DropdownMenuItem asChild><Link href="/dashboard/cartorio?tab=processos">Meus Processos</Link></DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
+                        <DropdownMenuContent align="start" className="w-56" onMouseEnter={() => handleMouseEnter('mais')} onMouseLeave={handleMouseLeave}>
+                          
+                          <DropdownMenuSub>
+                            <DropdownMenuSubTrigger className="flex items-center gap-2 cursor-pointer">
+                              <span className="material-symbols-outlined text-[18px]">gavel</span>
+                              <span>Consultoria Cartorial</span>
+                            </DropdownMenuSubTrigger>
+                            <DropdownMenuSubContent className="w-56">
+                              <DropdownMenuItem asChild><Link href="/dashboard/cartorio?tab=servicos">Serviços</Link></DropdownMenuItem>
+                              <DropdownMenuItem asChild><Link href="/dashboard/cartorio?tab=processos">Meus Processos</Link></DropdownMenuItem>
+                            </DropdownMenuSubContent>
+                          </DropdownMenuSub>
 
-                    <Link className={navLinkClasses("/dashboard/financeiro")} href="/dashboard/financeiro">
-                      <span className="material-symbols-outlined text-[20px]">payments</span>
-                      Financeiro
-                    </Link>
+                          <DropdownMenuSub>
+                            <DropdownMenuSubTrigger className="flex items-center gap-2 cursor-pointer">
+                              <span className="material-symbols-outlined text-[18px]">payments</span>
+                              <span>Financeiro</span>
+                            </DropdownMenuSubTrigger>
+                            <DropdownMenuSubContent className="w-56">
+                              <DropdownMenuItem asChild><Link href="/dashboard/financeiro">Financeiro</Link></DropdownMenuItem>
+                            </DropdownMenuSubContent>
+                          </DropdownMenuSub>
 
-                    <div onMouseEnter={() => handleMouseEnter('rede')} onMouseLeave={handleMouseLeave} className="h-full">
-                      <DropdownMenu open={openMenu === 'rede'} onOpenChange={(open) => setOpenMenu(open ? 'rede' : null)}>
-                        <DropdownMenuTrigger className={dropdownTriggerClasses(["/dashboard/radar-oportunidades", "/dashboard/solicitacoes-rede"])}>
-                          <span className="material-symbols-outlined text-[20px]">lan</span>
-                          Rede
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start" className="w-56" onMouseEnter={() => handleMouseEnter('rede')} onMouseLeave={handleMouseLeave}>
-                          <DropdownMenuItem asChild><Link href="/dashboard/radar-oportunidades">Radar</Link></DropdownMenuItem>
-                          <DropdownMenuItem asChild><Link href="/dashboard/solicitacoes-rede">Solicitações</Link></DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                    
-                    <div onMouseEnter={() => handleMouseEnter('crescimento')} onMouseLeave={handleMouseLeave} className="h-full">
-                      <DropdownMenu open={openMenu === 'crescimento'} onOpenChange={(open) => setOpenMenu(open ? 'crescimento' : null)}>
-                        <DropdownMenuTrigger className={dropdownTriggerClasses(["/dashboard/meu-site", "/dashboard/oralink", "/dashboard/marketing", "/dashboard/mercado", "/dashboard/loja", "/dashboard/ativacao"])}>
-                          <span className="material-symbols-outlined text-[20px]">trending_up</span>
-                          Crescimento
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start" className="w-56" onMouseEnter={() => handleMouseEnter('crescimento')} onMouseLeave={handleMouseLeave}>
-                          <DropdownMenuItem asChild><Link href="/dashboard/meu-site">Meu Site</Link></DropdownMenuItem>
-                          <DropdownMenuItem asChild><Link href="/dashboard/oralink">Oralink</Link></DropdownMenuItem>
-                          <DropdownMenuItem asChild><Link href="/dashboard/marketing">Marketing</Link></DropdownMenuItem>
-                          <DropdownMenuItem asChild><Link href="/dashboard/marketing/autoridade">Autoridade Digital</Link></DropdownMenuItem>
-                          <DropdownMenuItem asChild><Link href="/dashboard/mercado">Inteligência de Mercado</Link></DropdownMenuItem>
-                          <DropdownMenuItem asChild><Link href="/dashboard/loja">Loja OraOra</Link></DropdownMenuItem>
-                          <DropdownMenuItem asChild><Link href="/dashboard/ativacao">Academia OraOra</Link></DropdownMenuItem>
+                          <DropdownMenuSub>
+                            <DropdownMenuSubTrigger className="flex items-center gap-2 cursor-pointer">
+                              <span className="material-symbols-outlined text-[18px]">lan</span>
+                              <span>Rede</span>
+                            </DropdownMenuSubTrigger>
+                            <DropdownMenuSubContent className="w-56">
+                              <DropdownMenuItem asChild><Link href="/dashboard/radar-oportunidades">Radar</Link></DropdownMenuItem>
+                              <DropdownMenuItem asChild><Link href="/dashboard/solicitacoes-rede">Solicitações</Link></DropdownMenuItem>
+                            </DropdownMenuSubContent>
+                          </DropdownMenuSub>
+
+                          <DropdownMenuSeparator />
+
+                          <DropdownMenuSub>
+                            <DropdownMenuSubTrigger className="flex items-center gap-2 cursor-pointer">
+                              <span className="material-symbols-outlined text-[18px]">trending_up</span>
+                              <span>Crescimento</span>
+                            </DropdownMenuSubTrigger>
+                            <DropdownMenuSubContent className="w-56">
+                              <DropdownMenuItem asChild><Link href="/dashboard/meu-site">Meu Site</Link></DropdownMenuItem>
+                              <DropdownMenuItem asChild><Link href="/dashboard/oralink">Ora Link</Link></DropdownMenuItem>
+                              <DropdownMenuItem asChild><Link href="/dashboard/marketing">Marketing</Link></DropdownMenuItem>
+                              <DropdownMenuItem asChild><Link href="/dashboard/marketing/autoridade">Autoridade Digital</Link></DropdownMenuItem>
+                              <DropdownMenuItem asChild><Link href="/dashboard/mercado">Inteligência de Mercado</Link></DropdownMenuItem>
+                              <DropdownMenuItem asChild><Link href="/dashboard/loja">Loja OraOra</Link></DropdownMenuItem>
+                              <DropdownMenuItem asChild><Link href="/dashboard/ativacao">Academia OraOra</Link></DropdownMenuItem>
+                            </DropdownMenuSubContent>
+                          </DropdownMenuSub>
+
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>

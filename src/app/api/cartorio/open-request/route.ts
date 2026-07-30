@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest) {
   try {
-    const baseUrl = process.env.CARTORIO_API_URL || "https://cartorio.oraora.com.br/api/v1";
+    const baseUrl = process.env.CARTORIO_API_URL || "https://us-central1-oraora---construtora.cloudfunctions.net/api/cartorio";
     const targetUrl = `${baseUrl.replace(/\/$/, "")}/processes`;
 
     const body = await req.json();

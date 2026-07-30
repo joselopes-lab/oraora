@@ -40,8 +40,20 @@ export async function savePropertyServer(
       lastEditorId: userId
     };
 
-    // Remove undefined fields for Firestore compatibility
-    const sanitizedData = JSON.parse(JSON.stringify(finalData));
+    // Remove undefined fields for Firestore compatibility without breaking FieldValue
+    const sanitize = (obj: any): any => {
+      if (Array.isArray(obj)) return obj.map(sanitize);
+      if (obj !== null && typeof obj === 'object' && obj.constructor?.name !== 'FieldValue' && !(obj instanceof FieldValue)) {
+        return Object.fromEntries(
+          Object.entries(obj)
+            .filter(([_, v]) => v !== undefined)
+            .map(([k, v]) => [k, sanitize(v)])
+        );
+      }
+      return obj;
+    };
+
+    const sanitizedData = sanitize(finalData);
 
     await docRef.set(sanitizedData, { merge: true });
 

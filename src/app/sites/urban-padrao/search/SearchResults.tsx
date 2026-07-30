@@ -120,8 +120,10 @@ export default function SearchResults({ broker, properties }: SearchResultsPageP
             const searchCities = citiesParam ? citiesParam.split(',') : [];
             const matchesCity = searchCities.length === 0 || searchCities.includes(property.localizacao.cidade);
 
-            const searchNeighborhoods = neighborhoodsParam ? neighborhoodsParam.split(',') : [];
-            const matchesNeighborhood = searchNeighborhoods.length === 0 || searchNeighborhoods.includes(property.localizacao.bairro);
+            const normalizeStr = (str?: string) => (str || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+            const searchNeighborhoods = neighborhoodsParam ? neighborhoodsParam.split(',').map(n => normalizeStr(n)).filter(Boolean) : [];
+            const propBairro = normalizeStr(property.localizacao?.bairro || property.localizacao?.neighborhood);
+            const matchesNeighborhood = searchNeighborhoods.length === 0 || searchNeighborhoods.includes(propBairro);
 
             const searchRooms = roomsParam ? roomsParam.split(',') : [];
             if (searchRooms.length > 0) {
@@ -226,7 +228,7 @@ export default function SearchResults({ broker, properties }: SearchResultsPageP
                                     <h1 className="text-3xl md:text-4xl font-black text-text-main mb-2">Encontre o imóvel ideal</h1>
                                     <p className="text-text-muted">Utilize os filtros abaixo para refinar sua busca.</p>
                                 </div>
-                                <SearchFilters onSearch={handleSearch} availableStates={availableStates} />
+                                <SearchFilters onSearch={handleSearch} availableStates={availableStates} properties={properties} />
                             </div>
                         </div>
                     </section>
@@ -269,7 +271,7 @@ export default function SearchResults({ broker, properties }: SearchResultsPageP
                                         <button className="absolute top-3 right-3 z-10 flex size-8 items-center justify-center rounded-full bg-white/80 backdrop-blur-sm text-gray-500 hover:text-red-500 hover:bg-white transition-colors">
                                             <span className="material-symbols-outlined text-[20px]">favorite</span>
                                         </button>
-                                        <Image alt={property.informacoesbasicas.nome} width={400} height={300} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110" src={property.midia?.[0] || 'https://picsum.photos/seed/prop/400/300'}/>
+                                        <Image alt={property.informacoesbasicas.nome} width={400} height={300} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110" src={property.midia?.[0] || (property as any).media?.[0] || 'https://picsum.photos/seed/prop/400/300'}/>
                                         <div className="absolute bottom-0 left-0 w-full bg-gradient-to-t from-black/60 to-transparent p-4 pt-12">
                                             {property.informacoesbasicas.valor && (
                                             <div className="text-white">

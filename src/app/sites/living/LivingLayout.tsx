@@ -45,7 +45,7 @@ export default function LivingLayout({ broker, properties }: LivingLayoutProps) 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {properties.map(property => (
                 <div key={property.id} className="border rounded-lg p-4">
-                    <Image src={property.midia?.[0] || 'https://placehold.co/600x400'} alt={property.informacoesbasicas.nome} width={600} height={400} className="w-full h-48 object-cover rounded-md mb-4"/>
+                    <Image src={property.midia?.[0] || (property as any).media?.[0] || 'https://placehold.co/600x400'} alt={property.informacoesbasicas.nome} width={600} height={400} className="w-full h-48 object-cover rounded-md mb-4"/>
                     <h3 className="font-bold">{property.informacoesbasicas.nome}</h3>
                     <p>{property.localizacao.bairro}, {property.localizacao.cidade}</p>
                     <p className="text-primary font-bold mt-2">{property.informacoesbasicas.valor?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>

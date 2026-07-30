@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 export async function GET(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await context.params;
-    const baseUrl = process.env.CARTORIO_API_URL || "https://cartorio.oraora.com.br/api/v1";
+    const baseUrl = process.env.CARTORIO_API_URL || "https://us-central1-oraora---construtora.cloudfunctions.net/api/cartorio";
     const targetUrl = `${baseUrl.replace(/\/$/, "")}/processes/${id}`;
 
     const response = await fetch(targetUrl, {
@@ -34,7 +34,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
 export async function POST(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await context.params;
-    const baseUrl = process.env.CARTORIO_API_URL || "https://cartorio.oraora.com.br/api/v1";
+    const baseUrl = process.env.CARTORIO_API_URL || "https://us-central1-oraora---construtora.cloudfunctions.net/api/cartorio";
     const targetUrl = `${baseUrl.replace(/\/$/, "")}/processes/${id}`;
 
     const body = await req.json();

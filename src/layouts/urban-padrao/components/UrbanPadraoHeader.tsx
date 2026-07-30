@@ -86,7 +86,7 @@ export function UrbanPadraoHeader({ broker }: { broker: Broker }) {
                   alt={`Logo de ${broker.brandName}`} 
                   width={800} 
                   height={200} 
-                  className="h-auto max-h-[35px] md:max-h-[50px] w-auto object-contain object-left" 
+                  className="h-auto max-h-[35px] md:max-h-[78px] w-auto object-contain object-left" 
                   style={{ width: 'auto', height: 'auto' }} 
                   priority 
                 />
@@ -96,7 +96,7 @@ export function UrbanPadraoHeader({ broker }: { broker: Broker }) {
                   alt="Logo" 
                   width={400} 
                   height={150} 
-                  className="h-auto max-h-[35px] md:max-h-[45px] w-auto object-contain object-left" 
+                  className="h-auto max-h-[35px] md:max-h-[78px] w-auto object-contain object-left" 
                   style={{ width: 'auto', height: 'auto' }} 
                   priority 
                 />

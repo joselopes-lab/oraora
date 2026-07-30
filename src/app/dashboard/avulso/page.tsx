@@ -46,6 +46,7 @@ type BrokerProperty = {
   basicInfo?: {
     title?: string;
   };
+  createdAt?: any; // Adicionado para ordenação
 };
 
 type Property = {
@@ -76,6 +77,46 @@ export default function AvulsoPage() {
     );
     const { data: properties, isLoading: arePropertiesLoading } = useCollection<BrokerProperty>(propertiesQuery);
     
+    // PAGINAÇÃO E ORDENAÇÃO
+    const itemsPerPage = 10;
+    const [currentPage, setCurrentPage] = useState(1);
+
+    const sortedProperties = useMemo(() => {
+        if (!properties) return [];
+        return [...properties].sort((a, b) => {
+            const getTime = (val: any) => {
+                if (!val) return 0;
+                // Handle Firestore Timestamp
+                if (typeof val.toDate === 'function') return val.toDate().getTime();
+                // Handle Date object
+                if (val instanceof Date) return val.getTime();
+                // Handle Number (ms)
+                if (typeof val === 'number') return val;
+                // Handle String
+                const d = new Date(val);
+                return isNaN(d.getTime()) ? 0 : d.getTime();
+            };
+            
+            const dateA = getTime(a.createdAt);
+            const dateB = getTime(b.createdAt);
+            
+            // Descending order: newest first
+            return dateB - dateA;
+        });
+    }, [properties]);
+
+    const totalPages = Math.ceil(sortedProperties.length / itemsPerPage);
+    const slicedProperties = useMemo(() => {
+        const start = (currentPage - 1) * itemsPerPage;
+        return sortedProperties.slice(start, start + itemsPerPage);
+    }, [sortedProperties, currentPage]);
+
+    useEffect(() => {
+        if (currentPage > totalPages && totalPages > 0) {
+            setCurrentPage(totalPages);
+        }
+    }, [totalPages, currentPage]);
+
     const [portfolioProperties, setPortfolioProperties] = useState<Property[]>([]);
     const [arePortfolioPropertiesLoading, setArePortfolioPropertiesLoading] = useState(true);
 
@@ -234,8 +275,8 @@ export default function AvulsoPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody className="divide-y divide-gray-100 text-sm">
-                            {properties && properties.length > 0 ? (
-                                properties.map(property => (
+                            {slicedProperties && slicedProperties.length > 0 ? (
+                                slicedProperties.map(property => (
                                 <TableRow key={property.id} className="group hover:bg-background-light transition-colors">
                                     <TableCell className="px-6 py-4">
                                         <div className="flex items-center gap-4">
@@ -278,10 +319,11 @@ export default function AvulsoPage() {
                     </Table>
                 </div>
                 <div className="bg-white px-6 py-4 border-t border-gray-100 flex items-center justify-between">
-                    <span className="text-sm text-text-secondary">Mostrando <span className="font-bold text-text-main">1-{properties?.length || 0}</span> de <span className="font-bold text-text-main">{properties?.length || 0}</span> imóveis</span>
+                    <span className="text-sm text-text-secondary">Mostrando <span className="font-bold text-text-main">{(currentPage - 1) * itemsPerPage + 1}-{(currentPage - 1) * itemsPerPage + slicedProperties.length}</span> de <span className="font-bold text-text-main">{sortedProperties.length}</span> imóveis</span>
                     <div className="flex gap-2">
-                        <Button variant="outline" size="sm" disabled>Anterior</Button>
-                        <Button variant="outline" size="sm">Próximo</Button>
+                        <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>Anterior</Button>
+                        <span className="text-sm flex items-center px-2">Página {currentPage} de {totalPages || 1}</span>
+                        <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages || totalPages === 0}>Próximo</Button>
                     </div>
                 </div>
             </div>

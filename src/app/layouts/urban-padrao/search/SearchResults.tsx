@@ -110,8 +110,10 @@ export default function SearchResults({ broker, properties }: SearchResultsPageP
             const searchCities = citiesParam ? citiesParam.split(',') : [];
             const matchesCity = searchCities.length === 0 || searchCities.includes(property.localizacao.cidade);
 
-            const searchNeighborhoods = neighborhoodsParam ? neighborhoodsParam.split(',') : [];
-            const matchesNeighborhood = searchNeighborhoods.length === 0 || searchNeighborhoods.includes(property.localizacao.bairro);
+            const normalizeStr = (str?: string) => (str || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+            const searchNeighborhoods = neighborhoodsParam ? neighborhoodsParam.split(',').map(n => normalizeStr(n)).filter(Boolean) : [];
+            const propBairro = normalizeStr(property.localizacao?.bairro || property.localizacao?.neighborhood);
+            const matchesNeighborhood = searchNeighborhoods.length === 0 || searchNeighborhoods.includes(propBairro);
 
             const searchRooms = roomsParam ? roomsParam.split(',') : [];
             if (searchRooms.length > 0) {

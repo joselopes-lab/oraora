@@ -30,6 +30,7 @@ type Property = {
     cidade: string;
   };
   midia: string[];
+  media?: string[];
   caracteristicasimovel: {
     quartos?: string[] | string;
     tamanho?: string;

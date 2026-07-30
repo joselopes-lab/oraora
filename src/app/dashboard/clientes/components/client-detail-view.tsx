@@ -147,24 +147,57 @@ export default function ClientDetailView({ client, personas, recommendedProperti
     // Selection for sharing
     const [selectedPropertyIds, setSelectedPropertyIds] = useState<string[]>([]);
 
+    // Fetch all available personas for the picker and resolution
+    const allPersonasQuery = useMemoFirebase(
+        () => (firestore ? query(collection(firestore, 'personas'), where('status', '==', 'Ativo')) : null),
+        [firestore]
+    );
+    const { data: allPersonas, isLoading: areAllPersonasLoading } = useCollection<Persona>(allPersonasQuery);
+
+    const activePersonasPool = (allPersonas && allPersonas.length > 0) ? allPersonas : personas;
+    const clientPersonas = useMemo(() => {
+        if (!client?.personaIds || client.personaIds.length === 0 || !activePersonasPool) return [];
+        return activePersonasPool.filter(p => client.personaIds?.includes(p.id));
+    }, [activePersonasPool, client?.personaIds]);
+
+    const currentPersona = clientPersonas[0];
+
+    // Fetch properties from Firestore if recommendedProperties is empty
+    const propertiesQuery = useMemoFirebase(
+        () => (firestore ? query(collection(firestore, 'properties')) : null),
+        [firestore]
+    );
+    const { data: fetchedProperties } = useCollection<Property>(propertiesQuery);
+
+    const effectiveRecommendedProperties = useMemo(() => {
+        if (recommendedProperties && recommendedProperties.length > 0) {
+            return recommendedProperties;
+        }
+        if (!fetchedProperties) return [];
+        if (clientPersonas.length > 0) {
+            const personaIds = clientPersonas.map(p => p.id);
+            const filtered = fetchedProperties.filter((prop: any) => {
+                if (prop.personaIds && Array.isArray(prop.personaIds)) {
+                    return prop.personaIds.some((id: string) => personaIds.includes(id));
+                }
+                return true;
+            });
+            return filtered.length > 0 ? filtered : fetchedProperties;
+        }
+        return fetchedProperties;
+    }, [recommendedProperties, fetchedProperties, clientPersonas]);
+
     // --- Pagination for IA Recommendations ---
     const [recPage, setRecPage] = useState(1);
     const recsPerPage = 9;
-    const totalRecPages = Math.ceil(recommendedProperties.length / recsPerPage);
-    const paginatedRecs = recommendedProperties.slice((recPage - 1) * recsPerPage, recPage * recsPerPage);
+    const totalRecPages = Math.ceil(effectiveRecommendedProperties.length / recsPerPage);
+    const paginatedRecs = effectiveRecommendedProperties.slice((recPage - 1) * recsPerPage, recPage * recsPerPage);
 
     // Reset to first page when client/persona changes
     useEffect(() => {
         setRecPage(1);
         setSelectedPropertyIds([]); // Clear selection when profile changes
     }, [client.personaIds]);
-
-    // Fetch all available personas for the picker
-    const allPersonasQuery = useMemoFirebase(
-        () => (firestore ? query(collection(firestore, 'personas'), where('status', '==', 'Ativo')) : null),
-        [firestore]
-    );
-    const { data: allPersonas, isLoading: areAllPersonasLoading } = useCollection<Persona>(allPersonasQuery);
 
     // Pagination for Linked Properties
     const [linkedPropsPage, setLinkedPropsPage] = useState(1);
@@ -280,7 +313,7 @@ export default function ClientDetailView({ client, personas, recommendedProperti
     const handleShareSelection = () => {
         if (selectedPropertyIds.length === 0 || !brokerSlug) return;
 
-        const selectedProps = recommendedProperties.filter(p => selectedPropertyIds.includes(p.id));
+        const selectedProps = effectiveRecommendedProperties.filter(p => selectedPropertyIds.includes(p.id));
         
         let message = `Olá ${client.name}! Separei estas oportunidades exclusivas que combinam perfeitamente com o seu perfil:\n\n`;
         
@@ -299,7 +332,6 @@ export default function ClientDetailView({ client, personas, recommendedProperti
         toast({ title: "WhatsApp Aberto", description: "A mensagem foi preparada com os links selecionados." });
     };
 
-    const currentPersona = personas[0];
     const initials = client.name?.substring(0, 2).toUpperCase() || 'CL';
 
     return (
@@ -329,84 +361,97 @@ export default function ClientDetailView({ client, personas, recommendedProperti
                                 </div>
                                 <h3 className="font-black text-slate-900 dark:text-white uppercase tracking-tight">Perfil (Persona)</h3>
                             </div>
-                            {currentPersona && (
+                            {clientPersonas.length > 0 && (
                                 <button onClick={() => setIsPersonaPickerOpen(true)} className="text-[10px] font-black text-green-700 hover:underline uppercase tracking-widest cursor-pointer">Trocar Perfil</button>
                             )}
                         </div>
-                        {currentPersona ? (
-                            <div className="flex-1 space-y-6">
-                                <div className="bg-primary/5 p-5 rounded-2xl border border-primary/10">
-                                    <p className="text-green-700 font-black text-xl mb-2">{currentPersona.name}</p>
-                                    <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed">{currentPersona.description}</p>
-                                </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-1">
-                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Estilo de Vida</span>
-                                        <p className="text-xs font-bold">Exclusivo & Moderno</p>
+                        {clientPersonas.length > 0 ? (
+                            <div className="flex-1 space-y-4">
+                                {clientPersonas.map((persona) => (
+                                    <div key={persona.id} className="bg-primary/5 p-5 rounded-2xl border border-primary/10 flex items-start gap-3">
+                                        <div className={cn("size-10 rounded-xl flex items-center justify-center text-slate-900 shrink-0", persona.iconBackgroundColor || "bg-primary/20")}>
+                                            <span className="material-symbols-outlined text-lg">{persona.icon || "person"}</span>
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-green-700 font-black text-lg leading-tight mb-1">{persona.name}</p>
+                                            {persona.description && (
+                                                <p className="text-slate-600 dark:text-slate-400 text-xs leading-relaxed">{persona.description}</p>
+                                            )}
+                                        </div>
                                     </div>
-                                    <div className="space-y-1 text-right">
-                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Frequência</span>
-                                        <p className="text-xs font-bold text-green-700">Alta Atividade</p>
-                                    </div>
-                                </div>
+                                ))}
                             </div>
                         ) : (
-                            <div className="flex-1 flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-slate-100 rounded-2xl">
-                                <span className="material-symbols-outlined text-slate-200 text-4xl mb-2">person_search</span>
+                            <div className="flex-1 flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-slate-100 dark:border-slate-800 rounded-2xl">
+                                <span className="material-symbols-outlined text-slate-200 dark:text-slate-700 text-4xl mb-2">person_search</span>
                                 <p className="text-xs text-slate-400 font-medium">Nenhuma persona vinculada.</p>
-                                <Dialog open={isPersonaPickerOpen} onOpenChange={setIsPersonaPickerOpen}>
-                                    <DialogTrigger asChild>
-                                        <Button variant="link" className="text-xs font-bold text-green-700 mt-2">Definir Perfil</Button>
-                                    </DialogTrigger>
-                                    <DialogContent className="max-w-3xl max-h-[80vh] flex flex-col p-0">
-                                        <DialogHeader className="p-6 border-b border-slate-100">
-                                            <DialogTitle>Definir Perfil do Cliente</DialogTitle>
-                                            <DialogDescription>Escolha a persona que melhor descreve este cliente para receber recomendações inteligentes.</DialogDescription>
-                                        </DialogHeader>
-                                        <div className="flex-1 overflow-y-auto p-6">
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                {areAllPersonasLoading ? <p>Carregando perfis...</p> : allPersonas?.map(p => (
-                                                    <div 
-                                                        key={p.id} 
-                                                        onClick={() => handleSelectPersona(p.id)}
-                                                        className="p-4 rounded-xl border border-slate-100 bg-slate-50 hover:border-primary hover:bg-primary/5 transition-all cursor-pointer group"
-                                                    >
-                                                        <div className="flex items-center gap-3 mb-2">
-                                                            <div className={cn("size-8 rounded-lg flex items-center justify-center", p.iconBackgroundColor)}>
-                                                                <span className="material-symbols-outlined text-sm">{p.icon}</span>
-                                                            </div>
-                                                            <h4 className="font-bold text-slate-900 group-hover:text-green-700 transition-colors">{p.name}</h4>
-                                                        </div>
-                                                        <p className="text-xs text-slate-500 line-clamp-2">{p.description}</p>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                        <DialogFooter className="p-6 border-t border-slate-100">
-                                            <DialogClose asChild>
-                                                <Button variant="outline">Cancelar</Button>
-                                            </DialogClose>
-                                        </DialogFooter>
-                                    </DialogContent>
-                                </Dialog>
+                                <Button variant="link" onClick={() => setIsPersonaPickerOpen(true)} className="text-xs font-bold text-green-700 mt-2">Definir Perfil</Button>
                             </div>
                         )}
+
+                        {/* Persona Selector Modal */}
+                        <Dialog open={isPersonaPickerOpen} onOpenChange={setIsPersonaPickerOpen}>
+                            <DialogContent className="max-w-3xl max-h-[80vh] flex flex-col p-0">
+                                <DialogHeader className="p-6 border-b border-slate-100 dark:border-slate-800">
+                                    <DialogTitle>Definir Perfil do Cliente</DialogTitle>
+                                    <DialogDescription>Escolha a persona que melhor descreve este cliente para receber recomendações inteligentes.</DialogDescription>
+                                </DialogHeader>
+                                <div className="flex-1 overflow-y-auto p-6">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {areAllPersonasLoading ? <p>Carregando perfis...</p> : allPersonas?.map(p => (
+                                            <div 
+                                                key={p.id} 
+                                                onClick={() => handleSelectPersona(p.id)}
+                                                className={cn(
+                                                    "p-4 rounded-xl border transition-all cursor-pointer group",
+                                                    client.personaIds?.includes(p.id) 
+                                                        ? "border-primary bg-primary/10" 
+                                                        : "border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 hover:border-primary hover:bg-primary/5"
+                                                )}
+                                            >
+                                                <div className="flex items-center gap-3 mb-2">
+                                                    <div className={cn("size-8 rounded-lg flex items-center justify-center", p.iconBackgroundColor || "bg-primary/20")}>
+                                                        <span className="material-symbols-outlined text-sm">{p.icon || "person"}</span>
+                                                    </div>
+                                                    <h4 className="font-bold text-slate-900 dark:text-white group-hover:text-green-700 transition-colors">{p.name}</h4>
+                                                </div>
+                                                <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2">{p.description}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                                <DialogFooter className="p-6 border-t border-slate-100 dark:border-slate-800">
+                                    <DialogClose asChild>
+                                        <Button variant="outline">Cancelar</Button>
+                                    </DialogClose>
+                                </DialogFooter>
+                            </DialogContent>
+                        </Dialog>
                     </div>
 
-                    {/* Property Summary (Interests) */}
+                    {/* Property Summary & Interest Profile */}
                     <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm h-full flex flex-col">
                         <div className="flex items-center justify-between mb-6">
                             <div className="flex items-center gap-3">
                                 <div className="size-10 bg-primary/10 rounded-xl flex items-center justify-center text-green-700">
                                     <span className="material-symbols-outlined font-bold">apartment</span>
                                 </div>
-                                <h3 className="font-black text-slate-900 dark:text-white uppercase tracking-tight">Imóveis de Interesse</h3>
+                                <h3 className="font-black text-slate-900 dark:text-white uppercase tracking-tight">Perfil de Interesse & Imóveis</h3>
                             </div>
                             <span className="bg-slate-100 dark:bg-slate-800 text-[10px] font-black px-2 py-1 rounded text-slate-500 uppercase">{linkedProperties.length} itens</span>
                         </div>
-                        <div className="space-y-3 flex-1">
+                        <div className="space-y-4 flex-1">
+                            {client.propertyInterest && (
+                                <div className="p-4 bg-emerald-50/80 dark:bg-emerald-950/30 border border-emerald-200/80 dark:border-emerald-800/40 rounded-2xl space-y-1">
+                                    <div className="flex items-center gap-2 text-emerald-800 dark:text-emerald-400 font-black text-[11px] uppercase tracking-wider">
+                                        <span className="material-symbols-outlined text-base">interests</span>
+                                        Perfil de Interesse
+                                    </div>
+                                    <p className="text-xs text-slate-800 dark:text-slate-200 font-medium leading-relaxed whitespace-pre-wrap">{client.propertyInterest}</p>
+                                </div>
+                            )}
                             {client.propertyName && (
-                                <div className="mb-4 p-4 bg-primary/5 border-2 border-primary/20 rounded-2xl flex items-center gap-4">
+                                <div className="p-4 bg-primary/5 border-2 border-primary/20 rounded-2xl flex items-center gap-4">
                                     <div className="size-10 bg-primary/20 rounded-xl flex items-center justify-center text-primary shrink-0">
                                         <span className="material-symbols-outlined font-bold">corporate_fare</span>
                                     </div>
@@ -430,9 +475,11 @@ export default function ClientDetailView({ client, personas, recommendedProperti
                                     </div>
                                 ))
                             ) : (
-                                <div className="flex-1 flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-slate-100 rounded-2xl">
-                                    <p className="text-xs text-slate-400">Nenhum imóvel vinculado.</p>
-                                </div>
+                                !client.propertyInterest && !client.propertyName && (
+                                    <div className="flex-1 flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-slate-100 dark:border-slate-800 rounded-2xl">
+                                        <p className="text-xs text-slate-400">Nenhum imóvel ou perfil de interesse cadastrado.</p>
+                                    </div>
+                                )
                             )}
                         </div>
                         {totalLinkedPages > 1 && (
@@ -457,12 +504,12 @@ export default function ClientDetailView({ client, personas, recommendedProperti
                             </div>
                         </div>
                         <div className="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase">
-                            <span>{recommendedProperties.length} imóveis compatíveis</span>
+                            <span>{effectiveRecommendedProperties.length} imóveis compatíveis</span>
                         </div>
                     </div>
                     
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {recommendedProperties.length > 0 ? (
+                        {effectiveRecommendedProperties.length > 0 ? (
                             paginatedRecs.map((prop) => {
                                 const isSelected = selectedPropertyIds.includes(prop.id);
                                 return (
@@ -544,7 +591,7 @@ export default function ClientDetailView({ client, personas, recommendedProperti
                     {totalRecPages > 1 && (
                         <div className="mt-10 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-slate-100 dark:border-slate-800 pt-6">
                             <p className="text-xs text-slate-500 font-medium">
-                                Mostrando {(recPage - 1) * recsPerPage + 1} - {Math.min(recPage * recsPerPage, recommendedProperties.length)} de {recommendedProperties.length} imóveis
+                                Mostrando {(recPage - 1) * recsPerPage + 1} - {Math.min(recPage * recsPerPage, effectiveRecommendedProperties.length)} de {effectiveRecommendedProperties.length} imóveis
                             </p>
                             <div className="flex items-center gap-2">
                                 <button 

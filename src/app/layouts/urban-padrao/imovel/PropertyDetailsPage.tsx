@@ -19,6 +19,7 @@ import { arrayRemove, arrayUnion, doc } from 'firebase/firestore';
 import { useRouter, usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { StreetViewPanoramaView } from '@/components/StreetViewPanorama';
 import { WhatsAppWidget } from '../components/WhatsAppWidget';
 import { WhatsAppLeadModal } from '@/components/WhatsAppLeadModal';
 import { Badge } from '@/components/ui/badge';
@@ -89,6 +90,7 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
+  const [streetViewAvailable, setStreetViewAvailable] = useState<boolean>(true);
   
   const router = useRouter();
   const { user } = useUser();
@@ -208,6 +210,32 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
     return fmt(p.informacoesbasicas.salePrice || p.informacoesbasicas.valor);
   };
 
+  const extractMapSrc = (input: string | undefined): string | null => {
+    if (!input) return null;
+    const iframeMatch = input.match(/src="([^"]*)"/);
+    if (iframeMatch && iframeMatch[1]) return iframeMatch[1];
+    if (input.startsWith('http')) return input;
+    return null;
+  };
+
+  const addressRaw = (localizacao?.address || (localizacao as any)?.endereco || '').trim();
+  const bairro = localizacao?.bairro || '';
+  const cidade = localizacao?.cidade || '';
+  const estado = localizacao?.estado || (localizacao as any)?.state || '';
+
+  let fullAddress = addressRaw;
+  if (!fullAddress) {
+    fullAddress = [bairro, cidade, estado].filter(Boolean).join(', ');
+  } else if (cidade && !addressRaw.toLowerCase().includes(cidade.toLowerCase())) {
+    const extra = [bairro, `${cidade}${estado ? ` - ${estado}` : ''}`].filter(Boolean).join(', ');
+    fullAddress = `${addressRaw}, ${extra}`;
+  }
+
+  const mapSrc = extractMapSrc(localizacao?.googleMapsLink) || (fullAddress ? `https://maps.google.com/maps?q=${encodeURIComponent(fullAddress)}&t=&z=15&ie=UTF8&iwloc=&output=embed` : null);
+  const streetViewSrc = extractMapSrc(localizacao?.googleStreetViewLink) || (fullAddress ? `https://maps.google.com/maps?q=${encodeURIComponent(fullAddress)}&layer=c&cbll=&cbp=12,0,0,0,0&output=embed` : null);
+
+  const showLocationSection = localizacao?.exibirLocalizacao !== false && (property as any)?.exibirLocalizacao !== false && Boolean(fullAddress);
+
   const dynamicStyles = {
     '--background': broker.backgroundColor,
     '--foreground': broker.foregroundColor,
@@ -299,6 +327,63 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
                         ))}
                     </div>
                 </div>
+            )}
+
+            {/* Seção LOCALIZAÇÃO */}
+            {showLocationSection && (
+              <div className="text-left space-y-6">
+                <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
+                  <h2 className="text-2xl font-black uppercase tracking-tight text-slate-900 dark:text-white">
+                    LOCALIZAÇÃO
+                  </h2>
+                  <p className="text-sm text-slate-500 font-medium mt-1 flex items-center gap-1.5">
+                    <span className="material-symbols-outlined text-primary text-base">location_on</span>
+                    {fullAddress}
+                  </p>
+                </div>
+
+                <Tabs defaultValue="map" className="w-full">
+                  <TabsList className="grid w-full grid-cols-2 max-w-xs h-12 p-1 bg-gray-100 dark:bg-slate-800 rounded-xl mb-4">
+                    <TabsTrigger value="map" className="rounded-lg font-bold flex items-center justify-center gap-2 transition-all">
+                      <span className="material-symbols-outlined text-sm">map</span> Mapa
+                    </TabsTrigger>
+                    <TabsTrigger value="streetview" className="rounded-lg font-bold flex items-center justify-center gap-2 transition-all">
+                      <span className="material-symbols-outlined text-sm">streetview</span> Street View
+                    </TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="map" className="mt-0">
+                    <div className="bg-gray-100 dark:bg-slate-900 rounded-[2rem] h-[450px] w-full overflow-hidden border border-slate-100 dark:border-slate-800 shadow-sm">
+                      {mapSrc ? (
+                        <iframe
+                          src={mapSrc}
+                          width="100%"
+                          height="100%"
+                          style={{ border: 0 }}
+                          allowFullScreen={false}
+                          loading="lazy"
+                          title="Mapa Google"
+                        />
+                      ) : (
+                        <div className="flex items-center justify-center h-full text-slate-400 font-medium">
+                          Mapa não disponível para este endereço.
+                        </div>
+                      )}
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="streetview" className="mt-0">
+                    <div className="bg-gray-100 dark:bg-slate-900 rounded-[2rem] h-[450px] w-full overflow-hidden border border-slate-100 dark:border-slate-800 shadow-sm relative flex items-center justify-center">
+                      <StreetViewPanoramaView
+                        fullAddress={fullAddress}
+                        lat={localizacao?.latitude}
+                        lng={localizacao?.longitude}
+                        streetViewLink={localizacao?.googleStreetViewLink}
+                      />
+                    </div>
+                  </TabsContent>
+                </Tabs>
+              </div>
             )}
           </div>
 

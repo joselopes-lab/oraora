@@ -39,6 +39,7 @@ export interface PropertySDK {
     address?: string;
   };
   midia: string[];
+  media?: string[];
   caracteristicasimovel: {
     tipo: string;
     quartos?: string[] | string;

@@ -25,6 +25,12 @@ export interface ProcessDocument {
   fileUrl?: string;
   fileName?: string;
   feedback?: string;
+  tipo?: string;
+  tamanho?: number;
+  storagePath?: string;
+  downloadURL?: string;
+  uploadedAt?: string;
+  uploadedBy?: string;
 }
 
 export interface ProcessMessage {
@@ -47,12 +53,26 @@ export interface CartorioProcess {
   serviceId: string;
   serviceName: string;
   brokerId: string;
-  status: 'novo' | 'em_analise' | 'aguardando_documentos' | 'concluido' | 'cancelado';
+  status: 'rascunho' | 'novo' | 'em_analise' | 'aguardando_documentos' | 'concluido' | 'cancelado';
   createdAt: string;
   updatedAt: string;
   documents: ProcessDocument[];
   messages: ProcessMessage[];
   timeline: ProcessMilestone[];
+  history?: any[];
+  events?: any[];
+}
+
+export function normalizeProcess(raw: any): CartorioProcess {
+  const data = raw?.data || raw || {};
+  return {
+    ...data,
+    timeline: Array.isArray(data.timeline) ? data.timeline : [],
+    documents: Array.isArray(data.documents) ? data.documents : [],
+    messages: Array.isArray(data.messages) ? data.messages : [],
+    history: Array.isArray(data.history) ? data.history : [],
+    events: Array.isArray(data.events) ? data.events : [],
+  };
 }
 
 /**
@@ -79,7 +99,13 @@ export class CartorioService {
     try {
       const response = await fetch('/api/cartorio/services');
       if (!response.ok) throw new Error('Erro ao buscar serviços do Cartório');
-      return await response.json();
+      const json = await response.json();
+      
+      return Array.isArray(json) 
+        ? json 
+        : Array.isArray(json.data) 
+          ? json.data 
+          : [];
     } catch (error) {
       console.error('listServices error:', error);
       return [];
@@ -108,10 +134,16 @@ export class CartorioService {
       const response = await fetch('/api/cartorio/processes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ serviceId, brokerId, customData }),
+        body: JSON.stringify({ 
+          serviceId, 
+          brokerId, 
+          status: customData?.status || 'rascunho', 
+          customData 
+        }),
       });
       if (!response.ok) throw new Error('Erro ao abrir processo cartorial');
-      return await response.json();
+      const json = await response.json();
+      return normalizeProcess(json);
     } catch (error) {
       console.error('openRequest error:', error);
       throw error;
@@ -125,7 +157,13 @@ export class CartorioService {
     try {
       const response = await fetch(`/api/cartorio/processes?brokerId=${brokerId}`);
       if (!response.ok) throw new Error('Erro ao buscar processos do corretor');
-      return await response.json();
+      const json = await response.json();
+      const list = Array.isArray(json) 
+        ? json 
+        : Array.isArray(json.data) 
+          ? json.data 
+          : [];
+      return list.map(normalizeProcess);
     } catch (error) {
       console.error('listBrokerProcesses error:', error);
       return [];
@@ -139,7 +177,9 @@ export class CartorioService {
     try {
       const response = await fetch(`/api/cartorio/processes/${processId}`);
       if (!response.ok) throw new Error('Erro ao carregar detalhes do processo');
-      return await response.json();
+      const json = await response.json();
+      if (!json) return null;
+      return normalizeProcess(json);
     } catch (error) {
       console.error('getProcessDetails error:', error);
       return null;
@@ -153,7 +193,11 @@ export class CartorioService {
     processId: string, 
     docId: string, 
     fileName: string, 
-    fileBase64: string
+    downloadURL: string,
+    storagePath?: string,
+    tipo?: string,
+    tamanho?: number,
+    uploadedBy?: string
   ): Promise<CartorioProcess> {
     try {
       const response = await fetch(`/api/cartorio/processes/${processId}`, {
@@ -163,11 +207,16 @@ export class CartorioService {
           action: 'upload_document',
           docId,
           fileName,
-          fileData: fileBase64,
+          downloadURL,
+          storagePath,
+          tipo,
+          tamanho,
+          uploadedBy,
         }),
       });
       if (!response.ok) throw new Error('Erro ao enviar documento complementar');
-      return await response.json();
+      const json = await response.json();
+      return normalizeProcess(json);
     } catch (error) {
       console.error('uploadComplementaryDocument error:', error);
       throw error;
@@ -188,7 +237,8 @@ export class CartorioService {
         }),
       });
       if (!response.ok) throw new Error('Erro ao enviar mensagem');
-      return await response.json();
+      const json = await response.json();
+      return normalizeProcess(json);
     } catch (error) {
       console.error('sendMessage error:', error);
       throw error;

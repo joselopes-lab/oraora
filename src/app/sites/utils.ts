@@ -43,3 +43,31 @@ export async function getBrokerData(firestore: Firestore, identifier: string) {
   
   return null;
 }
+
+/**
+ * Busca todos os imóveis visíveis no site a partir das coleções 'properties' (Minha Carteira)
+ * e 'brokerProperties' (Imóveis Avulsos), combinando-os e removendo duplicatas por ID.
+ */
+export async function fetchPublishedProperties(firestore: Firestore): Promise<any[]> {
+  try {
+    const pRef = collection(firestore, 'properties');
+    const q1 = query(pRef, where('isVisibleOnSite', '==', true));
+
+    const bpRef = collection(firestore, 'brokerProperties');
+    const q2 = query(bpRef, where('isVisibleOnSite', '==', true));
+
+    const [snap1, snap2] = await Promise.all([getDocs(q1), getDocs(q2)]);
+
+    const list1 = snap1.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const list2 = snap2.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+    const combinedMap = new Map<string, any>();
+    list1.forEach(p => combinedMap.set(p.id, p));
+    list2.forEach(p => combinedMap.set(p.id, p));
+
+    return Array.from(combinedMap.values());
+  } catch (error) {
+    console.error("Erro ao carregar imóveis publicados do site:", error);
+    return [];
+  }
+}

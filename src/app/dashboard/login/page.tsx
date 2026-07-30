@@ -81,9 +81,9 @@ export default function LoginPage() {
       
       console.error("Firebase Login Error Code:", error.code); 
       
-      let description = "Credenciais inválidas. Verifique seu e-mail e senha.";
+      let description = "Credenciais Inválidas. Verifique usuário e senha. Se persistir clique em esqueceu a senha.";
       if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
-        description = "Credenciais inválidas. Verifique seu e-mail e senha. Se o erro persistir em produção, assegure-se que o provedor 'E-mail/Senha' está habilitado no Console do Firebase > Authentication > Sign-in method.";
+        description = "Credenciais Inválidas. Verifique usuário e senha. Se persistir clique em esqueceu a senha.";
       }
       
       toast({

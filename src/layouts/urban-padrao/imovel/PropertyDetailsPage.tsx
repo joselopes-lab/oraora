@@ -19,6 +19,7 @@ import { arrayRemove, arrayUnion, doc } from 'firebase/firestore';
 import { useRouter, usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { StreetViewPanoramaView } from '@/components/StreetViewPanorama';
 import { WhatsAppWidget } from '../components/WhatsAppWidget';
 import { WhatsAppLeadModal } from '@/components/WhatsAppLeadModal';
 import { Badge } from '@/components/ui/badge';
@@ -88,6 +89,7 @@ type Property = {
     vagas?: string;
   };
   areascomuns?: string[];
+  caracteristicas?: string[];
 };
 
 type RadarList = {
@@ -122,12 +124,14 @@ function hslToHex(hslStr: string): string {
 }
 
 export default function PropertyDetailsPage({ broker, property, similarProperties }: { broker: Broker; property: Property; similarProperties: Property[] }) {
-  const { informacoesbasicas, midia, caracteristicasimovel, localizacao, areascomuns, youtubeVideoUrl } = property;
+  const { informacoesbasicas, midia, caracteristicasimovel, localizacao, areascomuns, caracteristicas, youtubeVideoUrl } = property;
+  const displayMidia = midia && midia.length > 0 ? midia : ((property as any).media || []);
   const [isGalleryOpen, setIsGalleryOpen] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
+  const [streetViewAvailable, setStreetViewAvailable] = useState<boolean>(true);
   
   const router = useRouter();
   const { user } = useUser();
@@ -266,8 +270,24 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
   };
 
   const videoEmbedUrl = getEmbedUrl(youtubeVideoUrl);
-  const mapSrc = extractMapSrc(localizacao?.googleMapsLink);
-  const streetViewSrc = extractMapSrc(localizacao?.googleStreetViewLink);
+
+  const addressRaw = (localizacao?.address || (localizacao as any)?.endereco || '').trim();
+  const bairro = localizacao?.bairro || '';
+  const cidade = localizacao?.cidade || '';
+  const estado = localizacao?.estado || (localizacao as any)?.state || '';
+
+  let fullAddress = addressRaw;
+  if (!fullAddress) {
+    fullAddress = [bairro, cidade, estado].filter(Boolean).join(', ');
+  } else if (cidade && !addressRaw.toLowerCase().includes(cidade.toLowerCase())) {
+    const extra = [bairro, `${cidade}${estado ? ` - ${estado}` : ''}`].filter(Boolean).join(', ');
+    fullAddress = `${addressRaw}, ${extra}`;
+  }
+
+  const mapSrc = extractMapSrc(localizacao?.googleMapsLink) || (fullAddress ? `https://maps.google.com/maps?q=${encodeURIComponent(fullAddress)}&t=&z=15&ie=UTF8&iwloc=&output=embed` : null);
+  const streetViewSrc = extractMapSrc(localizacao?.googleStreetViewLink) || (fullAddress ? `https://maps.google.com/maps?q=${encodeURIComponent(fullAddress)}&layer=c&cbll=&cbp=12,0,0,0,0&output=embed` : null);
+
+  const showLocationSection = localizacao?.exibirLocalizacao !== false && (property as any)?.exibirLocalizacao !== false && Boolean(fullAddress);
 
   const dynamicStyles = {
     '--background': broker.backgroundColor,
@@ -311,12 +331,12 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
 
         <section className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-12 h-[300px] md:h-[500px]">
           <div onClick={() => openGallery(0)} className="md:col-span-8 relative rounded-[2rem] overflow-hidden group cursor-pointer shadow-xl h-full">
-            <Image alt="Main" src={midia?.[0] || 'https://picsum.photos/seed/main/800/600'} fill className="object-cover transition-transform duration-700 group-hover:scale-105" />
+            <Image alt="Main" src={displayMidia[0] || 'https://picsum.photos/seed/main/800/600'} fill className="object-cover transition-transform duration-700 group-hover:scale-105" />
             <div className="absolute top-6 left-6 z-10"><Badge className="bg-white/90 backdrop-blur-sm text-black border-none font-black uppercase py-1 px-4 tracking-widest shadow-sm">{renderBadge(property)}</Badge></div>
           </div>
           <div className="hidden md:flex md:col-span-4 flex-col gap-4">
-             <div onClick={() => openGallery(1)} className="flex-1 relative rounded-[1.5rem] overflow-hidden cursor-pointer shadow-md"><Image alt="2" src={midia?.[1] || 'https://picsum.photos/seed/2/400/300'} fill className="object-cover" /></div>
-             <div onClick={() => openGallery(2)} className="flex-1 relative rounded-[1.5rem] overflow-hidden cursor-pointer shadow-md"><Image alt="3" src={midia?.[2] || 'https://picsum.photos/seed/3/400/300'} fill className="object-cover" /></div>
+             <div onClick={() => openGallery(1)} className="flex-1 relative rounded-[1.5rem] overflow-hidden cursor-pointer shadow-md"><Image alt="2" src={displayMidia[1] || 'https://picsum.photos/seed/2/400/300'} fill className="object-cover" /></div>
+             <div onClick={() => openGallery(2)} className="flex-1 relative rounded-[1.5rem] overflow-hidden cursor-pointer shadow-md"><Image alt="3" src={displayMidia[2] || 'https://picsum.photos/seed/3/400/300'} fill className="object-cover" /></div>
           </div>
         </section>
 
@@ -386,30 +406,75 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
                 </div>
             )}
 
-            {(mapSrc || streetViewSrc) && (
-                <div className="text-left">
-                  <h2 className="text-2xl font-black uppercase tracking-tight text-slate-900 dark:text-white mb-6">Localização Geográfica</h2>
-                  <Tabs defaultValue="map" className="w-full">
-                      <TabsList className="grid w-full grid-cols-2 h-14 p-1.5 bg-gray-100 dark:bg-slate-800 rounded-xl">
-                          <TabsTrigger value="map" className="rounded-lg font-bold flex items-center gap-2 transition-all">
-                              <span className="material-symbols-outlined">map</span> Mapa Interativo
-                          </TabsTrigger>
-                          <TabsTrigger value="streetview" className="rounded-lg font-bold flex items-center gap-2 transition-all">
-                              <span className="material-symbols-outlined">streetview</span> Vista de Rua
-                          </TabsTrigger>
-                      </TabsList>
-                      <TabsContent value="map">
-                        <div className="bg-gray-100 dark:bg-slate-900 rounded-[2rem] h-[400px] w-full overflow-hidden mt-4 border border-slate-100 dark:border-slate-800">
-                          {mapSrc ? <iframe src={mapSrc} width="100%" height="100%" style={{ border: 0 }} allowFullScreen={false} loading="lazy"></iframe> : <div className="flex items-center justify-center h-full text-slate-400">Mapa não disponível para este endereço.</div>}
-                        </div>
-                      </TabsContent>
-                      <TabsContent value="streetview">
-                        <div className="bg-gray-100 dark:bg-slate-900 rounded-[2rem] h-[400px] w-full overflow-hidden mt-4 border border-slate-100 dark:border-slate-800">
-                          {streetViewSrc ? <iframe src={streetViewSrc} width="100%" height="100%" style={{ border: 0 }} allowFullScreen={false} loading="lazy"></iframe> : <div className="flex items-center justify-center h-full text-slate-400">Street View não disponível para este endereço.</div>}
-                        </div>
-                      </TabsContent>
-                    </Tabs>
+            {caracteristicas && caracteristicas.length > 0 && (
+                <div>
+                    <h2 className="text-2xl font-black uppercase tracking-tight text-slate-900 dark:text-white mb-8">Características do Imóvel</h2>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {caracteristicas.map(char => (
+                            <div key={char} className="flex items-center gap-3 p-4 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm group hover:border-primary transition-all">
+                                <span className="material-symbols-outlined text-primary group-hover:scale-110 transition-transform">check_circle</span>
+                                <span className="font-bold text-sm text-slate-700 dark:text-slate-300">{char}</span>
+                            </div>
+                        ))}
+                    </div>
                 </div>
+            )}
+
+            {/* Seção LOCALIZAÇÃO */}
+            {showLocationSection && (
+              <div className="text-left space-y-6">
+                <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
+                  <h2 className="text-2xl font-black uppercase tracking-tight text-slate-900 dark:text-white">
+                    LOCALIZAÇÃO
+                  </h2>
+                  <p className="text-sm text-slate-500 font-medium mt-1 flex items-center gap-1.5">
+                    <span className="material-symbols-outlined text-primary text-base">location_on</span>
+                    {fullAddress}
+                  </p>
+                </div>
+
+                <Tabs defaultValue="map" className="w-full">
+                  <TabsList className="grid w-full grid-cols-2 max-w-xs h-12 p-1 bg-gray-100 dark:bg-slate-800 rounded-xl mb-4">
+                    <TabsTrigger value="map" className="rounded-lg font-bold flex items-center justify-center gap-2 transition-all">
+                      <span className="material-symbols-outlined text-sm">map</span> Mapa
+                    </TabsTrigger>
+                    <TabsTrigger value="streetview" className="rounded-lg font-bold flex items-center justify-center gap-2 transition-all">
+                      <span className="material-symbols-outlined text-sm">streetview</span> Street View
+                    </TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="map" className="mt-0">
+                    <div className="bg-gray-100 dark:bg-slate-900 rounded-[2rem] h-[450px] w-full overflow-hidden border border-slate-100 dark:border-slate-800 shadow-sm">
+                      {mapSrc ? (
+                        <iframe
+                          src={mapSrc}
+                          width="100%"
+                          height="100%"
+                          style={{ border: 0 }}
+                          allowFullScreen={false}
+                          loading="lazy"
+                          title="Mapa Google"
+                        />
+                      ) : (
+                        <div className="flex items-center justify-center h-full text-slate-400 font-medium">
+                          Mapa não disponível para este endereço.
+                        </div>
+                      )}
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="streetview" className="mt-0">
+                    <div className="bg-gray-100 dark:bg-slate-900 rounded-[2rem] h-[450px] w-full overflow-hidden border border-slate-100 dark:border-slate-800 shadow-sm relative flex items-center justify-center">
+                      <StreetViewPanoramaView
+                        fullAddress={fullAddress}
+                        lat={localizacao?.latitude}
+                        lng={localizacao?.longitude}
+                        streetViewLink={localizacao?.googleStreetViewLink}
+                      />
+                    </div>
+                  </TabsContent>
+                </Tabs>
+              </div>
             )}
           </div>
 
@@ -454,7 +519,7 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
                         <Link key={sim.id} href={isPortalAccess ? `/sites/${broker.slug}/imovel/${sim.informacoesbasicas.slug || sim.id}` : `/imovel/${sim.informacoesbasicas.slug || sim.id}`} className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 overflow-hidden shadow-soft hover:shadow-xl transition-all group">
                             <div className="relative aspect-square overflow-hidden">
                                 <Badge className="absolute top-4 left-4 z-10 bg-white/90 text-black border-none font-black uppercase py-1 px-3 text-[9px] tracking-widest">{renderBadge(sim)}</Badge>
-                                <Image alt="Sim" src={sim.midia?.[0] || 'https://picsum.photos/seed/sim/400/400'} fill className="object-cover group-hover:scale-110 transition-transform duration-700" />
+                                <Image alt="Sim" src={sim.midia?.[0] || sim.media?.[0] || 'https://picsum.photos/seed/sim/400/400'} fill className="object-cover group-hover:scale-110 transition-transform duration-700" />
                             </div>
                             <div className="p-6">
                                 <h3 className="font-bold text-slate-900 dark:text-white uppercase truncate mb-1">{sim.informacoesbasicas.nome}</h3>
@@ -479,18 +544,18 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
         origin="whatsapp"
       />
 
-      {isGalleryOpen && midia && (
+      {isGalleryOpen && displayMidia.length > 0 && (
         <div className="fixed inset-0 z-[100] flex flex-col bg-black/95 backdrop-blur-md animate-in fade-in duration-300">
           <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
-            <span className="text-white text-sm font-bold">{selectedImageIndex + 1} / {midia.length}</span>
+            <span className="text-white text-sm font-bold">{selectedImageIndex + 1} / {displayMidia.length}</span>
             <button onClick={closeGallery} className="size-10 rounded-full bg-white/10 text-white hover:bg-white/20 transition-all flex items-center justify-center">
               <span className="material-symbols-outlined text-xl">close</span>
             </button>
           </div>
           <div className="flex-1 relative flex items-center justify-center p-4">
-            <button onClick={() => setSelectedImageIndex(prev => (prev - 1 + midia.length) % midia.length)} className="absolute left-4 p-2 text-white hover:text-primary transition-colors"><span className="material-symbols-outlined text-4xl">chevron_left</span></button>
-            <div className="relative max-h-full max-w-full"><img alt="Gallery" className="max-h-[80vh] w-auto object-contain" src={midia[selectedImageIndex]} /></div>
-            <button onClick={() => setSelectedImageIndex(prev => (prev + 1) % midia.length)} className="absolute right-4 p-2 text-white hover:text-primary transition-colors"><span className="material-symbols-outlined text-4xl">chevron_right</span></button>
+            <button onClick={() => setSelectedImageIndex(prev => (prev - 1 + displayMidia.length) % displayMidia.length)} className="absolute left-4 p-2 text-white hover:text-primary transition-colors"><span className="material-symbols-outlined text-4xl">chevron_left</span></button>
+            <div className="relative max-h-full max-w-full"><img alt="Gallery" className="max-h-[80vh] w-auto object-contain" src={displayMidia[selectedImageIndex]} /></div>
+            <button onClick={() => setSelectedImageIndex(prev => (prev + 1) % displayMidia.length)} className="absolute right-4 p-2 text-white hover:text-primary transition-colors"><span className="material-symbols-outlined text-4xl">chevron_right</span></button>
           </div>
         </div>
       )}

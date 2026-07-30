@@ -40,6 +40,7 @@ type Property = {
     longitude?: number;
   };
   midia: string[];
+  media?: string[];
   caracteristicasimovel: {
     tipo: string;
     quartos?: string[] | string;
@@ -512,7 +513,7 @@ export default function MapClientPage({ broker, properties }: MapClientPageProps
                       <div className="absolute top-2 right-2 z-10 bg-white/30 backdrop-blur-md p-1.5 rounded-full hover:bg-white text-white hover:text-red-500 transition-colors">
                         <span className="material-symbols-outlined text-[16px]">favorite</span>
                       </div>
-                      <div className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110" style={{backgroundImage: `url("${property.midia?.[0] || 'https://picsum.photos/seed/list/400/300'}")`}}></div>
+                      <div className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110" style={{backgroundImage: `url("${property.midia?.[0] || property.media?.[0] || 'https://picsum.photos/seed/list/400/300'}")`}}></div>
                     </div>
                     <div className="p-3">
                         <div className="flex justify-between items-start gap-2">
@@ -564,7 +565,7 @@ export default function MapClientPage({ broker, properties }: MapClientPageProps
                             <div className="absolute top-3 right-3 z-10 bg-white/30 backdrop-blur-md p-1.5 rounded-full hover:bg-white text-white hover:text-red-500 transition-colors">
                                 <span className="material-symbols-outlined text-[16px]">favorite</span>
                             </div>
-                            <Image alt={selectedProperty.informacoesbasicas.nome} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" src={selectedProperty.midia?.[0] || 'https://picsum.photos/seed/modal/400/224'} fill/>
+                            <Image alt={selectedProperty.informacoesbasicas.nome} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" src={selectedProperty.midia?.[0] || selectedProperty.media?.[0] || 'https://picsum.photos/seed/modal/400/224'} fill/>
                         </div>
                         <div className="p-5 flex flex-col gap-3">
                             <div className="flex justify-between items-start mb-1">

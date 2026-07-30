@@ -1,11 +1,11 @@
 
 'use client';
 
-import { collection, getDocs, query, where } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
 import { useSearchParams } from 'next/navigation';
 import SearchResultsComponent from '@/app/imoveis/SearchResultsComponent';
 import { useEffect, useState, useMemo } from 'react';
+import { fetchPublishedProperties } from '@/app/sites/utils';
 
 type Property = {
   id: string;
@@ -43,11 +43,8 @@ export default function ImoveisPageContent() {
     async function fetchProperties() {
       if (!firestore) return;
       try {
-        const propertiesRef = collection(firestore, 'properties');
-        const q = query(propertiesRef, where('isVisibleOnSite', '==', true));
-        const propertiesSnap = await getDocs(q);
-        const props = propertiesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Property));
-        setAllProperties(props);
+        const props = await fetchPublishedProperties(firestore);
+        setAllProperties(props as Property[]);
       } catch (error) {
         console.error("Failed to fetch properties:", error);
       } finally {
@@ -90,8 +87,10 @@ export default function ImoveisPageContent() {
       }
       
       // 5. Filter by Neighborhoods
-      const searchNeighborhoods = neighborhoodsParam ? neighborhoodsParam.split(',') : [];
-      if (searchNeighborhoods.length > 0 && !searchNeighborhoods.includes(property.localizacao.bairro)) {
+      const normalizeStr = (str?: string) => (str || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const searchNeighborhoods = neighborhoodsParam ? neighborhoodsParam.split(',').map(n => normalizeStr(n)).filter(Boolean) : [];
+      const propBairro = normalizeStr(property.localizacao?.bairro || property.localizacao?.neighborhood);
+      if (searchNeighborhoods.length > 0 && !searchNeighborhoods.includes(propBairro)) {
          return false;
       }
 

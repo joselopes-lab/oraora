@@ -109,8 +109,10 @@ export default function SearchResults({ broker, properties }: SearchResultsPageP
             const searchCities = citiesParam ? citiesParam.split(',') : [];
             const matchesCity = searchCities.length === 0 || searchCities.includes(property.localizacao.cidade);
 
-            const searchNeighborhoods = neighborhoodsParam ? neighborhoodsParam.split(',') : [];
-            const matchesNeighborhood = searchNeighborhoods.length === 0 || searchNeighborhoods.includes(property.localizacao.bairro);
+            const normalizeStr = (str?: string) => (str || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+            const searchNeighborhoods = neighborhoodsParam ? neighborhoodsParam.split(',').map(n => normalizeStr(n)).filter(Boolean) : [];
+            const propBairro = normalizeStr(property.localizacao?.bairro || property.localizacao?.neighborhood);
+            const matchesNeighborhood = searchNeighborhoods.length === 0 || searchNeighborhoods.includes(propBairro);
 
             const searchRooms = roomsParam ? roomsParam.split(',') : [];
             if (searchRooms.length > 0) {
@@ -289,7 +291,7 @@ export default function SearchResults({ broker, properties }: SearchResultsPageP
                                             <button onClick={(e) => handleRadarClick(e, property.id)} className={cn("absolute top-3 right-3 z-10 flex size-8 items-center justify-center rounded-full bg-white/20 backdrop-blur-md text-white hover:bg-white transition-all shadow-sm", savedPropertyIds.includes(property.id) && "text-primary bg-white")}>
                                                 <span className="material-symbols-outlined" style={{ fontVariationSettings: savedPropertyIds.includes(property.id) ? "'FILL' 1" : "" }}>radar</span>
                                             </button>
-                                            <Image alt={property.informacoesbasicas.nome} width={400} height={300} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110" src={property.midia?.[0] || 'https://picsum.photos/seed/prop/400/300'}/>
+                                            <Image alt={property.informacoesbasicas.nome} width={400} height={300} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110" src={property.midia?.[0] || property.media?.[0] || 'https://picsum.photos/seed/prop/400/300'}/>
                                         </div>
                                         <div className="p-5 flex flex-col p-5 gap-3">
                                             <div>

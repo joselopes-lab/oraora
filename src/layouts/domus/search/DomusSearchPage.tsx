@@ -110,8 +110,10 @@ export default function DomusSearchPage({ broker, properties }: { broker: Broker
             const searchCities = citiesParam ? citiesParam.split(',') : [];
             const matchesCity = searchCities.length === 0 || searchCities.includes(property.localizacao.cidade);
 
-            const searchNeighborhoods = neighborhoodsParam ? neighborhoodsParam.split(',') : [];
-            const matchesNeighborhood = searchNeighborhoods.length === 0 || searchNeighborhoods.includes(property.localizacao.bairro);
+            const normalizeStr = (str?: string) => (str || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+            const searchNeighborhoods = neighborhoodsParam ? neighborhoodsParam.split(',').map(n => normalizeStr(n)).filter(Boolean) : [];
+            const propBairro = normalizeStr(property.localizacao?.bairro || property.localizacao?.neighborhood);
+            const matchesNeighborhood = searchNeighborhoods.length === 0 || searchNeighborhoods.includes(propBairro);
 
             const priceToCompare = finality === 'sale' 
                 ? (property.informacoesbasicas.salePrice || property.informacoesbasicas.valor || 0)
@@ -251,7 +253,7 @@ export default function DomusSearchPage({ broker, properties }: { broker: Broker
                                     <button onClick={(e) => handleRadarClick(e, property.id)} className={cn("absolute top-6 right-6 z-10 flex size-10 items-center justify-center rounded-full bg-white/20 backdrop-blur-md text-white hover:bg-white transition-all shadow-sm", savedPropertyIds.includes(property.id) && "text-primary bg-white")}>
                                         <span className="material-symbols-outlined text-[24px]" style={{ fontVariationSettings: savedPropertyIds.includes(property.id) ? "'FILL' 1" : "" }}>radar</span>
                                     </button>
-                                    <Image alt={property.informacoesbasicas.nome} className="object-cover group-hover:scale-110 transition-transform duration-1000" src={property.midia?.[0] || 'https://picsum.photos/seed/prop/400/300'} fill />
+                                    <Image alt={property.informacoesbasicas.nome} className="object-cover group-hover:scale-110 transition-transform duration-1000" src={property.midia?.[0] || property.media?.[0] || 'https://picsum.photos/seed/prop/400/300'} fill />
                                 </div>
                                 <div className="p-8 pt-0 flex flex-col flex-1">
                                     <h4 className="text-2xl font-black text-slate-900 dark:text-white uppercase mb-1 tracking-tight">{property.informacoesbasicas.nome}</h4>
