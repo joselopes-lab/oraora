@@ -67,8 +67,18 @@ const analyzeMarketReportFlow = ai.defineFlow(
     outputSchema: AnalyzeMarketReportOutputSchema,
   },
   async (input) => {
-    const { output } = await prompt(input);
-    if (!output) throw new Error("Falha ao analisar o relatório imobiliário.");
-    return output;
+    try {
+      const { output } = await prompt(input);
+      if (!output) throw new Error("Falha ao analisar o relatório imobiliário.");
+      return output;
+    } catch (error: any) {
+      console.error("Erro no analyzeMarketReportFlow:", error);
+      console.error("Message:", error.message);
+      console.error("Status:", error.status);
+      console.error("Code:", error.code);
+      console.error("Details:", error.details);
+      console.error("Stack:", error.stack);
+      throw error;
+    }
   }
 );

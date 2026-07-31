@@ -88,6 +88,7 @@ type Property = {
   informacoesbasicas: {
     nome: string;
     valor?: number;
+    rentPrice?: number;
     status: string;
   };
   midia: string[];
@@ -280,7 +281,9 @@ export default function OralinkManagementPage() {
       setOralink(prev => ({
         ...prev,
         ...brokerData.oralink,
-        links: brokerData.oralink.links || [],
+        links: (brokerData.oralink.links || []).map((l: any) => 
+            ({ ...l, url: denormalizeLink(l.icon, l.url) })
+        ),
         // Clean the array from empty/null values on load
         featuredPropertyIds: (brokerData.oralink.featuredPropertyIds || []).filter((id: any) => typeof id === 'string' && id !== ''),
         showVideo: brokerData.oralink.showVideo ?? false,
@@ -295,6 +298,9 @@ export default function OralinkManagementPage() {
     if (!user || !firestore || !brokerDocRef) return;
     // Sanitização para remover undefined
     const sanitizedOralink = JSON.parse(JSON.stringify(oralink));
+    sanitizedOralink.links = sanitizedOralink.links.map((link: any) => {
+        return { ...link, url: normalizeLink(link.icon, link.url) };
+    });
     setDocumentNonBlocking(brokerDocRef, { oralink: sanitizedOralink }, { merge: true });
     toast({ title: "Oralink Atualizado!", description: "Suas alterações foram salvas com sucesso." });
   };
@@ -303,7 +309,7 @@ export default function OralinkManagementPage() {
     const newLink: OralinkLink = {
       id: uuidv4(),
       title: 'Novo Link',
-      url: 'https://',
+      url: '',
       active: true,
       icon: 'link'
     };
@@ -319,6 +325,44 @@ export default function OralinkManagementPage() {
 
   const handleRemoveLink = (id: string) => {
     setOralink(prev => ({ ...prev, links: prev.links.filter(l => l.id !== id) }));
+  };
+
+  const getPlaceholder = (icon?: string) => {
+    switch (icon) {
+        case 'chat': return '(11) 99999-9999';
+        case 'call': return '(11) 99999-9999';
+        case 'mail': return 'contato@empresa.com.br';
+        case 'photo_camera': return '@meuperfil ou instagram.com/meuperfil';
+        case 'language': return 'https://www.meusite.com.br';
+        default: return 'https://www.exemplo.com';
+    }
+  };
+
+  const normalizeLink = (icon: string | undefined, url: string) => {
+    if (!url) return '';
+    const digits = url.replace(/\D/g, '');
+    switch (icon) {
+        case 'chat': return `https://wa.me/55${digits}`;
+        case 'call': return `tel:+55${digits}`;
+        case 'mail': return url.startsWith('mailto:') ? url : `mailto:${url}`;
+        case 'photo_camera': return url.startsWith('http') ? url : `https://instagram.com/${url.replace('@', '')}`;
+        case 'language': 
+        case 'link': return url.startsWith('http') ? url : `https://${url}`;
+        default: return url;
+    }
+  };
+
+  const denormalizeLink = (icon: string | undefined, url: string) => {
+    if (!url) return '';
+    switch (icon) {
+        case 'chat': return url.replace('https://wa.me/55', '');
+        case 'call': return url.replace('tel:+55', '');
+        case 'mail': return url.replace('mailto:', '');
+        case 'photo_camera': return url.replace('https://instagram.com/', '');
+        case 'language': 
+        case 'link': return url.replace('https://', '');
+        default: return url;
+    }
   };
 
   const handleDragStart = (index: number) => {
@@ -733,7 +777,7 @@ export default function OralinkManagementPage() {
                     value={link.url} 
                     onChange={e => handleUpdateLink(link.id, { url: e.target.value })}
                     className="bg-transparent border-none p-0 text-text-secondary text-sm focus:ring-0 ml-16 w-full"
-                    placeholder="https://..."
+                    placeholder={getPlaceholder(link.icon)}
                   />
                 </div>
                 <div className="flex items-center gap-4">
@@ -844,7 +888,7 @@ export default function OralinkManagementPage() {
                 </div>
                 <div className="flex-1 min-w-0 text-left">
                   <h4 className="font-bold text-sm truncate">{prop.informacoesbasicas.nome}</h4>
-                  <p className="text-xs text-text-secondary">{prop.informacoesbasicas.valor?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                  <p className="text-xs text-text-secondary">{(prop.informacoesbasicas.rentPrice || prop.informacoesbasicas.valor)?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
                 </div>
                 <button 
                   onClick={() => handlePropertyToggle(prop.id)}
@@ -923,7 +967,7 @@ export default function OralinkManagementPage() {
                           <h5 className="font-bold text-base uppercase truncate mb-1" style={{ color: previewCardText }}>{prop.informacoesbasicas.nome}</h5>
                           <div className="flex justify-between items-center">
                             <p className="text-xs opacity-60" style={{ color: previewCardText }}>{prop.localizacao.bairro}, {prop.localizacao.cidade}</p>
-                            <p className="text-sm font-black" style={{ color: previewBtnBg }}>{prop.informacoesbasicas.valor?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                            <p className="text-sm font-black" style={{ color: previewBtnBg }}>{(prop.informacoesbasicas.rentPrice || prop.informacoesbasicas.valor) != null ? (prop.informacoesbasicas.rentPrice || prop.informacoesbasicas.valor!).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'Sob Consulta'}</p>
                           </div>
                         </div>
                       </div>
@@ -934,7 +978,7 @@ export default function OralinkManagementPage() {
 
               <footer className="mt-12 mb-6 flex flex-col items-center gap-4 opacity-60 w-full pt-6 border-t border-gray-100/20" style={{ borderColor: previewText + '20' }}>
                 <div className="flex flex-col items-center gap-2">
-                    <Image src="https://firebasestorage.googleapis.com/v0/b/studio-5937631195-8ebfd.firebasestorage.app/o/site-assets%2Flogos%2Fb51a21ec-d89e-4b7e-be51-d741841e8903-logo-oraora-b.png?alt=media&token=ba675609-9e91-4c12-a5f7-0daf5b9a9ba2" alt="Oraora" width={80} height={20} className="h-4 w-auto grayscale" />
+                    <Image src="https://firebasestorage.googleapis.com/v0/b/studio-5937631195-8ebfd.firebasestorage.app/o/site-assets%2Flogos%2Fa08e5cdf-9fd3-4be2-85a1-05ff0eaddc58-logo-oraora-p.png?alt=media&token=ba675609-9e91-4c12-a5f7-0daf5b9a9ba2" alt="Oraora" width={80} height={20} className="h-4 w-auto grayscale" />
                     <p className="text-[8px] font-black uppercase tracking-[0.2em]" style={{ color: previewFooterText }}>Powered by Oraora</p>
                 </div>
               </footer>

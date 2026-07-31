@@ -38,12 +38,12 @@ DADOS DE ONBOARDING:
 - CRECI: {{{creci}}}
 
 INSTRUÇÕES POR SEÇÃO:
-1. HOMEPAGE: O Hero Title deve ser impactante. Use <span> para destacar palavras-chave (ex: "Viva o <span class='text-primary'>Luxo</span>"). Os stats devem ser numéricos curtos (ex: "+500", "15 anos").
+1. HOMEPAGE: O Hero Title deve ser impactante. Os stats devem ser numéricos curtos (ex: "+500", "15 anos").
 2. SOBRE: A bio deve ser uma narrativa envolvente de autoridade. Os "values" (pilares) devem ser baseados no Diferencial e Proposta de Valor.
 3. SERVIÇOS: Transforme os itens da lista de serviços em descrições vendedoras. Para o campo "icon", use EXCLUSIVAMENTE nomes de ícones da biblioteca Lucide React em PascalCase (ex: Handshake, Search, Gavel, Camera, ShieldCheck, Key, TrendingUp, Users). O processo deve ser claro e profissional.
 4. CONTATO: Textos que convidem ao diálogo e passem confiança.
 
-Gere o conteúdo em Português do Brasil.`,
+Gere o conteúdo em Português do Brasil. Nunca utilize HTML, tags (<span>, <strong>, <em>, <div>, <br>, etc.), Markdown ou qualquer tipo de marcação. Retorne apenas texto puro.`,
 });
 
 const generateSiteContentFlow = ai.defineFlow(
@@ -53,8 +53,18 @@ const generateSiteContentFlow = ai.defineFlow(
     outputSchema: GenerateSiteContentOutputSchema,
   },
   async (input) => {
-    const { output } = await prompt(input);
-    if (!output) throw new Error("Falha ao gerar conteúdo do site.");
-    return output;
+    try {
+      const { output } = await prompt(input);
+      if (!output) throw new Error("Falha ao gerar conteúdo do site.");
+      return output;
+    } catch (error: any) {
+      console.error("Erro no generateSiteContentFlow:", error);
+      console.error("Message:", error.message);
+      console.error("Status:", error.status);
+      console.error("Code:", error.code);
+      console.error("Details:", error.details);
+      console.error("Stack:", error.stack);
+      throw error;
+    }
   }
 );

@@ -54,6 +54,11 @@ service cloud.firestore {
       }
     }
 
+    match /brokerCoverage/{brokerId} {
+      allow read: if true;
+      allow write: if isOwner(brokerId) || isAdmin();
+    }
+
     // 3. CRM LEADS E REDE
     match /leads/{leadId} {
       allow read: if isSignedIn() && (

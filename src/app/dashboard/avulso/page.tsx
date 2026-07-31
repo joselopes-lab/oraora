@@ -34,6 +34,8 @@ type BrokerProperty = {
   informacoesbasicas?: {
     nome: string;
     status: string;
+    valor?: number;
+    aluguel?: number;
   };
   localizacao: {
     cidade: string;
@@ -46,7 +48,7 @@ type BrokerProperty = {
   basicInfo?: {
     title?: string;
   };
-  createdAt?: any; // Adicionado para ordenação
+  createdAt?: any; 
 };
 
 type Property = {
@@ -286,8 +288,18 @@ export default function AvulsoPage() {
                                             <div>
                                                 <p className="font-bold text-text-main text-base">{getPropertyName(property)}</p>
                                                 <p className="text-text-secondary text-xs">{property.localizacao.cidade}, {property.localizacao.estado}</p>
-                                                <div className="mt-1 flex items-center gap-2">
+                                                <div className="mt-1 flex items-center gap-2 text-xs text-text-secondary">
                                                     <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium ${property.informacoesbasicas?.status === 'Lançamento' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}`}>{property.informacoesbasicas?.status}</span>
+                                                    <span>•</span>
+                                                    <span>{(property.informacoesbasicas?.aluguel || property.informacoesbasicas?.valor) ? (property.informacoesbasicas?.aluguel || property.informacoesbasicas.valor!).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'Valor não informado'}</span>
+                                                    <span>•</span>
+                                                    <span>
+                                                        {property.createdAt 
+                                                            ? (property.createdAt.toDate 
+                                                                ? `${Math.floor((new Date().getTime() - property.createdAt.toDate().getTime()) / (1000 * 60 * 60 * 24))} dias atrás`
+                                                                : 'Data inválida')
+                                                            : 'Data não informada'}
+                                                    </span>
                                                 </div>
                                             </div>
                                         </div>

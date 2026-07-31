@@ -50,6 +50,7 @@ type Property = {
     nome: string;
     status: string;
     valor?: number;
+    rentPrice?: number;
   };
   midia: string[];
   localizacao: {
@@ -213,7 +214,7 @@ export default async function OralinkPublicPage({ params }: { params: Promise<{ 
                     <h5 className="font-bold text-base uppercase truncate mb-1" style={{ color: cardTextHex }}>{prop.informacoesbasicas.nome}</h5>
                     <div className="flex justify-between items-center">
                       <p className="text-xs opacity-60" style={{ color: cardTextHex }}>{prop.localizacao.bairro}, {prop.localizacao.cidade}</p>
-                      <p className="text-sm font-black" style={{ color: btnBgHex }}>{prop.informacoesbasicas.valor?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                      <p className="text-sm font-black" style={{ color: btnBgHex }}>{(prop.informacoesbasicas.rentPrice || prop.informacoesbasicas.valor) != null ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(prop.informacoesbasicas.rentPrice || prop.informacoesbasicas.valor!) : 'Sob Consulta'}</p>
                     </div>
                   </div>
                 </Link>
@@ -245,7 +246,7 @@ export default async function OralinkPublicPage({ params }: { params: Promise<{ 
 
         <footer className="mt-auto py-10 flex flex-col items-center gap-4 border-t border-gray-100 w-full opacity-60" style={{ borderColor: textHex + '20' }}>
           <Link href="/corretor" target="_blank" className="flex flex-col items-center gap-3 hover:opacity-100 transition-opacity">
-            <Image src="https://dotestudio.com.br/wp-content/uploads/2025/08/oraora.png" alt="Oraora" width={100} height={25} className="h-5 w-auto" />
+            <Image src="https://firebasestorage.googleapis.com/v0/b/studio-5937631195-8ebfd.firebasestorage.app/o/site-assets%2Flogos%2Fa08e5cdf-9fd3-4be2-85a1-05ff0eaddc58-logo-oraora-p.png?alt=media&token=ba675609-9e91-4c12-a5f7-0daf5b9a9ba2" alt="Oraora" width={100} height={25} className="h-5 w-auto" />
             <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-50" style={{ color: footerTextHex }}>Tecnologia para Corretores</p>
           </Link>
           <p className="text-[9px] font-medium" style={{ color: footerTextHex }}>© 2025 Oraora Tecnologia. Todos os direitos reservados.</p>

@@ -3,7 +3,7 @@
 
 import Link from "next/link";
 import { UserMenu } from "./user-info";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import React, { useState, useRef, createContext, useContext, useEffect } from 'react';
@@ -174,6 +174,7 @@ export default function DashboardCore({
   userProfile: UserProfile;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const firestore = useFirestore();
   const { toast } = useToast();
   const [openMenu, setOpenMenu] = useState<string | null>(null);
@@ -1302,11 +1303,9 @@ export default function DashboardCore({
                             </div>
                           </div>
 
-                          <Button asChild className="w-full max-w-md h-14 bg-primary hover:bg-primary-hover text-slate-900 font-bold text-lg rounded-xl shadow-lg transition-all transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2">
-                            <Link href="/dashboard">
+                          <Button onClick={() => router.push('/dashboard')} className="w-full max-w-md h-14 bg-primary hover:bg-primary-hover text-slate-900 font-bold text-lg rounded-xl shadow-lg transition-all transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2">
                               Ir para o Painel
                               <span className="material-symbols-outlined">arrow_forward</span>
-                            </Link>
                           </Button>
                           
                           <p className="text-xs text-gray-400 uppercase tracking-widest font-medium">

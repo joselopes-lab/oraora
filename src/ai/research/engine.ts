@@ -3,6 +3,7 @@
  */
 
 import { ai } from '@/ai/genkit';
+import { z } from 'zod';
 import { ResearchReportSchema, ResearchReport } from './types';
 
 /**
@@ -16,9 +17,9 @@ import { ResearchReportSchema, ResearchReport } from './types';
 export const researchPropertyContext = ai.defineFlow(
   {
     name: 'researchPropertyContext',
-    inputSchema: ai.z.object({
-      topic: ai.z.string(),
-      context: ai.z.any().optional(),
+    inputSchema: z.object({
+      topic: z.string(),
+      context: z.any().optional(),
     }),
     outputSchema: ResearchReportSchema,
   },

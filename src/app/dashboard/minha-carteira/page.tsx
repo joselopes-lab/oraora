@@ -127,11 +127,11 @@ export default function MyPortfolioPage() {
     const handleRemove = async (property: Property) => {
         if (!firestore || !user?.uid) return;
 
-        if (property.brokerId) {
+        if (property.brokerId === user.uid) {
             // Own property
             await setDocumentNonBlocking(doc(firestore, 'brokerProperties', property.id), { inPortfolio: false, isVisibleOnSite: false }, { merge: true });
         } else {
-            // Global property
+            // Global property or someone else's property
             await setDocumentNonBlocking(doc(firestore, 'portfolios', user.uid), { propertyIds: arrayRemove(property.id) }, { merge: true });
         }
         toast({ title: "Removido da Carteira" });

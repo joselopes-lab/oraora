@@ -36,12 +36,14 @@ import {
     TrendingUp,
     Video,
     Navigation,
-    HelpCircle
+    HelpCircle,
+    Loader2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import locationData from '@/lib/location-data.json';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';

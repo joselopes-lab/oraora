@@ -37,15 +37,30 @@ export async function processOnboarding(
   // Nota: Em um ambiente real, você chamaria a 'generateSiteContent' que é uma Server Action
   const aiContent = await generateSiteContent(data);
 
+  function sanitizeObject(obj: any): any {
+    if (typeof obj === 'string') {
+      return obj.replace(/<[^>]*>?/gm, '');
+    } else if (typeof obj === 'object' && obj !== null) {
+      const newObj: any = Array.isArray(obj) ? [] : {};
+      for (const key in obj) {
+        newObj[key] = sanitizeObject(obj[key]);
+      }
+      return newObj;
+    }
+    return obj;
+  }
+
+  const sanitized = sanitizeObject(aiContent);
+
   // 3. Salva o conteúdo gerado no documento do Broker
   await setDoc(brokerRef, {
-    homepage: aiContent.homepage,
-    urbanPadraoSobre: aiContent.urbanPadraoSobre,
-    urbanPadraoServicos: aiContent.urbanPadraoServicos,
-    oraoraContato: aiContent.oraoraContato,
+    homepage: sanitized.homepage,
+    urbanPadraoSobre: sanitized.urbanPadraoSobre,
+    urbanPadraoServicos: sanitized.urbanPadraoServicos,
+    oraoraContato: sanitized.oraoraContato,
     onboardingCompleted: true,
     onboardingData: data // Guarda o briefing para referência futura
   }, { merge: true });
 
-  return aiContent;
+  return sanitized;
 }

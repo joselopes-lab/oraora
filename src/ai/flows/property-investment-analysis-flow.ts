@@ -58,8 +58,18 @@ const propertyInvestmentAnalysisFlow = ai.defineFlow(
     outputSchema: PropertyInvestmentAnalysisOutputSchema,
   },
   async (input) => {
-    const { output } = await prompt(input);
-    if (!output) throw new Error("Falha ao gerar análise de investimento.");
-    return output;
+    try {
+      const { output } = await prompt(input);
+      if (!output) throw new Error("Falha ao gerar análise de investimento.");
+      return output;
+    } catch (error: any) {
+      console.error("Erro no propertyInvestmentAnalysisFlow:", error);
+      console.error("Message:", error.message);
+      console.error("Status:", error.status);
+      console.error("Code:", error.code);
+      console.error("Details:", error.details);
+      console.error("Stack:", error.stack);
+      throw error;
+    }
   }
 );

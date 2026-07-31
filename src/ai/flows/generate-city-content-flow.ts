@@ -9,6 +9,7 @@
  */
 
 import { ai, CityContentOutputSchema, CityContentOutput } from '@/ai/genkit';
+import { z } from 'zod';
 import { researchPropertyContext } from '@/ai/research/engine';
 import { ORAORA_EDITORIAL_RULES, ORAORA_TONE_OF_VOICE, EDITORIAL_TEMPLATES } from '@/ai/editorial';
 
@@ -25,10 +26,10 @@ export async function generateCityContent(input: CityContentInput): Promise<City
 const cityContentFlow = ai.defineFlow(
   {
     name: 'cityContentFlow',
-    inputSchema: ai.z.object({
-      cityName: ai.z.string(),
-      stateUf: ai.z.string(),
-      brokerContext: ai.z.any(),
+    inputSchema: z.object({
+      cityName: z.string(),
+      stateUf: z.string(),
+      brokerContext: z.any(),
     }),
     outputSchema: CityContentOutputSchema,
   },
@@ -58,15 +59,25 @@ const cityContentFlow = ai.defineFlow(
 
     Gere o JSON completo seguindo o CityContentOutputSchema.`;
 
-    const response = await ai.generate({
-      prompt,
-      output: { schema: CityContentOutputSchema }
-    });
+    try {
+      const response = await ai.generate({
+        prompt,
+        output: { schema: CityContentOutputSchema }
+      });
 
-    if (!response.output) {
-      throw new Error('[CityContentEngine] Falha ao gerar conteúdo.');
+      if (!response.output) {
+        throw new Error('[CityContentEngine] Falha ao gerar conteúdo.');
+      }
+
+      return response.output;
+    } catch (error: any) {
+      console.error("Erro no cityContentFlow:", error);
+      console.error("Message:", error.message);
+      console.error("Status:", error.status);
+      console.error("Code:", error.code);
+      console.error("Details:", error.details);
+      console.error("Stack:", error.stack);
+      throw error;
     }
-
-    return response.output;
   }
 );
