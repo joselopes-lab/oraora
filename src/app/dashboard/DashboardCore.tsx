@@ -1,6 +1,12 @@
 
 'use client';
 
+import { Menu, X } from "lucide-react";
+import {
+  Sheet,
+  SheetContent,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import Link from "next/link";
 import { UserMenu } from "./user-info";
 import { usePathname, useRouter } from "next/navigation";
@@ -12,6 +18,8 @@ import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
 import { doc, setDoc } from 'firebase/firestore';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { useToast } from "@/hooks/use-toast";
+import AdminDashboardPage from "./admin/page";
+import { isAdminUser } from "@/lib/permissions";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -38,6 +46,400 @@ import {
 import { Button } from "@/components/ui/button";
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { generateSiteContent } from '@/ai/flows/generate-site-content-flow';
+
+// Helper component for navigation links
+const NavigationLinks = ({ userProfile, pathname, openMenu, handleMouseEnter, handleMouseLeave, setOpenMenu, navLinkClasses, dropdownTriggerClasses, siteData, defaultLogo, isMobile }: any) => {
+  if (isMobile) {
+    return (
+      <div className="flex flex-col gap-4 py-2 overflow-y-auto flex-1">
+        {userProfile.userType === 'broker' && (
+          <>
+            <Link href="/dashboard" className="flex items-center gap-2.5 px-3 py-2 text-sm font-semibold text-slate-900 rounded-lg hover:bg-slate-100 transition-colors">
+              <span className="material-symbols-outlined text-[20px]">grid_view</span>
+              Dashboard
+            </Link>
+
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-2.5 px-3 py-2 text-sm font-bold text-slate-900">
+                <span className="material-symbols-outlined text-[20px]">group</span>
+                Clientes
+              </div>
+              <div className="flex flex-col gap-1 pl-9">
+                <Link href="/dashboard/leads" className="text-sm text-slate-600 hover:text-slate-900 py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">Funil de Vendas</Link>
+                <Link href="/dashboard/clientes" className="text-sm text-slate-600 hover:text-slate-900 py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">Base de Clientes</Link>
+                <Link href="/dashboard/personas" className="text-sm text-slate-600 hover:text-slate-900 py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">Personas</Link>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-2.5 px-3 py-2 text-sm font-bold text-slate-900">
+                <span className="material-symbols-outlined text-[20px]">apartment</span>
+                Imóveis
+              </div>
+              <div className="flex flex-col gap-1 pl-9">
+                <Link href="/dashboard/minha-carteira" className="text-sm text-slate-600 hover:text-slate-900 py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">Minha Carteira</Link>
+                <Link href="/dashboard/avulso" className="text-sm text-slate-600 hover:text-slate-900 py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">Imóveis Avulsos</Link>
+                <Link href="/dashboard/imoveis" className="text-sm text-slate-600 hover:text-slate-900 py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">Construtoras</Link>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-2.5 px-3 py-2 text-sm font-bold text-slate-900">
+                <span className="material-symbols-outlined text-[20px]">business_center</span>
+                Negócios
+              </div>
+              <div className="flex flex-col gap-1 pl-9">
+                <Link href="/dashboard/jornada" className="text-sm text-slate-600 hover:text-slate-900 py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">Jornada de Vendas</Link>
+                <Link href="/dashboard/agenda" className="text-sm text-slate-600 hover:text-slate-900 py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">Agenda</Link>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-2.5 px-3 py-2 text-sm font-bold text-slate-900">
+                <span className="material-symbols-outlined text-[20px]">more_horiz</span>
+                Mais
+              </div>
+              <div className="flex flex-col gap-3 pl-9">
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 uppercase py-1">
+                    <span className="material-symbols-outlined text-[16px]">gavel</span>
+                    Consultoria Cartorial
+                  </div>
+                  <div className="flex flex-col gap-1 pl-4">
+                    <Link href="/dashboard/cartorio?tab=servicos" className="text-sm text-slate-600 hover:text-slate-900 py-1">Serviços</Link>
+                    <Link href="/dashboard/cartorio?tab=processos" className="text-sm text-slate-600 hover:text-slate-900 py-1">Meus Processos</Link>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 uppercase py-1">
+                    <span className="material-symbols-outlined text-[16px]">payments</span>
+                    Financeiro
+                  </div>
+                  <div className="flex flex-col gap-1 pl-4">
+                    <Link href="/dashboard/financeiro" className="text-sm text-slate-600 hover:text-slate-900 py-1">Financeiro</Link>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 uppercase py-1">
+                    <span className="material-symbols-outlined text-[16px]">lan</span>
+                    Rede
+                  </div>
+                  <div className="flex flex-col gap-1 pl-4">
+                    <Link href="/dashboard/radar-oportunidades" className="text-sm text-slate-600 hover:text-slate-900 py-1">Radar</Link>
+                    <Link href="/dashboard/solicitacoes-rede" className="text-sm text-slate-600 hover:text-slate-900 py-1">Solicitações</Link>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 uppercase py-1">
+                    <span className="material-symbols-outlined text-[16px]">trending_up</span>
+                    Crescimento
+                  </div>
+                  <div className="flex flex-col gap-1 pl-4">
+                    <Link href="/dashboard/meu-site" className="text-sm text-slate-600 hover:text-slate-900 py-1">Meu Site</Link>
+                    <Link href="/dashboard/oralink" className="text-sm text-slate-600 hover:text-slate-900 py-1">Ora Link</Link>
+                    <Link href="/dashboard/mercado" className="text-sm text-slate-600 hover:text-slate-900 py-1">Inteligência de Mercado</Link>
+                    <Link href="/dashboard/loja" className="text-sm text-slate-600 hover:text-slate-900 py-1">Loja OraOra</Link>
+                    <Link href="/dashboard/ativacao" className="text-sm text-slate-600 hover:text-slate-900 py-1">Academia OraOra</Link>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
+        {userProfile.userType === 'admin' && (
+          <>
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-2.5 px-3 py-2 text-sm font-bold text-slate-900">
+                <span className="material-symbols-outlined text-[20px]">psychology</span>
+                Inteligência
+              </div>
+              <div className="flex flex-col gap-1 pl-9">
+                <Link href="/dashboard" className="text-sm text-slate-600 hover:text-slate-900 py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">Visão Geral</Link>
+                <Link href="/dashboard/mercado" className="text-sm text-slate-600 hover:text-slate-900 py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">Inteligência de Mercado</Link>
+                <Link href="/dashboard/admin/acessos" className="text-sm text-slate-600 hover:text-slate-900 py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">Acessos e Performance</Link>
+                <Link href="/dashboard/admin/leads" className="text-sm text-slate-600 hover:text-slate-900 py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">Leads</Link>
+                <Link href="/dashboard/personas" className="text-sm text-slate-600 hover:text-slate-900 py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">Personas</Link>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-2.5 px-3 py-2 text-sm font-bold text-slate-900">
+                <span className="material-symbols-outlined text-[20px]">lan</span>
+                Rede
+              </div>
+              <div className="flex flex-col gap-1 pl-9">
+                <Link href="/dashboard/admin/users" className="text-sm text-slate-600 hover:text-slate-900 py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">Usuários</Link>
+                <Link href="/dashboard/construtoras" className="text-sm text-slate-600 hover:text-slate-900 py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">Construtoras</Link>
+                <Link href="/dashboard/admin/convites" className="text-sm text-slate-600 hover:text-slate-900 py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">Solicitações de Convite</Link>
+              </div>
+            </div>
+
+            <Link href="/dashboard/imoveis" className="flex items-center gap-2.5 px-3 py-2 text-sm font-semibold text-slate-900 rounded-lg hover:bg-slate-100 transition-colors">
+              <span className="material-symbols-outlined text-[20px]">inventory</span>
+              Ativos
+            </Link>
+
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-2.5 px-3 py-2 text-sm font-bold text-slate-900">
+                <span className="material-symbols-outlined text-[20px]">storefront</span>
+                Loja OraOra
+              </div>
+              <div className="flex flex-col gap-1 pl-9">
+                <Link href="/dashboard/admin/loja/themes" className="text-sm text-slate-600 hover:text-slate-900 py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">Theme Center</Link>
+                <Link href="/dashboard/admin/planos" className="text-sm text-slate-600 hover:text-slate-900 py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">Gestão de Planos</Link>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-2.5 px-3 py-2 text-sm font-bold text-slate-900">
+                <span className="material-symbols-outlined text-[20px]">support_agent</span>
+                Atendimento
+              </div>
+              <div className="flex flex-col gap-1 pl-9">
+                <Link href="/dashboard/admin/tickets" className="text-sm text-slate-600 hover:text-slate-900 py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">Suporte</Link>
+                <Link href="/dashboard/admin/comunicados" className="text-sm text-slate-600 hover:text-slate-900 py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">Comunicados</Link>
+                 <Link href="/dashboard/admin/help-videos" className="text-sm text-slate-600 hover:text-slate-900 py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">Vídeos de Ajuda</Link>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-2.5 px-3 py-2 text-sm font-bold text-slate-900">
+                <span className="material-symbols-outlined text-[20px]">settings_suggest</span>
+                Plataforma
+              </div>
+              <div className="flex flex-col gap-1 pl-9">
+                <Link href="/dashboard/admin/site/inicio" className="text-sm text-slate-600 hover:text-slate-900 py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">Editor do Site</Link>
+                <Link href="/dashboard/admin/site/pagina-corretor" className="text-sm text-slate-600 hover:text-slate-900 py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">Página do Corretor</Link>
+                <Link href="/dashboard/admin/sitemap" className="text-sm text-slate-600 hover:text-slate-900 py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">Sitemap</Link>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {userProfile.userType === 'broker' && (
+        <>
+          <Link className={navLinkClasses("/dashboard", true)} href="/dashboard">
+            <span className="material-symbols-outlined text-[20px]">grid_view</span>
+            Dashboard
+          </Link>
+
+          <div onMouseEnter={() => handleMouseEnter('clientes')} onMouseLeave={handleMouseLeave} className="h-full">
+            <DropdownMenu open={openMenu === 'clientes'} onOpenChange={(open) => setOpenMenu(open ? 'clientes' : null)}>
+              <DropdownMenuTrigger className={dropdownTriggerClasses(["/dashboard/leads", "/dashboard/clientes", "/dashboard/personas"])}>
+                <span className="material-symbols-outlined text-[20px]">group</span>
+                Clientes
+                <span className="material-symbols-outlined text-[16px] ml-0.5">expand_more</span>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-56" onMouseEnter={() => handleMouseEnter('clientes')} onMouseLeave={handleMouseLeave}>
+                <DropdownMenuItem asChild><Link href="/dashboard/leads">Funil de Vendas</Link></DropdownMenuItem>
+                <DropdownMenuItem asChild><Link href="/dashboard/clientes">Base de Clientes</Link></DropdownMenuItem>
+                <DropdownMenuItem asChild><Link href="/dashboard/personas">Personas</Link></DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+
+          <div onMouseEnter={() => handleMouseEnter('imoveis')} onMouseLeave={handleMouseLeave} className="h-full">
+            <DropdownMenu open={openMenu === 'imoveis'} onOpenChange={(open) => setOpenMenu(open ? 'imoveis' : null)}>
+              <DropdownMenuTrigger className={dropdownTriggerClasses(["/dashboard/minha-carteira", "/dashboard/avulso", "/dashboard/imoveis"])}>
+                <span className="material-symbols-outlined text-[20px]">apartment</span>
+                Imóveis
+                <span className="material-symbols-outlined text-[16px] ml-0.5">expand_more</span>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-56" onMouseEnter={() => handleMouseEnter('imoveis')} onMouseLeave={handleMouseLeave}>
+                <DropdownMenuItem asChild><Link href="/dashboard/minha-carteira">Minha Carteira</Link></DropdownMenuItem>
+                <DropdownMenuItem asChild><Link href="/dashboard/avulso">Imóveis Avulsos</Link></DropdownMenuItem>
+                <DropdownMenuItem asChild><Link href="/dashboard/imoveis">Construtoras</Link></DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+          
+          <div onMouseEnter={() => handleMouseEnter('negocios')} onMouseLeave={handleMouseLeave} className="h-full">
+            <DropdownMenu open={openMenu === 'negocios'} onOpenChange={(open) => setOpenMenu(open ? 'negocios' : null)}>
+              <DropdownMenuTrigger className={dropdownTriggerClasses(["/dashboard/jornada", "/dashboard/agenda"])}>
+                <span className="material-symbols-outlined text-[20px]">business_center</span>
+                Negócios
+                <span className="material-symbols-outlined text-[16px] ml-0.5">expand_more</span>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-56" onMouseEnter={() => handleMouseEnter('negocios')} onMouseLeave={handleMouseLeave}>
+                <DropdownMenuItem asChild><Link href="/dashboard/jornada">Jornada de Vendas</Link></DropdownMenuItem>
+                <DropdownMenuItem asChild><Link href="/dashboard/agenda">Agenda</Link></DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+
+          <div onMouseEnter={() => handleMouseEnter('mais')} onMouseLeave={handleMouseLeave} className="h-full">
+            <DropdownMenu open={openMenu === 'mais'} onOpenChange={(open) => setOpenMenu(open ? 'mais' : null)}>
+              <DropdownMenuTrigger className={dropdownTriggerClasses([
+                "/dashboard/cartorio",
+                "/dashboard/financeiro",
+                "/dashboard/radar-oportunidades",
+                "/dashboard/solicitacoes-rede",
+                "/dashboard/meu-site",
+                "/dashboard/oralink",
+                "/dashboard/marketing",
+                "/dashboard/mercado",
+                "/dashboard/loja",
+                "/dashboard/ativacao"
+              ])}>
+                <span className="material-symbols-outlined text-[20px]">more_horiz</span>
+                Mais
+                <span className="material-symbols-outlined text-[16px] ml-0.5">expand_more</span>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-56" onMouseEnter={() => handleMouseEnter('mais')} onMouseLeave={handleMouseLeave}>
+                
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger className="flex items-center gap-2 cursor-pointer">
+                    <span className="material-symbols-outlined text-[18px]">gavel</span>
+                    <span>Consultoria Cartorial</span>
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent className="w-56">
+                    <DropdownMenuItem asChild><Link href="/dashboard/cartorio?tab=servicos">Serviços</Link></DropdownMenuItem>
+                    <DropdownMenuItem asChild><Link href="/dashboard/cartorio?tab=processos">Meus Processos</Link></DropdownMenuItem>
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger className="flex items-center gap-2 cursor-pointer">
+                    <span className="material-symbols-outlined text-[18px]">payments</span>
+                    <span>Financeiro</span>
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent className="w-56">
+                    <DropdownMenuItem asChild><Link href="/dashboard/financeiro">Financeiro</Link></DropdownMenuItem>
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger className="flex items-center gap-2 cursor-pointer">
+                    <span className="material-symbols-outlined text-[18px]">lan</span>
+                    <span>Rede</span>
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent className="w-56">
+                    <DropdownMenuItem asChild><Link href="/dashboard/radar-oportunidades">Radar</Link></DropdownMenuItem>
+                    <DropdownMenuItem asChild><Link href="/dashboard/solicitacoes-rede">Solicitações</Link></DropdownMenuItem>
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+
+                <DropdownMenuSeparator />
+
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger className="flex items-center gap-2 cursor-pointer">
+                    <span className="material-symbols-outlined text-[18px]">trending_up</span>
+                    <span>Crescimento</span>
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent className="w-56">
+                    <DropdownMenuItem asChild><Link href="/dashboard/meu-site">Meu Site</Link></DropdownMenuItem>
+                    <DropdownMenuItem asChild><Link href="/dashboard/oralink">Ora Link</Link></DropdownMenuItem>
+                    <DropdownMenuItem asChild><Link href="/dashboard/mercado">Inteligência de Mercado</Link></DropdownMenuItem>
+                    <DropdownMenuItem asChild><Link href="/dashboard/loja">Loja OraOra</Link></DropdownMenuItem>
+                    <DropdownMenuItem asChild><Link href="/dashboard/ativacao">Academia OraOra</Link></DropdownMenuItem>
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </>
+      )}
+      
+      {userProfile.userType === 'admin' && (
+        <>
+          <div onMouseEnter={() => handleMouseEnter('inteligencia')} onMouseLeave={handleMouseLeave} className="h-full">
+            <DropdownMenu open={openMenu === 'inteligencia'} onOpenChange={(open) => setOpenMenu(open ? 'inteligencia' : null)}>
+              <DropdownMenuTrigger className={dropdownTriggerClasses(["/dashboard", "/dashboard/admin/leads", "/dashboard/personas", "/dashboard/admin/inteligencia", "/dashboard/admin/acessos", "/dashboard/mercado"])}>
+                <span className="material-symbols-outlined text-[20px]">psychology</span>
+                Inteligência
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-56" onMouseEnter={() => handleMouseEnter('inteligencia')} onMouseLeave={handleMouseLeave}>
+                <DropdownMenuItem asChild><Link href="/dashboard">Visão Geral</Link></DropdownMenuItem>
+                <DropdownMenuItem asChild><Link href="/dashboard/mercado">Inteligência de Mercado</Link></DropdownMenuItem>
+                <DropdownMenuItem asChild><Link href="/dashboard/admin/acessos">Acessos e Performance</Link></DropdownMenuItem>
+                <DropdownMenuItem asChild><Link href="/dashboard/admin/leads">Leads</Link></DropdownMenuItem>
+                <DropdownMenuItem asChild><Link href="/dashboard/personas">Personas</Link></DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+
+          <div onMouseEnter={() => handleMouseEnter('rede')} onMouseLeave={handleMouseLeave} className="h-full">
+            <DropdownMenu open={openMenu === 'rede'} onOpenChange={(open) => setOpenMenu(open ? 'rede' : null)}>
+              <DropdownMenuTrigger className={dropdownTriggerClasses(["/dashboard/admin/users", "/dashboard/construtoras", "/dashboard/admin/convites"])}>
+                <span className="material-symbols-outlined text-[20px]">lan</span>
+                Rede
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-56" onMouseEnter={() => handleMouseEnter('rede')} onMouseLeave={handleMouseLeave}>
+                <DropdownMenuItem asChild><Link href="/dashboard/admin/users">Usuários</Link></DropdownMenuItem>
+                <DropdownMenuItem asChild><Link href="/dashboard/construtoras">Construtoras</Link></DropdownMenuItem>
+                <DropdownMenuItem asChild><Link href="/dashboard/admin/convites">Solicitações de Convite</Link></DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+
+          <Link className={navLinkClasses("/dashboard/imoveis")} href="/dashboard/imoveis">
+            <span className="material-symbols-outlined text-[20px]">inventory</span>
+            Ativos
+          </Link>
+
+          <div onMouseEnter={() => handleMouseEnter('loja-admin')} onMouseLeave={handleMouseLeave} className="h-full">
+            <DropdownMenu open={openMenu === 'loja-admin'} onOpenChange={(open) => setOpenMenu(open ? 'loja-admin' : null)}>
+              <DropdownMenuTrigger className={dropdownTriggerClasses(["/dashboard/admin/planos", "/dashboard/admin/loja/themes"])}>
+                <span className="material-symbols-outlined text-[20px]">storefront</span>
+                Loja OraOra
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-56" onMouseEnter={() => handleMouseEnter('loja-admin')} onMouseLeave={handleMouseLeave}>
+                <DropdownMenuItem asChild><Link href="/dashboard/admin/loja/themes">Theme Center</Link></DropdownMenuItem>
+                <DropdownMenuItem asChild><Link href="/dashboard/admin/planos">Gestão de Planos</Link></DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+
+          <div onMouseEnter={() => handleMouseEnter('atendimento')} onMouseLeave={handleMouseLeave} className="h-full">
+            <DropdownMenu open={openMenu === 'atendimento'} onOpenChange={(open) => setOpenMenu(open ? 'atendimento' : null)}>
+              <DropdownMenuTrigger className={dropdownTriggerClasses(["/dashboard/admin/tickets", "/dashboard/admin/comunicados", "/dashboard/admin/help-videos"])}>
+                <span className="material-symbols-outlined text-[20px]">support_agent</span>
+                Atendimento
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-56" onMouseEnter={() => handleMouseEnter('atendimento')} onMouseLeave={handleMouseLeave}>
+                <DropdownMenuItem asChild><Link href="/dashboard/admin/tickets">Suporte</Link></DropdownMenuItem>
+                <DropdownMenuItem asChild><Link href="/dashboard/admin/comunicados">Comunicados</Link></DropdownMenuItem>
+                 <DropdownMenuItem asChild><Link href="/dashboard/admin/help-videos">Vídeos de Ajuda</Link></DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+
+          <div onMouseEnter={() => handleMouseEnter('plataforma')} onMouseLeave={handleMouseLeave} className="h-full">
+            <DropdownMenu open={openMenu === 'plataforma'} onOpenChange={(open) => setOpenMenu(open ? 'plataforma' : null)}>
+              <DropdownMenuTrigger className={dropdownTriggerClasses(["/dashboard/admin/site", "/dashboard/admin/site/pagina-corretor", "/dashboard/admin/sitemap"])}>
+                <span className="material-symbols-outlined text-[20px]">settings_suggest</span>
+                Plataforma
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-56" onMouseEnter={() => handleMouseEnter('plataforma')} onMouseLeave={handleMouseLeave}>
+                <DropdownMenuItem asChild><Link href="/dashboard/admin/site/inicio">Editor do Site</Link></DropdownMenuItem>
+                <DropdownMenuItem asChild><Link href="/dashboard/admin/site/pagina-corretor">Página do Corretor</Link></DropdownMenuItem>
+                <DropdownMenuItem asChild><Link href="/dashboard/admin/sitemap">Sitemap</Link></DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </>
+      )}
+    </>
+  );
+};
+
+const MobileNavigation = (props: any) => {
+  return (
+    <div className="flex flex-col h-full overflow-hidden">
+      <NavigationLinks {...props} isMobile={true} />
+    </div>
+  );
+};
 
 // Context to share onboarding state
 export const OnboardingContext = createContext<{
@@ -179,7 +581,7 @@ export default function DashboardCore({
   const { toast } = useToast();
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const defaultLogo = PlaceHolderImages.find(img => img.id === 'default-logo')?.imageUrl;
+  const defaultLogo = "https://dotestudio.com.br/wp-content/uploads/2025/08/oraora.png";
   
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
   const [onboardingStep, setOnboardingStep] = useState(1);
@@ -353,219 +755,53 @@ export default function DashboardCore({
 
   return (
     <OnboardingContext.Provider value={{ openOnboarding }}>
-      <div className="w-full bg-white border-b border-[#f2f5f0] sticky top-0 z-50">
-        <div className="max-w-[1440px] mx-auto px-6 md:px-10 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-10 h-full">
+      <div className="w-full bg-white border-b border-[#f2f5f0] sticky top-0 z-50 pt-[env(safe-area-inset-top)]">
+        <div className="max-w-[1440px] mx-auto px-4 md:px-10 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-4 md:gap-10 h-full">
+            <Sheet>
+              <SheetTrigger className="lg:hidden p-1.5 md:p-2 text-slate-900">
+                <Menu className="size-5 md:size-6" />
+              </SheetTrigger>
+              <SheetContent side="left" className="w-[300px] pt-6 flex flex-col">
+                 <VisuallyHidden>
+                   <DialogTitle>Menu de Navegação</DialogTitle>
+                 </VisuallyHidden>
+                 <div className="px-3 pb-4 border-b border-slate-100 flex items-center">
+                   <Link href="/dashboard" className="flex items-center gap-2">
+                     <img src={siteData?.logoUrl || defaultLogo} alt="Oraora Logo" className="h-7 w-auto object-contain" />
+                   </Link>
+                 </div>
+                  <MobileNavigation 
+                      userProfile={userProfile} 
+                      pathname={pathname} 
+                      openMenu={openMenu} 
+                      handleMouseEnter={handleMouseEnter} 
+                      handleMouseLeave={handleMouseLeave} 
+                      setOpenMenu={setOpenMenu} 
+                      navLinkClasses={navLinkClasses} 
+                      dropdownTriggerClasses={dropdownTriggerClasses} 
+                      siteData={siteData} 
+                      defaultLogo={defaultLogo} 
+                  />
+              </SheetContent>
+
+            </Sheet>
             <Link href="/dashboard" className="flex items-center gap-3">
-              <img src={siteData?.logoUrl || defaultLogo || ""} alt="Oraora Logo" className="h-8 max-h-8 w-auto object-contain shrink-0" />
+              <img src={siteData?.logoUrl || defaultLogo || ""} alt="Oraora Logo" className="h-7 md:h-8 max-h-8 w-auto object-contain shrink-0" />
             </Link>
-            <nav className="hidden md:flex items-center gap-6 h-full">
-                {userProfile.userType === 'broker' && (
-                  <>
-                    <Link className={navLinkClasses("/dashboard", true)} href="/dashboard">
-                      <span className="material-symbols-outlined text-[20px]">grid_view</span>
-                      Dashboard
-                    </Link>
-
-                    <div onMouseEnter={() => handleMouseEnter('clientes')} onMouseLeave={handleMouseLeave} className="h-full">
-                      <DropdownMenu open={openMenu === 'clientes'} onOpenChange={(open) => setOpenMenu(open ? 'clientes' : null)}>
-                        <DropdownMenuTrigger className={dropdownTriggerClasses(["/dashboard/leads", "/dashboard/clientes", "/dashboard/personas"])}>
-                          <span className="material-symbols-outlined text-[20px]">group</span>
-                          Clientes
-                          <span className="material-symbols-outlined text-[16px] ml-0.5">expand_more</span>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start" className="w-56" onMouseEnter={() => handleMouseEnter('clientes')} onMouseLeave={handleMouseLeave}>
-                          <DropdownMenuItem asChild><Link href="/dashboard/leads">Funil de Vendas</Link></DropdownMenuItem>
-                          <DropdownMenuItem asChild><Link href="/dashboard/clientes">Base de Clientes</Link></DropdownMenuItem>
-                          <DropdownMenuItem asChild><Link href="/dashboard/personas">Personas</Link></DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-
-                    <div onMouseEnter={() => handleMouseEnter('imoveis')} onMouseLeave={handleMouseLeave} className="h-full">
-                      <DropdownMenu open={openMenu === 'imoveis'} onOpenChange={(open) => setOpenMenu(open ? 'imoveis' : null)}>
-                        <DropdownMenuTrigger className={dropdownTriggerClasses(["/dashboard/minha-carteira", "/dashboard/avulso", "/dashboard/imoveis"])}>
-                          <span className="material-symbols-outlined text-[20px]">apartment</span>
-                          Imóveis
-                          <span className="material-symbols-outlined text-[16px] ml-0.5">expand_more</span>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start" className="w-56" onMouseEnter={() => handleMouseEnter('imoveis')} onMouseLeave={handleMouseLeave}>
-                          <DropdownMenuItem asChild><Link href="/dashboard/minha-carteira">Minha Carteira</Link></DropdownMenuItem>
-                          <DropdownMenuItem asChild><Link href="/dashboard/avulso">Imóveis Avulsos</Link></DropdownMenuItem>
-                          <DropdownMenuItem asChild><Link href="/dashboard/imoveis">Construtoras</Link></DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                    
-                    <div onMouseEnter={() => handleMouseEnter('negocios')} onMouseLeave={handleMouseLeave} className="h-full">
-                      <DropdownMenu open={openMenu === 'negocios'} onOpenChange={(open) => setOpenMenu(open ? 'negocios' : null)}>
-                        <DropdownMenuTrigger className={dropdownTriggerClasses(["/dashboard/jornada", "/dashboard/propostas", "/dashboard/agenda"])}>
-                          <span className="material-symbols-outlined text-[20px]">business_center</span>
-                          Negócios
-                          <span className="material-symbols-outlined text-[16px] ml-0.5">expand_more</span>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start" className="w-56" onMouseEnter={() => handleMouseEnter('negocios')} onMouseLeave={handleMouseLeave}>
-                          <DropdownMenuItem asChild><Link href="/dashboard/jornada">Jornada de Vendas</Link></DropdownMenuItem>
-                          <DropdownMenuItem asChild><Link href="/dashboard/propostas">Propostas</Link></DropdownMenuItem>
-                          <DropdownMenuItem asChild><Link href="/dashboard/agenda">Agenda</Link></DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-
-                    <div onMouseEnter={() => handleMouseEnter('mais')} onMouseLeave={handleMouseLeave} className="h-full">
-                      <DropdownMenu open={openMenu === 'mais'} onOpenChange={(open) => setOpenMenu(open ? 'mais' : null)}>
-                        <DropdownMenuTrigger className={dropdownTriggerClasses([
-                          "/dashboard/cartorio",
-                          "/dashboard/financeiro",
-                          "/dashboard/radar-oportunidades",
-                          "/dashboard/solicitacoes-rede",
-                          "/dashboard/meu-site",
-                          "/dashboard/oralink",
-                          "/dashboard/marketing",
-                          "/dashboard/mercado",
-                          "/dashboard/loja",
-                          "/dashboard/ativacao"
-                        ])}>
-                          <span className="material-symbols-outlined text-[20px]">more_horiz</span>
-                          Mais
-                          <span className="material-symbols-outlined text-[16px] ml-0.5">expand_more</span>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start" className="w-56" onMouseEnter={() => handleMouseEnter('mais')} onMouseLeave={handleMouseLeave}>
-                          
-                          <DropdownMenuSub>
-                            <DropdownMenuSubTrigger className="flex items-center gap-2 cursor-pointer">
-                              <span className="material-symbols-outlined text-[18px]">gavel</span>
-                              <span>Consultoria Cartorial</span>
-                            </DropdownMenuSubTrigger>
-                            <DropdownMenuSubContent className="w-56">
-                              <DropdownMenuItem asChild><Link href="/dashboard/cartorio?tab=servicos">Serviços</Link></DropdownMenuItem>
-                              <DropdownMenuItem asChild><Link href="/dashboard/cartorio?tab=processos">Meus Processos</Link></DropdownMenuItem>
-                            </DropdownMenuSubContent>
-                          </DropdownMenuSub>
-
-                          <DropdownMenuSub>
-                            <DropdownMenuSubTrigger className="flex items-center gap-2 cursor-pointer">
-                              <span className="material-symbols-outlined text-[18px]">payments</span>
-                              <span>Financeiro</span>
-                            </DropdownMenuSubTrigger>
-                            <DropdownMenuSubContent className="w-56">
-                              <DropdownMenuItem asChild><Link href="/dashboard/financeiro">Financeiro</Link></DropdownMenuItem>
-                            </DropdownMenuSubContent>
-                          </DropdownMenuSub>
-
-                          <DropdownMenuSub>
-                            <DropdownMenuSubTrigger className="flex items-center gap-2 cursor-pointer">
-                              <span className="material-symbols-outlined text-[18px]">lan</span>
-                              <span>Rede</span>
-                            </DropdownMenuSubTrigger>
-                            <DropdownMenuSubContent className="w-56">
-                              <DropdownMenuItem asChild><Link href="/dashboard/radar-oportunidades">Radar</Link></DropdownMenuItem>
-                              <DropdownMenuItem asChild><Link href="/dashboard/solicitacoes-rede">Solicitações</Link></DropdownMenuItem>
-                            </DropdownMenuSubContent>
-                          </DropdownMenuSub>
-
-                          <DropdownMenuSeparator />
-
-                          <DropdownMenuSub>
-                            <DropdownMenuSubTrigger className="flex items-center gap-2 cursor-pointer">
-                              <span className="material-symbols-outlined text-[18px]">trending_up</span>
-                              <span>Crescimento</span>
-                            </DropdownMenuSubTrigger>
-                            <DropdownMenuSubContent className="w-56">
-                              <DropdownMenuItem asChild><Link href="/dashboard/meu-site">Meu Site</Link></DropdownMenuItem>
-                              <DropdownMenuItem asChild><Link href="/dashboard/oralink">Ora Link</Link></DropdownMenuItem>
-                              <DropdownMenuItem asChild><Link href="/dashboard/marketing">Marketing</Link></DropdownMenuItem>
-                              <DropdownMenuItem asChild><Link href="/dashboard/marketing/autoridade">Autoridade Digital</Link></DropdownMenuItem>
-                              <DropdownMenuItem asChild><Link href="/dashboard/mercado">Inteligência de Mercado</Link></DropdownMenuItem>
-                              <DropdownMenuItem asChild><Link href="/dashboard/loja">Loja OraOra</Link></DropdownMenuItem>
-                              <DropdownMenuItem asChild><Link href="/dashboard/ativacao">Academia OraOra</Link></DropdownMenuItem>
-                            </DropdownMenuSubContent>
-                          </DropdownMenuSub>
-
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </>
-                )}
-                
-                {userProfile.userType === 'admin' && (
-                  <>
-                    <div onMouseEnter={() => handleMouseEnter('inteligencia')} onMouseLeave={handleMouseLeave} className="h-full">
-                      <DropdownMenu open={openMenu === 'inteligencia'} onOpenChange={(open) => setOpenMenu(open ? 'inteligencia' : null)}>
-                        <DropdownMenuTrigger className={dropdownTriggerClasses(["/dashboard", "/dashboard/admin/leads", "/dashboard/personas", "/dashboard/admin/inteligencia", "/dashboard/admin/acessos", "/dashboard/mercado"])}>
-                          <span className="material-symbols-outlined text-[20px]">psychology</span>
-                          Inteligência
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start" className="w-56" onMouseEnter={() => handleMouseEnter('inteligencia')} onMouseLeave={handleMouseLeave}>
-                          <DropdownMenuItem asChild><Link href="/dashboard">Visão Geral</Link></DropdownMenuItem>
-                          <DropdownMenuItem asChild><Link href="/dashboard/mercado">Inteligência de Mercado</Link></DropdownMenuItem>
-                          <DropdownMenuItem asChild><Link href="/dashboard/admin/acessos">Acessos e Performance</Link></DropdownMenuItem>
-                          <DropdownMenuItem asChild><Link href="/dashboard/admin/leads">Leads</Link></DropdownMenuItem>
-                          <DropdownMenuItem asChild><Link href="/dashboard/personas">Personas</Link></DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-
-                    <div onMouseEnter={() => handleMouseEnter('rede')} onMouseLeave={handleMouseLeave} className="h-full">
-                      <DropdownMenu open={openMenu === 'rede'} onOpenChange={(open) => setOpenMenu(open ? 'rede' : null)}>
-                        <DropdownMenuTrigger className={dropdownTriggerClasses(["/dashboard/admin/users", "/dashboard/construtoras", "/dashboard/admin/convites"])}>
-                          <span className="material-symbols-outlined text-[20px]">lan</span>
-                          Rede
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start" className="w-56" onMouseEnter={() => handleMouseEnter('rede')} onMouseLeave={handleMouseLeave}>
-                          <DropdownMenuItem asChild><Link href="/dashboard/admin/users">Usuários</Link></DropdownMenuItem>
-                          <DropdownMenuItem asChild><Link href="/dashboard/construtoras">Construtoras</Link></DropdownMenuItem>
-                          <DropdownMenuItem asChild><Link href="/dashboard/admin/convites">Solicitações de Convite</Link></DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-
-                    <Link className={navLinkClasses("/dashboard/imoveis")} href="/dashboard/imoveis">
-                      <span className="material-symbols-outlined text-[20px]">inventory</span>
-                      Ativos
-                    </Link>
-
-                    <div onMouseEnter={() => handleMouseEnter('loja-admin')} onMouseLeave={handleMouseLeave} className="h-full">
-                      <DropdownMenu open={openMenu === 'loja-admin'} onOpenChange={(open) => setOpenMenu(open ? 'loja-admin' : null)}>
-                        <DropdownMenuTrigger className={dropdownTriggerClasses(["/dashboard/admin/planos", "/dashboard/admin/loja/themes"])}>
-                          <span className="material-symbols-outlined text-[20px]">storefront</span>
-                          Loja OraOra
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start" className="w-56" onMouseEnter={() => handleMouseEnter('loja-admin')} onMouseLeave={handleMouseLeave}>
-                          <DropdownMenuItem asChild><Link href="/dashboard/admin/loja/themes">Theme Center</Link></DropdownMenuItem>
-                          <DropdownMenuItem asChild><Link href="/dashboard/admin/planos">Gestão de Planos</Link></DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-
-                    <div onMouseEnter={() => handleMouseEnter('atendimento')} onMouseLeave={handleMouseLeave} className="h-full">
-                      <DropdownMenu open={openMenu === 'atendimento'} onOpenChange={(open) => setOpenMenu(open ? 'atendimento' : null)}>
-                        <DropdownMenuTrigger className={dropdownTriggerClasses(["/dashboard/admin/tickets", "/dashboard/admin/comunicados"])}>
-                          <span className="material-symbols-outlined text-[20px]">support_agent</span>
-                          Atendimento
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start" className="w-56" onMouseEnter={() => handleMouseEnter('atendimento')} onMouseLeave={handleMouseLeave}>
-                          <DropdownMenuItem asChild><Link href="/dashboard/admin/tickets">Suporte</Link></DropdownMenuItem>
-                          <DropdownMenuItem asChild><Link href="/dashboard/admin/comunicados">Comunicados</Link></DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-
-                    <div onMouseEnter={() => handleMouseEnter('plataforma')} onMouseLeave={handleMouseLeave} className="h-full">
-                      <DropdownMenu open={openMenu === 'plataforma'} onOpenChange={(open) => setOpenMenu(open ? 'plataforma' : null)}>
-                        <DropdownMenuTrigger className={dropdownTriggerClasses(["/dashboard/admin/site", "/dashboard/admin/site/pagina-corretor", "/dashboard/admin/sitemap"])}>
-                          <span className="material-symbols-outlined text-[20px]">settings_suggest</span>
-                          Plataforma
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start" className="w-56" onMouseEnter={() => handleMouseEnter('plataforma')} onMouseLeave={handleMouseLeave}>
-                          <DropdownMenuItem asChild><Link href="/dashboard/admin/site/inicio">Editor do Site</Link></DropdownMenuItem>
-                          <DropdownMenuItem asChild><Link href="/dashboard/admin/site/pagina-corretor">Página do Corretor</Link></DropdownMenuItem>
-                          <DropdownMenuItem asChild><Link href="/dashboard/admin/sitemap">Sitemap</Link></DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </>
-                )}
+            <nav className="hidden lg:flex items-center gap-6 h-full">
+                <NavigationLinks 
+                    userProfile={userProfile} 
+                    pathname={pathname} 
+                    openMenu={openMenu} 
+                    handleMouseEnter={handleMouseEnter} 
+                    handleMouseLeave={handleMouseLeave} 
+                    setOpenMenu={setOpenMenu} 
+                    navLinkClasses={navLinkClasses} 
+                    dropdownTriggerClasses={dropdownTriggerClasses} 
+                    siteData={siteData} 
+                    defaultLogo={defaultLogo} 
+                />
             </nav>
           </div>
           <div className="flex items-center gap-4">
@@ -1340,7 +1576,7 @@ export default function DashboardCore({
         </div>
       </div>
        <main className="flex-1 w-full max-w-[1440px] mx-auto px-4 sm:px-6 py-8 pb-32">
-        {children}
+        {isAdminUser(userProfile.userType) && pathname === '/dashboard' ? <AdminDashboardPage /> : children}
       </main>
       <footer className="mt-auto border-t border-[#f2f5f0] bg-white">
         <div className="max-w-[1440px] mx-auto px-6 py-6 flex flex-col md:flex-row items-center justify-between gap-4 text-center md:text-left">

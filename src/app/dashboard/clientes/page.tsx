@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { useCollection, useFirestore, useMemoFirebase, useAuthContext, deleteDocumentNonBlocking } from "@/firebase";
 import { collection, query, where, doc, Timestamp, limit } from "firebase/firestore";
 import Link from "next/link";
+import { HelpVideo } from "@/components/HelpVideo";
 import { useState, useEffect, useMemo } from "react";
 import {
     AlertDialog,
@@ -123,7 +124,8 @@ export default function ClientListPage() {
             <h1 className="text-3xl font-bold text-text-main tracking-tight">Listagem de Clientes</h1>
             <p className="text-text-secondary mt-1">Gerencie leads, históricos de contato e carteira de clientes.</p>
           </div>
-          <div className="flex gap-3">
+          <div className="flex gap-3 items-center">
+            <HelpVideo page="clientes" />
             <Button asChild className="bg-secondary hover:bg-primary text-white hover:text-black font-bold py-2.5 px-5 rounded-lg shadow-sm hover:shadow-glow transition-all duration-300 flex items-center gap-2">
               <Link href="/dashboard/clientes/nova">
                   <span className="material-symbols-outlined text-[20px]">person_add</span>

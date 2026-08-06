@@ -153,15 +153,15 @@ export function UserMenu() {
         : 'Ver meu site público';
 
     return (
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 md:gap-4">
             <TooltipProvider>
                 {canViewSite && (
                   <Tooltip>
                       <TooltipTrigger asChild>
-                          <Button asChild variant="outline" size="sm" className="h-9 gap-2 font-bold bg-white border-slate-200 hover:bg-slate-50 transition-all rounded-lg shadow-sm">
+                          <Button asChild variant="outline" size="sm" className="h-8 md:h-9 px-2 md:px-3 gap-1.5 md:gap-2 font-bold bg-white border-slate-200 hover:bg-slate-50 transition-all rounded-lg shadow-sm">
                               <Link href={siteUrl} target="_blank">
-                                  <span className="material-symbols-outlined text-[18px]">public</span>
-                                  Ver site
+                                  <span className="material-symbols-outlined text-[16px] md:text-[18px]">public</span>
+                                  <span className="hidden md:inline">Ver site</span>
                               </Link>
                           </Button>
                       </TooltipTrigger>
@@ -171,12 +171,12 @@ export function UserMenu() {
                   </Tooltip>
                 )}
                 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1 md:gap-2">
                     <Tooltip>
                         <TooltipTrigger asChild>
-                            <Button asChild variant="ghost" size="icon" className="size-9 rounded-full hover:bg-gray-100 flex items-center justify-center text-text-secondary transition-colors relative">
+                            <Button asChild variant="ghost" size="icon" className="size-8 md:size-9 rounded-full hover:bg-gray-100 flex items-center justify-center text-text-secondary transition-colors relative">
                                 <Link href="/dashboard/suporte">
-                                    <span className="material-symbols-outlined text-[20px]">help</span>
+                                    <span className="material-symbols-outlined text-[18px] md:text-[20px]">help</span>
                                 </Link>
                             </Button>
                         </TooltipTrigger>
@@ -188,11 +188,11 @@ export function UserMenu() {
                     <Popover>
                         <PopoverTrigger asChild>
                             <button 
-                                className="size-9 rounded-full hover:bg-gray-100 flex items-center justify-center text-text-secondary transition-colors relative cursor-pointer outline-none"
+                                className="size-8 md:size-9 rounded-full hover:bg-gray-100 flex items-center justify-center text-text-secondary transition-colors relative cursor-pointer outline-none"
                             >
-                                <span className="material-symbols-outlined text-[20px]">notifications</span>
+                                <span className="material-symbols-outlined text-[18px] md:text-[20px]">notifications</span>
                                 {hasUnread && (
-                                    <span className="absolute top-2 right-2 size-2 bg-red-500 rounded-full border-2 border-white animate-pulse"></span>
+                                    <span className="absolute top-1.5 right-1.5 md:top-2 md:right-2 size-2 bg-red-500 rounded-full border-2 border-white animate-pulse"></span>
                                 )}
                             </button>
                         </PopoverTrigger>

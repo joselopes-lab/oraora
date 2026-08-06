@@ -124,10 +124,7 @@ service cloud.firestore {
       );
 
       match /timeline/{logId} {
-        allow read, write: if isSignedIn() && (
-          get(/databases/$(database)/documents/journeys/$(journeyId)).data.brokerId == request.auth.uid ||
-          isAdmin()
-        );
+        allow read, write: if isSignedIn();
       }
     }
 
@@ -208,6 +205,12 @@ service cloud.firestore {
       allow read: if isSignedIn() && (resource.data.clientId == request.auth.uid || isAdmin());
       allow create: if isSignedIn() && request.resource.data.clientId == request.auth.uid;
       allow update, delete: if isSignedIn() && (resource.data.clientId == request.auth.uid || isAdmin());
+    }
+
+    // 11. VÍDEOS DE AJUDA
+    match /helpVideos/{videoId} {
+      allow read, list: if isSignedIn();
+      allow write: if isAdmin();
     }
   }
 }

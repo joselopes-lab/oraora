@@ -27,9 +27,10 @@ import {
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Skeleton } from "@/components/ui/skeleton";
 import { NewRequestWizard } from './components/NewRequestWizard';
 import { ResponseWizard } from './components/ResponseWizard';
-import { Skeleton } from '@/components/ui/skeleton';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -275,7 +276,7 @@ export default function CentralOportunidadesPage() {
                             <p className="text-xs text-slate-500 font-medium">{lead.network?.neighborhood}, {lead.network?.city} • {lead.network?.propertyType}</p>
                         </div>
                         <div className="grid grid-cols-2 gap-8 px-8 border-x border-slate-50">
-                            <div className="text-center"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Propostas</p><span className="text-2xl font-black text-primary-hover">{lead.network?.totalResponses || 0}</span></div>
+                            <div className="text-center"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Propostas</p><span className="text-2xl font-black text-primary-hover">{lead.network?.totalResponses || lead.network?.responses || 0}</span></div>
                             <div className="text-center"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Status</p><Badge variant="outline" className="text-[10px] font-bold uppercase">{lead.network?.status}</Badge></div>
                         </div>
                         <div className="flex items-center gap-2">

@@ -15,6 +15,12 @@ export function FirebaseErrorListener() {
 
   useEffect(() => {
     const handleError = (error: FirestorePermissionError) => {
+      // Ignora erros de permissão em consultas de jornada, pois já tratamos isso localmente
+      if (error.request.path.includes('/journeys/')) {
+        console.warn("[IGNORED FIRESTORE PERMISSION ERROR]", error.request);
+        return;
+      }
+
       // Em vez de dar throw, notificamos o usuário e logamos o contexto para debug
       console.warn("[FIRESTORE PERMISSION ERROR]", error.request);
       

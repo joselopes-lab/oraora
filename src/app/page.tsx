@@ -248,7 +248,7 @@ export default function BrokerHomePage() {
     <div className="bg-background-light overflow-x-hidden w-full">
       <header className="sticky top-0 z-50 w-full border-b border-[#f0f2f4] bg-white/90 px-4 md:px-6 backdrop-blur-md transition-all lg:px-10">
         <div className="relative flex h-20 items-center justify-between">
-          <div className="flex items-center">
+          <div className="flex items-center gap-2 md:gap-4">
             <div className="lg:hidden">
               <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
                 <SheetTrigger asChild>
@@ -290,15 +290,12 @@ export default function BrokerHomePage() {
                 </SheetContent>
               </Sheet>
             </div>
-            <Link className="hidden lg:flex items-center gap-3" href="/">
-              <Image src={siteData?.logoUrl || defaultLogo || ""} alt="Oraora Logo" width={120} height={30} className="h-10 w-auto" style={{ width: 'auto' }} />
+            <Link className="flex items-center gap-3" href="/">
+              <Image src={siteData?.logoUrl || defaultLogo || ""} alt="Oraora Logo" width={120} height={30} className="h-8 md:h-10 w-auto object-contain" style={{ width: 'auto' }} />
             </Link>
           </div>
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-            <Link className="flex items-center gap-3 lg:hidden" href="/">
-              <Image src={siteData?.logoUrl || defaultLogo || ""} alt="Oraora Logo" width={120} height={30} className="h-10 w-auto" style={{ width: 'auto' }} />
-            </Link>
-            <nav className="hidden lg:flex items-center gap-8 text-sm font-semibold">
+          <div className="hidden lg:flex absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+            <nav className="flex items-center gap-8 text-sm font-semibold">
               <Link className="text-text-main transition hover:text-primary" href="/imoveis">Imóveis</Link>
               <Link className="text-text-main transition hover:text-primary" href="/corretor">Para Corretores</Link>
               <Link className="text-text-main transition hover:text-primary" href="/sobre">Sobre</Link>

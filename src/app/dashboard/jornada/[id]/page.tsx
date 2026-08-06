@@ -297,8 +297,10 @@ const normalizeQuartos = (val: any): string[] => {
 };
 
 const formatCurrency = (val?: number) => {
-  if (!val) return 'Não informado';
-  return val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  if (val === undefined || val === null) return 'Não informado';
+  const parts = val.toFixed(2).split('.');
+  const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return `R$ ${intPart},${parts[1]}`;
 };
 
 export default function JourneyDetailPage() {
@@ -357,14 +359,14 @@ export default function JourneyDetailPage() {
   });
 
   const journeyRef = useMemoFirebase(
-    () => (isReady && firestore && id ? doc(firestore, 'journeys', id) : null),
-    [isReady, firestore, id]
+    () => (isReady && firestore && user?.uid && id && id !== '[id]' ? doc(firestore, 'journeys', id) : null),
+    [isReady, firestore, user?.uid, id]
   );
   const { data: journey, isLoading: isJourneyLoading } = useDoc<Journey>(journeyRef);
 
   const clientRef = useMemoFirebase(
-    () => (isReady && firestore && journey?.clientId ? doc(firestore, 'leads', journey.clientId) : null),
-    [isReady, firestore, journey?.clientId]
+    () => (isReady && firestore && user?.uid && journey?.clientId ? doc(firestore, 'leads', journey.clientId) : null),
+    [isReady, firestore, user?.uid, journey?.clientId]
   );
   
   // Custom subscription for Lead that catches permission errors silently to avoid global modal crash
@@ -423,24 +425,24 @@ export default function JourneyDetailPage() {
   }, [journey?.linkedProperties, journey?.propertyIds]);
 
   const linkedPropertiesQuery = useMemoFirebase(
-    () => (isReady && firestore && globalPropertyIds.length > 0
+    () => (isReady && firestore && user?.uid && globalPropertyIds.length > 0
       ? query(collection(firestore, 'properties'), where('__name__', 'in', globalPropertyIds.slice(0, 30))) 
       : null),
-    [isReady, firestore, globalPropertyIds]
+    [isReady, firestore, user?.uid, globalPropertyIds]
   );
   const { data: propertiesFromGlobal } = useCollection<Property>(linkedPropertiesQuery);
 
   const personasQuery = useMemoFirebase(
-    () => (isReady && firestore ? query(collection(firestore, 'personas')) : null),
-    [isReady, firestore]
+    () => (isReady && firestore && user?.uid ? query(collection(firestore, 'personas')) : null),
+    [isReady, firestore, user?.uid]
   );
   const { data: personas } = useCollection<Persona>(personasQuery);
 
   const linkedBrokerPropertiesQuery = useMemoFirebase(
-    () => (isReady && firestore && brokerPropertyIds.length > 0 && user?.uid
+    () => (isReady && firestore && user?.uid && brokerPropertyIds.length > 0
       ? query(collection(firestore, 'brokerProperties'), where('brokerId', '==', user.uid), where('__name__', 'in', brokerPropertyIds.slice(0, 30))) 
       : null),
-    [isReady, firestore, brokerPropertyIds, user?.uid]
+    [isReady, firestore, user?.uid, brokerPropertyIds]
   );
   const { data: propertiesFromBroker } = useCollection<Property>(linkedBrokerPropertiesQuery);
 
@@ -473,22 +475,24 @@ export default function JourneyDetailPage() {
 
   // Load broker portfolio to filter global properties according to existing visibility criteria
   const portfolioDocRef = useMemoFirebase(
-    () => (firestore && user?.uid ? doc(firestore, 'portfolios', user.uid) : null),
-    [firestore, user?.uid]
+    () => (isReady && firestore && user?.uid ? doc(firestore, 'portfolios', user.uid) : null),
+    [isReady, firestore, user?.uid]
   );
   const { data: portfolio } = useDoc<{ propertyIds: string[] }>(portfolioDocRef);
 
-  // Load all available global properties
+  const portfolioIds = useMemo(() => portfolio?.propertyIds || [], [portfolio?.propertyIds]);
+
+  // Load available global properties present in broker portfolio using __name__ in filter
   const allPropertiesQuery = useMemoFirebase(
-    () => (firestore ? query(collection(firestore, 'properties')) : null),
-    [firestore]
+    () => (isReady && firestore && user?.uid && portfolioIds.length > 0 ? query(collection(firestore, 'properties'), where('__name__', 'in', portfolioIds.slice(0, 30))) : null),
+    [isReady, firestore, user?.uid, portfolioIds]
   );
   const { data: allProperties } = useCollection<Property>(allPropertiesQuery);
 
   // Load all available broker properties
   const allBrokerPropertiesQuery = useMemoFirebase(
-    () => (firestore && user?.uid ? query(collection(firestore, 'brokerProperties'), where('brokerId', '==', user.uid)) : null),
-    [firestore, user?.uid]
+    () => (isReady && firestore && user?.uid ? query(collection(firestore, 'brokerProperties'), where('brokerId', '==', user.uid)) : null),
+    [isReady, firestore, user?.uid]
   );
   const { data: allBrokerProperties } = useCollection<Property>(allBrokerPropertiesQuery);
 
@@ -846,8 +850,8 @@ export default function JourneyDetailPage() {
   }, [initialEvents, journey?.clientId]);
 
   const timelineQuery = useMemoFirebase(
-    () => (isReady && firestore && id ? query(collection(firestore, 'journeys', id, 'timeline'), orderBy('createdAt', 'desc'), limit(20)) : null),
-    [isReady, firestore, id]
+    () => (isReady && firestore && user?.uid && id && id !== '[id]' ? query(collection(firestore, 'journeys', id, 'timeline'), orderBy('createdAt', 'desc'), limit(20)) : null),
+    [isReady, firestore, user?.uid, id]
   );
   const { data: timelineData } = useCollection<TimelineLog>(timelineQuery);
 
@@ -1044,17 +1048,29 @@ export default function JourneyDetailPage() {
         const newLabel = (journey.stage && stageLabelMap[journey.stage]) || journey.stage;
 
         try {
-          const timelineRef = collection(firestore, 'journeys', id, 'timeline');
-          await addDoc(timelineRef, {
+          const payload = {
             type: 'auto',
             eventType: 'stage_changed',
             title: 'Etapa atualizada',
             description: `Etapa alterada de ${oldLabel} para ${newLabel}.`,
             createdAt: serverTimestamp(),
             createdBy: user.uid,
+          };
+          console.log("DIAGNOSTIC PRE-ADDDOC:", {
+            journeyId: id,
+            userId: user.uid,
+            isFirestoreInitialized: !!firestore,
+            payload
           });
-        } catch (error) {
-          console.error("Erro ao gravar mudança de etapa na timeline:", error);
+          const timelineRef = collection(firestore, 'journeys', id, 'timeline');
+          await addDoc(timelineRef, payload);
+        } catch (error: any) {
+          console.error("DIAGNOSTIC TIMELINE ERROR DETAILS:", {
+            code: error?.code,
+            message: error?.message,
+            stack: error?.stack,
+            fullError: error
+          });
           toast({
             variant: 'destructive',
             title: "Erro ao gravar histórico",

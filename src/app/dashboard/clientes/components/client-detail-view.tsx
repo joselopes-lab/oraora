@@ -311,22 +311,27 @@ export default function ClientDetailView({ client, personas, recommendedProperti
     };
 
     const handleShareSelection = () => {
-        if (selectedPropertyIds.length === 0 || !brokerSlug) return;
+        if (selectedPropertyIds.length === 0) return;
 
         const selectedProps = effectiveRecommendedProperties.filter(p => selectedPropertyIds.includes(p.id));
         
-        let message = `Olá ${client.name}! Separei estas oportunidades exclusivas que combinam perfeitamente com o seu perfil:\n\n`;
+        let message = `Olá ${client.name || 'Cliente'}! Separei estas oportunidades exclusivas que combinam perfeitamente com o seu perfil:\n\n`;
         
         selectedProps.forEach(prop => {
-            const link = `https://oraora.com.br/sites/${brokerSlug}/imovel/${prop.informacoesbasicas.slug || prop.id}`;
-            message += `📍 *${prop.informacoesbasicas.nome}*\n${prop.localizacao.bairro}, ${prop.localizacao.cidade}\n🔗 ${link}\n\n`;
+            const propSlugOrId = prop.informacoesbasicas?.slug || prop.id;
+            const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://oraora.com.br';
+            const finalSlug = brokerSlug || user?.uid || 'oraora-main-site';
+            const link = `${baseUrl}/sites/${finalSlug}/imovel/${propSlugOrId}`;
+            message += `*${prop.informacoesbasicas?.nome || 'Imóvel'}*\n${prop.localizacao?.bairro || ''}, ${prop.localizacao?.cidade || ''}\n${link}\n\n`;
         });
 
         message += `O que achou destas opções? Podemos agendar uma visita?`;
 
         const encodedMessage = encodeURIComponent(message);
-        const cleanPhone = client.phone.replace(/\D/g, '');
-        const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodedMessage}`;
+        const cleanPhone = client.phone ? client.phone.replace(/\D/g, '') : '';
+        const whatsappUrl = cleanPhone 
+            ? `https://wa.me/${cleanPhone.startsWith('55') ? cleanPhone : '55' + cleanPhone}?text=${encodedMessage}`
+            : `https://api.whatsapp.com/send?text=${encodedMessage}`;
         
         window.open(whatsappUrl, '_blank');
         toast({ title: "WhatsApp Aberto", description: "A mensagem foi preparada com os links selecionados." });

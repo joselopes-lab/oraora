@@ -46,8 +46,8 @@ import {
   Loader2,
   ExternalLink
 } from 'lucide-react';
-import { useAuthContext, useCollection, useDoc, useFirestore, useMemoFirebase, useFirebase, addDocumentNonBlocking } from '@/firebase';
-import { collection, query, where, doc, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
+import { useAuthContext, useCollection, useDoc, useFirestore, useMemoFirebase, useFirebase, addDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase';
+import { collection, query, where, doc, getDocs, addDoc, serverTimestamp, increment } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
@@ -303,6 +303,11 @@ export function ResponseWizard({ isOpen, onClose, request }: ResponseWizardProps
 
         // 4. Gravação no Firestore
         await addDoc(responsesRef, payload);
+
+        // Atualizar contador de propostas
+        setDocumentNonBlocking(doc(firestore, 'leads', request.id), {
+            "network.totalResponses": increment(1)
+        }, { merge: true });
 
         // 5. Gerar Notificação para o dono do lead
         createNotification(

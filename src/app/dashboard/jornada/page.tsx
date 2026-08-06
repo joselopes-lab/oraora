@@ -343,7 +343,7 @@ export default function JornadaVendaPage() {
       propertyLocation: selectedProp ? `${selectedProp.localizacao.bairro}, ${selectedProp.localizacao.cidade}` : '',
       propertyImage: selectedProp?.midia?.[0] || 'https://picsum.photos/seed/placeholder/400/300',
       stage: formData.stage,
-      potentialValue: typeof formData.potentialValue === 'string' ? parseFloat(formData.potentialValue.replace(/\D/g, '')) / 100 || 0 : formData.potentialValue,
+       potentialValue: typeof formData.potentialValue === "string" ? parseFloat(formData.potentialValue.replace(/\./g, "").replace(",", ".")) || 0 : formData.potentialValue,
       notes: formData.notes,
       updatedAt: serverTimestamp(),
     };
@@ -381,7 +381,7 @@ export default function JornadaVendaPage() {
       personaId: foundPersona?.id || '',
       propertyIds: journey.propertyIds || [],
       stage: journey.stage,
-      potentialValue: journey.potentialValue ? (journey.potentialValue * 100).toString() : '',
+       potentialValue: journey.potentialValue ? journey.potentialValue.toString() : "",
       notes: journey.notes || '',
     });
     setIsModalOpen(true);

@@ -64,6 +64,7 @@ export default function MyPortfolioPage() {
     
     const [portfolioProperties, setPortfolioProperties] = useState<Property[]>([]);
     const [isDataLoading, setIsDataLoading] = useState(true);
+    const [propertyToDelete, setPropertyToDelete] = useState<Property | null>(null);
 
     const brokerPropertiesQuery = useMemoFirebase(
       () => (user && firestore ? query(collection(firestore, 'brokerProperties'), where('brokerId', '==', user.uid), where('inPortfolio', '==', true)) : null),
@@ -124,9 +125,10 @@ export default function MyPortfolioPage() {
         return constructors.reduce((acc, c) => ({ ...acc, [c.id]: c.name }), {} as Record<string, string>);
     }, [constructors]);
 
-    const handleRemove = async (property: Property) => {
-        if (!firestore || !user?.uid) return;
+    const handleRemove = async () => {
+        if (!firestore || !user?.uid || !propertyToDelete) return;
 
+        const property = propertyToDelete;
         if (property.brokerId === user.uid) {
             // Own property
             await setDocumentNonBlocking(doc(firestore, 'brokerProperties', property.id), { inPortfolio: false, isVisibleOnSite: false }, { merge: true });
@@ -135,6 +137,7 @@ export default function MyPortfolioPage() {
             await setDocumentNonBlocking(doc(firestore, 'portfolios', user.uid), { propertyIds: arrayRemove(property.id) }, { merge: true });
         }
         toast({ title: "Removido da Carteira" });
+        setPropertyToDelete(null);
     };
 
     const isLoading = isDataLoading || isMyOwnedLoading || isDocLoading || !isReady;
@@ -191,7 +194,7 @@ export default function MyPortfolioPage() {
                                         <Button asChild variant="ghost" size="icon" className="size-8 text-slate-400 hover:text-primary">
                                             <Link href={`/dashboard/imoveis/${p.id}`}><ExternalLink size={16} /></Link>
                                         </Button>
-                                        <Button variant="ghost" size="icon" className="size-8 text-slate-400 hover:text-red-500" onClick={() => handleRemove(p)}>
+                                        <Button variant="ghost" size="icon" className="size-8 text-slate-400 hover:text-red-500" onClick={() => setPropertyToDelete(p)}>
                                             <Trash2 size={16} />
                                         </Button>
                                     </div>
@@ -208,6 +211,23 @@ export default function MyPortfolioPage() {
                     </TableBody>
                 </Table>
             </div>
+
+            <AlertDialog open={!!propertyToDelete} onOpenChange={() => setPropertyToDelete(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Remover Imóvel da Carteira?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Tem certeza de que deseja remover este imóvel da sua carteira de exibição?
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleRemove} className="bg-destructive hover:bg-destructive/90">
+                            Sim, remover
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </main>
     );
 }

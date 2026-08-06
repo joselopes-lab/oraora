@@ -11,6 +11,7 @@ import {
 } from 'firebase/firestore';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { useAuthContext } from '@/firebase/auth-provider';
 
 /** Utility type to add an 'id' field to a given type T. */
 export type WithId<T> = T & { id: string };
@@ -38,7 +39,14 @@ export function useCollection<T = any>(
   const [isLoading, setIsLoading] = useState<boolean>(!!memoizedTargetRefOrQuery);
   const [error, setError] = useState<FirestoreError | Error | null>(null);
 
+  const authContext = useAuthContext();
+  const user = authContext?.user;
+  const isReady = authContext?.isReady;
+  const isUserLoading = authContext?.isUserLoading;
+
   useEffect(() => {
+    const errPath = memoizedTargetRefOrQuery ? ((memoizedTargetRefOrQuery as any).path || (memoizedTargetRefOrQuery as any)._query?.path?.segments?.join('/') || 'unknown_path') : '';
+
     if (!memoizedTargetRefOrQuery) {
       setData(null);
       setIsLoading(false);
@@ -63,10 +71,9 @@ export function useCollection<T = any>(
       (firestoreError: FirestoreError) => {
         // ONLY emit permission error if it is actually a permission issue
         if (firestoreError.code === 'permission-denied') {
-          const path = (memoizedTargetRefOrQuery as any).path || 'query_execution';
           const contextualError = new FirestorePermissionError({
             operation: 'list',
-            path: path,
+            path: errPath,
           });
           setError(contextualError);
           errorEmitter.emit('permission-error', contextualError);
@@ -82,7 +89,7 @@ export function useCollection<T = any>(
     );
 
     return () => unsubscribe();
-  }, [memoizedTargetRefOrQuery]);
+  }, [memoizedTargetRefOrQuery, user?.uid, isReady, isUserLoading]);
 
   return { data, isLoading, error };
 }

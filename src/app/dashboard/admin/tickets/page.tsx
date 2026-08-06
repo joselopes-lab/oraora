@@ -10,16 +10,27 @@ import { collection, query, doc } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+
+type Comment = {
+  author: string;
+  authorId: string;
+  content: string;
+  createdAt: string;
+  type: 'public' | 'internal';
+};
 
 type Ticket = {
   id: string;
   title: string;
   clientName: string;
+  clientId: string;
   priority: 'Baixa' | 'Média' | 'Alta' | 'Urgente';
   agentName?: string;
   createdAt: string;
   status: 'Novo' | 'Em Andamento' | 'Aguardando Cliente' | 'Fechado';
+  comments?: Comment[];
 };
 
 type User = {
@@ -35,6 +46,62 @@ const getStatusVariant = (status: Ticket['status']) => {
     case 'Fechado': return 'bg-gray-100 text-gray-800';
     default: return 'bg-gray-100';
   }
+};
+
+const formatCreatedAt = (dateStr?: string) => {
+    if (!dateStr) return '---';
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return '---';
+    return date.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+};
+
+const formatLastInteraction = (dateStr?: string) => {
+    if (!dateStr) return '---';
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return '---';
+
+    const now = new Date();
+    const isToday = date.toDateString() === now.toDateString();
+    
+    const yesterday = new Date();
+    yesterday.setDate(now.getDate() - 1);
+    const isYesterday = date.toDateString() === yesterday.toDateString();
+
+    const timeStr = date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+    if (isToday) {
+        return `Hoje ${timeStr}`;
+    }
+    if (isYesterday) {
+        return `Ontem ${timeStr}`;
+    }
+    const dateStrFormatted = date.toLocaleDateString('pt-BR');
+    return `${dateStrFormatted} ${timeStr}`;
+};
+
+const getLastInteractionAt = (ticket: Ticket) => {
+    if (!ticket.comments || ticket.comments.length === 0) {
+        return ticket.createdAt;
+    }
+    const sortedComments = [...ticket.comments].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    const lastComment = sortedComments[sortedComments.length - 1];
+    return lastComment.createdAt || ticket.createdAt;
+};
+
+const getLastInteractionBy = (ticket: Ticket) => {
+    if (!ticket.comments || ticket.comments.length === 0) {
+        return 'Corretor';
+    }
+    const sortedComments = [...ticket.comments].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    const lastComment = sortedComments[sortedComments.length - 1];
+
+    if (lastComment.type === 'internal') {
+        return 'Suporte';
+    }
+    if (lastComment.authorId === ticket.clientId) {
+        return 'Corretor';
+    }
+    return 'Suporte';
 };
 
 export default function TicketsDashboardPage() {
@@ -145,6 +212,9 @@ export default function TicketsDashboardPage() {
                         <TableRow>
                             <TableHead className="font-bold text-[10px] uppercase tracking-widest pl-6">Ticket / Assunto</TableHead>
                             <TableHead className="font-bold text-[10px] uppercase tracking-widest">Cliente</TableHead>
+                            <TableHead className="font-bold text-[10px] uppercase tracking-widest">Aberto em</TableHead>
+                            <TableHead className="font-bold text-[10px] uppercase tracking-widest">Última Interação</TableHead>
+                            <TableHead className="font-bold text-[10px] uppercase tracking-widest">Última Interação por</TableHead>
                             <TableHead className="font-bold text-[10px] uppercase tracking-widest text-center">Prioridade</TableHead>
                             <TableHead className="font-bold text-[10px] uppercase tracking-widest">Responsável</TableHead>
                             <TableHead className="font-bold text-[10px] uppercase tracking-widest text-center">Status</TableHead>
@@ -153,7 +223,7 @@ export default function TicketsDashboardPage() {
                     </TableHeader>
                     <TableBody>
                         {isLoading ? (
-                            <TableRow><TableCell colSpan={6} className="text-center p-12 text-slate-400 italic">Carregando tickets...</TableCell></TableRow>
+                            <TableRow><TableCell colSpan={9} className="text-center p-12 text-slate-400 italic">Carregando tickets...</TableCell></TableRow>
                         ) : sortedTickets.map(ticket => (
                             <TableRow key={ticket.id} className="hover:bg-slate-50 transition-colors">
                                 <TableCell className="pl-6 py-4">
@@ -163,6 +233,17 @@ export default function TicketsDashboardPage() {
                                     </div>
                                 </TableCell>
                                 <TableCell className="text-slate-600 font-medium text-sm">{ticket.clientName}</TableCell>
+                                <TableCell className="text-slate-500 text-xs font-medium">
+                                    {formatCreatedAt(ticket.createdAt)}
+                                </TableCell>
+                                <TableCell className="text-slate-500 text-xs font-medium">
+                                    {formatLastInteraction(getLastInteractionAt(ticket))}
+                                </TableCell>
+                                <TableCell className="text-slate-600 text-xs font-semibold">
+                                    <Badge variant="outline" className="border-none bg-slate-100 text-slate-700 font-bold text-[9px] uppercase">
+                                        {getLastInteractionBy(ticket)}
+                                    </Badge>
+                                </TableCell>
                                 <TableCell className="text-center">
                                     <Badge variant="outline" className="border-none bg-slate-100 text-slate-600 font-black text-[9px] uppercase">
                                         {ticket.priority}

@@ -41,7 +41,7 @@ import { useCollection, addDocumentNonBlocking } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
-import { OnboardingContext } from './DashboardCore';
+import { useOnboarding } from './DashboardCore';
 import { useAuthContext } from "@/firebase/auth-provider";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -160,7 +160,7 @@ export default function DashboardPage() {
   const { firestore } = useFirebase();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { toast } = useToast();
-  const onboardingContext = useContext(OnboardingContext);
+  const { openOnboarding } = useOnboarding();
 
   const isBroker = userProfile?.userType === 'broker';
 
@@ -317,15 +317,15 @@ export default function DashboardPage() {
   if (isPageLoading) return <div className="w-full max-w-7xl mx-auto p-10 space-y-8"><Skeleton className="h-10 w-48" /><div className="grid grid-cols-1 md:grid-cols-4 gap-6"><Skeleton className="h-32 rounded-xl" /><Skeleton className="h-32 rounded-xl" /><Skeleton className="h-32 rounded-xl" /><Skeleton className="h-32 rounded-xl" /></div><Skeleton className="h-64 rounded-xl" /></div>;
 
   return (
-    <div className="w-full max-w-7xl mx-auto space-y-10 animate-in fade-in duration-500 text-left pb-20">
+    <div className="w-full max-w-7xl mx-auto space-y-6 md:space-y-10 animate-in fade-in duration-500 text-left pb-20 px-4 md:px-10">
         
         {/* Personalized Welcome Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
             <div className="text-left">
-                <h2 className="text-4xl font-black text-slate-900 tracking-tight">{greeting}, {user?.displayName?.split(' ')[0] || 'usuário'}.</h2>
-                <p className="text-slate-500 mt-2 text-lg font-medium">Sua imobiliária digital está <span className="text-green-600 font-bold uppercase tracking-widest text-xs bg-green-50 px-2 py-0.5 rounded ml-1">Online</span></p>
+                <h2 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tight">{greeting}, {user?.displayName?.split(' ')[0] || 'usuário'}.</h2>
+                <p className="text-slate-500 mt-1 md:mt-2 text-sm md:text-lg font-medium">Sua imobiliária digital está <span className="text-green-600 font-bold uppercase tracking-widest text-[10px] md:text-xs bg-green-50 px-2 py-0.5 rounded ml-1">Online</span></p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-start">
                  <p className="hidden md:block text-right">
                     <span className="block text-xs font-bold text-slate-400 uppercase tracking-widest">Data de hoje</span>
                     <span className="block text-sm font-black text-slate-900">{currentDateDisplay}</span>
@@ -333,7 +333,7 @@ export default function DashboardPage() {
                 <div className="h-8 w-px bg-slate-200 mx-2 hidden md:block"></div>
                 <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
                     <DialogTrigger asChild>
-                        <Button className="h-12 px-6 rounded-xl font-bold bg-slate-900 text-white hover:bg-black shadow-lg shadow-black/10 transition-all flex items-center gap-2">
+                        <Button className="h-11 md:h-12 px-6 rounded-xl font-bold bg-slate-900 text-white hover:bg-black shadow-lg shadow-black/10 transition-all flex items-center gap-2 w-full md:w-auto justify-center">
                             <PlusCircle className="size-5" />
                             Agendar Tarefa
                         </Button>
@@ -356,7 +356,7 @@ export default function DashboardPage() {
                         <p className="text-slate-900/80 font-medium">Finalize seu perfil para que nossa IA escreva os textos do seu site e gere autoridade imediata.</p>
                     </div>
                     <Button 
-                        onClick={() => onboardingContext?.openOnboarding()}
+                        onClick={() => openOnboarding()}
                         className="bg-slate-950 text-white hover:bg-black px-10 h-12 rounded-xl font-bold border-none"
                     >
                         Iniciar Agora

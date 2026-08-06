@@ -108,6 +108,12 @@ export default function ClientDetailPage() {
     );
     const { data: client, isLoading } = useDoc<Lead>(leadDocRef);
 
+    const brokerDocRef = useMemoFirebase(
+      () => (isReady && firestore && user?.uid ? doc(firestore, 'brokers', user.uid) : null),
+      [isReady, firestore, user?.uid]
+    );
+    const { data: brokerData } = useDoc<any>(brokerDocRef);
+
     // Consulta simplificada para evitar necessidade de índices compostos
     const eventsQuery = useMemoFirebase(
       () => (isReady && firestore && user?.uid ? query(collection(firestore, 'events'), where('brokerId', '==', user.uid)) : null),
@@ -234,7 +240,7 @@ export default function ClientDetailPage() {
                     </div>
                 </div>
             </div>
-            <ClientDetailView client={client as any} personas={[]} recommendedProperties={[]} linkedProperties={[]} clientEvents={clientEvents as any} />
+            <ClientDetailView client={client as any} personas={[]} recommendedProperties={[]} linkedProperties={[]} clientEvents={clientEvents as any} brokerSlug={brokerData?.slug || client?.brokerId || user?.uid} />
         </main>
     );
 }
