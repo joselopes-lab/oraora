@@ -1,7 +1,7 @@
 
 import PropertyDetailsComponent from './PropertyDetailsComponent';
 import type { Metadata } from 'next';
-import { getPropertyData } from '@/app/sites/utils.server';
+import { PropertyRepository } from '@/repositories/property.repository';
 import { getCanonicalUrl, getRobotsRules, generatePropertyJsonLd, generateOrganizationJsonLd } from '@/lib/seo';
 import { JsonLd } from '@/components/JsonLd';
 import { headers } from 'next/headers';
@@ -13,7 +13,7 @@ type Props = {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
-  const property = await getPropertyData(id);
+  const property = await PropertyRepository.findPublicBySlugOrId(id);
   const headersList = await headers();
   const host = headersList.get('host') || 'oraora.com.br';
 
@@ -46,7 +46,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function Page({ params }: Props) {
   const { id } = await params;
-  const property = await getPropertyData(id);
+  const property = await PropertyRepository.findPublicBySlugOrId(id);
   const headersList = await headers();
   const host = headersList.get('host') || 'oraora.com.br';
 
@@ -61,7 +61,7 @@ export default async function Page({ params }: Props) {
     <>
       <JsonLd data={jsonLd} />
       <JsonLd data={orgJsonLd} />
-      <PropertyDetailsComponent />
+      <PropertyDetailsComponent initialProperty={property} />
     </>
   );
 }

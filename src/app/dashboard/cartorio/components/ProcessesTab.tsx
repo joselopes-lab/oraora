@@ -12,6 +12,7 @@ interface ProcessesTabProps {
   onSelectProcess: (id: string) => void;
   onGoToServices: () => void;
   getStatusBadge: (status: CartorioProcess['status']) => React.ReactNode;
+  onDeleteProcess: (id: string) => void;
 }
 
 function formatDate(dateStr?: string): string {
@@ -38,6 +39,7 @@ export default function ProcessesTab({
   onSelectProcess,
   onGoToServices,
   getStatusBadge,
+  onDeleteProcess,
 }: ProcessesTabProps) {
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
@@ -90,7 +92,16 @@ export default function ProcessesTab({
                     </h3>
                   </div>
 
-                  <div className="shrink-0">
+                  <div className="flex items-center gap-2 shrink-0 w-full md:w-auto">
+                    {p.status?.toLowerCase() === 'rascunho' && (
+                      <Button 
+                        onClick={() => onDeleteProcess(p.id)}
+                        variant="outline"
+                        className="border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700 text-xs font-bold h-11 px-4 rounded-xl cursor-pointer"
+                      >
+                        Excluir
+                      </Button>
+                    )}
                     <Button 
                       onClick={() => onSelectProcess(p.id)}
                       variant="outline"

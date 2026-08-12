@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, Dialog
 import { useState, useEffect, Suspense, useMemo } from 'react';
 import SearchFilters from '@/components/SearchFilters';
 import { Badge } from '@/components/ui/badge';
+import { generateSemanticSlug } from '@/lib/slug';
 
 // NOTE: This is now a regular component, not a default page export.
 // It will be imported and used by the main [slug]/page.tsx.
@@ -395,9 +396,10 @@ export default function UrbanPadraoLayout({ broker, properties }: UrbanPadraoPag
               {featuredProperties.map((property) => {
                 const isSaved = savedPropertyIds.includes(property.id);
                 const quartos = property.caracteristicasimovel.quartos;
+                const propSlug = generateSemanticSlug(property);
                 const propertyUrl = isPortalAccess 
-                    ? `/sites/${broker.slug}/imovel/${property.id}`
-                    : `/imovel/${property.id}`;
+                    ? `/sites/${broker.slug}/imovel/${propSlug}`
+                    : `/imovel/${propSlug}`;
                 const displayImage = property.midia?.[0] || property.media?.[0] || "/images/property-placeholder.jpg";
                  return (
                 <Link href={propertyUrl} key={property.id} className="flex flex-col bg-white rounded-2xl overflow-hidden shadow-soft hover:shadow-card transition-all duration-300 group">

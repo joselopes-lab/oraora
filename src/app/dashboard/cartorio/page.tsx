@@ -131,22 +131,48 @@ export default function CartorioIntegrationPage() {
   // Carregar detalhes do processo selecionado
   const loadProcessDetails = useCallback(async (id: string) => {
     const localProcess = processes.find((p) => p.id === id);
-    if (localProcess && (localProcess.status?.toLowerCase() === 'rascunho' || id.startsWith('RASCUNHO-'))) {
-      setSelectedProcess(normalizeProcess(localProcess));
-      return;
+    let targetProcess = localProcess;
+
+    if (!targetProcess || (targetProcess.status?.toLowerCase() !== 'rascunho' && !id.startsWith('RASCUNHO-'))) {
+      try {
+        const p = await cartorioService.getProcessDetails(id);
+        if (p) {
+          targetProcess = p;
+        }
+      } catch (error) {
+        toast({
+          variant: 'destructive',
+          title: 'Erro de conexão',
+          description: 'Não foi possível carregar os detalhes do processo.',
+        });
+        return;
+      }
     }
 
-    try {
-      const p = await cartorioService.getProcessDetails(id);
-      if (p) {
-        setSelectedProcess(normalizeProcess(p));
+    if (targetProcess) {
+      const norm = normalizeProcess(targetProcess);
+      console.log('--- DEBUG REQUEST ---');
+      console.log('request.id:', norm.id);
+      console.log('request.serviceId:', norm.serviceId);
+      console.log('request.serviceTitle:', norm.serviceName);
+      console.log('request.documents:', norm.documents);
+      console.log('request.status:', norm.status);
+
+      if (norm.serviceId) {
+        try {
+          const service = await cartorioService.getServiceDetails(norm.serviceId);
+          if (service) {
+            console.log('--- DEBUG SERVICE ---');
+            console.log('service.id:', service.id);
+            console.log('service.title:', service.title || service.name);
+            console.log('service.documentsConfig.length:', service.documentsConfig?.length || (service as any).documents?.length || 0);
+          }
+        } catch (err) {
+          console.error('Erro ao carregar serviço correspondente:', err);
+        }
       }
-    } catch (error) {
-      toast({
-        variant: 'destructive',
-        title: 'Erro de conexão',
-        description: 'Não foi possível carregar os detalhes do processo.',
-      });
+
+      setSelectedProcess(norm);
     }
   }, [processes, toast]);
 
@@ -303,6 +329,44 @@ export default function CartorioIntegrationPage() {
     // Select the newly created process and switch view
     setSelectedProcessId(newProcess.id);
     setActiveTab('processos');
+  };
+
+  const handleDeleteDraftProcess = async (processId: string) => {
+    const processToDelete = processes.find(p => p.id === processId);
+    if (!processToDelete) return;
+
+    if (processToDelete.status?.toLowerCase() !== 'rascunho') {
+      toast({
+        variant: 'destructive',
+        title: 'Ação não permitida',
+        description: 'Apenas processos em rascunho podem ser excluídos.',
+      });
+      return;
+    }
+
+    const confirmed = window.confirm("Excluir este rascunho?\nEsta ação não poderá ser desfeita.");
+    if (!confirmed) return;
+
+    try {
+      await cartorioService.deleteProcess(processId);
+      
+      setProcesses(prev => prev.filter(p => p.id !== processId));
+      if (selectedProcessId === processId) {
+        setSelectedProcessId(null);
+      }
+
+      toast({
+        title: 'Rascunho excluído',
+        description: 'A solicitação em rascunho foi removida com sucesso.',
+      });
+    } catch (error) {
+      console.error('Erro ao excluir rascunho:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Erro ao excluir',
+        description: 'Não foi possível excluir o rascunho. Tente novamente.',
+      });
+    }
   };
 
   // Envio de Mensagem no Chat
@@ -663,6 +727,7 @@ export default function CartorioIntegrationPage() {
                 onSelectProcess={setSelectedProcessId}
                 onGoToServices={() => setActiveTab('servicos')}
                 getStatusBadge={getStatusBadge}
+                onDeleteProcess={handleDeleteDraftProcess}
               />
             ) : (
               <AboutTab />

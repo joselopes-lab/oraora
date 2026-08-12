@@ -53,6 +53,17 @@ export default function ProcessDetailView({
   chatBottomRef,
   onSubmitToCartorio,
 }: ProcessDetailViewProps) {
+  React.useEffect(() => {
+    const reqId = selectedProcess.id;
+    const count = selectedProcess.documents?.length || 0;
+    const path = `requests/${reqId} (array)`;
+    console.log('[Cartorio Diagnostics]', {
+      requestId: reqId,
+      documentCount: count,
+      dataSource: path
+    });
+  }, [selectedProcess]);
+
   return (
     <div className="space-y-8">
       <button 
@@ -67,6 +78,14 @@ export default function ProcessDetailView({
         {/* Coluna Central: Dados Gerais, Documentos e Linha do Tempo */}
         <div className="lg:col-span-2 space-y-8">
           
+          {/* Card de Diagnóstico do Fluxo de Documentos */}
+          <div className="bg-emerald-50/70 border border-emerald-200/80 rounded-xl p-4 text-xs font-mono text-emerald-900 space-y-1">
+            <p className="font-bold text-emerald-950 uppercase tracking-wider mb-2">🔍 Diagnóstico do Fluxo de Documentos</p>
+            <p><strong>Request:</strong> {selectedProcess.id}</p>
+            <p><strong>Fonte Oficial:</strong> requests/{selectedProcess.id}.documents</p>
+            <p><strong>Documentos encontrados:</strong> {selectedProcess.documents?.length || 0}</p>
+          </div>
+
           {/* Card de Informação do Processo */}
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 md:p-8">
             <div className="flex flex-wrap justify-between items-start gap-4 border-b border-slate-100 pb-6">

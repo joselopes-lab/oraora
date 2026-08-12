@@ -24,14 +24,14 @@ export default function DocumentsPanel({
   const docsList = documents || [];
 
   const sentCount = docsList.filter(
-    (doc) => doc.status === 'submitted' || doc.status === 'approved' || Boolean(doc.fileName) || Boolean(doc.fileUrl)
+    (doc) => doc.status === 'submitted' || doc.status === 'validated' || doc.status === 'approved' || Boolean(doc.fileName) || Boolean(doc.fileUrl)
   ).length;
   const totalCount = docsList.length;
   const percentage = totalCount > 0 ? Math.round((sentCount / totalCount) * 100) : 0;
 
   // Regra visual: desabilitar o botão 'Enviar ao Cartório' enquanto existir documento obrigatório pendente
   const hasPendingDocs = totalCount === 0 || docsList.some(
-    (doc) => (doc.required !== false) && !(doc.status === 'submitted' || doc.status === 'approved' || Boolean(doc.fileName) || Boolean(doc.fileUrl))
+    (doc) => (doc.required !== false) && !(doc.status === 'submitted' || doc.status === 'validated' || doc.status === 'approved' || Boolean(doc.fileName) || Boolean(doc.fileUrl))
   );
 
   return (
@@ -68,11 +68,26 @@ export default function DocumentsPanel({
         ) : (
           <div className="space-y-3">
             {docsList.map((doc) => {
-              const isSubmitted = doc.status === 'submitted' || doc.status === 'approved' || Boolean(doc.fileName) || Boolean(doc.fileUrl);
-              const statusText = doc.status === 'approved' ? 'Aprovado' : isSubmitted ? 'Recebido' : 'PENDENTE';
-              const statusClass = isSubmitted 
-                ? 'text-emerald-700 bg-emerald-50 border-emerald-200' 
-                : 'text-amber-700 bg-amber-50 border-amber-200';
+              const statusLower = (doc.status || '').toLowerCase();
+              const isSubmitted = statusLower === 'submitted' || statusLower === 'validated' || statusLower === 'approved' || Boolean(doc.fileName) || Boolean(doc.fileUrl);
+
+              let statusText = 'PENDENTE';
+              let statusClass = 'text-amber-700 bg-amber-50 border-amber-200';
+
+              if (statusLower === 'validated' || statusLower === 'approved') {
+                statusText = 'VALIDADO';
+                statusClass = 'text-emerald-700 bg-emerald-50 border-emerald-200';
+              } else if (statusLower === 'rejected') {
+                statusText = 'CANCELADO';
+                statusClass = 'text-rose-700 bg-rose-50 border-rose-200';
+              } else if (statusLower === 'submitted' || isSubmitted) {
+                statusText = 'RECEBIDO';
+                statusClass = 'text-emerald-700 bg-emerald-50 border-emerald-200';
+              } else {
+                statusText = 'PENDENTE';
+                statusClass = 'text-amber-700 bg-amber-50 border-amber-200';
+              }
+
               const isRequired = doc.required !== false;
 
               return (
@@ -154,7 +169,7 @@ export default function DocumentsPanel({
                           className="bg-primary hover:bg-primary-hover text-slate-900 font-bold px-4 h-9 rounded-lg border-none cursor-pointer"
                         >
                           <label htmlFor={`upload-${doc.id}`} className="cursor-pointer">
-                            {uploadingDocId === doc.id ? 'Enviando...' : isSubmitted ? 'Substituir' : 'Enviar'}
+                            {uploadingDocId === doc.id ? 'Enviando...' : isSubmitted ? 'Substituir' : 'Anexar documento'}
                           </label>
                         </Button>
                       </div>

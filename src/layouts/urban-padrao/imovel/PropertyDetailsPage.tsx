@@ -23,6 +23,20 @@ import { StreetViewPanoramaView } from '@/components/StreetViewPanorama';
 import { WhatsAppWidget } from '../components/WhatsAppWidget';
 import { WhatsAppLeadModal } from '@/components/WhatsAppLeadModal';
 import { Badge } from '@/components/ui/badge';
+import dynamic from 'next/dynamic';
+
+const InteractivePropertyMap = dynamic(
+  () => import('../components/InteractivePropertyMap'),
+  { 
+    ssr: false, 
+    loading: () => (
+      <div className="flex items-center justify-center h-full bg-slate-100 dark:bg-slate-900 text-slate-400 font-medium animate-pulse">
+        Carregando mapa interativo...
+      </div>
+    ) 
+  }
+);
+
 
 type Broker = {
   id: string;
@@ -123,7 +137,28 @@ function hslToHex(hslStr: string): string {
     return `#${f(0)}${f(8)}${f(4)}`;
 }
 
-export default function PropertyDetailsPage({ broker, property, similarProperties }: { broker: Broker; property: Property; similarProperties: Property[] }) {
+const categoryConfig: Record<string, { label: string; icon: string }> = {
+  restaurant: { label: 'Gastronomia', icon: 'restaurant' },
+  supermarket: { label: 'Mercados', icon: 'shopping_cart' },
+  pharmacy: { label: 'Farmácias', icon: 'local_pharmacy' },
+  health: { label: 'Saúde', icon: 'medical_services' },
+  education: { label: 'Educação', icon: 'school' },
+  gym: { label: 'Academias', icon: 'fitness_center' },
+  leisure: { label: 'Lazer', icon: 'park' },
+  beach: { label: 'Praias', icon: 'beach_access' },
+  shopping: { label: 'Shopping', icon: 'storefront' },
+  services: { label: 'Serviços', icon: 'home_repair_service' },
+  mobility: { label: 'Mobilidade', icon: 'directions_transit' },
+};
+
+function formatDistance(meters: number): string {
+  if (meters < 1000) {
+    return `${meters} m`;
+  }
+  return `${(meters / 1000).toFixed(1).replace('.', ',')} km`;
+}
+
+export default function PropertyDetailsPage({ broker, property, similarProperties, pois = [], regionalContext }: { broker: Broker; property: Property; similarProperties: Property[]; pois?: any[]; regionalContext?: any }) {
   const { informacoesbasicas, midia, caracteristicasimovel, localizacao, areascomuns, caracteristicas, youtubeVideoUrl } = property;
   const displayMidia = midia && midia.length > 0 ? midia : ((property as any).media || []);
   const [isGalleryOpen, setIsGalleryOpen] = useState(false);
@@ -132,6 +167,7 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
   const [streetViewAvailable, setStreetViewAvailable] = useState<boolean>(true);
+  const [selectedPoiId, setSelectedPoiId] = useState<string | null>(null);
   
   const router = useRouter();
   const { user } = useUser();
@@ -445,21 +481,13 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
 
                   <TabsContent value="map" className="mt-0">
                     <div className="bg-gray-100 dark:bg-slate-900 rounded-[2rem] h-[450px] w-full overflow-hidden border border-slate-100 dark:border-slate-800 shadow-sm">
-                      {mapSrc ? (
-                        <iframe
-                          src={mapSrc}
-                          width="100%"
-                          height="100%"
-                          style={{ border: 0 }}
-                          allowFullScreen={false}
-                          loading="lazy"
-                          title="Mapa Google"
-                        />
-                      ) : (
-                        <div className="flex items-center justify-center h-full text-slate-400 font-medium">
-                          Mapa não disponível para este endereço.
-                        </div>
-                      )}
+                      <InteractivePropertyMap
+                        propertyLat={localizacao?.latitude}
+                        propertyLng={localizacao?.longitude}
+                        propertyTitle={informacoesbasicas?.nome}
+                        propertyAddress={fullAddress}
+                        pois={pois}
+                      />
                     </div>
                   </TabsContent>
 
@@ -476,6 +504,8 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
                 </Tabs>
               </div>
             )}
+
+            {/* Seções de proximidade e contexto regional removidas conforme solicitação */}
           </div>
 
           <div className="lg:col-span-4">
@@ -534,6 +564,31 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
       </main>
       <UrbanPadraoFooter broker={broker} />
       <WhatsAppWidget broker={broker} property={property} source="property_whatsapp" />
+
+      {/* Mobile Fixed CTA Bar */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-100 dark:border-slate-800 p-3 shadow-2xl flex items-center gap-3">
+        <Button 
+          type="button" 
+          onClick={() => setIsWhatsAppModalOpen(true)}
+          className="flex-1 h-12 bg-[#25D366] hover:bg-[#20ba5a] text-white font-black uppercase tracking-wider text-xs shadow-md rounded-xl flex items-center justify-center gap-2"
+          aria-label="Falar no WhatsApp"
+        >
+          <span className="material-symbols-outlined text-lg">chat</span>
+          WhatsApp
+        </Button>
+        <a 
+          href="#agendar-visita"
+          onClick={(e) => {
+            e.preventDefault();
+            window.scrollTo({ top: 400, behavior: 'smooth' });
+          }}
+          className="flex-1 h-12 bg-black dark:bg-primary text-white dark:text-black font-black uppercase tracking-wider text-xs shadow-md rounded-xl flex items-center justify-center gap-2 text-center"
+          aria-label="Agendar Visita"
+        >
+          <span className="material-symbols-outlined text-lg">calendar_month</span>
+          Agendar
+        </a>
+      </div>
 
       <WhatsAppLeadModal 
         isOpen={isWhatsAppModalOpen}

@@ -48,10 +48,17 @@ import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { generateSiteContent } from '@/ai/flows/generate-site-content-flow';
 
 // Helper component for navigation links
-const NavigationLinks = ({ userProfile, pathname, openMenu, handleMouseEnter, handleMouseLeave, setOpenMenu, navLinkClasses, dropdownTriggerClasses, siteData, defaultLogo, isMobile }: any) => {
+const NavigationLinks = ({ userProfile, pathname, openMenu, handleMouseEnter, handleMouseLeave, setOpenMenu, navLinkClasses, dropdownTriggerClasses, siteData, defaultLogo, isMobile, onClose }: any) => {
   if (isMobile) {
     return (
-      <div className="flex flex-col gap-4 py-2 overflow-y-auto flex-1">
+      <div 
+        className="flex flex-col gap-4 py-2 overflow-y-auto flex-1"
+        onClick={(e) => {
+          if ((e.target as HTMLElement).closest('a')) {
+            onClose?.();
+          }
+        }}
+      >
         {userProfile.userType === 'broker' && (
           <>
             <Link href="/dashboard" className="flex items-center gap-2.5 px-3 py-2 text-sm font-semibold text-slate-900 rounded-lg hover:bg-slate-100 transition-colors">
@@ -215,6 +222,7 @@ const NavigationLinks = ({ userProfile, pathname, openMenu, handleMouseEnter, ha
                 <Link href="/dashboard/admin/site/inicio" className="text-sm text-slate-600 hover:text-slate-900 py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">Editor do Site</Link>
                 <Link href="/dashboard/admin/site/pagina-corretor" className="text-sm text-slate-600 hover:text-slate-900 py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">Página do Corretor</Link>
                 <Link href="/dashboard/admin/sitemap" className="text-sm text-slate-600 hover:text-slate-900 py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">Sitemap</Link>
+                <Link href="/dashboard/admin/privacidade" className="text-sm text-slate-600 hover:text-slate-900 py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">Privacidade e LGPD</Link>
               </div>
             </div>
           </>
@@ -416,7 +424,7 @@ const NavigationLinks = ({ userProfile, pathname, openMenu, handleMouseEnter, ha
 
           <div onMouseEnter={() => handleMouseEnter('plataforma')} onMouseLeave={handleMouseLeave} className="h-full">
             <DropdownMenu open={openMenu === 'plataforma'} onOpenChange={(open) => setOpenMenu(open ? 'plataforma' : null)}>
-              <DropdownMenuTrigger className={dropdownTriggerClasses(["/dashboard/admin/site", "/dashboard/admin/site/pagina-corretor", "/dashboard/admin/sitemap"])}>
+              <DropdownMenuTrigger className={dropdownTriggerClasses(["/dashboard/admin/site", "/dashboard/admin/site/pagina-corretor", "/dashboard/admin/sitemap", "/dashboard/admin/privacidade"])}>
                 <span className="material-symbols-outlined text-[20px]">settings_suggest</span>
                 Plataforma
               </DropdownMenuTrigger>
@@ -424,6 +432,7 @@ const NavigationLinks = ({ userProfile, pathname, openMenu, handleMouseEnter, ha
                 <DropdownMenuItem asChild><Link href="/dashboard/admin/site/inicio">Editor do Site</Link></DropdownMenuItem>
                 <DropdownMenuItem asChild><Link href="/dashboard/admin/site/pagina-corretor">Página do Corretor</Link></DropdownMenuItem>
                 <DropdownMenuItem asChild><Link href="/dashboard/admin/sitemap">Sitemap</Link></DropdownMenuItem>
+                <DropdownMenuItem asChild><Link href="/dashboard/admin/privacidade">Privacidade e LGPD</Link></DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -580,6 +589,7 @@ export default function DashboardCore({
   const firestore = useFirestore();
   const { toast } = useToast();
   const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const defaultLogo = "https://dotestudio.com.br/wp-content/uploads/2025/08/oraora.png";
   
@@ -757,21 +767,14 @@ export default function DashboardCore({
     <OnboardingContext.Provider value={{ openOnboarding }}>
       <div className="w-full bg-white border-b border-[#f2f5f0] sticky top-0 z-50 pt-[env(safe-area-inset-top)]">
         <div className="max-w-[1440px] mx-auto px-4 md:px-10 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-4 md:gap-10 h-full">
-            <Sheet>
-              <SheetTrigger className="lg:hidden p-1.5 md:p-2 text-slate-900">
-                <Menu className="size-5 md:size-6" />
-              </SheetTrigger>
-              <SheetContent side="left" className="w-[300px] pt-6 flex flex-col">
-                 <VisuallyHidden>
-                   <DialogTitle>Menu de Navegação</DialogTitle>
-                 </VisuallyHidden>
-                 <div className="px-3 pb-4 border-b border-slate-100 flex items-center">
-                   <Link href="/dashboard" className="flex items-center gap-2">
-                     <img src={siteData?.logoUrl || defaultLogo} alt="Oraora Logo" className="h-7 w-auto object-contain" />
-                   </Link>
-                 </div>
-                  <MobileNavigation 
+          <div className="flex items-center justify-between lg:justify-start gap-4 md:gap-10 h-full w-full">
+            {/* Desktop Logo & Nav */}
+            <div className="hidden lg:flex items-center gap-10 h-full">
+              <Link href="/dashboard" className="flex items-center gap-3">
+                <img src={siteData?.logoUrl || defaultLogo || ""} alt="Oraora Logo" className="h-7 md:h-8 max-h-8 w-auto object-contain shrink-0" />
+              </Link>
+              <nav className="flex items-center gap-6 h-full">
+                  <NavigationLinks 
                       userProfile={userProfile} 
                       pathname={pathname} 
                       openMenu={openMenu} 
@@ -783,26 +786,44 @@ export default function DashboardCore({
                       siteData={siteData} 
                       defaultLogo={defaultLogo} 
                   />
-              </SheetContent>
+              </nav>
+            </div>
 
-            </Sheet>
-            <Link href="/dashboard" className="flex items-center gap-3">
-              <img src={siteData?.logoUrl || defaultLogo || ""} alt="Oraora Logo" className="h-7 md:h-8 max-h-8 w-auto object-contain shrink-0" />
-            </Link>
-            <nav className="hidden lg:flex items-center gap-6 h-full">
-                <NavigationLinks 
-                    userProfile={userProfile} 
-                    pathname={pathname} 
-                    openMenu={openMenu} 
-                    handleMouseEnter={handleMouseEnter} 
-                    handleMouseLeave={handleMouseLeave} 
-                    setOpenMenu={setOpenMenu} 
-                    navLinkClasses={navLinkClasses} 
-                    dropdownTriggerClasses={dropdownTriggerClasses} 
-                    siteData={siteData} 
-                    defaultLogo={defaultLogo} 
-                />
-            </nav>
+            {/* Mobile Header: Centered Logo, Right Menu */}
+            <div className="flex lg:hidden items-center justify-between w-full h-full">
+              <div className="w-8" /> {/* Spacer for balance */}
+              <Link href="/dashboard" className="flex items-center justify-center">
+                <img src={siteData?.logoUrl || defaultLogo || ""} alt="Oraora Logo" className="h-7 w-auto object-contain shrink-0" />
+              </Link>
+              <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
+                <SheetTrigger className="p-1.5 text-slate-900">
+                  <Menu className="size-6" />
+                </SheetTrigger>
+                <SheetContent side="left" className="w-[300px] pt-6 flex flex-col">
+                   <VisuallyHidden>
+                     <DialogTitle>Menu de Navegação</DialogTitle>
+                   </VisuallyHidden>
+                   <div className="px-3 pb-4 border-b border-slate-100 flex items-center">
+                     <Link href="/dashboard" className="flex items-center gap-2" onClick={() => setIsMobileMenuOpen(false)}>
+                       <img src={siteData?.logoUrl || defaultLogo} alt="Oraora Logo" className="h-7 w-auto object-contain" />
+                     </Link>
+                   </div>
+                    <MobileNavigation 
+                        userProfile={userProfile} 
+                        pathname={pathname} 
+                        openMenu={openMenu} 
+                        handleMouseEnter={handleMouseEnter} 
+                        handleMouseLeave={handleMouseLeave} 
+                        setOpenMenu={setOpenMenu} 
+                        navLinkClasses={navLinkClasses} 
+                        dropdownTriggerClasses={dropdownTriggerClasses} 
+                        siteData={siteData} 
+                        defaultLogo={defaultLogo} 
+                        onClose={() => setIsMobileMenuOpen(false)}
+                    />
+                </SheetContent>
+              </Sheet>
+            </div>
           </div>
           <div className="flex items-center gap-4">
             {userProfile.userType === 'broker' && (

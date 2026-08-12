@@ -16,12 +16,18 @@ import { Zap, BarChart3, ArrowLeft, Edit, Images, ImageIcon, Maximize2, X, Chevr
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { AlertDialog } from "@/components/ui/alert-dialog";
+import { isAdminUser } from '@/lib/permissions';
+import { calculateIdentityFingerprint } from '@/lib/property-identity';
+import { getPhysicalIdentityDiagnosticAction, getPropertiesBrokerLinkCheckAction } from '@/app/dashboard/imoveis/actions.server';
 
 type PropertyDoc = {
     id: string;
     builderId: string;
     personaIds?: string[];
     brokerId?: string;
+    physicalPropertyId?: string;
+    identityFingerprint?: string;
+    matchStatus?: 'CONFIRMED' | 'PROBABLE' | 'UNCERTAIN' | 'NEW';
     informacoesbasicas: {
         nome: string;
         status: string;
@@ -101,6 +107,8 @@ export default function PropertyDetailsPage() {
     );
     const { data: userProfile, isLoading: isProfileLoading } = useDoc<User>(userDocRef);
 
+    const isAdmin = isAdminUser(userProfile?.userType);
+
     const propertyDocRef = useMemoFirebase(() => (firestore && id ? doc(firestore, 'properties', id) : null), [firestore, id]);
     const { data: propertyData, isLoading: isPropertyLoading } = useDoc<PropertyDoc>(propertyDocRef);
 
@@ -144,6 +152,52 @@ export default function PropertyDetailsPage() {
       if (!area || isNaN(area)) return 0;
       return propertyData.informacoesbasicas.valor / area;
     }, [propertyData]);
+
+    const calculatedFingerprint = useMemo(() => {
+      if (!propertyData) return '';
+      return propertyData.identityFingerprint || calculateIdentityFingerprint(propertyData);
+    }, [propertyData]);
+
+    const [physicalIdentityInfo, setPhysicalIdentityInfo] = useState<{ 
+      exists: boolean; 
+      physicalPropertyId: string | null; 
+      relatedRecords: Array<{ id: string; collection: string; physicalPropertyId: string }> 
+    } | null>(null);
+
+    React.useEffect(() => {
+      if (calculatedFingerprint) {
+        getPhysicalIdentityDiagnosticAction(calculatedFingerprint, id, propertyData?.physicalPropertyId).then((res) => {
+          setPhysicalIdentityInfo(res);
+        });
+      }
+    }, [calculatedFingerprint, id, propertyData?.physicalPropertyId]);
+
+    const physicalIdToQuery = propertyData?.physicalPropertyId || physicalIdentityInfo?.physicalPropertyId;
+    const linkedPropertiesQuery = useMemoFirebase(
+      () => (firestore && physicalIdToQuery ? query(collection(firestore, 'properties'), where('physicalPropertyId', '==', physicalIdToQuery)) : null),
+      [firestore, physicalIdToQuery]
+    );
+    const { data: linkedProperties } = useCollection<any>(linkedPropertiesQuery);
+
+    const [linkCheckData, setLinkCheckData] = useState<Array<{
+      propertyId: string;
+      propertyName: string;
+      physicalPropertyId: string | null;
+      brokerMatches: Array<{ id: string; name: string }>;
+      portfolioCount: number;
+      status: string;
+      isConstructorProperty: boolean;
+    }>>([]);
+
+    React.useEffect(() => {
+      if (isAdmin) {
+        getPropertiesBrokerLinkCheckAction().then((res) => {
+          if (res.success && res.results) {
+            setLinkCheckData(res.results);
+          }
+        });
+      }
+    }, [isAdmin]);
 
     const formatBRL = (val: number) => {
         return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2 }).format(val);
@@ -238,6 +292,144 @@ export default function PropertyDetailsPage() {
                     </div>
                 </div>
             </div>
+
+            {isAdmin && (
+                <div className="mb-8 rounded-2xl bg-amber-50/80 border border-amber-200/80 p-6 text-left shadow-sm">
+                    <div className="flex items-center gap-2 mb-4">
+                        <span className="inline-flex items-center justify-center size-3 rounded-full bg-amber-500 animate-pulse"></span>
+                        <h2 className="text-base font-bold text-amber-900 uppercase tracking-wide">Painel de Diagnóstico de Identidade Física (Admin)</h2>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-xs font-mono">
+                        <div className="bg-white/80 p-3 rounded-xl border border-amber-200/50">
+                            <span className="block text-slate-500 text-[10px] font-sans font-semibold uppercase">1. Document ID</span>
+                            <span className="text-slate-900 font-bold truncate block mt-1" title={id}>{id}</span>
+                        </div>
+                        <div className="bg-white/80 p-3 rounded-xl border border-amber-200/50">
+                            <span className="block text-slate-500 text-[10px] font-sans font-semibold uppercase">2. physicalPropertyId</span>
+                            <span className="text-slate-900 font-bold truncate block mt-1" title={propertyData.physicalPropertyId || 'Não gerado'}>
+                                {propertyData.physicalPropertyId || 'Não gerado'}
+                            </span>
+                        </div>
+                        <div className="bg-white/80 p-3 rounded-xl border border-amber-200/50">
+                            <span className="block text-slate-500 text-[10px] font-sans font-semibold uppercase">3. identityFingerprint</span>
+                            <span className="text-slate-900 font-bold truncate block mt-1" title={calculatedFingerprint}>
+                                {calculatedFingerprint || 'N/A'}
+                            </span>
+                        </div>
+                        <div className="bg-white/80 p-3 rounded-xl border border-amber-200/50">
+                            <span className="block text-slate-500 text-[10px] font-sans font-semibold uppercase">4. Coleção de Origem</span>
+                            <span className="text-slate-900 font-bold uppercase block mt-1">
+                                {propertyData.brokerId ? 'brokerProperties' : 'properties'}
+                            </span>
+                        </div>
+                        <div className="bg-white/80 p-3 rounded-xl border border-amber-200/50">
+                            <span className="block text-slate-500 text-[10px] font-sans font-semibold uppercase">5. Status da Identidade</span>
+                            <span className={cn(
+                                "inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase mt-1",
+                                (propertyData.matchStatus || 'CONFIRMED') === 'CONFIRMED' ? 'bg-green-100 text-green-800' :
+                                (propertyData.matchStatus === 'PROBABLE' ? 'bg-amber-100 text-amber-800' : 'bg-rose-100 text-rose-800')
+                            )}>
+                                {propertyData.matchStatus || 'CONFIRMED'}
+                            </span>
+                        </div>
+                        <div className="bg-white/80 p-3 rounded-xl border border-amber-200/50">
+                            <span className="block text-slate-500 text-[10px] font-sans font-semibold uppercase">6. Doc em physicalIdentities</span>
+                            <span className={cn(
+                                "inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase mt-1",
+                                physicalIdentityInfo?.exists ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                            )}>
+                                {physicalIdentityInfo?.exists ? 'ENCONTRADO' : 'AUSENTE'}
+                            </span>
+                        </div>
+                        <div className="bg-white/80 p-3 rounded-xl border border-amber-200/50">
+                            <span className="block text-slate-500 text-[10px] font-sans font-semibold uppercase">7. ID no Índice Atômico</span>
+                            <span className="text-slate-900 font-bold truncate block mt-1" title={physicalIdentityInfo?.physicalPropertyId || 'N/A'}>
+                                {physicalIdentityInfo?.physicalPropertyId || 'N/A'}
+                            </span>
+                        </div>
+                        <div className="bg-white/80 p-3 rounded-xl border border-amber-200/50">
+                            <span className="block text-slate-500 text-[10px] font-sans font-semibold uppercase">8. Registros Vinculados</span>
+                            <span className="text-slate-900 font-bold block mt-1">
+                                {physicalIdentityInfo?.relatedRecords ? physicalIdentityInfo.relatedRecords.length + 1 : 1}
+                            </span>
+                        </div>
+                    </div>
+
+                    {propertyData?.physicalPropertyId && (
+                        <div className="mt-6 pt-6 border-t border-amber-200/60">
+                            <h3 className="text-xs font-bold text-amber-900 uppercase tracking-wider mb-3">Comparação de Identidade</h3>
+                            <div className="space-y-2 text-xs font-mono">
+                                <div className="bg-white/90 p-3 rounded-xl border border-amber-200/50">
+                                    <span className="text-[10px] text-slate-500 block uppercase font-sans">REGISTRO ATUAL</span>
+                                    <span className="text-slate-900 font-bold block mt-1">Coleção: {propertyData.brokerId ? 'brokerProperties' : 'properties'}</span>
+                                    <span className="text-slate-900 font-bold block mt-0.5">Document ID: {id}</span>
+                                    <span className="text-slate-900 font-bold block mt-0.5">physicalPropertyId: {propertyData.physicalPropertyId}</span>
+                                </div>
+                                <div className="text-center font-bold text-amber-800 py-1 flex items-center justify-center gap-1">
+                                    <span>MATCH</span>
+                                    <span>↓</span>
+                                </div>
+                                {physicalIdentityInfo?.relatedRecords && physicalIdentityInfo.relatedRecords.length > 0 ? (
+                                    physicalIdentityInfo.relatedRecords.map((linked) => (
+                                        <div key={linked.id} className="bg-white/90 p-3 rounded-xl border border-amber-200/50">
+                                            <span className="text-[10px] text-slate-500 block uppercase font-sans">REGISTRO RELACIONADO</span>
+                                            <span className="text-slate-900 font-bold block mt-1">Coleção: {linked.collection}</span>
+                                            <span className="text-slate-900 font-bold block mt-0.5">Document ID: {linked.id}</span>
+                                            <span className="text-slate-900 font-bold block mt-0.5">physicalPropertyId: {linked.physicalPropertyId}</span>
+                                            <span className="inline-block mt-2 px-2 py-0.5 bg-green-100 text-green-800 rounded text-[10px] font-bold uppercase">✅ MESMA IDENTIDADE FÍSICA</span>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <div className="bg-white/90 p-3 rounded-xl border border-amber-200/50 text-slate-500 italic">
+                                        NENHUM OUTRO REGISTRO RELACIONADO
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="mt-8 pt-6 border-t border-amber-200/60">
+                        <h3 className="text-xs font-bold text-amber-900 uppercase tracking-wider mb-3">TESTE DE VÍNCULO PROPERTIES ↔ BROKERPROPERTIES</h3>
+                        <div className="space-y-3 text-xs font-mono">
+                            {linkCheckData && linkCheckData.length > 0 ? (
+                                linkCheckData.map((item) => (
+                                    <div key={item.propertyId} className="bg-white/90 p-4 rounded-xl border border-amber-200/50 shadow-sm space-y-1.5">
+                                        <div className="flex items-center justify-between">
+                                            <span className="font-bold text-slate-900 text-sm">{item.propertyName}</span>
+                                            <span className={cn(
+                                                "px-2 py-0.5 rounded text-[10px] font-bold uppercase",
+                                                !item.physicalPropertyId ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'
+                                            )}>
+                                                {!item.physicalPropertyId ? '🔴 IDENTIDADE AUSENTE' : '🔵 PROPERTIES — IMÓVEL DE CONSTRUTORA'}
+                                            </span>
+                                        </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-slate-600 mt-2">
+                                            <div>
+                                                <span className="text-[10px] uppercase font-sans text-slate-500 block">Properties Document ID</span>
+                                                <span className="text-slate-900 font-bold truncate block">{item.propertyId}</span>
+                                            </div>
+                                            <div>
+                                                <span className="text-[10px] uppercase font-sans text-slate-500 block">physicalPropertyId</span>
+                                                <span className="text-slate-900 font-bold truncate block">{item.physicalPropertyId || 'N/A'}</span>
+                                            </div>
+                                        </div>
+                                        <div className="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between text-slate-600">
+                                            <span className="text-[10px] uppercase font-sans text-slate-500">Status da Oferta / Carteira</span>
+                                            <span className="font-bold text-slate-900">
+                                                {item.portfolioCount > 0 ? `🟢 Na carteira de ${item.portfolioCount} corretor(es)` : '🟡 Nenhum corretor adicionou à carteira'}
+                                            </span>
+                                        </div>
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="bg-white/90 p-4 rounded-xl border border-amber-200/50 text-slate-500 italic">
+                                    Nenhum imóvel encontrado na coleção properties ou aguardando carregamento...
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <div className="space-y-8">
                 {/* Photo Gallery Grid */}

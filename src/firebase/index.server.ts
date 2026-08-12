@@ -41,9 +41,45 @@ function initializeAdmin(): App {
   }
 }
 
-const adminApp = initializeAdmin();
-const adminDb = getFirestore(adminApp);
-const adminAuth = getAuth(adminApp);
+let _adminDb: Firestore | null = null;
+function getAdminDb(): Firestore {
+  if (!_adminDb) {
+    const app = initializeAdmin();
+    _adminDb = getFirestore(app);
+  }
+  return _adminDb;
+}
+
+let _adminAuth: Auth | null = null;
+function getAdminAuth(): Auth {
+  if (!_adminAuth) {
+    const app = initializeAdmin();
+    _adminAuth = getAuth(app);
+  }
+  return _adminAuth;
+}
+
+export const adminDb = new Proxy({} as Firestore, {
+  get(target, prop, receiver) {
+    const db = getAdminDb();
+    const value = Reflect.get(db, prop, receiver);
+    if (typeof value === 'function') {
+      return value.bind(db);
+    }
+    return value;
+  }
+});
+
+export const adminAuth = new Proxy({} as Auth, {
+  get(target, prop, receiver) {
+    const auth = getAdminAuth();
+    const value = Reflect.get(auth, prop, receiver);
+    if (typeof value === 'function') {
+      return value.bind(auth);
+    }
+    return value;
+  }
+});
 
 /**
  * Generates an OAuth2 access token for calling Google Cloud APIs (like App Hosting)
@@ -63,8 +99,6 @@ export async function getAccessToken(): Promise<string> {
   return token.token;
 }
 
-export { adminDb, adminAuth };
-
 /**
  * Returns the initialized Firebase instances for server operations.
  */
@@ -74,3 +108,4 @@ export function initializeFirebase() {
     adminAuth,
   };
 }
+

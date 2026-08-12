@@ -10,10 +10,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { FileJson, Upload, CheckCircle2, AlertCircle, ArrowLeft, Loader2 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import Link from 'next/link';
-import { useFirestore, useUser, addDocumentNonBlocking } from '@/firebase';
-import { collection, serverTimestamp } from 'firebase/firestore';
+import { useFirestore, useUser } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import locationData from '@/lib/location-data.json';
+import { importBrokerPropertiesServer } from '@/app/dashboard/imoveis/actions.server';
 
 interface PropertyImport {
   [key: string]: any;
@@ -376,24 +376,15 @@ export default function ImportPropertiesPage() {
   };
 
   const handleImport = async () => {
-    if (!firestore || !user) return;
+    if (!user) return;
     setIsImporting(true);
     
     try {
-      const colRef = collection(firestore, 'brokerProperties');
-      
-      for (const prop of properties) {
-        const mapped = mapPropertyRecord(prop, transactionMode);
-        const dataToSave = {
-          brokerId: user.uid,
-          builderId: user.uid, // Mark as self-owned
-          inPortfolio: false, // Default: not in portfolio
-          isVisibleOnSite: true, 
-          createdAt: serverTimestamp(),
-          ...mapped
-        };
-        
-        await addDocumentNonBlocking(colRef, dataToSave);
+      const mappedProperties = properties.map(prop => mapPropertyRecord(prop, transactionMode));
+      const res = await importBrokerPropertiesServer(mappedProperties, user.uid, transactionMode);
+
+      if (!res.success) {
+        throw new Error(res.message || 'Erro ao importar imóveis');
       }
 
       toast({
@@ -401,11 +392,11 @@ export default function ImportPropertiesPage() {
         description: `${properties.length} imóveis importados com sucesso.`,
       });
       router.push('/dashboard/avulso');
-    } catch (err) {
+    } catch (err: any) {
       toast({
         variant: "destructive",
         title: "Erro na importação",
-        description: "Ocorreu um erro ao salvar os imóveis no banco.",
+        description: err.message || "Ocorreu um erro ao salvar os imóveis no banco.",
       });
     } finally {
       setIsImporting(false);

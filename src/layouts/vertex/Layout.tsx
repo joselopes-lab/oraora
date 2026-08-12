@@ -44,7 +44,10 @@ export default function VertexLayout({
 
   const aboutContent = {
     title: content.aboutTitle || "Consultoria Pessoal e Estratégica",
-    text: content.aboutText || "Transformamos a complexidade do mercado imobiliário em uma experiência fluida e segura. Nossa inteligência de dados aliada à curadoria humana garante o melhor deal para o seu patrimônio.",
+    text: [
+      content.aboutText || "Transformamos a complexidade do mercado imobiliário em uma experiência fluida e segura. Nossa inteligência de dados aliada à curadoria humana garante o melhor deal para o seu patrimônio.",
+      (broker as any).geographicContextText
+    ].filter(Boolean).join('\n\n'),
     imageUrl: content.aboutImageUrl || 'https://picsum.photos/seed/vertex-about/800/1000',
     quote: content.aboutQuote || "Excelência não é um ato, mas um hábito presente em cada detalhe da nossa negociação."
   };

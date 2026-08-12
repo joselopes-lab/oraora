@@ -45,6 +45,12 @@ type Property = {
   };
   areascomuns?: string[];
   seo?: any;
+  physicalPropertyId?: string;
+  knowledgeMetadata?: {
+    source?: 'system_config' | 'user_input' | 'market_report' | 'official_api';
+    updatedAt?: string;
+    reliability?: 'high' | 'medium' | 'low';
+  };
 };
 
 async function getSimilarProperties(property: Property, brokerId: string): Promise<Property[]> {
@@ -167,7 +173,8 @@ export default async function BrokerPropertyDetailsPage({ params }: { params: Pr
   } catch (e) {}
 
   const similarProperties = await getSimilarProperties(property, broker.id);
-  const propertyJsonLd = generatePropertyJsonLd(property, `https://${host}`);
+
+  const propertyJsonLd = generatePropertyJsonLd(property, `https://${host}`, broker);
   const brokerJsonLd = generateBrokerJsonLd(broker);
   const layoutId = (broker as any).layoutId;
 

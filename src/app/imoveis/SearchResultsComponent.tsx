@@ -19,6 +19,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import SearchFilters from '@/components/SearchFilters';
 import { Badge } from "@/components/ui/badge";
+import { generateSemanticSlug } from '@/lib/slug';
 
 
 type Property = {
@@ -265,7 +266,7 @@ export default function SearchResultsComponent({ properties }: SearchResultsComp
                                 {paginatedProperties.map(property => {
                                     const isSaved = savedPropertyIds.includes(property.id);
                                     return (
-                                    <Link href={`/imoveis/${property.informacoesbasicas.slug || property.id}`} key={property.id} className="group relative bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all border border-slate-100 flex flex-col">
+                                    <Link href={`/imoveis/${generateSemanticSlug(property)}`} key={property.id} className="group relative bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all border border-slate-100 flex flex-col">
                                         <div className="relative aspect-[4/3] w-full overflow-hidden bg-gray-100">
                                             <div className="absolute top-4 left-4 z-10 flex items-center gap-2">
                                               <Badge className="bg-white/90 backdrop-blur-sm text-black border-none font-black text-[9px] uppercase px-3 py-1 shadow-sm tracking-widest">

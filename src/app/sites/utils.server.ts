@@ -1,4 +1,5 @@
 import { adminDb } from '@/firebase/index.server';
+import { generateSemanticSlug } from '@/lib/slug';
 
 /**
  * @fileOverview Utilitários de servidor para busca de dados via Firebase Admin SDK.
@@ -146,6 +147,25 @@ export async function getPropertyData(propertySlug: string) {
         if (bPropDoc.exists) {
             const data = { id: bPropDoc.id, ...bPropDoc.data() };
             return JSON.parse(JSON.stringify(data));
+        }
+
+        // 5. Dynamic semantic slug match (runtime generation for legacy records)
+        const allPropsSnap = await adminDb.collection('properties').where('isVisibleOnSite', '==', true).limit(300).get();
+        for (const docSnap of allPropsSnap.docs) {
+            const data = docSnap.data();
+            const propObj = { id: docSnap.id, ...data };
+            if (generateSemanticSlug(propObj) === propertySlug) {
+                return JSON.parse(JSON.stringify(propObj));
+            }
+        }
+
+        const allBrokerPropsSnap = await adminDb.collection('brokerProperties').where('isVisibleOnSite', '==', true).limit(300).get();
+        for (const docSnap of allBrokerPropsSnap.docs) {
+            const data = docSnap.data();
+            const propObj = { id: docSnap.id, ...data };
+            if (generateSemanticSlug(propObj) === propertySlug) {
+                return JSON.parse(JSON.stringify(propObj));
+            }
         }
 
         return null;

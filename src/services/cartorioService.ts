@@ -179,6 +179,11 @@ export class CartorioService {
       if (!response.ok) throw new Error('Erro ao carregar detalhes do processo');
       const json = await response.json();
       if (!json) return null;
+      const request = json;
+      console.log("REQUEST RETORNADO PARA A TELA");
+      console.log(request);
+      console.log("DOCUMENTS NO SERVICE");
+      console.log(request.documents);
       return normalizeProcess(json);
     } catch (error) {
       console.error('getProcessDetails error:', error);
@@ -281,6 +286,27 @@ export class CartorioService {
       clearInterval(interval);
       this.activePolls.delete(processId);
     };
+  }
+
+  /**
+   * Excluir um processo em rascunho.
+   */
+  public async deleteProcess(processId: string): Promise<boolean> {
+    if (processId.startsWith('RASCUNHO-')) {
+      return true;
+    }
+    try {
+      const response = await fetch(`/api/cartorio/processes/${processId}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) {
+        throw new Error('Erro ao excluir processo');
+      }
+      return true;
+    } catch (error) {
+      console.error('deleteProcess error:', error);
+      throw error;
+    }
   }
 }
 

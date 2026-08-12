@@ -1,14 +1,20 @@
 
 import type { Metadata } from 'next';
 import Script from 'next/script';
+import { cookies } from 'next/headers';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { FirebaseClientProvider, AuthProvider } from '@/firebase';
-import { adminDb } from '@/firebase/index.server';
 import { ActivityTracker } from '@/components/ActivityTracker';
 import { Suspense } from 'react';
 import { JsonLd } from '@/components/JsonLd';
 import { generateOrganizationJsonLd } from '@/lib/seo';
+
+import { CookieConsentBanner } from '@/components/privacy/CookieConsentBanner';
+import { AnalyticsLoader } from '@/components/privacy/AnalyticsLoader';
+import { CONSENT_COOKIE_NAME, ConsentState } from '@/lib/privacy/types';
+
+export const dynamic = 'force-dynamic';
 
 type BrokerData = {
   faviconUrl?: string;
@@ -18,6 +24,7 @@ type BrokerData = {
 
 async function getSiteData(): Promise<BrokerData | null> {
   try {
+    const { adminDb } = await import('@/firebase/index.server');
     const siteDoc = await adminDb.collection('brokers').doc('oraora-main-site').get();
     if (siteDoc.exists) return siteDoc.data() as BrokerData;
     return null;
@@ -61,6 +68,21 @@ export default async function RootLayout({
   const gaId = siteData?.googleAnalyticsId;
   const fbPixelId = siteData?.facebookPixelId;
 
+  // Check server-side analytics consent
+  let analyticsAllowed = false;
+  try {
+    const cookieStore = await cookies();
+    const consentCookie = cookieStore.get(CONSENT_COOKIE_NAME);
+    if (consentCookie) {
+      const parsed: ConsentState = JSON.parse(decodeURIComponent(consentCookie.value));
+      if (parsed?.preferences?.analytics === true) {
+        analyticsAllowed = true;
+      }
+    }
+  } catch (e) {
+    analyticsAllowed = false;
+  }
+
   return (
     <html lang="pt-BR" className="light">
       <head>
@@ -68,7 +90,7 @@ export default async function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
         <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" />
-        {gaId && (
+        {gaId && analyticsAllowed && (
           <>
             <Script async src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`} strategy="afterInteractive" />
             <Script id="google-analytics" strategy="afterInteractive">
@@ -85,6 +107,8 @@ export default async function RootLayout({
               <ActivityTracker />
             </Suspense>
             {children}
+            <CookieConsentBanner />
+            <AnalyticsLoader gaId={gaId} />
             <Toaster />
           </AuthProvider>
         </FirebaseClientProvider>

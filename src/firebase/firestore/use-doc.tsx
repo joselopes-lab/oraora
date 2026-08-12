@@ -51,6 +51,9 @@ export function useDoc<T = any>(
       memoizedDocRef,
       (snapshot: DocumentSnapshot<DocumentData>) => {
         if (snapshot.exists()) {
+          console.log("REQUEST ID LIDO", snapshot.id);
+          console.log("REQUEST RAW", snapshot.data());
+          console.log("DOCUMENTS RAW", snapshot.data()?.documents);
           setData({ ...(snapshot.data() as T), id: snapshot.id });
         } else {
           setData(null);

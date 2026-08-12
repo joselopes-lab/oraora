@@ -87,18 +87,22 @@ const leadSchema = z.object({
 });
 type LeadFormData = z.infer<typeof leadSchema>;
 
+type PropertyDetailsProps = {
+  initialProperty?: Property | null;
+};
+
 const googleMapsLibraries: Libraries = ['places'];
 
-export default function PropertyDetailsComponent() {
+export default function PropertyDetailsComponent({ initialProperty = null }: PropertyDetailsProps) {
   const params = useParams();
   const id = params.id as string;
   const firestore = useFirestore();
   const auth = useAuth();
   const { user, userProfile, isReady } = useAuthContext();
-  const [property, setProperty] = useState<Property | null>(null);
+  const [property, setProperty] = useState<Property | null>(initialProperty);
   const [brokerInfo, setBrokerInfo] = useState<any>(null);
   const [similarProperties, setSimilarProperties] = useState<Property[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!initialProperty);
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
@@ -184,36 +188,14 @@ export default function PropertyDetailsComponent() {
   };
 
   useEffect(() => {
-    if (!firestore || !id) return;
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        let propData: Property | null = null;
-        const propertiesRef = collection(firestore, 'properties');
-        const q1 = query(propertiesRef, where('informacoesbasicas.slug', '==', id), limit(1));
-        const snap1 = await getDocs(q1);
-        
-        if (!snap1.empty) {
-          propData = { id: snap1.docs[0].id, ...snap1.docs[0].data() } as Property;
-        } else {
-          const q2 = query(collection(firestore, 'brokerProperties'), where('informacoesbasicas.slug', '==', id), limit(1));
-          const snap2 = await getDocs(q2);
-          if (!snap2.empty) propData = { id: snap2.docs[0].id, ...snap2.docs[0].data() } as Property;
-        }
+    if (!firestore) return;
 
-        if (!propData) {
-          const docRef = doc(firestore, "properties", id);
-          const snap = await getDoc(docRef);
-          if (snap.exists()) propData = { id: snap.id, ...snap.data() } as Property;
-          else {
-            const brokerDocRef = doc(firestore, "brokerProperties", id);
-            const brokerSnap = await getDoc(brokerDocRef);
-            if (brokerSnap.exists()) propData = { id: brokerSnap.id, ...brokerSnap.data() } as Property;
-          }
-        }
-
-        if (propData && propData.isVisibleOnSite !== false) {
-          setProperty(propData);
+    const propData = initialProperty;
+    if (propData) {
+      setProperty(propData);
+      setLoading(false);
+      const fetchExtra = async () => {
+        try {
           const targetId = propData.brokerId || propData.builderId;
           if (targetId) {
             const brSnap = await getDoc(doc(firestore, 'brokers', targetId));
@@ -223,15 +205,65 @@ export default function PropertyDetailsComponent() {
               if (bSnap.exists()) setBrokerInfo(bSnap.data());
             }
           }
-          const qSim = query(collection(firestore, 'properties'), where('isVisibleOnSite', '==', true), where('localizacao.cidade', '==', propData.localizacao.cidade), limit(5));
+          if (propData.localizacao?.cidade) {
+            const qSim = query(collection(firestore, 'properties'), where('isVisibleOnSite', '==', true), where('localizacao.cidade', '==', propData.localizacao.cidade), limit(5));
+            const simSnap = await getDocs(qSim);
+            setSimilarProperties(simSnap.docs.map(d => ({ id: d.id, ...d.data() } as Property)).filter(p => p.id !== propData.id).slice(0, 4));
+          }
+        } catch (error) { console.error(error); }
+      };
+      fetchExtra();
+      return;
+    }
+
+    if (!id) return;
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        let fallbackProp: Property | null = null;
+        const propertiesRef = collection(firestore, 'properties');
+        const q1 = query(propertiesRef, where('informacoesbasicas.slug', '==', id), limit(1));
+        const snap1 = await getDocs(q1);
+        
+        if (!snap1.empty) {
+          fallbackProp = { id: snap1.docs[0].id, ...snap1.docs[0].data() } as Property;
+        } else {
+          const q2 = query(collection(firestore, 'brokerProperties'), where('informacoesbasicas.slug', '==', id), limit(1));
+          const snap2 = await getDocs(q2);
+          if (!snap2.empty) fallbackProp = { id: snap2.docs[0].id, ...snap2.docs[0].data() } as Property;
+        }
+
+        if (!fallbackProp) {
+          const docRef = doc(firestore, "properties", id);
+          const snap = await getDoc(docRef);
+          if (snap.exists()) fallbackProp = { id: snap.id, ...snap.data() } as Property;
+          else {
+            const brokerDocRef = doc(firestore, "brokerProperties", id);
+            const brokerSnap = await getDoc(brokerDocRef);
+            if (brokerSnap.exists()) fallbackProp = { id: brokerSnap.id, ...brokerSnap.data() } as Property;
+          }
+        }
+
+        if (fallbackProp && fallbackProp.isVisibleOnSite !== false) {
+          setProperty(fallbackProp);
+          const targetId = fallbackProp.brokerId || fallbackProp.builderId;
+          if (targetId) {
+            const brSnap = await getDoc(doc(firestore, 'brokers', targetId));
+            if (brSnap.exists()) setBrokerInfo(brSnap.data());
+            else {
+              const bSnap = await getDoc(doc(firestore, 'constructors', targetId));
+              if (bSnap.exists()) setBrokerInfo(bSnap.data());
+            }
+          }
+          const qSim = query(collection(firestore, 'properties'), where('isVisibleOnSite', '==', true), where('localizacao.cidade', '==', fallbackProp.localizacao.cidade), limit(5));
           const simSnap = await getDocs(qSim);
-          setSimilarProperties(simSnap.docs.map(d => ({ id: d.id, ...d.data() } as Property)).filter(p => p.id !== propData?.id).slice(0, 4));
+          setSimilarProperties(simSnap.docs.map(d => ({ id: d.id, ...d.data() } as Property)).filter(p => p.id !== fallbackProp?.id).slice(0, 4));
         }
       } catch (error) { console.error(error); }
       finally { setLoading(false); }
     };
     fetchData();
-  }, [firestore, id]);
+  }, [firestore, id, initialProperty]);
 
   useEffect(() => {
     if (isLoaded && property) {

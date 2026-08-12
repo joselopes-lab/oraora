@@ -5,7 +5,7 @@ import { FieldValue, FieldPath } from 'firebase-admin/firestore';
 import { LayoutProps } from '@/layouts/sdk.types';
 import { getTheme, getThemePage } from '@/layouts/registry';
 import { JsonLd } from '@/components/JsonLd';
-import { generatePropertyJsonLd } from '@/lib/seo';
+import { generatePropertyJsonLd, generateBrokerJsonLd } from '@/lib/seo';
 import { headers } from 'next/headers';
 import React from 'react';
 
@@ -123,6 +123,36 @@ export default async function BrokerSitePage({ params }: { params: Promise<{ slu
   const otherProperties = allProperties.filter(p => !featuredProperties.find(fp => fp.id === p.id));
   const sortedProperties = [...featuredProperties, ...otherProperties];
 
+  // Derive active public portfolio neighborhoods for semantic SEO context
+  const neighborhoodCounts: Record<string, number> = {};
+  allProperties.forEach(p => {
+    if (p.localizacao?.bairro) {
+      const b = p.localizacao.bairro.trim();
+      if (b) {
+        neighborhoodCounts[b] = (neighborhoodCounts[b] || 0) + 1;
+      }
+    }
+  });
+
+  const sortedNeighborhoods = Object.entries(neighborhoodCounts)
+    .sort((a, b) => b[1] - a[1])
+    .map(entry => entry[0]);
+
+  let geographicContextText = '';
+  if (broker.city && sortedNeighborhoods.length > 0) {
+    const topNeighborhoods = sortedNeighborhoods.slice(0, 3);
+    if (topNeighborhoods.length === 1) {
+      geographicContextText = `${broker.brandName || broker.name || 'Corretor'} atua em ${broker.city}, possuindo em seu portfólio atual imóveis na região de ${topNeighborhoods[0]}.`;
+    } else if (topNeighborhoods.length === 2) {
+      geographicContextText = `${broker.brandName || broker.name || 'Corretor'} atua em ${broker.city}, possuindo em seu portfólio atual imóveis em regiões como ${topNeighborhoods[0]} e ${topNeighborhoods[1]}.`;
+    } else {
+      const last = topNeighborhoods.pop();
+      geographicContextText = `${broker.brandName || broker.name || 'Corretor'} atua em ${broker.city}, possuindo em seu portfólio atual imóveis em regiões como ${topNeighborhoods.join(', ')} e ${last}.`;
+    }
+  } else if (broker.city) {
+    geographicContextText = `${broker.brandName || broker.name || 'Corretor'} atua em ${broker.city}.`;
+  }
+
   const layoutId = (broker as any).layoutId;
 
   // --- ORAORA PAGE LOADER 1.0 ---
@@ -142,6 +172,7 @@ export default async function BrokerSitePage({ params }: { params: Promise<{ slu
       logoUrl: broker.logoUrl,
       footerLogoUrl: broker.footerLogoUrl,
       faviconUrl: broker.faviconUrl,
+      geographicContextText,
     },
     properties: sortedProperties as any,
     content: broker.homepage || {},
@@ -164,11 +195,17 @@ export default async function BrokerSitePage({ params }: { params: Promise<{ slu
   });
 
   if (theme.isLegacy) {
-    return <ThemePage broker={serializeForClient(broker) as any} properties={serializeForClient(sortedProperties) as any} />;
+    return (
+      <>
+        {broker && <JsonLd data={generateBrokerJsonLd(broker)} />}
+        <ThemePage broker={serializeForClient(broker) as any} properties={serializeForClient(sortedProperties) as any} />
+      </>
+    );
   }
 
   return (
     <>
+      {broker && <JsonLd data={generateBrokerJsonLd(broker)} />}
       {sortedProperties[0] && <JsonLd data={generatePropertyJsonLd(sortedProperties[0], `https://${host}`)} />}
       <ThemePage {...sdkProps} />
     </>

@@ -545,7 +545,9 @@ export default function SearchFilters({
                                 Limpar
                             </Button>
                             <Button type="submit" className={cn("h-12 px-10 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg flex-1 w-full", styles.button)}>
-                                <Search className="size-4 mr-2" /> Buscar Imóveis
+                                <Search className="size-4 mr-2" />
+                                <span className="sm:hidden">Buscar</span>
+                                <span className="hidden sm:inline">Buscar Imóveis</span>
                             </Button>
                         </div>
                     </div>

@@ -77,7 +77,8 @@ export function UrbanPadraoHeader({ broker }: { broker: Broker }) {
   return (
     <header className="sticky top-0 z-50 w-full bg-white/90 backdrop-blur-md border-b border-[#f0f2f4]">
       <div className="layout-container flex h-full flex-col mx-auto max-w-[1280px]">
-        <div className="flex items-center justify-between px-6 py-2 lg:px-10 h-20 md:h-28 text-left">
+        {/* Desktop Header */}
+        <div className="hidden lg:flex items-center justify-between px-6 py-2 lg:px-10 h-28 text-left">
           <div className="flex items-center gap-3 text-text-main hover:opacity-80 transition-opacity cursor-pointer h-full">
             <Link href={nav.home()} className="flex items-center h-full">
               {broker.logoUrl ? (
@@ -86,7 +87,7 @@ export function UrbanPadraoHeader({ broker }: { broker: Broker }) {
                   alt={`Logo de ${broker.brandName}`} 
                   width={800} 
                   height={200} 
-                  className="h-auto max-h-[35px] md:max-h-[78px] w-auto object-contain object-left" 
+                  className="h-auto max-h-[78px] w-auto object-contain object-left" 
                   style={{ width: 'auto', height: 'auto' }} 
                   priority 
                 />
@@ -96,15 +97,15 @@ export function UrbanPadraoHeader({ broker }: { broker: Broker }) {
                   alt="Logo" 
                   width={400} 
                   height={150} 
-                  className="h-auto max-h-[35px] md:max-h-[78px] w-auto object-contain object-left" 
+                  className="h-auto max-h-[78px] w-auto object-contain object-left" 
                   style={{ width: 'auto', height: 'auto' }} 
                   priority 
                 />
               )}
             </Link>
-            {broker.creci && <div className="hidden lg:block border-l border-gray-200 pl-4 ml-1"><p className="text-[10px] font-bold text-text-muted uppercase tracking-widest leading-none">CRECI: {broker.creci}</p></div>}
+            {broker.creci && <div className="border-l border-gray-200 pl-4 ml-1"><p className="text-[10px] font-bold text-text-muted uppercase tracking-widest leading-none">CRECI: {broker.creci}</p></div>}
           </div>
-          <nav className="hidden lg:flex items-center gap-8">
+          <nav className="flex items-center gap-8">
             <Link className={navLinkClasses(nav.home())} href={nav.home()}>Início</Link>
             <Link className={navLinkClasses(nav.search())} href={nav.search()}>Imóveis</Link>
             <Link className={navLinkClasses(nav.map())} href={nav.map()}>Explorar no Mapa</Link>
@@ -112,11 +113,11 @@ export function UrbanPadraoHeader({ broker }: { broker: Broker }) {
             <Link className={navLinkClasses(nav.about())} href={nav.about()}>Sobre Mim</Link>
           </nav>
           <div className="flex items-center gap-4">
-            <Link href="/login" className="hidden md:flex items-center justify-center h-10 px-6 rounded-full border border-[#e5e7eb] hover:bg-gray-50 transition-colors text-sm font-semibold">
+            <Link href="/login" className="flex items-center justify-center h-10 px-6 rounded-full border border-[#e5e7eb] hover:bg-gray-50 transition-colors text-sm font-semibold">
               Login
             </Link>
             <Link href={nav.contact()} 
-                className="hidden lg:flex items-center justify-center h-10 px-6 rounded-full text-sm font-bold shadow-lg transition-all transform hover:scale-105"
+                className="flex items-center justify-center h-10 px-6 rounded-full text-sm font-bold shadow-lg transition-all transform hover:scale-105"
                 style={{ 
                     backgroundColor: ctaBgColor, 
                     color: ctaTextColor,
@@ -126,26 +127,56 @@ export function UrbanPadraoHeader({ broker }: { broker: Broker }) {
               <span className="mr-2">{ctaText}</span>
               <span className="material-symbols-outlined text-[18px]">{ctaIcon}</span>
             </Link>
+          </div>
+        </div>
 
-            <div className="lg:hidden flex items-center gap-2">
-              <Link 
-                  href={nav.contact()} 
-                  className="flex items-center justify-center h-10 w-10 rounded-full text-sm font-bold shadow-lg transition-all"
-                  style={{ 
-                      backgroundColor: ctaBgColor, 
-                      color: ctaTextColor,
-                      boxShadow: `0 4px 15px -5px ${ctaBgColor}BF`
-                  }}
-              >
-                <span className="material-symbols-outlined text-[20px]">{ctaIcon}</span>
-              </Link>
-              {isClient && (
-               <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
-                  <SheetTrigger asChild>
-                    <button className="flex items-center justify-center h-10 w-10 rounded-full bg-gray-100 text-text-main">
-                      <span className="material-symbols-outlined">menu</span>
-                    </button>
-                  </SheetTrigger>
+        {/* Mobile Header: Centered Logo, Right Menu */}
+        <div className="flex lg:hidden items-center justify-between px-4 h-20 w-full relative">
+          <div className="w-10" /> {/* Spacer for balance */}
+          <div className="absolute left-1/2 -translate-x-1/2 flex items-center justify-center cursor-pointer">
+            <Link href={nav.home()} className="flex items-center justify-center">
+              {broker.logoUrl ? (
+                <Image 
+                  src={broker.logoUrl} 
+                  alt={`Logo de ${broker.brandName}`} 
+                  width={400} 
+                  height={100} 
+                  className="h-auto max-h-[35px] w-auto object-contain" 
+                  style={{ width: 'auto', height: 'auto' }} 
+                  priority 
+                />
+              ) : (
+                <Image 
+                  src={defaultLogo || ""} 
+                  alt="Logo" 
+                  width={200} 
+                  height={75} 
+                  className="h-auto max-h-[35px] w-auto object-contain" 
+                  style={{ width: 'auto', height: 'auto' }} 
+                  priority 
+                />
+              )}
+            </Link>
+          </div>
+          <div className="flex items-center gap-2">
+            <Link 
+                href={nav.contact()} 
+                className="flex items-center justify-center h-9 w-9 rounded-full text-sm font-bold shadow-md transition-all"
+                style={{ 
+                    backgroundColor: ctaBgColor, 
+                    color: ctaTextColor,
+                    boxShadow: `0 4px 15px -5px ${ctaBgColor}BF`
+                }}
+            >
+              <span className="material-symbols-outlined text-[18px]">{ctaIcon}</span>
+            </Link>
+            {isClient && (
+             <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
+                <SheetTrigger asChild>
+                  <button className="flex items-center justify-center h-9 w-9 rounded-full bg-gray-100 text-text-main">
+                    <span className="material-symbols-outlined text-[20px]">menu</span>
+                  </button>
+                </SheetTrigger>
                   <SheetContent style={dynamicSheetStyles} side="right" className="p-0 flex flex-col bg-white text-left">
                       <SheetHeader className="p-6 border-b text-left">
                         <span className="sr-only">
@@ -193,7 +224,6 @@ export function UrbanPadraoHeader({ broker }: { broker: Broker }) {
             </div>
           </div>
         </div>
-      </div>
     </header>
   );
 }
