@@ -176,7 +176,7 @@ export default function MyPortfolioPage() {
                                 <TableCell className="px-6 py-4">
                                     <div className="flex items-center gap-4">
                                         <div className="size-16 rounded-xl overflow-hidden bg-slate-100 shrink-0 border border-slate-200">
-                                            <Image src={p.midia?.[0] || 'https://placehold.co/400x300'} alt={p.informacoesbasicas.nome} width={64} height={64} className="size-full object-cover" />
+                                            <Image src={p.midia?.[0] || 'https://picsum.photos/seed/fallback/600/400'} alt={p.informacoesbasicas.nome} width={64} height={64} className="size-full object-cover" />
                                         </div>
                                         <div>
                                             <p className="font-bold text-slate-900 uppercase tracking-tight">{p.informacoesbasicas.nome}</p>

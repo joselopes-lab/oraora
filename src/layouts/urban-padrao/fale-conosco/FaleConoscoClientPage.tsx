@@ -9,6 +9,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { createLead } from '@/app/sites/actions';
+import { getStoredCampaignData } from '@/lib/campaign';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
 import { WhatsAppWidget } from '@/layouts/urban-padrao/components/WhatsAppWidget';
@@ -89,6 +90,7 @@ export default function FaleConoscoClientPage({ broker }: FaleConoscoPageProps) 
   const onSubmit = async (data: FormData) => {
     setIsSubmitting(true);
     try {
+      const campaignData = getStoredCampaignData();
       const result = await createLead({
         brokerId: broker.id,
         name: data.name,
@@ -98,6 +100,7 @@ export default function FaleConoscoClientPage({ broker }: FaleConoscoPageProps) 
         message: data.message,
         source: 'contact_page',
         origin: 'form',
+        ...(campaignData ? { campaignData } : {}),
       });
 
       if (result.success) {

@@ -25,6 +25,42 @@ export async function savePropertyServer(
     // Resolve atomic physical identity
     const { physicalPropertyId, identityFingerprint } = await resolvePhysicalIdentityServer(data);
 
+    // Server-side tenantId resolution for NEW properties created by constructor users
+    let resolvedTenantId = data.tenantId; // fallback or ignored if client sent it, but we override or fetch securely
+    if (isNew && userId) {
+      try {
+        const userDoc = await adminDb.collection('users').doc(userId).get();
+        if (userDoc.exists) {
+          const userData = userDoc.data();
+          if (userData?.userType === 'constructor' && userData?.tenantId) {
+            resolvedTenantId = userData.tenantId;
+          } else if (userData?.userType === 'constructor') {
+            resolvedTenantId = userId; // fallback to legacy behavior where userId == constructorId
+          }
+        }
+      } catch (err) {
+        console.warn('Could not resolve tenantId for property creation:', err);
+      }
+    } else if (!isNew) {
+      // For existing properties, preserve existing tenantId if any, or don't overwrite unless needed
+      const existingDoc = await docRef.get();
+      if (existingDoc.exists) {
+        resolvedTenantId = existingDoc.data()?.tenantId;
+      }
+    }
+
+    // Validate projectId
+    if (data.projectId && collectionName === 'properties') {
+      const projectDoc = await adminDb.collection('projects').doc(data.projectId).get();
+      if (!projectDoc.exists) {
+        throw new Error('Empreendimento não encontrado.');
+      }
+      const projectData = projectDoc.data();
+      if (projectData?.builderId !== resolvedTenantId) {
+        throw new Error('Empreendimento não pertence à construtora logada.');
+      }
+    }
+
     const now = FieldValue.serverTimestamp();
     
     const seoData = {
@@ -39,6 +75,7 @@ export async function savePropertyServer(
       id: finalId,
       physicalPropertyId,
       identityFingerprint,
+      ...(resolvedTenantId ? { tenantId: resolvedTenantId } : {}),
       updatedAt: now,
       createdAt: isNew ? now : data.createdAt || now,
       seo: seoData,

@@ -2,17 +2,22 @@
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
-import { useDoc, useCollection, useFirestore, useMemoFirebase, useUser, setDocumentNonBlocking } from '@/firebase';
+import { useDoc, useCollection, useFirestore, useMemoFirebase, useUser, useFirebase, setDocumentNonBlocking } from '@/firebase';
+import { classificarProperty } from '@/lib/utils';
 import { doc, collection, query, where, arrayUnion, arrayRemove } from 'firebase/firestore';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
+import { createConstructorMemberServer } from '../actions.server';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 
 type User = {
   userType: 'admin' | 'broker' | 'constructor';
+  tenantId?: string;
 };
 
 type Constructor = {
@@ -24,20 +29,27 @@ type Constructor = {
     publicEmail?: string;
     instagram?: string;
     logoUrl?: string;
+    members?: { uid: string; role: 'admin' | 'gerente' | 'vendas' | 'marketing' }[];
 };
 
 type Property = {
   id: string;
-  builderId: string;
+  builderId?: string;
+  tenantId?: string;
   informacoesbasicas: {
     nome: string;
     status: string;
     slug?: string;
   };
+  valores?: {
+    venda?: number;
+  };
   localizacao: {
     cidade: string;
     estado: string;
     bairro: string;
+    numero?: string;
+    unidade?: string;
   };
   midia: string[];
   caracteristicasimovel: {
@@ -72,6 +84,11 @@ function PropertyCard({ property, canEdit }: { property: Property; canEdit: bool
         return `${joinedQuartos} Quartos`;
     };
 
+    const formatPrice = (val?: number) => {
+        if (!val && val !== 0) return null;
+        return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+    };
+
     return (
         <div className="p-4 hover:bg-gray-50 transition-colors flex flex-col sm:flex-row items-start sm:items-center gap-4">
             <div className="w-full sm:w-24 h-32 sm:h-20 rounded-lg bg-gray-200 overflow-hidden shrink-0 border border-card-border">
@@ -82,12 +99,20 @@ function PropertyCard({ property, canEdit }: { property: Property; canEdit: bool
                 )}
             </div>
             <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
                     <Badge variant={getStatusVariant(property.informacoesbasicas.status)} className="text-[10px] font-bold uppercase tracking-wide">{property.informacoesbasicas.status}</Badge>
                     <span className="text-xs text-text-secondary">Ref: {property.id.substring(0, 6).toUpperCase()}</span>
+                    {(property.localizacao.unidade || property.localizacao.numero) && (
+                        <span className="text-xs font-semibold bg-gray-100 px-2 py-0.5 rounded text-text-main">
+                            Unidade: {property.localizacao.unidade || property.localizacao.numero}
+                        </span>
+                    )}
                 </div>
                  <Link href={`/dashboard/imoveis/${property.id}`} className="text-base font-bold text-text-main truncate hover:text-primary transition-colors">{property.informacoesbasicas.nome}</Link>
                 <p className="text-sm text-text-secondary truncate">{property.localizacao.bairro}, {property.localizacao.cidade}</p>
+                {property.valores?.venda && (
+                    <p className="text-sm font-bold text-primary mt-0.5">{formatPrice(property.valores.venda)}</p>
+                )}
                 <div className="flex gap-4 mt-2 text-xs text-text-secondary">
                     {property.caracteristicasimovel.quartos && <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[14px]">bed</span> {quartosLabel()}</span>}
                     {property.caracteristicasimovel.tamanho && <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[14px]">straighten</span> {property.caracteristicasimovel.tamanho}</span>}
@@ -113,6 +138,7 @@ export default function ConstructorProfilePage() {
     const router = useRouter();
     const { id } = params as { id: string };
     const firestore = useFirestore();
+    const { auth } = useFirebase();
     const { user, isUserLoading: isAuthLoading } = useUser();
     const { toast } = useToast();
     const [allInPortfolio, setAllInPortfolio] = useState(false);
@@ -126,8 +152,19 @@ export default function ConstructorProfilePage() {
     const constructorDocRef = useMemoFirebase(() => (firestore && id ? doc(firestore, 'constructors', id) : null), [firestore, id]);
     const { data: constructorData, isLoading: isConstructorLoading } = useDoc<Constructor>(constructorDocRef);
 
-    const propertiesQuery = useMemoFirebase(() => (firestore && id ? query(collection(firestore, 'properties'), where('builderId', '==', id)) : null), [firestore, id]);
-    const { data: properties, isLoading: arePropertiesLoading } = useCollection<Property>(propertiesQuery);
+    const propertiesQueryTenant = useMemoFirebase(() => (firestore && id ? query(collection(firestore, 'properties'), where('tenantId', '==', id)) : null), [firestore, id]);
+    const propertiesQueryBuilder = useMemoFirebase(() => (firestore && id ? query(collection(firestore, 'properties'), where('builderId', '==', id)) : null), [firestore, id]);
+    
+    const { data: tenantProperties, isLoading: isTenantLoading } = useCollection<Property>(propertiesQueryTenant);
+    const { data: builderProperties, isLoading: isBuilderLoading } = useCollection<Property>(propertiesQueryBuilder);
+
+    const properties = useMemo(() => {
+      const map = new Map<string, Property>();
+      // Show ALL properties for the constructor
+      tenantProperties?.forEach(p => map.set(p.id, p));
+      builderProperties?.forEach(p => map.set(p.id, p));
+      return Array.from(map.values());
+    }, [tenantProperties, builderProperties]);
     
     const portfolioDocRef = useMemoFirebase(
       () => (firestore && user && userProfile?.userType === 'broker' ? doc(firestore, 'portfolios', user.uid) : null),
@@ -136,9 +173,61 @@ export default function ConstructorProfilePage() {
     const { data: portfolio } = useDoc<Portfolio>(portfolioDocRef);
 
 
-    const isLoading = isConstructorLoading || arePropertiesLoading || isAuthLoading || isProfileLoading;
-    const canEdit = userProfile?.userType === 'admin' || (userProfile?.userType === 'constructor' && user?.uid === id);
+    const isLoading = isConstructorLoading || (isTenantLoading || isBuilderLoading) || isAuthLoading || isProfileLoading;
+    const canEdit = userProfile?.userType === 'admin' || (userProfile?.userType === 'constructor' && (user?.uid === id || userProfile?.tenantId === id));
+    const userRole = userProfile?.userType === 'admin' 
+        ? 'admin' 
+        : (user?.uid === id 
+            ? 'admin' 
+            : constructorData?.members?.find((m: any) => m.uid === user?.uid)?.role || 'vendas');
+    const canEditProperty = userProfile?.userType === 'admin' || userRole === 'admin' || userRole === 'gerente';
     const isBroker = userProfile?.userType === 'broker';
+
+    const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
+    const [memberName, setMemberName] = useState('');
+    const [memberEmail, setMemberEmail] = useState('');
+    const [memberPassword, setMemberPassword] = useState('');
+    const [memberRole, setMemberRole] = useState<'admin' | 'gerente' | 'vendas' | 'marketing'>('vendas');
+    const [isSubmittingMember, setIsSubmittingMember] = useState(false);
+
+    const handleAddMember = async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!memberName || !memberEmail || !memberPassword) {
+        toast({ variant: 'destructive', title: 'Preencha todos os campos obrigatórios.' });
+        return;
+      }
+      setIsSubmittingMember(true);
+      try {
+        const idToken = await auth?.currentUser?.getIdToken();
+        if (!idToken) {
+          toast({ variant: 'destructive', title: 'Usuário não autenticado.' });
+          setIsSubmittingMember(false);
+          return;
+        }
+        const result = await createConstructorMemberServer({
+          constructorId: id,
+          name: memberName,
+          email: memberEmail,
+          password: memberPassword,
+          role: memberRole,
+          idToken,
+        });
+        if (result.success) {
+          toast({ title: 'Membro Adicionado!', description: `O usuário ${memberName} foi cadastrado com sucesso.` });
+          setIsAddMemberOpen(false);
+          setMemberName('');
+          setMemberEmail('');
+          setMemberPassword('');
+          setMemberRole('vendas');
+        } else {
+          toast({ variant: 'destructive', title: 'Erro ao cadastrar membro', description: result.error });
+        }
+      } catch (err: any) {
+        toast({ variant: 'destructive', title: 'Erro', description: err.message || 'Erro inesperado.' });
+      } finally {
+        setIsSubmittingMember(false);
+      }
+    };
 
     useEffect(() => {
       if (properties && properties.length > 0 && portfolio) {
@@ -294,35 +383,129 @@ export default function ConstructorProfilePage() {
                     </div>
                 </section>
                 <section className="bg-white rounded-xl border border-card-border shadow-sm overflow-hidden">
+                    <Tabs defaultValue="todos" className="w-full">
+                        <div className="px-6 py-4 border-b border-card-border bg-gray-50/50 flex justify-between items-center">
+                            <h3 className="font-bold text-lg flex items-center gap-2">
+                                <span className="material-symbols-outlined text-text-secondary">holiday_village</span>
+                                Imóveis
+                                <span className="text-sm font-normal text-text-secondary bg-white px-2 py-0.5 rounded-full border border-card-border ml-2">{properties?.length || 0} imóveis</span>
+                            </h3>
+                            <div className="flex items-center gap-4">
+                                <TabsList>
+                                    <TabsTrigger value="todos">Todos</TabsTrigger>
+                                    <TabsTrigger value="empreendimentos">Empreendimentos</TabsTrigger>
+                                    <TabsTrigger value="avulsos">Avulsos</TabsTrigger>
+                                </TabsList>
+                                {canEditProperty && (
+                                    <Button asChild size="sm" className="text-sm font-bold text-primary hover:text-primary-hover flex items-center gap-1 transition-colors">
+                                        <Link href="/dashboard/imoveis/nova">
+                                            <span className="material-symbols-outlined text-lg">add</span>
+                                            Novo Imóvel
+                                        </Link>
+                                    </Button>
+                                )}
+                            </div>
+                        </div>
+                        <TabsContent value="todos" className="divide-y divide-card-border">
+                            {properties && properties.length > 0 ? (
+                                properties.map(prop => <PropertyCard key={prop.id} property={prop} canEdit={canEditProperty} />)
+                            ) : (
+                                <div className="p-8 text-center text-text-secondary">
+                                    <p>Nenhum imóvel cadastrado.</p>
+                                </div>
+                            )}
+                        </TabsContent>
+                        <TabsContent value="empreendimentos" className="divide-y divide-card-border">
+                            {properties && properties.filter(p => classificarProperty(p) === 'empreendimento').length > 0 ? (
+                                properties.filter(p => classificarProperty(p) === 'empreendimento').map(prop => <PropertyCard key={prop.id} property={prop} canEdit={canEditProperty} />)
+                            ) : (
+                                <div className="p-8 text-center text-text-secondary">
+                                    <p>Nenhum empreendimento vinculado.</p>
+                                </div>
+                            )}
+                        </TabsContent>
+                        <TabsContent value="avulsos" className="divide-y divide-card-border">
+                            {properties && properties.filter(p => classificarProperty(p) === 'avulso').length > 0 ? (
+                                properties.filter(p => classificarProperty(p) === 'avulso').map(prop => <PropertyCard key={prop.id} property={prop} canEdit={canEditProperty} />)
+                            ) : (
+                                <div className="p-8 text-center text-text-secondary">
+                                    <p>Nenhum imóvel avulso cadastrado.</p>
+                                </div>
+                            )}
+                        </TabsContent>
+                    </Tabs>
+                </section>
+
+                <section className="bg-white rounded-xl border border-card-border shadow-sm overflow-hidden">
                     <div className="px-6 py-4 border-b border-card-border bg-gray-50/50 flex justify-between items-center">
                         <h3 className="font-bold text-lg flex items-center gap-2">
-                            <span className="material-symbols-outlined text-text-secondary">holiday_village</span>
-                            Imóveis Vinculados
-                            <span className="text-sm font-normal text-text-secondary bg-white px-2 py-0.5 rounded-full border border-card-border ml-2">{properties?.length || 0} imóveis</span>
+                            <span className="material-symbols-outlined text-text-secondary">group</span>
+                            Membros da Equipe
+                            <span className="text-sm font-normal text-text-secondary bg-white px-2 py-0.5 rounded-full border border-card-border ml-2">{constructorData.members?.length || 0} membros</span>
                         </h3>
                         {canEdit && (
-                        <Button asChild size="sm" className="text-sm font-bold text-primary hover:text-primary-hover flex items-center gap-1 transition-colors">
-                            <Link href="/dashboard/imoveis/nova">
-                                <span className="material-symbols-outlined text-lg">add</span>
-                                Novo Imóvel
-                            </Link>
-                        </Button>
+                            <Dialog open={isAddMemberOpen} onOpenChange={setIsAddMemberOpen}>
+                                <DialogTrigger asChild>
+                                    <Button size="sm" className="text-sm font-bold bg-primary text-text-main hover:bg-primary-hover flex items-center gap-1 transition-colors">
+                                        <span className="material-symbols-outlined text-lg">person_add</span>
+                                        Adicionar usuário
+                                    </Button>
+                                </DialogTrigger>
+                                <DialogContent className="sm:max-w-md bg-white">
+                                    <DialogHeader>
+                                        <DialogTitle>Adicionar usuário</DialogTitle>
+                                        <DialogDescription>Cadastre um novo usuário para esta construtora.</DialogDescription>
+                                    </DialogHeader>
+                                    <form onSubmit={handleAddMember} className="space-y-4 py-2">
+                                        <div>
+                                            <label className="text-xs font-bold text-text-main uppercase">Nome</label>
+                                            <input type="text" className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" placeholder="Nome completo" value={memberName} onChange={e => setMemberName(e.target.value)} required />
+                                        </div>
+                                        <div>
+                                            <label className="text-xs font-bold text-text-main uppercase">Email de Acesso</label>
+                                            <input type="email" className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" placeholder="email@construtora.com" value={memberEmail} onChange={e => setMemberEmail(e.target.value)} required />
+                                        </div>
+                                        <div>
+                                            <label className="text-xs font-bold text-text-main uppercase">Senha Inicial</label>
+                                            <input type="password" className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" placeholder="********" value={memberPassword} onChange={e => setMemberPassword(e.target.value)} required />
+                                        </div>
+                                        <div>
+                                            <label className="text-xs font-bold text-text-main uppercase">Cargo / Papel</label>
+                                            <select className="w-full mt-1 px-3 py-2 border rounded-lg text-sm bg-white" value={memberRole} onChange={e => setMemberRole(e.target.value as any)}>
+                                                <option value="admin">Admin</option>
+                                                <option value="gerente">Gerente</option>
+                                                <option value="vendas">Vendas</option>
+                                                <option value="marketing">Marketing</option>
+                                            </select>
+                                        </div>
+                                        <DialogFooter className="pt-4">
+                                            <Button type="button" variant="outline" onClick={() => setIsAddMemberOpen(false)}>Cancelar</Button>
+                                            <Button type="submit" disabled={isSubmittingMember} className="bg-primary text-text-main hover:bg-primary-hover font-bold">
+                                                {isSubmittingMember ? 'Salvando...' : 'Criar Membro'}
+                                            </Button>
+                                        </DialogFooter>
+                                    </form>
+                                </DialogContent>
+                            </Dialog>
                         )}
                     </div>
                     <div className="divide-y divide-card-border">
-                        {properties && properties.length > 0 ? (
-                           properties.map(prop => <PropertyCard key={prop.id} property={prop} canEdit={canEdit} />)
+                        {constructorData.members && constructorData.members.length > 0 ? (
+                            constructorData.members.map((m: any, idx: number) => (
+                                <div key={m.uid || idx} className="p-4 flex items-center justify-between">
+                                    <div>
+                                        <p className="text-sm font-bold text-text-main">UID: {m.uid}</p>
+                                        <p className="text-xs text-text-secondary uppercase">Cargo: {m.role}</p>
+                                    </div>
+                                    <Badge variant="outline" className="capitalize text-xs">{m.role}</Badge>
+                                </div>
+                            ))
                         ) : (
                             <div className="p-8 text-center text-text-secondary">
-                                <p>Nenhum imóvel vinculado a esta construtora ainda.</p>
+                                <p>Nenhum membro registrado além do proprietário.</p>
                             </div>
                         )}
                     </div>
-                    {properties && properties.length > 5 && (
-                        <div className="bg-gray-50 p-4 border-t border-card-border flex justify-center">
-                            <button className="text-sm font-medium text-text-secondary hover:text-primary transition-colors">Ver todos os imóveis</button>
-                        </div>
-                    )}
                 </section>
             </div>
         </>

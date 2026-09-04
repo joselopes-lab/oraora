@@ -45,10 +45,16 @@ import {
 } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
-import { generateSiteContent } from '@/ai/flows/generate-site-content-flow';
+import { ActivationPanel } from "@/components/ActivationPanel";
 
 // Helper component for navigation links
 const NavigationLinks = ({ userProfile, pathname, openMenu, handleMouseEnter, handleMouseLeave, setOpenMenu, navLinkClasses, dropdownTriggerClasses, siteData, defaultLogo, isMobile, onClose }: any) => {
+  const canAccess = (modKey: string) => {
+    if (userProfile.userType !== 'broker') return true;
+    if (!userProfile.moduleAccess) return true;
+    return userProfile.moduleAccess[modKey as keyof typeof userProfile.moduleAccess] !== false;
+  };
+
   if (isMobile) {
     return (
       <div 
@@ -66,40 +72,55 @@ const NavigationLinks = ({ userProfile, pathname, openMenu, handleMouseEnter, ha
               Dashboard
             </Link>
 
-            <div className="flex flex-col gap-1">
-              <div className="flex items-center gap-2.5 px-3 py-2 text-sm font-bold text-slate-900">
-                <span className="material-symbols-outlined text-[20px]">group</span>
-                Clientes
+            {canAccess('crm') && (
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center gap-2.5 px-3 py-2 text-sm font-bold text-slate-900">
+                  <span className="material-symbols-outlined text-[20px]">group</span>
+                  Clientes
+                </div>
+                <div className="flex flex-col gap-1 pl-9">
+                  <Link href="/dashboard/leads" className="text-sm text-slate-600 hover:text-slate-900 py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">Funil de Vendas</Link>
+                  <Link href="/dashboard/clientes" className="text-sm text-slate-600 hover:text-slate-900 py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">Base de Clientes</Link>
+                  <Link href="/dashboard/personas" className="text-sm text-slate-600 hover:text-slate-900 py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">Personas</Link>
+                </div>
               </div>
-              <div className="flex flex-col gap-1 pl-9">
-                <Link href="/dashboard/leads" className="text-sm text-slate-600 hover:text-slate-900 py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">Funil de Vendas</Link>
-                <Link href="/dashboard/clientes" className="text-sm text-slate-600 hover:text-slate-900 py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">Base de Clientes</Link>
-                <Link href="/dashboard/personas" className="text-sm text-slate-600 hover:text-slate-900 py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">Personas</Link>
-              </div>
-            </div>
+            )}
 
-            <div className="flex flex-col gap-1">
-              <div className="flex items-center gap-2.5 px-3 py-2 text-sm font-bold text-slate-900">
-                <span className="material-symbols-outlined text-[20px]">apartment</span>
-                Imóveis
+            {(canAccess('properties') || canAccess('canalPro')) && (
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center gap-2.5 px-3 py-2 text-sm font-bold text-slate-900">
+                  <span className="material-symbols-outlined text-[20px]">apartment</span>
+                  Imóveis
+                </div>
+                <div className="flex flex-col gap-1 pl-9">
+                  {canAccess('properties') && (
+                    <>
+                      <Link href="/dashboard/minha-carteira" className="text-sm text-slate-600 hover:text-slate-900 py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">Minha Carteira</Link>
+                      <Link href="/dashboard/avulso" className="text-sm text-slate-600 hover:text-slate-900 py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">Imóveis Avulsos</Link>
+                      <Link href="/dashboard/imoveis-avulsos" className="text-sm text-slate-600 hover:text-slate-900 py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">Avulsos (Rede)</Link>
+                      <Link href="/dashboard/imoveis" className="text-sm text-slate-600 hover:text-slate-900 py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">Construtoras</Link>
+                      <Link href="/dashboard/tabelas" className="text-sm text-slate-600 hover:text-slate-900 py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">Tabelas de Preços</Link>
+                    </>
+                  )}
+                  {canAccess('canalPro') && (
+                    <Link href="/dashboard/imoveis/canal-pro" className="text-sm text-slate-600 hover:text-slate-900 py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">Canal Pro</Link>
+                  )}
+                </div>
               </div>
-              <div className="flex flex-col gap-1 pl-9">
-                <Link href="/dashboard/minha-carteira" className="text-sm text-slate-600 hover:text-slate-900 py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">Minha Carteira</Link>
-                <Link href="/dashboard/avulso" className="text-sm text-slate-600 hover:text-slate-900 py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">Imóveis Avulsos</Link>
-                <Link href="/dashboard/imoveis" className="text-sm text-slate-600 hover:text-slate-900 py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">Construtoras</Link>
-              </div>
-            </div>
+            )}
 
-            <div className="flex flex-col gap-1">
-              <div className="flex items-center gap-2.5 px-3 py-2 text-sm font-bold text-slate-900">
-                <span className="material-symbols-outlined text-[20px]">business_center</span>
-                Negócios
+            {canAccess('agenda') && (
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center gap-2.5 px-3 py-2 text-sm font-bold text-slate-900">
+                  <span className="material-symbols-outlined text-[20px]">business_center</span>
+                  Negócios
+                </div>
+                <div className="flex flex-col gap-1 pl-9">
+                  <Link href="/dashboard/jornada" className="text-sm text-slate-600 hover:text-slate-900 py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">Jornada de Vendas</Link>
+                  <Link href="/dashboard/agenda" className="text-sm text-slate-600 hover:text-slate-900 py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">Agenda</Link>
+                </div>
               </div>
-              <div className="flex flex-col gap-1 pl-9">
-                <Link href="/dashboard/jornada" className="text-sm text-slate-600 hover:text-slate-900 py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">Jornada de Vendas</Link>
-                <Link href="/dashboard/agenda" className="text-sm text-slate-600 hover:text-slate-900 py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">Agenda</Link>
-              </div>
-            </div>
+            )}
 
             <div className="flex flex-col gap-1">
               <div className="flex items-center gap-2.5 px-3 py-2 text-sm font-bold text-slate-900">
@@ -128,16 +149,18 @@ const NavigationLinks = ({ userProfile, pathname, openMenu, handleMouseEnter, ha
                   </div>
                 </div>
 
-                <div className="flex flex-col gap-1">
-                  <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 uppercase py-1">
-                    <span className="material-symbols-outlined text-[16px]">lan</span>
-                    Rede
+                {canAccess('radar') && (
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 uppercase py-1">
+                      <span className="material-symbols-outlined text-[16px]">lan</span>
+                      Rede
+                    </div>
+                    <div className="flex flex-col gap-1 pl-4">
+                      <Link href="/dashboard/radar-oportunidades" className="text-sm text-slate-600 hover:text-slate-900 py-1">Radar</Link>
+                      <Link href="/dashboard/solicitacoes-rede" className="text-sm text-slate-600 hover:text-slate-900 py-1">Solicitações</Link>
+                    </div>
                   </div>
-                  <div className="flex flex-col gap-1 pl-4">
-                    <Link href="/dashboard/radar-oportunidades" className="text-sm text-slate-600 hover:text-slate-900 py-1">Radar</Link>
-                    <Link href="/dashboard/solicitacoes-rede" className="text-sm text-slate-600 hover:text-slate-900 py-1">Solicitações</Link>
-                  </div>
-                </div>
+                )}
 
                 <div className="flex flex-col gap-1">
                   <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 uppercase py-1">
@@ -145,17 +168,39 @@ const NavigationLinks = ({ userProfile, pathname, openMenu, handleMouseEnter, ha
                     Crescimento
                   </div>
                   <div className="flex flex-col gap-1 pl-4">
-                    <Link href="/dashboard/meu-site" className="text-sm text-slate-600 hover:text-slate-900 py-1">Meu Site</Link>
-                    <Link href="/dashboard/oralink" className="text-sm text-slate-600 hover:text-slate-900 py-1">Ora Link</Link>
-                    <Link href="/dashboard/mercado" className="text-sm text-slate-600 hover:text-slate-900 py-1">Inteligência de Mercado</Link>
-                    <Link href="/dashboard/loja" className="text-sm text-slate-600 hover:text-slate-900 py-1">Loja OraOra</Link>
-                    <Link href="/dashboard/ativacao" className="text-sm text-slate-600 hover:text-slate-900 py-1">Academia OraOra</Link>
+                    {canAccess('marketing') && <Link href="/dashboard/meu-site" className="text-sm text-slate-600 hover:text-slate-900 py-1">Meu Site</Link>}
+                    {canAccess('oralink') && <Link href="/dashboard/oralink" className="text-sm text-slate-600 hover:text-slate-900 py-1">Ora Link</Link>}
+                    {canAccess('intelligence') && <Link href="/dashboard/mercado" className="text-sm text-slate-600 hover:text-slate-900 py-1">Inteligência de Mercado</Link>}
+                    {canAccess('marketing') && <Link href="/dashboard/loja" className="text-sm text-slate-600 hover:text-slate-900 py-1">Loja OraOra</Link>}
+                    {canAccess('marketing') && <Link href="/dashboard/ativacao" className="text-sm text-slate-600 hover:text-slate-900 py-1">Guia de Ativação</Link>}
+                    {canAccess('marketing') && <Link href="/dashboard/marketing" className="text-sm text-slate-600 hover:text-slate-900 py-1">Marketing</Link>}
                   </div>
                 </div>
               </div>
             </div>
           </>
         )}
+
+      {(userProfile.userType === 'constructor' || userProfile.userType === 'construtora') && (
+        <div className={isMobile ? "flex flex-col gap-1" : "flex items-center gap-6 h-full"}>
+          <Link className={isMobile ? "flex items-center gap-2.5 px-3 py-2 text-sm font-semibold text-slate-900 rounded-lg hover:bg-slate-100 transition-colors" : navLinkClasses(`/dashboard/construtoras/${userProfile.tenantId || userProfile.uid}`)} href={`/dashboard/construtoras/${userProfile.tenantId || userProfile.uid}`}>
+            <span className="material-symbols-outlined text-[20px]">inventory</span>
+            Imóveis
+          </Link>
+          <Link className={isMobile ? "flex items-center gap-2.5 px-3 py-2 text-sm font-semibold text-slate-900 rounded-lg hover:bg-slate-100 transition-colors" : navLinkClasses(`/dashboard/construtoras/empreendimentos`)} href={`/dashboard/construtoras/empreendimentos`}>
+            <span className="material-symbols-outlined text-[20px]">business</span>
+            Empreendimentos
+          </Link>
+          <Link className={isMobile ? "flex items-center gap-2.5 px-3 py-2 text-sm font-semibold text-slate-900 rounded-lg hover:bg-slate-100 transition-colors" : navLinkClasses(`/dashboard/construtoras/tabelas`)} href={`/dashboard/construtoras/tabelas`}>
+            <span className="material-symbols-outlined text-[20px]">table_chart</span>
+            Tabelas de Preços
+          </Link>
+          <Link className={isMobile ? "flex items-center gap-2.5 px-3 py-2 text-sm font-semibold text-slate-900 rounded-lg hover:bg-slate-100 transition-colors" : navLinkClasses(`/dashboard/construtoras/${userProfile.tenantId || userProfile.uid}/leads`)} href={`/dashboard/construtoras/${userProfile.tenantId || userProfile.uid}/leads`}>
+            <span className="material-symbols-outlined text-[20px]">group</span>
+            Clientes
+          </Link>
+        </div>
+      )}
 
         {userProfile.userType === 'admin' && (
           <>
@@ -182,6 +227,7 @@ const NavigationLinks = ({ userProfile, pathname, openMenu, handleMouseEnter, ha
                 <Link href="/dashboard/admin/users" className="text-sm text-slate-600 hover:text-slate-900 py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">Usuários</Link>
                 <Link href="/dashboard/construtoras" className="text-sm text-slate-600 hover:text-slate-900 py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">Construtoras</Link>
                 <Link href="/dashboard/admin/convites" className="text-sm text-slate-600 hover:text-slate-900 py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">Solicitações de Convite</Link>
+                <Link href="/dashboard/admin/tabelas" className="text-sm text-slate-600 hover:text-slate-900 py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">Tabelas de Preços</Link>
               </div>
             </div>
 
@@ -240,49 +286,64 @@ const NavigationLinks = ({ userProfile, pathname, openMenu, handleMouseEnter, ha
             Dashboard
           </Link>
 
-          <div onMouseEnter={() => handleMouseEnter('clientes')} onMouseLeave={handleMouseLeave} className="h-full">
-            <DropdownMenu open={openMenu === 'clientes'} onOpenChange={(open) => setOpenMenu(open ? 'clientes' : null)}>
-              <DropdownMenuTrigger className={dropdownTriggerClasses(["/dashboard/leads", "/dashboard/clientes", "/dashboard/personas"])}>
-                <span className="material-symbols-outlined text-[20px]">group</span>
-                Clientes
-                <span className="material-symbols-outlined text-[16px] ml-0.5">expand_more</span>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-56" onMouseEnter={() => handleMouseEnter('clientes')} onMouseLeave={handleMouseLeave}>
-                <DropdownMenuItem asChild><Link href="/dashboard/leads">Funil de Vendas</Link></DropdownMenuItem>
-                <DropdownMenuItem asChild><Link href="/dashboard/clientes">Base de Clientes</Link></DropdownMenuItem>
-                <DropdownMenuItem asChild><Link href="/dashboard/personas">Personas</Link></DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+          {canAccess('crm') && (
+            <div onMouseEnter={() => handleMouseEnter('clientes')} onMouseLeave={handleMouseLeave} className="h-full">
+              <DropdownMenu open={openMenu === 'clientes'} onOpenChange={(open) => setOpenMenu(open ? 'clientes' : null)}>
+                <DropdownMenuTrigger className={dropdownTriggerClasses(["/dashboard/leads", "/dashboard/clientes", "/dashboard/personas"])}>
+                  <span className="material-symbols-outlined text-[20px]">group</span>
+                  Clientes
+                  <span className="material-symbols-outlined text-[16px] ml-0.5">expand_more</span>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-56" onMouseEnter={() => handleMouseEnter('clientes')} onMouseLeave={handleMouseLeave}>
+                  <DropdownMenuItem asChild><Link href="/dashboard/leads">Funil de Vendas</Link></DropdownMenuItem>
+                  <DropdownMenuItem asChild><Link href="/dashboard/clientes">Base de Clientes</Link></DropdownMenuItem>
+                  <DropdownMenuItem asChild><Link href="/dashboard/personas">Personas</Link></DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          )}
 
-          <div onMouseEnter={() => handleMouseEnter('imoveis')} onMouseLeave={handleMouseLeave} className="h-full">
-            <DropdownMenu open={openMenu === 'imoveis'} onOpenChange={(open) => setOpenMenu(open ? 'imoveis' : null)}>
-              <DropdownMenuTrigger className={dropdownTriggerClasses(["/dashboard/minha-carteira", "/dashboard/avulso", "/dashboard/imoveis"])}>
-                <span className="material-symbols-outlined text-[20px]">apartment</span>
-                Imóveis
-                <span className="material-symbols-outlined text-[16px] ml-0.5">expand_more</span>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-56" onMouseEnter={() => handleMouseEnter('imoveis')} onMouseLeave={handleMouseLeave}>
-                <DropdownMenuItem asChild><Link href="/dashboard/minha-carteira">Minha Carteira</Link></DropdownMenuItem>
-                <DropdownMenuItem asChild><Link href="/dashboard/avulso">Imóveis Avulsos</Link></DropdownMenuItem>
-                <DropdownMenuItem asChild><Link href="/dashboard/imoveis">Construtoras</Link></DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+          {(canAccess('properties') || canAccess('canalPro')) && (
+            <div onMouseEnter={() => handleMouseEnter('imoveis')} onMouseLeave={handleMouseLeave} className="h-full">
+              <DropdownMenu open={openMenu === 'imoveis'} onOpenChange={(open) => setOpenMenu(open ? 'imoveis' : null)}>
+                <DropdownMenuTrigger className={dropdownTriggerClasses(["/dashboard/minha-carteira", "/dashboard/avulso", "/dashboard/imoveis", "/dashboard/imoveis/canal-pro"])}>
+                  <span className="material-symbols-outlined text-[20px]">apartment</span>
+                  Imóveis
+                  <span className="material-symbols-outlined text-[16px] ml-0.5">expand_more</span>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-56" onMouseEnter={() => handleMouseEnter('imoveis')} onMouseLeave={handleMouseLeave}>
+                  {canAccess('properties') && (
+                    <>
+                      <DropdownMenuItem asChild><Link href="/dashboard/minha-carteira">Minha Carteira</Link></DropdownMenuItem>
+                      <DropdownMenuItem asChild><Link href="/dashboard/avulso">Imóveis Avulsos</Link></DropdownMenuItem>
+                      <DropdownMenuItem asChild><Link href="/dashboard/imoveis-avulsos">Avulsos (Rede)</Link></DropdownMenuItem>
+                      <DropdownMenuItem asChild><Link href="/dashboard/imoveis">Construtoras</Link></DropdownMenuItem>
+                      <DropdownMenuItem asChild><Link href="/dashboard/tabelas">Tabelas de Preços</Link></DropdownMenuItem>
+                    </>
+                  )}
+                  {canAccess('canalPro') && (
+                    <DropdownMenuItem asChild><Link href="/dashboard/imoveis/canal-pro">Canal Pro</Link></DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          )}
           
-          <div onMouseEnter={() => handleMouseEnter('negocios')} onMouseLeave={handleMouseLeave} className="h-full">
-            <DropdownMenu open={openMenu === 'negocios'} onOpenChange={(open) => setOpenMenu(open ? 'negocios' : null)}>
-              <DropdownMenuTrigger className={dropdownTriggerClasses(["/dashboard/jornada", "/dashboard/agenda"])}>
-                <span className="material-symbols-outlined text-[20px]">business_center</span>
-                Negócios
-                <span className="material-symbols-outlined text-[16px] ml-0.5">expand_more</span>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-56" onMouseEnter={() => handleMouseEnter('negocios')} onMouseLeave={handleMouseLeave}>
-                <DropdownMenuItem asChild><Link href="/dashboard/jornada">Jornada de Vendas</Link></DropdownMenuItem>
-                <DropdownMenuItem asChild><Link href="/dashboard/agenda">Agenda</Link></DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+          {canAccess('agenda') && (
+            <div onMouseEnter={() => handleMouseEnter('negocios')} onMouseLeave={handleMouseLeave} className="h-full">
+              <DropdownMenu open={openMenu === 'negocios'} onOpenChange={(open) => setOpenMenu(open ? 'negocios' : null)}>
+                <DropdownMenuTrigger className={dropdownTriggerClasses(["/dashboard/jornada", "/dashboard/agenda"])}>
+                  <span className="material-symbols-outlined text-[20px]">business_center</span>
+                  Negócios
+                  <span className="material-symbols-outlined text-[16px] ml-0.5">expand_more</span>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-56" onMouseEnter={() => handleMouseEnter('negocios')} onMouseLeave={handleMouseLeave}>
+                  <DropdownMenuItem asChild><Link href="/dashboard/jornada">Jornada de Vendas</Link></DropdownMenuItem>
+                  <DropdownMenuItem asChild><Link href="/dashboard/agenda">Agenda</Link></DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          )}
 
           <div onMouseEnter={() => handleMouseEnter('mais')} onMouseLeave={handleMouseLeave} className="h-full">
             <DropdownMenu open={openMenu === 'mais'} onOpenChange={(open) => setOpenMenu(open ? 'mais' : null)}>
@@ -325,16 +386,18 @@ const NavigationLinks = ({ userProfile, pathname, openMenu, handleMouseEnter, ha
                   </DropdownMenuSubContent>
                 </DropdownMenuSub>
 
-                <DropdownMenuSub>
-                  <DropdownMenuSubTrigger className="flex items-center gap-2 cursor-pointer">
-                    <span className="material-symbols-outlined text-[18px]">lan</span>
-                    <span>Rede</span>
-                  </DropdownMenuSubTrigger>
-                  <DropdownMenuSubContent className="w-56">
-                    <DropdownMenuItem asChild><Link href="/dashboard/radar-oportunidades">Radar</Link></DropdownMenuItem>
-                    <DropdownMenuItem asChild><Link href="/dashboard/solicitacoes-rede">Solicitações</Link></DropdownMenuItem>
-                  </DropdownMenuSubContent>
-                </DropdownMenuSub>
+                {canAccess('radar') && (
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger className="flex items-center gap-2 cursor-pointer">
+                      <span className="material-symbols-outlined text-[18px]">lan</span>
+                      <span>Rede</span>
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent className="w-56">
+                      <DropdownMenuItem asChild><Link href="/dashboard/radar-oportunidades">Radar</Link></DropdownMenuItem>
+                      <DropdownMenuItem asChild><Link href="/dashboard/solicitacoes-rede">Solicitações</Link></DropdownMenuItem>
+                    </DropdownMenuSubContent>
+                  </DropdownMenuSub>
+                )}
 
                 <DropdownMenuSeparator />
 
@@ -344,11 +407,12 @@ const NavigationLinks = ({ userProfile, pathname, openMenu, handleMouseEnter, ha
                     <span>Crescimento</span>
                   </DropdownMenuSubTrigger>
                   <DropdownMenuSubContent className="w-56">
-                    <DropdownMenuItem asChild><Link href="/dashboard/meu-site">Meu Site</Link></DropdownMenuItem>
-                    <DropdownMenuItem asChild><Link href="/dashboard/oralink">Ora Link</Link></DropdownMenuItem>
-                    <DropdownMenuItem asChild><Link href="/dashboard/mercado">Inteligência de Mercado</Link></DropdownMenuItem>
-                    <DropdownMenuItem asChild><Link href="/dashboard/loja">Loja OraOra</Link></DropdownMenuItem>
-                    <DropdownMenuItem asChild><Link href="/dashboard/ativacao">Academia OraOra</Link></DropdownMenuItem>
+                    {canAccess('marketing') && <DropdownMenuItem asChild><Link href="/dashboard/meu-site">Meu Site</Link></DropdownMenuItem>}
+                    {canAccess('oralink') && <DropdownMenuItem asChild><Link href="/dashboard/oralink">Ora Link</Link></DropdownMenuItem>}
+                    {canAccess('intelligence') && <DropdownMenuItem asChild><Link href="/dashboard/mercado">Inteligência de Mercado</Link></DropdownMenuItem>}
+                    {canAccess('marketing') && <DropdownMenuItem asChild><Link href="/dashboard/loja">Loja OraOra</Link></DropdownMenuItem>}
+                    {canAccess('marketing') && <DropdownMenuItem asChild><Link href="/dashboard/ativacao">Guia de Ativação</Link></DropdownMenuItem>}
+                    {canAccess('marketing') && <DropdownMenuItem asChild><Link href="/dashboard/marketing">Marketing</Link></DropdownMenuItem>}
                   </DropdownMenuSubContent>
                 </DropdownMenuSub>
 
@@ -357,6 +421,29 @@ const NavigationLinks = ({ userProfile, pathname, openMenu, handleMouseEnter, ha
           </div>
         </>
       )}
+
+        {(userProfile.userType === 'constructor' || userProfile.userType === 'construtora') && (
+          <>
+            <Link className={navLinkClasses(`/dashboard/construtoras/${userProfile.tenantId || userProfile.uid}/imoveis`, true)} href={`/dashboard/construtoras/${userProfile.tenantId || userProfile.uid}/imoveis`}>
+              <span className="material-symbols-outlined text-[20px]">inventory</span>
+              Imóveis
+            </Link>
+            <Link className={navLinkClasses(`/dashboard/construtoras/empreendimentos`, true)} href={`/dashboard/construtoras/empreendimentos`}>
+              <span className="material-symbols-outlined text-[20px]">business</span>
+              Empreendimentos
+            </Link>
+            <Link className={navLinkClasses(`/dashboard/construtoras/tabelas`, true)} href={`/dashboard/construtoras/tabelas`}>
+              <span className="material-symbols-outlined text-[20px]">table_chart</span>
+              Tabelas de Preços
+            </Link>
+            <Link className={navLinkClasses(`/dashboard/construtoras/${userProfile.tenantId || userProfile.uid}/leads`, true)} href={`/dashboard/construtoras/${userProfile.tenantId || userProfile.uid}/leads`}>
+              <span className="material-symbols-outlined text-[20px]">group</span>
+              Clientes
+            </Link>
+          </>
+        )}
+
+
       
       {userProfile.userType === 'admin' && (
         <>
@@ -378,7 +465,7 @@ const NavigationLinks = ({ userProfile, pathname, openMenu, handleMouseEnter, ha
 
           <div onMouseEnter={() => handleMouseEnter('rede')} onMouseLeave={handleMouseLeave} className="h-full">
             <DropdownMenu open={openMenu === 'rede'} onOpenChange={(open) => setOpenMenu(open ? 'rede' : null)}>
-              <DropdownMenuTrigger className={dropdownTriggerClasses(["/dashboard/admin/users", "/dashboard/construtoras", "/dashboard/admin/convites"])}>
+              <DropdownMenuTrigger className={dropdownTriggerClasses(["/dashboard/admin/users", "/dashboard/construtoras", "/dashboard/admin/convites", "/dashboard/admin/tabelas"])}>
                 <span className="material-symbols-outlined text-[20px]">lan</span>
                 Rede
               </DropdownMenuTrigger>
@@ -386,6 +473,7 @@ const NavigationLinks = ({ userProfile, pathname, openMenu, handleMouseEnter, ha
                 <DropdownMenuItem asChild><Link href="/dashboard/admin/users">Usuários</Link></DropdownMenuItem>
                 <DropdownMenuItem asChild><Link href="/dashboard/construtoras">Construtoras</Link></DropdownMenuItem>
                 <DropdownMenuItem asChild><Link href="/dashboard/admin/convites">Solicitações de Convite</Link></DropdownMenuItem>
+                <DropdownMenuItem asChild><Link href="/dashboard/admin/tabelas">Tabelas de Preços</Link></DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -591,7 +679,7 @@ export default function DashboardCore({
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const defaultLogo = "https://dotestudio.com.br/wp-content/uploads/2025/08/oraora.png";
+  const defaultLogo = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
   
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
   const [onboardingStep, setOnboardingStep] = useState(1);
@@ -628,6 +716,8 @@ export default function DashboardCore({
     whatsapp: '',
     creci: '',
     instagram: '',
+    creciState: '',
+    footerContactAddress: '',
   });
 
   const handleAddLocation = () => {
@@ -690,18 +780,37 @@ export default function DashboardCore({
         username: contactInfo.name,
         phone: contactInfo.phone,
         whatsapp: contactInfo.whatsapp,
+        creci: contactInfo.creci,
+        creciState: contactInfo.creciState,
+        footerContactAddress: contactInfo.footerContactAddress,
       }, { merge: true });
 
       const brokerRef = doc(firestore, 'brokers', userProfile.id);
       await setDoc(brokerRef, {
         brandName: contactInfo.name,
+        footerContactEmail: contactInfo.email,
+        footerContactPhone: contactInfo.phone,
         creci: contactInfo.creci,
-        whatsappUrl: `https://wa.me/${contactInfo.whatsapp.replace(/\D/g, '')}`,
+        creciState: contactInfo.creciState,
+        footerContactAddress: contactInfo.footerContactAddress,
+        whatsappUrl: contactInfo.whatsapp ? `https://wa.me/${contactInfo.whatsapp.replace(/\D/g, '')}` : '',
         instagramUrl: contactInfo.instagram ? `https://instagram.com/${contactInfo.instagram.replace('@', '')}` : '',
       }, { merge: true });
 
       // 2. Chamar IA para gerar conteúdo (Home, Sobre, Serviços, Contato)
-      const aiGeneratedContent = await generateSiteContent(briefingData);
+      const aiResponse = await fetch('/api/ai/generate-site-content', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(briefingData),
+      });
+
+      if (!aiResponse.ok) {
+        throw new Error('Falha ao gerar conteúdo com IA.');
+      }
+
+      const aiGeneratedContent = await aiResponse.json();
 
       // 3. Salvar conteúdo gerado pela IA
       await setDoc(brokerRef, {
@@ -1475,6 +1584,38 @@ export default function DashboardCore({
                                 />
                               </div>
                             </label>
+                            {/* Endereço Completo */}
+                            <div className="md:col-span-2">
+                              <label className="flex flex-col gap-2">
+                                <span className="text-slate-900 dark:text-slate-100 text-sm font-semibold text-left">Endereço Completo</span>
+                                <div className="relative">
+                                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xl">location_on</span>
+                                  <input 
+                                    className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 pl-10 pr-4 py-3 text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" 
+                                    placeholder="Av. Paulista, 1000 - Bela Vista, São Paulo - SP"
+                                    value={contactInfo.footerContactAddress}
+                                    onChange={e => setContactInfo(prev => ({ ...prev, footerContactAddress: e.target.value }))}
+                                  />
+                                </div>
+                              </label>
+                            </div>
+                            {/* Estado/UF */}
+                            <label className="flex flex-col gap-2">
+                              <span className="text-slate-900 dark:text-slate-100 text-sm font-semibold text-left">Estado (UF)</span>
+                              <div className="relative">
+                                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xl">map</span>
+                                <select 
+                                  className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 pl-10 pr-4 py-3 text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all"
+                                  value={contactInfo.creciState}
+                                  onChange={e => setContactInfo(prev => ({ ...prev, creciState: e.target.value }))}
+                                >
+                                  <option value="">Selecione o estado</option>
+                                  {["AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"].map(uf => (
+                                    <option key={uf} value={uf}>{uf}</option>
+                                  ))}
+                                </select>
+                              </div>
+                            </label>
                           </div>
                         </div>
                         <footer className="flex items-center justify-between p-6 shrink-0 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
@@ -1560,8 +1701,8 @@ export default function DashboardCore({
                             </div>
                           </div>
 
-                          <Button onClick={() => router.push('/dashboard')} className="w-full max-w-md h-14 bg-primary hover:bg-primary-hover text-slate-900 font-bold text-lg rounded-xl shadow-lg transition-all transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2">
-                              Ir para o Painel
+                          <Button onClick={() => { setIsOnboardingOpen(false); router.push('/dashboard/meu-site'); }} className="w-full max-w-md h-14 bg-primary hover:bg-primary-hover text-slate-900 font-bold text-lg rounded-xl shadow-lg transition-all transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2">
+                              Ir para Meu Site
                               <span className="material-symbols-outlined">arrow_forward</span>
                           </Button>
                           
@@ -1610,6 +1751,7 @@ export default function DashboardCore({
         </div>
       </footer>
       {userProfile.userType === 'admin' && <AIChatWidget />}
+      <ActivationPanel userProfile={userProfile} />
     </OnboardingContext.Provider>
   );
 }

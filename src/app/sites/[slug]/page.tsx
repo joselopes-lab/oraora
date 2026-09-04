@@ -1,6 +1,6 @@
 import { adminDb } from '@/firebase/index.server';
 import { notFound } from 'next/navigation';
-import { getBrokerData, serializeForClient } from '../utils.server';
+import { getBrokerData, serializeForClient, getBrokerAllProperties } from '../utils.server';
 import { FieldValue, FieldPath } from 'firebase-admin/firestore';
 import { LayoutProps } from '@/layouts/sdk.types';
 import { getTheme, getThemePage } from '@/layouts/registry';
@@ -79,6 +79,38 @@ async function getBrokerProperties(brokerId: string): Promise<Property[]> {
   return snap.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as any));
 }
 
+async function getPublishedAvulsoProperties(brokerId: string): Promise<Property[]> {
+  const selSnap = await adminDb.collection('brokerSelectedProperties')
+    .where('brokerId', '==', brokerId)
+    .where('publishedOnSite', '==', true)
+    .get();
+  
+  const propertyIds = selSnap.docs.map(doc => doc.data().propertyId).filter(Boolean);
+  if (propertyIds.length === 0) return [];
+
+  const propertiesData: Property[] = [];
+  const propertiesRef = adminDb.collection('properties');
+
+  for (let i = 0; i < propertyIds.length; i += 30) {
+    const batch = propertyIds.slice(i, i + 30);
+    if (batch && batch.length > 0) {
+      const snap = await propertiesRef.where(FieldPath.documentId(), 'in', batch).get();
+      snap.forEach(docSnap => {
+        const data = docSnap.data() as any;
+        if (data.isVisibleOnSite !== false) {
+          delete data.builderId;
+          delete data.tenantId;
+          delete data.constructorId;
+          delete data.ownerId;
+          propertiesData.push({ id: docSnap.id, ...data });
+        }
+      });
+    }
+  }
+
+  return propertiesData;
+}
+
 export default async function BrokerSitePage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const broker = await getBrokerData(slug);
@@ -99,12 +131,7 @@ export default async function BrokerSitePage({ params }: { params: Promise<{ slu
     console.error("Erro ao rastrear acesso:", e);
   }
 
-  const [portfolioProperties, brokerProperties] = await Promise.all([
-    getPortfolioProperties(broker.id),
-    getBrokerProperties(broker.id)
-  ]);
-
-  const allProperties = [...portfolioProperties, ...brokerProperties];
+  const allProperties = await getBrokerAllProperties(broker.id);
 
   let featuredProperties: Property[] = [];
   const selectedIds = (broker as any).homepage?.featuredPropertyIds || [];

@@ -35,7 +35,7 @@ export function VertexAbout({ title, text, imageUrl, quote, reverse = false }: V
             )}
           >
             <Quote className="size-8 text-primary mb-4 fill-current" />
-            <p className="font-display text-lg font-bold leading-tight italic">"{quote}"</p>
+            <p className="font-display text-lg font-bold leading-tight italic">&ldquo;{quote}&rdquo;</p>
           </motion.div>
         )}
       </div>

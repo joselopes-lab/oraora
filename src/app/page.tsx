@@ -30,9 +30,9 @@ type Property = {
   id: string;
   builderId?: string;
   brokerId?: string;
-  informacoesbasicas: {
-    nome: string;
-    status: string;
+  informacoesbasicas?: {
+    nome?: string;
+    status?: string;
     valor?: number;
     salePrice?: number;
     rentPrice?: number;
@@ -40,14 +40,17 @@ type Property = {
     descricao?: string;
     slug?: string;
   };
-  localizacao: {
-    bairro: string;
-    cidade: string;
-    estado: string;
+  localizacao?: {
+    bairro?: string;
+    cidade?: string;
+    estado?: string;
+    uf?: string;
+    state?: string;
   };
-  midia: string[];
-  caracteristicasimovel: {
-    tipo: string;
+  midia?: string[];
+  media?: string[];
+  caracteristicasimovel?: {
+    tipo?: string;
     quartos?: string[] | string;
     tamanho?: string;
     vagas?: string;
@@ -72,7 +75,7 @@ export default function BrokerHomePage() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const defaultLogo = PlaceHolderImages.find(img => img.id === 'default-logo')?.imageUrl;
-
+  
   const { user, userProfile, isReady } = useAuthContext();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -172,9 +175,9 @@ export default function BrokerHomePage() {
   };
 
   const renderPrice = (property: Property) => {
-    const types = property.informacoesbasicas.transactionTypes || ['sale'];
-    const salePrice = property.informacoesbasicas.salePrice || property.informacoesbasicas.valor;
-    const rentPrice = property.informacoesbasicas.rentPrice;
+    const types = property.informacoesbasicas?.transactionTypes || ['sale'];
+    const salePrice = property.informacoesbasicas?.salePrice || property.informacoesbasicas?.valor;
+    const rentPrice = property.informacoesbasicas?.rentPrice;
     const fmt = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2 }).format(v);
 
     if (types.includes('sale') && types.includes('rent')) {
@@ -203,7 +206,7 @@ export default function BrokerHomePage() {
   };
 
   const renderBadge = (property: Property) => {
-    const types = property.informacoesbasicas.transactionTypes || ['sale'];
+    const types = property.informacoesbasicas?.transactionTypes || ['sale'];
     if (types.includes('sale') && types.includes('rent')) return "Venda + Aluguel";
     if (types.includes('rent')) return "Para Aluguel";
     return "À Venda";
@@ -241,7 +244,13 @@ export default function BrokerHomePage() {
   const finalContent = { ...defaultContent, ...siteData?.homepage };
 
   const availableStates = useMemo(() => {
-    return Array.from(new Set(properties.map(p => p.localizacao.estado))).filter(Boolean);
+    return Array.from(
+      new Set(
+        properties
+          .map(p => p.localizacao?.estado || p.localizacao?.uf || p.localizacao?.state)
+          .filter((st): st is string => Boolean(st))
+      )
+    );
   }, [properties]);
 
   return (
@@ -356,8 +365,9 @@ export default function BrokerHomePage() {
                 Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="aspect-[4/3] rounded-2xl w-full" />)
               ) : featuredProperties.map((property) => {
                 const isSaved = savedPropertyIds.includes(property.id);
+                const locationText = [property.localizacao?.bairro, property.localizacao?.cidade].filter(Boolean).join(', ');
                 return (
-                  <Link key={property.id} href={`/imoveis/${property.informacoesbasicas.slug || property.id}`} className="group relative overflow-hidden rounded-2xl bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg flex flex-col text-left">
+                  <Link key={property.id} href={`/imoveis/${property.informacoesbasicas?.slug || property.id}`} className="group relative overflow-hidden rounded-2xl bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg flex flex-col text-left">
                     <div className="relative aspect-[4/3] w-full overflow-hidden">
                       <div className="absolute top-4 left-4 z-10 flex items-center gap-2">
                          <Badge className="bg-white/90 backdrop-blur-sm text-black border-none font-black text-[9px] uppercase px-3 py-1 shadow-sm tracking-widest">
@@ -367,20 +377,20 @@ export default function BrokerHomePage() {
                       <button onClick={(e) => handleRadarClick(e, property.id)} className={cn("absolute top-4 right-4 z-10 flex size-9 items-center justify-center rounded-full bg-white/20 backdrop-blur-md text-white hover:bg-white transition-colors group/radar shadow-sm", isSaved && "text-primary bg-white")}>
                           <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: isSaved ? "'FILL' 1" : "" }}>radar</span>
                       </button>
-                      <Image alt={property.informacoesbasicas.nome} className="h-full w-full object-cover transition duration-700 group-hover:scale-110" src={property.midia?.[0] || property.media?.[0] || "https://picsum.photos/seed/prop/400/300"} width={400} height={300} />
+                      <Image alt={property.informacoesbasicas?.nome || 'Imóvel'} className="h-full w-full object-cover transition duration-700 group-hover:scale-110" src={property.midia?.[0] || property.media?.[0] || "https://picsum.photos/seed/prop/400/300"} width={400} height={300} />
                     </div>
                     <div className="p-6 flex flex-col flex-1 text-left">
-                      <h3 className="font-bold text-lg text-slate-900 group-hover:text-primary transition-colors truncate mb-1 uppercase tracking-tight">{property.informacoesbasicas.nome}</h3>
+                      <h3 className="font-bold text-lg text-slate-900 group-hover:text-primary transition-colors truncate mb-1 uppercase tracking-tight">{property.informacoesbasicas?.nome || 'Imóvel'}</h3>
                       <p className="text-xs text-slate-500 flex items-center gap-1 mb-4 font-medium text-left">
-                         <span className="material-symbols-outlined text-primary text-base">location_on</span> {property.localizacao.bairro}, {property.localizacao.cidade}
+                         <span className="material-symbols-outlined text-primary text-base">location_on</span> {locationText || 'Localização não informada'}
                       </p>
                       <div className="mb-4 text-left">
                           {renderPrice(property)}
                       </div>
                       <div className="mt-auto pt-4 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-400 font-black uppercase tracking-widest">
                         <div className="flex items-center gap-4">
-                          <span className="flex items-center gap-1.5 text-left"><span className="material-symbols-outlined text-primary text-base">bed</span> {formatQuartos(property.caracteristicasimovel.quartos)}</span>
-                          <span className="flex items-center gap-1.5 text-left"><span className="material-symbols-outlined text-primary text-base">square_foot</span> {property.caracteristicasimovel.tamanho}</span>
+                          <span className="flex items-center gap-1.5 text-left"><span className="material-symbols-outlined text-primary text-base">bed</span> {formatQuartos(property.caracteristicasimovel?.quartos)}</span>
+                          <span className="flex items-center gap-1.5 text-left"><span className="material-symbols-outlined text-primary text-base">square_foot</span> {property.caracteristicasimovel?.tamanho || 'N/A'}</span>
                         </div>
                         <span className="material-symbols-outlined text-slate-200 group-hover:text-primary transition-colors">arrow_forward</span>
                       </div>
@@ -487,6 +497,7 @@ export default function BrokerHomePage() {
                     <li><Link className="hover:text-primary transition-colors" href="/sobre">Sobre</Link></li>
                     <li><Link className="hover:text-primary transition-colors" href="/contato">Contato</Link></li>
                     <li><a className="hover:text-primary transition-colors" href="#">Blog</a></li>
+                    <li><Link className="hover:text-primary transition-colors" href="/o-mercado-tem-rosto">O Mercado Tem Rosto</Link></li>
                   </ul>
                 </div>
                 <div>

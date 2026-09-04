@@ -17,6 +17,7 @@ interface LeadFormData {
   propertyName?: string;
   pageType?: string;
   pageUrl?: string;
+  campaignData?: Record<string, string>;
 }
 
 /**
@@ -51,7 +52,7 @@ export async function createLead(data: LeadFormData) {
     }
 
     // Sintaxe correta do Firebase Admin SDK para adicionar documentos
-    const leadRef = await leadsCollection.add({
+    const leadData: any = {
       brokerId: data.brokerId,
       name: data.name,
       email: data.email,
@@ -68,7 +69,13 @@ export async function createLead(data: LeadFormData) {
       createdAt: FieldValue.serverTimestamp(),
       leadScore: score,
       leadQualification: qualification,
-    });
+    };
+
+    if (data.campaignData) {
+      leadData.campaignData = data.campaignData;
+    }
+
+    const leadRef = await leadsCollection.add(leadData);
 
     // Incrementa o contador de leads nas métricas do corretor
     await adminDb.collection('corretorMetrics').doc(data.brokerId).set({

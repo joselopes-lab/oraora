@@ -36,18 +36,20 @@ export default function DominioPage() {
   const [activeRecords, setActiveRecords] = useState<DnsRecord[]>([]);
   const [status, setStatus] = useState<'none' | 'pending' | 'verified'>('none');
   const [isLoadingStatus, setIsLoadingStatus] = useState(true);
+  const [lastChecked, setLastChecked] = useState<Date | null>(null);
 
   const backendId = process.env.NEXT_PUBLIC_APP_HOSTING_BACKEND || 'studio';
 
-  const loadStatus = async () => {
+  const loadStatus = async (showToast: boolean = false) => {
     if (isReady && user?.uid) {
-      setIsLoadingStatus(true);
+      if (!showToast) setIsLoadingStatus(true);
       try {
         const result = await getBrokerDomainStatus(user.uid);
         if (result.success && result.data) {
           setDomainInput(result.data.domainName);
           setActiveRecords(result.data.dnsRecords || []);
           setStatus(result.data.status);
+          setLastChecked(new Date());
         }
       } catch (err) {
         console.error("Error loading domain status:", err);
@@ -86,11 +88,20 @@ export default function DominioPage() {
     try {
       const result = await registerCustomDomain(userProfile.id, domainInput);
       
+      setLastChecked(new Date());
+
       if (result.success) {
-        toast({
-          title: "Solicitação Enviada",
-          description: result.message,
-        });
+        if (result.status === 'verified') {
+          toast({
+            title: "Domínio Verificado!",
+            description: "Seu domínio está ativo e configurado.",
+          });
+        } else {
+          toast({
+            title: "Verificação concluída",
+            description: "O Google ainda não confirmou a ativação do domínio. Isso pode levar alguns minutos enquanto o DNS/SSL é processado.",
+          });
+        }
         
         if (result.records && result.records.length > 0) {
           setActiveRecords(result.records);
@@ -104,8 +115,8 @@ export default function DominioPage() {
       } else {
         toast({
           variant: "destructive",
-          title: "Erro no Registro",
-          description: result.message,
+          title: "Falha na Verificação",
+          description: result.message || "Não foi possível verificar o domínio agora. Tente novamente.",
         });
       }
     } catch (error) {
@@ -147,7 +158,7 @@ export default function DominioPage() {
       } else if (record.host === 'www') {
         groups.www.records.push(record);
       } else {
-        groups.apex.push ? null : groups.apex.records.push(record);
+        groups.apex.records.push(record);
       }
     });
 
@@ -180,7 +191,7 @@ export default function DominioPage() {
             <Button 
               variant="outline" 
               size="sm" 
-              onClick={loadStatus} 
+              onClick={() => loadStatus(true)} 
               disabled={isLoadingStatus}
               className="font-bold gap-2 rounded-xl h-11"
             >
@@ -232,11 +243,17 @@ export default function DominioPage() {
                 {isVerifying ? (
                   <>
                     <Loader2 className="size-4 mr-2 animate-spin" />
-                    Processando...
+                    Verificando...
                   </>
-                ) : status === 'none' ? 'Registrar Domínio' : 'Reconfigurar'}
+                ) : status === 'none' ? 'Registrar Domínio' : 'Verificar novamente'}
               </Button>
             </div>
+            
+            {status !== 'none' && (
+              <div className="text-xs text-slate-400 mb-6 font-medium">
+                Última verificação: {lastChecked ? lastChecked.toLocaleTimeString() : '...'}
+              </div>
+            )}
 
             {activeRecords.length > 0 && (
               <div className="space-y-10 animate-in fade-in slide-in-from-top-4 duration-500">

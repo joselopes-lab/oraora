@@ -1,5 +1,6 @@
 import { adminDb } from '@/firebase/index.server';
 import { generateSemanticSlug } from '@/lib/slug';
+import { FieldPath } from 'firebase-admin/firestore';
 
 /**
  * @fileOverview Utilitários de servidor para busca de dados via Firebase Admin SDK.
@@ -80,7 +81,12 @@ export async function getBrokerData(slug: string) {
       }
 
       // 2. Se não achou, tenta buscar pelo domínio customizado na coleção 'domains'
-      const domainSnap = await adminDb.collection('domains').doc(slug).get();
+      const cleanSlug = slug.toLowerCase().trim();
+      const normalizedDomain = cleanSlug.replace(/^www\./, '');
+      let domainSnap = await adminDb.collection('domains').doc(normalizedDomain).get();
+      if (!domainSnap.exists && cleanSlug !== normalizedDomain) {
+        domainSnap = await adminDb.collection('domains').doc(cleanSlug).get();
+      }
       
       if (domainSnap.exists) {
         const domainData = domainSnap.data();
@@ -174,3 +180,68 @@ export async function getPropertyData(propertySlug: string) {
         return null;
     }
 }
+
+export async function getBrokerAllProperties(brokerId: string) {
+  if (!brokerId) return [];
+  try {
+    const [portfolioSnap, brokerPropsSnap, selSnap] = await Promise.all([
+      adminDb.collection('portfolios').doc(brokerId).get(),
+      adminDb.collection('brokerProperties').where('brokerId', '==', brokerId).where('isVisibleOnSite', '==', true).get(),
+      adminDb.collection('brokerSelectedProperties').where('brokerId', '==', brokerId).where('publishedOnSite', '==', true).get()
+    ]);
+
+    const propertiesMap = new Map<string, any>();
+
+    // 1. Broker properties
+    brokerPropsSnap.docs.forEach(docSnap => {
+      propertiesMap.set(docSnap.id, { id: docSnap.id, ...docSnap.data() });
+    });
+
+    // 2. Portfolio properties
+    if (portfolioSnap.exists) {
+      const propertyIds: string[] = portfolioSnap.data()?.propertyIds || [];
+      if (Array.isArray(propertyIds) && propertyIds.length > 0) {
+        for (let i = 0; i < propertyIds.length; i += 30) {
+          const batch = propertyIds.slice(i, i + 30);
+          if (batch.length > 0) {
+            const snap = await adminDb.collection('properties').where(FieldPath.documentId(), 'in', batch).get();
+            snap.forEach(docSnap => {
+              const data = docSnap.data() as any;
+              if (data.isVisibleOnSite !== false) {
+                propertiesMap.set(docSnap.id, { id: docSnap.id, ...data });
+              }
+            });
+          }
+        }
+      }
+    }
+
+    // 3. Published selected properties
+    const selPropertyIds = selSnap.docs.map(doc => doc.data().propertyId).filter(Boolean);
+    if (selPropertyIds.length > 0) {
+      for (let i = 0; i < selPropertyIds.length; i += 30) {
+        const batch = selPropertyIds.slice(i, i + 30);
+        if (batch.length > 0) {
+          const snap = await adminDb.collection('properties').where(FieldPath.documentId(), 'in', batch).get();
+          snap.forEach(docSnap => {
+            const data = docSnap.data() as any;
+            if (data.isVisibleOnSite !== false) {
+              const cleanData = { ...data };
+              delete cleanData.builderId;
+              delete cleanData.tenantId;
+              delete cleanData.constructorId;
+              delete cleanData.ownerId;
+              propertiesMap.set(docSnap.id, { id: docSnap.id, ...cleanData });
+            }
+          });
+        }
+      }
+    }
+
+    return Array.from(propertiesMap.values());
+  } catch (error) {
+    console.error("Erro ao buscar propriedades do corretor:", error);
+    return [];
+  }
+}
+

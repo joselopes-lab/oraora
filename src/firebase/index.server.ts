@@ -3,6 +3,7 @@ import { firebaseConfig } from '@/firebase/config';
 import { initializeApp, getApps, getApp, App, cert, applicationDefault } from 'firebase-admin/app';
 import { getFirestore, Firestore } from 'firebase-admin/firestore';
 import { getAuth, Auth } from 'firebase-admin/auth';
+import { getStorage, Storage } from 'firebase-admin/storage';
 import { GoogleAuth } from 'google-auth-library';
 import fs from 'fs';
 import path from 'path';
@@ -19,6 +20,7 @@ function initializeAdmin(): App {
         return initializeApp({
           credential: cert(serviceAccount),
           projectId: firebaseConfig.projectId || serviceAccount.project_id,
+          storageBucket: firebaseConfig.storageBucket,
         });
       }
     } catch (e) {
@@ -29,11 +31,13 @@ function initializeAdmin(): App {
       return initializeApp({
         credential: applicationDefault(),
         projectId: firebaseConfig.projectId,
+        storageBucket: firebaseConfig.storageBucket,
       });
     } catch (e) {
       console.warn("Failed to initialize Firebase Admin with applicationDefault():", e);
       return initializeApp({
         projectId: firebaseConfig.projectId || 'studio-5937631195-8ebfd',
+        storageBucket: firebaseConfig.storageBucket,
       }, 'fallback-app');
     }
   } else {
@@ -59,6 +63,15 @@ function getAdminAuth(): Auth {
   return _adminAuth;
 }
 
+let _adminStorage: Storage | null = null;
+function getAdminStorage(): Storage {
+  if (!_adminStorage) {
+    const app = initializeAdmin();
+    _adminStorage = getStorage(app);
+  }
+  return _adminStorage;
+}
+
 export const adminDb = new Proxy({} as Firestore, {
   get(target, prop, receiver) {
     const db = getAdminDb();
@@ -76,6 +89,17 @@ export const adminAuth = new Proxy({} as Auth, {
     const value = Reflect.get(auth, prop, receiver);
     if (typeof value === 'function') {
       return value.bind(auth);
+    }
+    return value;
+  }
+});
+
+export const adminStorage = new Proxy({} as Storage, {
+  get(target, prop, receiver) {
+    const storage = getAdminStorage();
+    const value = Reflect.get(storage, prop, receiver);
+    if (typeof value === 'function') {
+      return value.bind(storage);
     }
     return value;
   }

@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { getBrokerData } from '../../utils.server';
 import { FieldValue } from 'firebase-admin/firestore';
+import OralinkAiButton from '../../components/OralinkAiButton';
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic';
@@ -176,6 +177,9 @@ export default async function OralinkPublicPage({ params }: { params: Promise<{ 
         )}
 
         <div className="w-full space-y-4 mb-16">
+          {broker.oralink?.oralinkAiAssistantEnabled && (
+            <OralinkAiButton btnBgHex={btnBgHex} btnTextHex={btnTextHex} />
+          )}
           {activeLinks.map((link: any) => (
             <a 
               key={link.id} 

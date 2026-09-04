@@ -23,6 +23,19 @@ export type UserFormData = {
     whatsapp?: string;
     avatarUrl?: string;
     planId?: string;
+    password?: string;
+    confirmPassword?: string;
+    moduleAccess?: {
+        crm?: boolean;
+        agenda?: boolean;
+        properties?: boolean;
+        canalPro?: boolean;
+        radar?: boolean;
+        oralink?: boolean;
+        marketing?: boolean;
+        intelligence?: boolean;
+        ai?: boolean;
+    };
 };
 
 type Plan = {
@@ -36,15 +49,27 @@ type UserFormProps = {
     userData?: Partial<UserFormData>;
     onSave: (data: UserFormData) => void;
     isEditing: boolean;
+    isSubmitting?: boolean;
 };
 
-export default function UserForm({ userData, onSave, isEditing }: UserFormProps) {
+export default function UserForm({ userData, onSave, isEditing, isSubmitting }: UserFormProps) {
     const firestore = useFirestore();
 
     const plansQuery = useMemoFirebase(() => firestore ? query(collection(firestore, 'plans')) : null, [firestore]);
     const { data: plans, isLoading: arePlansLoading } = useCollection<Plan>(plansQuery);
     
     const [currentUserType, setCurrentUserType] = useState(userData?.userType || 'broker');
+    const [moduleAccess, setModuleAccess] = useState(userData?.moduleAccess || {
+        crm: true,
+        agenda: true,
+        properties: true,
+        canalPro: true,
+        radar: true,
+        oralink: true,
+        marketing: true,
+        intelligence: true,
+        ai: true,
+    });
     
     const userTypeToPlanTypeMap = {
         broker: 'corretor',
@@ -73,7 +98,10 @@ export default function UserForm({ userData, onSave, isEditing }: UserFormProps)
             whatsapp: formData.get('whatsapp') as string,
             isActive: (formData.get('isActive') === 'on'),
             planId: formData.get('planId') as string,
-            avatarUrl: userData?.avatarUrl || ''
+            avatarUrl: userData?.avatarUrl || '',
+            password: formData.get('password') as string,
+            confirmPassword: formData.get('confirmPassword') as string,
+            moduleAccess,
         };
         onSave(data);
     };
@@ -96,9 +124,9 @@ export default function UserForm({ userData, onSave, isEditing }: UserFormProps)
                     <Button variant="outline" asChild className="bg-white border border-gray-200 hover:bg-gray-50 text-text-main font-medium py-2.5 px-5 rounded-lg transition-all duration-300">
                        <Link href="/dashboard/admin/users">Cancelar</Link>
                     </Button>
-                    <Button type="submit" className="bg-secondary hover:bg-primary text-white hover:text-black font-bold py-2.5 px-5 rounded-lg shadow-sm hover:shadow-glow transition-all duration-300 flex items-center gap-2">
-                        <span className="material-symbols-outlined text-[20px]">save</span>
-                        Salvar
+                    <Button type="submit" disabled={isSubmitting} className="bg-secondary hover:bg-primary text-white hover:text-black font-bold py-2.5 px-5 rounded-lg shadow-sm hover:shadow-glow transition-all duration-300 flex items-center gap-2 disabled:opacity-50">
+                        <span className="material-symbols-outlined text-[20px]">{isSubmitting ? 'hourglass_top' : 'save'}</span>
+                        {isSubmitting ? 'Salvando...' : 'Salvar'}
                     </Button>
                 </div>
             </div>
@@ -172,6 +200,43 @@ export default function UserForm({ userData, onSave, isEditing }: UserFormProps)
                             </div>
                         </div>
                     </div>
+
+                    {currentUserType === 'broker' && (
+                        <div className="bg-white rounded-xl shadow-soft border border-gray-100 p-6 md:p-8">
+                            <h3 className="text-lg font-bold text-text-main mb-1">Módulos e acessos</h3>
+                            <p className="text-sm text-text-secondary mb-6 border-b border-gray-100 pb-4">Controle quais recursos este corretor pode utilizar no OraOra.</p>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {[
+                                    { key: 'crm', label: 'CRM (Clientes, Funil, Personas)' },
+                                    { key: 'agenda', label: 'Agenda & Negócios' },
+                                    { key: 'properties', label: 'Imóveis & Carteira' },
+                                    { key: 'canalPro', label: 'Canal Pro' },
+                                    { key: 'radar', label: 'Radar & Rede' },
+                                    { key: 'oralink', label: 'Ora Link' },
+                                    { key: 'marketing', label: 'Marketing & Meu Site' },
+                                    { key: 'intelligence', label: 'Inteligência de Mercado' },
+                                    { key: 'ai', label: 'Inteligência Artificial (IA)' },
+                                ].map((mod) => {
+                                    const isEnabled = (moduleAccess as any)[mod.key] ?? true;
+                                    return (
+                                        <div key={mod.key} className="p-4 bg-gray-50 rounded-lg border border-gray-200 flex items-center justify-between">
+                                            <div>
+                                                <span className="text-sm font-bold text-text-main block">{mod.label}</span>
+                                                <span className="text-xs text-text-secondary">{isEnabled ? 'Ativo' : 'Inativo'}</span>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => setModuleAccess(prev => ({ ...prev, [mod.key]: !isEnabled }))}
+                                                className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors ${isEnabled ? 'bg-secondary text-white' : 'bg-gray-200 text-gray-700'}`}
+                                            >
+                                                {isEnabled ? 'Ativo' : 'Inativo'}
+                                            </button>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
                     <div className="bg-white rounded-xl shadow-soft border border-gray-100 p-6 md:p-8">
                         <h4 className="text-lg font-bold text-text-main mb-6 border-b border-gray-100 pb-4">Endereço Residencial</h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">

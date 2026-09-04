@@ -107,6 +107,7 @@ export default function EditUrbanPadraoPage() {
   const { firestore, user, storage } = useFirebase();
   const { toast } = useToast();
   
+
   const [uploads, setUploads] = useState<Record<string, UploadState>>({
     logoUrl: { progress: 0, isUploading: false, error: null },
     footerLogoUrl: { progress: 0, isUploading: false, error: null },
@@ -221,6 +222,10 @@ export default function EditUrbanPadraoPage() {
 
   return (
     <div className="w-full max-w-7xl mx-auto space-y-10 pb-20 animate-in fade-in duration-500">
+      <div className="bg-primary/10 border border-primary/20 text-foreground p-6 rounded-xl">
+        <h2 className="text-lg font-bold mb-2 text-foreground">Seu site foi criado!</h2>
+        <p className="text-sm text-muted-foreground">Agora que seu site foi criado, edite o que for necessário, modifique as cores do seu site, envie sua imagem e a sua marca.</p>
+      </div>
       <FormProvider {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-10">
           

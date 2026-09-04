@@ -1,4 +1,3 @@
-
 import { adminDb } from '@/firebase/index.server';
 import { notFound } from 'next/navigation';
 import { getThemePage } from '@/layouts/registry';
@@ -8,12 +7,13 @@ import { FieldValue, FieldPath } from 'firebase-admin/firestore';
 import { headers } from 'next/headers';
 import { getCanonicalUrl, getRobotsRules, generatePropertyJsonLd, generateBrokerJsonLd } from '@/lib/seo';
 import { JsonLd } from '@/components/JsonLd';
+import { PropertyViewTracker } from '@/components/privacy/PropertyViewTracker';
 
 export const dynamic = 'force-dynamic';
 
 type Property = {
   id: string;
-  builderId: string;
+  builderId?: string;
   brokerId?: string;
   isVisibleOnSite?: boolean;
   informacoesbasicas: {
@@ -53,40 +53,119 @@ type Property = {
   };
 };
 
+async function verifyAndGetPropertyForBroker(brokerId: string, propertyIdentifier: string) {
+  const property = await getPropertyData(propertyIdentifier) as any;
+  if (!property || property.isVisibleOnSite === false) {
+    return null;
+  }
+
+  const propertyId = property.id;
+
+  // 1. Check brokerProperties
+  const bpDoc = await adminDb.collection('brokerProperties').doc(propertyId).get();
+  if (bpDoc.exists && bpDoc.data()?.brokerId === brokerId && bpDoc.data()?.isVisibleOnSite !== false) {
+    return property;
+  }
+
+  // 2. Check portfolio
+  const portfolioSnap = await adminDb.collection('portfolios').doc(brokerId).get();
+  if (portfolioSnap.exists) {
+    const pIds = portfolioSnap.data()?.propertyIds || [];
+    if (pIds.includes(propertyId)) {
+      return property;
+    }
+  }
+
+  // 3. Check brokerSelectedProperties (avulsos with publishedOnSite == true)
+  const selSnap = await adminDb.collection('brokerSelectedProperties')
+    .where('brokerId', '==', brokerId)
+    .where('propertyId', '==', propertyId)
+    .where('publishedOnSite', '==', true)
+    .limit(1)
+    .get();
+  
+  if (!selSnap.empty) {
+    delete property.builderId;
+    delete property.tenantId;
+    delete property.constructorId;
+    delete property.ownerId;
+    return property;
+  }
+
+  return null;
+}
+
+async function getPortfolioProperties(brokerId: string): Promise<Property[]> {
+  const portfolioRef = adminDb.collection('portfolios').doc(brokerId);
+  const portfolioSnap = await portfolioRef.get();
+  if (!portfolioSnap.exists) return [];
+  const propertyIds: string[] = portfolioSnap.data()?.propertyIds || [];
+  if (!Array.isArray(propertyIds) || propertyIds.length === 0) return [];
+  
+  const propertiesData: Property[] = [];
+  const propertiesRef = adminDb.collection('properties');
+  for (let i = 0; i < propertyIds.length; i += 30) {
+    const batch = propertyIds.slice(i, i + 30);
+    if (batch && batch.length > 0) {
+      const snap = await propertiesRef.where(FieldPath.documentId(), 'in', batch).get();
+      snap.forEach(docSnap => {
+        const data = docSnap.data() as any;
+        if (data.isVisibleOnSite !== false) {
+          propertiesData.push({ id: docSnap.id, ...data });
+        }
+      });
+    }
+  }
+  return propertiesData;
+}
+
+async function getBrokerProperties(brokerId: string): Promise<Property[]> {
+  const snap = await adminDb.collection('brokerProperties')
+    .where('brokerId', '==', brokerId)
+    .where('isVisibleOnSite', '==', true)
+    .get();
+  return snap.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as any));
+}
+
+async function getPublishedAvulsoProperties(brokerId: string): Promise<Property[]> {
+  const selSnap = await adminDb.collection('brokerSelectedProperties')
+    .where('brokerId', '==', brokerId)
+    .where('publishedOnSite', '==', true)
+    .get();
+  const propertyIds = selSnap.docs.map(doc => doc.data().propertyId).filter(Boolean);
+  if (propertyIds.length === 0) return [];
+
+  const propertiesData: Property[] = [];
+  const propertiesRef = adminDb.collection('properties');
+  for (let i = 0; i < propertyIds.length; i += 30) {
+    const batch = propertyIds.slice(i, i + 30);
+    if (batch && batch.length > 0) {
+      const snap = await propertiesRef.where(FieldPath.documentId(), 'in', batch).get();
+      snap.forEach(docSnap => {
+        const data = docSnap.data() as any;
+        if (data.isVisibleOnSite !== false) {
+          delete data.builderId;
+          delete data.tenantId;
+          delete data.constructorId;
+          delete data.ownerId;
+          propertiesData.push({ id: docSnap.id, ...data });
+        }
+      });
+    }
+  }
+  return propertiesData;
+}
+
 async function getSimilarProperties(property: Property, brokerId: string): Promise<Property[]> {
   try {
-    // 1. Buscar IDs do Portfólio (Minha Carteira)
-    const portfolioSnap = await adminDb.collection('portfolios').doc(brokerId).get();
-    const portfolioIds = portfolioSnap.exists ? (portfolioSnap.data()?.propertyIds || []) : [];
+    const [portfolioProps, brokerProps, publishedAvulsos] = await Promise.all([
+      getPortfolioProperties(brokerId),
+      getBrokerProperties(brokerId),
+      getPublishedAvulsoProperties(brokerId)
+    ]);
 
-    // 2. Buscar Imóveis Avulsos (brokerProperties)
-    const brokerPropsSnap = await adminDb.collection('brokerProperties')
-      .where('brokerId', '==', brokerId)
-      .where('isVisibleOnSite', '==', true)
-      .get();
-    const brokerProps = brokerPropsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
-
-    // 3. Buscar detalhes dos imóveis do Portfólio (Minha Carteira)
-    let portfolioProps: any[] = [];
-    if (portfolioIds.length > 0) {
-      for (let i = 0; i < portfolioIds.length; i += 30) {
-        const batch = portfolioIds.slice(i, i + 30);
-        const snap = await adminDb.collection('properties')
-          .where(FieldPath.documentId(), 'in', batch)
-          .get();
-        snap.forEach(doc => {
-          const data = doc.data();
-          if (data.isVisibleOnSite !== false) {
-            portfolioProps.push({ id: doc.id, ...data });
-          }
-        });
-      }
-    }
-
-    // Unificar todos os imóveis do corretor
-    const allBrokerProperties = [...portfolioProps, ...brokerProps];
+    const allBrokerProperties = [...portfolioProps, ...brokerProps, ...publishedAvulsos];
     
-    // 4. Filtrar pelo mesmo bairro e excluir o atual
     const sameBairro = allBrokerProperties.filter(p => 
       p.id !== property.id && 
       p.localizacao?.bairro === property.localizacao?.bairro
@@ -94,13 +173,11 @@ async function getSimilarProperties(property: Property, brokerId: string): Promi
 
     let results = sameBairro.slice(0, 4);
 
-    // 5. Fallback: completar com outros imóveis do corretor se necessário
     if (results.length < 4) {
       const others = allBrokerProperties.filter(p => 
         p.id !== property.id && 
         !results.some(r => r.id === p.id)
       );
-      // Opcional: ordenar os "outros" por algum critério ou apenas pegar os primeiros
       results = [...results, ...others].slice(0, 4);
     }
 
@@ -114,11 +191,16 @@ async function getSimilarProperties(property: Property, brokerId: string): Promi
 export async function generateMetadata({ params }: { params: Promise<{ id: string, slug: string }> }): Promise<Metadata> {
   const { id: propertyIdentifier, slug } = await params;
   const broker = await getBrokerData(slug);
-  const property = await getPropertyData(propertyIdentifier) as any;
   const headersList = await headers();
   const host = headersList.get('host') || 'oraora.com.br';
 
-  if (!property || !broker || property.isVisibleOnSite === false) {
+  if (!broker) {
+    return { title: 'Imóvel não encontrado | Oraora' };
+  }
+
+  const property = await verifyAndGetPropertyForBroker(broker.id, propertyIdentifier) as any;
+
+  if (!property) {
     return { title: 'Imóvel não encontrado | Oraora' };
   }
 
@@ -158,11 +240,16 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 export default async function BrokerPropertyDetailsPage({ params }: { params: Promise<{ slug: string, id: string }> }) {
   const { slug, id: propertyIdentifier } = await params;
   const broker = await getBrokerData(slug);
-  const property = await getPropertyData(propertyIdentifier) as any;
   const headersList = await headers();
   const host = headersList.get('host') || 'oraora.com.br';
 
-  if (!broker || !property || property.isVisibleOnSite === false) {
+  if (!broker) {
+    notFound();
+  }
+
+  const property = await verifyAndGetPropertyForBroker(broker.id, propertyIdentifier) as any;
+
+  if (!property) {
     notFound();
   }
 
@@ -182,6 +269,7 @@ export default async function BrokerPropertyDetailsPage({ params }: { params: Pr
 
   return (
     <>
+      <PropertyViewTracker property={property} />
       <JsonLd data={propertyJsonLd} />
       <JsonLd data={brokerJsonLd} />
       <PropertyPage 

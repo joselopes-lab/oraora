@@ -488,7 +488,7 @@ export default function EditHomepagePage() {
                   >
                     <div className="relative size-12 rounded-lg overflow-hidden bg-gray-100 shrink-0">
                       <Image 
-                        src={property.midia?.[0] || 'https://placehold.co/100x100'} 
+                        src={property.midia?.[0] || 'https://picsum.photos/seed/fallback/600/400'} 
                         alt={property.informacoesbasicas.nome} 
                         fill 
                         className="object-cover"

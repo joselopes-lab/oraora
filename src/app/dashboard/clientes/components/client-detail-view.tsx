@@ -132,9 +132,10 @@ type ClientDetailViewProps = {
     recommendedProperties: Property[];
     linkedProperties: Property[];
     brokerSlug?: string;
+    projects?: any[];
 };
 
-export default function ClientDetailView({ client, personas, recommendedProperties, linkedProperties, brokerSlug }: ClientDetailViewProps) {
+export default function ClientDetailView({ client, personas, recommendedProperties, linkedProperties, brokerSlug, projects = [] }: ClientDetailViewProps) {
     const { toast } = useToast();
     const { user, storage } = useFirebase();
     const firestore = useFirestore();
@@ -162,6 +163,15 @@ export default function ClientDetailView({ client, personas, recommendedProperti
 
     const currentPersona = clientPersonas[0];
 
+    // Build project map in memory to avoid N+1 queries
+    const projectMap = useMemo(() => {
+        if (!projects) return {};
+        return projects.reduce((acc, proj) => ({
+            ...acc,
+            [proj.id]: proj
+        }), {} as Record<string, any>);
+    }, [projects]);
+
     // Fetch properties from Firestore if recommendedProperties is empty
     const propertiesQuery = useMemoFirebase(
         () => (firestore ? query(collection(firestore, 'properties')) : null),
@@ -174,18 +184,39 @@ export default function ClientDetailView({ client, personas, recommendedProperti
             return recommendedProperties;
         }
         if (!fetchedProperties) return [];
-        if (clientPersonas.length > 0) {
-            const personaIds = clientPersonas.map(p => p.id);
-            const filtered = fetchedProperties.filter((prop: any) => {
-                if (prop.personaIds && Array.isArray(prop.personaIds)) {
-                    return prop.personaIds.some((id: string) => personaIds.includes(id));
+
+        const clientPersonaIds = clientPersonas.map(p => p.id);
+
+        const filtered = fetchedProperties.filter((prop: any) => {
+            // 1. If property is linked to a project
+            if (prop.projectId) {
+                const project = projectMap[prop.projectId];
+                // Project must exist and be published
+                if (!project || project.isPublished !== true) {
+                    return false;
+                }
+                // If client has personas, project must share at least one persona
+                if (clientPersonaIds.length > 0) {
+                    const projPersonaIds = project.personaIds || [];
+                    const matchesPersona = projPersonaIds.some((id: string) => clientPersonaIds.includes(id));
+                    if (!matchesPersona) return false;
                 }
                 return true;
-            });
-            return filtered.length > 0 ? filtered : fetchedProperties;
-        }
-        return fetchedProperties;
-    }, [recommendedProperties, fetchedProperties, clientPersonas]);
+            }
+
+            // 2. Standalone properties (imóveis avulsos)
+            if (clientPersonaIds.length > 0) {
+                if (prop.personaIds && Array.isArray(prop.personaIds)) {
+                    return prop.personaIds.some((id: string) => clientPersonaIds.includes(id));
+                }
+                return true; // Keep standalone properties without persona tags as default recommendations
+            }
+
+            return true;
+        });
+
+        return filtered.length > 0 ? filtered : fetchedProperties;
+    }, [recommendedProperties, fetchedProperties, clientPersonas, projectMap]);
 
     // --- Pagination for IA Recommendations ---
     const [recPage, setRecPage] = useState(1);
@@ -469,7 +500,7 @@ export default function ClientDetailView({ client, personas, recommendedProperti
                             {linkedProperties.length > 0 ? (
                                 paginatedLinkedProps.map((prop) => (
                                     <div key={prop.id} className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-800 group hover:border-primary/50 transition-all shadow-sm">
-                                        <div className="h-12 w-12 rounded-lg bg-cover bg-center shrink-0 border border-slate-200" style={{ backgroundImage: `url('${prop.midia?.[0] || 'https://placehold.co/100x100'}')` }}></div>
+                                        <div className="h-12 w-12 rounded-lg bg-cover bg-center shrink-0 border border-slate-200" style={{ backgroundImage: `url('${prop.midia?.[0] || 'https://picsum.photos/seed/fallback/600/400'}')` }}></div>
                                         <div className="flex-1 overflow-hidden min-w-0">
                                             <p className="text-xs font-black text-slate-900 dark:text-white truncate">{prop.informacoesbasicas.nome}</p>
                                             <p className="text-[10px] text-green-700 font-bold mt-0.5">{prop.informacoesbasicas.valor?.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL', maximumFractionDigits: 0})}</p>

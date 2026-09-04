@@ -233,7 +233,7 @@ export default function ComparePage() {
                                     <div key={property.id} className="col-span-1 border-r border-gray-100">
                                         <div className="p-4 h-48 flex flex-col">
                                             <div className="relative w-full aspect-[4/3] rounded-lg overflow-hidden mb-4">
-                                                <Image alt={property.informacoesbasicas.nome} src={property.midia?.[0] || 'https://placehold.co/400x300'} fill className="object-cover" />
+                                                <Image alt={property.informacoesbasicas.nome} src={property.midia?.[0] || 'https://picsum.photos/seed/fallback/600/400'} fill className="object-cover" />
                                             </div>
                                             <h3 className="font-bold text-neutral-dark text-sm">{property.informacoesbasicas.nome}</h3>
                                             <div className="text-base font-black text-neutral-dark">{property.informacoesbasicas.valor ? property.informacoesbasicas.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'Consulte'}</div>
@@ -296,7 +296,7 @@ export default function ComparePage() {
                         <div key={property.id} className="col-span-1 border-r border-gray-50">
                             <div className="p-6 h-[420px] flex flex-col">
                                 <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden mb-6">
-                                    <Image alt={property.informacoesbasicas.nome} className="w-full h-full object-cover" src={property.midia?.[0] || 'https://placehold.co/400x300'} fill />
+                                    <Image alt={property.informacoesbasicas.nome} className="w-full h-full object-cover" src={property.midia?.[0] || 'https://picsum.photos/seed/fallback/600/400'} fill />
                                     <div className="absolute top-3 right-3 flex items-center gap-2">
                                         <button onClick={() => handleDelete(property.id)} className="size-8 bg-white/90 backdrop-blur rounded-full flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors" title="Excluir">
                                             <span className="material-symbols-outlined text-lg">delete</span>

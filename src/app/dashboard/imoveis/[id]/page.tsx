@@ -10,7 +10,8 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { resolveConstructorByBuilderId } from '@/services/constructorResolutionService';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Zap, BarChart3, ArrowLeft, Edit, Images, ImageIcon, Maximize2, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -112,8 +113,25 @@ export default function PropertyDetailsPage() {
     const propertyDocRef = useMemoFirebase(() => (firestore && id ? doc(firestore, 'properties', id) : null), [firestore, id]);
     const { data: propertyData, isLoading: isPropertyLoading } = useDoc<PropertyDoc>(propertyDocRef);
 
-    const constructorDocRef = useMemoFirebase(() => (firestore && propertyData?.builderId ? doc(firestore, 'constructors', propertyData.builderId) : null), [firestore, propertyData]);
-    const { data: constructorData, isLoading: isConstructorLoading } = useDoc<ConstructorDoc>(constructorDocRef);
+    const [constructorData, setConstructorData] = useState<any | null>(null);
+    const [isConstructorLoading, setIsConstructorLoading] = useState(false);
+
+    useEffect(() => {
+      if (!firestore || !propertyData?.builderId) {
+        setConstructorData(null);
+        return;
+      }
+      let isMounted = true;
+      setIsConstructorLoading(true);
+      resolveConstructorByBuilderId(firestore, propertyData.builderId)
+        .then(res => {
+          if (isMounted) setConstructorData(res);
+        })
+        .finally(() => {
+          if (isMounted) setIsConstructorLoading(false);
+        });
+      return () => { isMounted = false; };
+    }, [firestore, propertyData?.builderId]);
     
     const personasQuery = useMemoFirebase(
       () => (firestore && propertyData?.personaIds && propertyData.personaIds.length > 0

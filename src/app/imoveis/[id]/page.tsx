@@ -2,6 +2,8 @@
 import PropertyDetailsComponent from './PropertyDetailsComponent';
 import type { Metadata } from 'next';
 import { PropertyRepository } from '@/repositories/property.repository';
+import { adminDb } from '@/firebase/index.server';
+import { priceTableRepository } from '@/repositories/price-table.repository';
 import { getCanonicalUrl, getRobotsRules, generatePropertyJsonLd, generateOrganizationJsonLd } from '@/lib/seo';
 import { JsonLd } from '@/components/JsonLd';
 import { headers } from 'next/headers';
@@ -21,7 +23,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return { title: 'Imóvel não encontrado | Oraora' };
   }
 
-  const canonical = getCanonicalUrl(property, host);
+  const canonical = getCanonicalUrl(property, host, property.brokerId ? await adminDb.collection('brokers').doc(property.brokerId).get().then(doc => doc.exists ? { id: doc.id, ...doc.data() } : null).catch(() => null) : null);
   const robots = getRobotsRules(property, host);
   const title = property.informacoesbasicas.nome;
   const description = property.informacoesbasicas.descricao?.substring(0, 160).replace(/<[^>]*>?/gm, '');
@@ -54,6 +56,20 @@ export default async function Page({ params }: Props) {
     notFound();
   }
 
+  let priceTableInfo = null;
+  if (property) {
+    try {
+      const table = await priceTableRepository.getTableByProperty(property.id);
+      if (table) {
+        const currentVersion = await priceTableRepository.getCurrentVersion(table.id, table.currentVersionId);
+        const versions = await priceTableRepository.listVersions(table.id);
+        priceTableInfo = { table, currentVersion, versions };
+      }
+    } catch (e) {
+      console.error('Error fetching price table for property', e);
+    }
+  }
+
   const jsonLd = generatePropertyJsonLd(property, `https://${host}`);
   const orgJsonLd = generateOrganizationJsonLd();
 
@@ -61,7 +77,7 @@ export default async function Page({ params }: Props) {
     <>
       <JsonLd data={jsonLd} />
       <JsonLd data={orgJsonLd} />
-      <PropertyDetailsComponent initialProperty={property} />
+      <PropertyDetailsComponent initialProperty={property} priceTableInfo={priceTableInfo} />
     </>
   );
 }

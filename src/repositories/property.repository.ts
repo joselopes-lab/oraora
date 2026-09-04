@@ -8,6 +8,19 @@ export class PropertyRepository {
     this.db = db;
   }
 
+  async listByProjectId(projectId: string): Promise<any[]> {
+    if (!projectId) return [];
+    try {
+      const snap = await this.db.collection('properties')
+        .where('projectId', '==', projectId)
+        .get();
+      return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    } catch (error) {
+      console.error('Error listing properties by projectId:', error);
+      return [];
+    }
+  }
+
   static async findPublicBySlugOrId(identifier: string) {
     const repo = new PropertyRepository(adminDb);
     return repo.findPublicBySlugOrId(identifier);

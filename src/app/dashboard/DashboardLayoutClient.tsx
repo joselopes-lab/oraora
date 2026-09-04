@@ -4,11 +4,12 @@ import React from 'react';
 import DashboardCore from './DashboardCore';
 import { useAuthContext } from '@/firebase';
 import Loading from './loading';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const { user, userProfile, isReady } = useAuthContext();
   const router = useRouter();
+  const pathname = usePathname();
 
   React.useEffect(() => {
     if (isReady) {
@@ -16,9 +17,31 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
         router.replace('/login');
       } else if (userProfile?.userType === 'client') {
         router.replace('/radar/dashboard');
+      } else if (userProfile?.userType === 'broker' && userProfile.moduleAccess) {
+        const modulePathMap: Record<string, string[]> = {
+          crm: ['/dashboard/leads', '/dashboard/clientes', '/dashboard/personas'],
+          agenda: ['/dashboard/agenda', '/dashboard/jornada'],
+          properties: ['/dashboard/minha-carteira', '/dashboard/avulso', '/dashboard/imoveis-avulsos', '/dashboard/imoveis', '/dashboard/tabelas'],
+          canalPro: ['/dashboard/imoveis/canal-pro'],
+          radar: ['/dashboard/radar-oportunidades', '/dashboard/solicitacoes-rede'],
+          oralink: ['/dashboard/oralink'],
+          marketing: ['/dashboard/meu-site', '/dashboard/marketing', '/dashboard/loja', '/dashboard/ativacao'],
+          intelligence: ['/dashboard/mercado'],
+          ai: ['/dashboard/ora-ia'],
+        };
+
+        for (const [modKey, paths] of Object.entries(modulePathMap)) {
+          if (userProfile.moduleAccess[modKey as keyof typeof userProfile.moduleAccess] === false) {
+            const isMatched = paths.some(p => pathname === p || (p !== '/dashboard' && pathname.startsWith(p + '/')));
+            if (isMatched) {
+              router.replace('/dashboard');
+              break;
+            }
+          }
+        }
       }
     }
-  }, [isReady, user, userProfile, router]);
+  }, [isReady, user, userProfile, router, pathname]);
 
   if (!isReady || !user || userProfile?.userType === 'client') {
     return <Loading />;

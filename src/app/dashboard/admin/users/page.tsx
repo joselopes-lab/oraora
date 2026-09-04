@@ -55,12 +55,40 @@ type Plan = {
 };
 
 
+function DeleteUserDialog({ user, onDelete }: { user: User; onDelete: (user: User) => void }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <AlertDialog open={open} onOpenChange={setOpen}>
+      <AlertDialogTrigger asChild>
+        <Button variant="ghost" className="text-text-secondary hover:text-red-500 p-1" title="Remover">
+          <span className="material-symbols-outlined text-[20px]">delete</span>
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Esta ação não pode ser desfeita. Isso excluirá permanentemente o cadastro do usuário <span className="font-bold">{user.username}</span>.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel onClick={() => setOpen(false)}>Cancelar</AlertDialogCancel>
+          <AlertDialogAction onClick={() => { onDelete(user); setOpen(false); }} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            Sim, excluir
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
+
 export default function UserManagementPage() {
     const [activeTab, setActiveTab] = useState<'admin' | 'constructor' | 'broker'>('admin');
     const [searchTerm, setSearchTerm] = useState('');
     const firestore = useFirestore();
     const { toast } = useToast();
-    const [userToDelete, setUserToDelete] = useState<User | null>(null);
     const { user: authUser, isUserLoading: isAuthUserLoading } = useUser();
 
     const usersQuery = useMemoFirebase(
@@ -106,8 +134,8 @@ export default function UserManagementPage() {
         }
     }, [initialUsers, brokers]);
 
-    const handleDelete = () => {
-      if (!userToDelete || !firestore) return;
+    const handleDeleteUser = (userToDelete: User) => {
+      if (!firestore) return;
       
       const userDocRef = doc(firestore, 'users', userToDelete.id);
       deleteDocumentNonBlocking(userDocRef);
@@ -118,8 +146,6 @@ export default function UserManagementPage() {
         title: "Usuário excluído!",
         description: `O cadastro de "${userToDelete.username}" foi removido com sucesso.`,
       });
-
-      setUserToDelete(null); // Close the dialog
     };
     
     const handleStatusChange = (user: User, newStatus: boolean) => {
@@ -161,7 +187,7 @@ export default function UserManagementPage() {
 
 
   return (
-    <AlertDialog>
+    <div className="w-full">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8 text-left">
         <div>
            <nav className="flex items-center gap-2 text-xs text-text-secondary mb-2 font-medium">
@@ -325,11 +351,7 @@ export default function UserManagementPage() {
                         <span className="material-symbols-outlined text-[20px]">edit</span>
                       </Link>
                     </Button>
-                    <AlertDialogTrigger asChild>
-                       <Button variant="ghost" className="text-text-secondary hover:text-red-500 p-1" title="Remover" onClick={() => setUserToDelete(user)}>
-                        <span className="material-symbols-outlined text-[20px]">delete</span>
-                      </Button>
-                    </AlertDialogTrigger>
+                    <DeleteUserDialog user={user} onDelete={handleDeleteUser} />
                   </div>
                 </td>
               </TableRow>
@@ -350,20 +372,6 @@ export default function UserManagementPage() {
           </div>
         </div>
       </div>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
-          <AlertDialogDescription>
-            Esta ação não pode ser desfeita. Isso excluirá permanentemente o cadastro do usuário <span className="font-bold">{userToDelete?.username}</span>.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel onClick={() => setUserToDelete(null)}>Cancelar</AlertDialogCancel>
-          <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-            Sim, excluir
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+    </div>
   );
 }

@@ -86,8 +86,18 @@ export default function SearchResults({ broker, properties }: SearchResultsPageP
     const pathname = usePathname();
     const searchParams = useSearchParams();
 
-    const isPortalAccess = pathname.startsWith('/sites');
-    const searchUrl = isPortalAccess ? `/sites/${broker.slug}/search` : '/search';
+    const searchUrl = useMemo(() => {
+        if (typeof window !== 'undefined') {
+            const host = window.location.hostname.toLowerCase();
+            const cleanHost = host.startsWith('www.') ? host.slice(4) : host;
+            const isMainPlatform = cleanHost === 'oraora.com.br' || cleanHost === 'www.oraora.com.br' || cleanHost.includes('localhost') || cleanHost.includes('run.app') || cleanHost.includes('web.app') || cleanHost.includes('firebase');
+            if (!isMainPlatform) {
+                return '/search';
+            }
+        }
+        const isPortalAccess = pathname.startsWith('/sites');
+        return isPortalAccess ? `/sites/${broker.slug}/search` : '/search';
+    }, [pathname, broker.slug]);
 
     const availableStates = useMemo(() => {
         return Array.from(new Set(properties.map(p => p.localizacao.estado))).filter(Boolean);

@@ -1,4 +1,5 @@
 'use client';
+import { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -26,6 +27,8 @@ const clientSchema = z.object({
   propertyInterest: z.string().optional(),
   source: z.string().optional(),
   status: z.enum(["new", "contacted", "qualified", "proposal", "converted", "lost"]).default("new"),
+  dealStatus: z.enum(['open', 'won', 'lost']).optional(),
+  dealValue: z.number().optional(),
   address: z.object({
     street: z.string().optional(),
     complement: z.string().optional(),
@@ -89,6 +92,10 @@ export default function ClientForm({ clientData, onSave, isEditing, isSubmitting
     const firestore = useFirestore();
     const { user } = useUser();
     
+    const [isWonModalOpen, setIsWonModalOpen] = useState(false);
+    const [modalDealValue, setModalDealValue] = useState<string>('');
+    const [modalError, setModalError] = useState<string>('');
+
     const personasQuery = useMemoFirebase(
       () => (firestore ? query(collection(firestore, 'personas'), where('status', '==', 'Ativo')) : null),
       [firestore]
@@ -115,6 +122,21 @@ export default function ClientForm({ clientData, onSave, isEditing, isSubmitting
             ...clientData,
         }
     });
+
+    const handleConfirmWon = () => {
+        const num = Number(modalDealValue);
+        if (!modalDealValue || isNaN(num) || num <= 0) {
+            setModalError('Informe um valor de venda válido.');
+            return;
+        }
+        form.setValue('dealStatus', 'won');
+        form.setValue('dealValue', num);
+        setIsWonModalOpen(false);
+    };
+
+    const handleCancelWon = () => {
+        setIsWonModalOpen(false);
+    };
     
     return (
         <Form {...form}>
@@ -370,6 +392,67 @@ export default function ClientForm({ clientData, onSave, isEditing, isSubmitting
                     <div className="space-y-8">
                         <div className="bg-white rounded-xl shadow-soft border border-gray-100 p-6">
                             <h3 className="text-lg font-bold text-text-main mb-6 flex items-center gap-2 border-b border-gray-100 pb-4">
+                                <span className="material-symbols-outlined text-secondary">monetization_on</span>
+                                Resultado Comercial
+                            </h3>
+                            <div className="space-y-6">
+                                <FormField
+                                    control={form.control}
+                                    name="dealStatus"
+                                    render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel className="block text-xs font-medium text-text-secondary mb-1.5 uppercase tracking-wide">Status do Negócio</FormLabel>
+                                        <FormControl>
+                                            <div className="relative">
+                                                <select 
+                                                    {...field} 
+                                                    value={field.value || 'open'} 
+                                                    className="appearance-none w-full bg-gray-50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm text-text-main focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all cursor-pointer"
+                                                >
+                                                    <option value="open">Em aberto</option>
+                                                    <option value="won">Ganho</option>
+                                                    <option value="lost">Perdido</option>
+                                                </select>
+                                                <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-text-secondary text-[20px]">expand_more</span>
+                                            </div>
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                    )}
+                                />
+                                {form.watch('dealStatus') === 'won' && (
+                                    <FormField
+                                        control={form.control}
+                                        name="dealValue"
+                                        render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel className="block text-xs font-medium text-text-secondary mb-1.5 uppercase tracking-wide">Valor da Venda (R$)</FormLabel>
+                                            <FormControl>
+                                                <div className="relative">
+                                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-bold">R$</span>
+                                                    <Input 
+                                                        type="number" 
+                                                        step="0.01"
+                                                        className="w-full pl-9 pr-4 bg-gray-50 border border-gray-200 rounded-lg py-2.5 text-sm text-text-main focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all placeholder-gray-400" 
+                                                        placeholder="0.00" 
+                                                        value={field.value ?? ''}
+                                                        onChange={e => {
+                                                            const val = e.target.value;
+                                                            field.onChange(val === '' ? undefined : Number(val));
+                                                        }}
+                                                    />
+                                                </div>
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                        )}
+                                    />
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="bg-white rounded-xl shadow-soft border border-gray-100 p-6">
+                            <h3 className="text-lg font-bold text-text-main mb-6 flex items-center gap-2 border-b border-gray-100 pb-4">
                                 <span className="material-symbols-outlined text-secondary">interests</span>
                                 Perfil de Interesse
                             </h3>
@@ -415,6 +498,65 @@ export default function ClientForm({ clientData, onSave, isEditing, isSubmitting
                     </div>
                 </div>
             </form>
+            {isWonModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-fadeIn">
+                    <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-md w-full overflow-hidden flex flex-col p-6 space-y-6">
+                        <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+                            <div>
+                                <h3 className="font-extrabold text-lg text-slate-900">Negócio ganho</h3>
+                                <p className="text-xs text-slate-500 mt-0.5">Informe o valor final da venda fechada</p>
+                            </div>
+                            <button 
+                                type="button"
+                                onClick={handleCancelWon}
+                                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 transition-colors cursor-pointer"
+                            >
+                                <span className="material-symbols-outlined text-[18px]">close</span>
+                            </button>
+                        </div>
+
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wide mb-2">Valor da Venda (R$)</label>
+                                <div className="relative">
+                                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-bold">R$</span>
+                                    <Input 
+                                        type="number"
+                                        step="0.01"
+                                        autoFocus
+                                        className="w-full pl-10 pr-4 bg-slate-50 border border-slate-200 rounded-xl py-3 text-sm text-slate-900 font-semibold focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all placeholder-slate-400"
+                                        placeholder="0,00"
+                                        value={modalDealValue}
+                                        onChange={e => {
+                                            setModalDealValue(e.target.value);
+                                            setModalError('');
+                                        }}
+                                    />
+                                </div>
+                                {modalError && <p className="text-xs text-rose-500 font-medium mt-1.5">{modalError}</p>}
+                            </div>
+                        </div>
+
+                        <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+                            <Button 
+                                type="button" 
+                                variant="outline"
+                                onClick={handleCancelWon}
+                                className="border-slate-200 text-slate-700 font-medium text-xs px-4 py-2.5 rounded-xl hover:bg-slate-50"
+                            >
+                                Cancelar
+                            </Button>
+                            <Button 
+                                type="button"
+                                onClick={handleConfirmWon}
+                                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-xs"
+                            >
+                                Confirmar Negócio Ganho
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </Form>
     );
 }

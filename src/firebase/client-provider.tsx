@@ -3,7 +3,7 @@
 
 import React, { useMemo, type ReactNode } from 'react';
 import { FirebaseProvider } from './provider';
-import { initializeFirebase } from './index';
+import { initializeFirebase } from './provider';
 
 interface FirebaseClientProviderProps {
   children: ReactNode;

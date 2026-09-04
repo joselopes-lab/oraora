@@ -50,26 +50,57 @@ export default function SearchFilters({
     const { toast } = useToast();
     const firestore = useFirestore();
 
-    // 1. Resolução de Modo Inicial
-    const initialMode = useMemo(() => {
+    // 1. Resolução de Modo Inicial (fix hydration mismatch by using deterministic default on initial render)
+    const defaultMode = enabledTransactions.includes('sale') ? 'sale' : 'rent';
+    const [searchMode, setSearchMode] = useState<'sale' | 'rent'>(defaultMode as 'sale' | 'rent');
+
+    // Estados de Filtro com valores iniciais determinísticos para SSR e client match
+    const [queryParam, setQueryParam] = useState('');
+    const [propertyType, setPropertyType] = useState('all');
+    const [selectedState, setSelectedState] = useState('');
+    const [selectedCities, setSelectedCities] = useState<string[]>([]);
+    const [selectedNeighborhoods, setSelectedNeighborhoods] = useState<string[]>([]);
+    const [rooms, setRooms] = useState<string[]>([]);
+    const [minPrice, setMinPrice] = useState('');
+    const [maxPrice, setMaxPrice] = useState('');
+
+    const isInitializedRef = useRef(false);
+
+    useEffect(() => {
+        if (isInitializedRef.current) return;
+        isInitializedRef.current = true;
+
         const finality = searchParams.get('finality');
-        const defaultMode = enabledTransactions.includes('sale') ? 'sale' : 'rent';
-        return (finality && enabledTransactions.includes(finality)) 
-            ? (finality as 'sale' | 'rent') 
-            : (defaultMode as 'sale' | 'rent');
+        if (finality && enabledTransactions.includes(finality)) {
+            setSearchMode(finality as 'sale' | 'rent');
+        }
+        const q = searchParams.get('q');
+        if (q) setQueryParam(q);
+
+        const type = searchParams.get('type');
+        if (type) setPropertyType(type);
+
+        const state = searchParams.get('state');
+        if (state) setSelectedState(state);
+
+        const cities = searchParams.get('cities');
+        if (cities) setSelectedCities(cities.split(',').filter(Boolean));
+
+        const neighborhoods = searchParams.get('neighborhoods');
+        if (neighborhoods) setSelectedNeighborhoods(neighborhoods.split(',').filter(Boolean));
+
+        const r = searchParams.get('rooms');
+        if (r) setRooms(r.split(',').filter(Boolean));
+
+        const min = searchParams.get('minPrice');
+        if (min) setMinPrice(min);
+
+        const max = searchParams.get('maxPrice');
+        if (max) setMaxPrice(max);
     }, [searchParams, enabledTransactions]);
 
-    const [searchMode, setSearchMode] = useState<'sale' | 'rent'>(initialMode);
-
-    // Estados de Filtro
-    const [queryParam, setQueryParam] = useState(() => searchParams.get('q') || '');
-    const [propertyType, setPropertyType] = useState(() => searchParams.get('type') || 'all');
-    const [selectedState, setSelectedState] = useState(() => searchParams.get('state') || '');
-    const [selectedCities, setSelectedCities] = useState<string[]>(() => searchParams.get('cities')?.split(',').filter(Boolean) || []);
-    const [selectedNeighborhoods, setSelectedNeighborhoods] = useState<string[]>(() => searchParams.get('neighborhoods')?.split(',').filter(Boolean) || []);
-    const [rooms, setRooms] = useState<string[]>(() => searchParams.get('rooms')?.split(',').filter(Boolean) || []);
-    const [minPrice, setMinPrice] = useState(() => searchParams.get('minPrice') || '');
-    const [maxPrice, setMaxPrice] = useState(() => searchParams.get('maxPrice') || '');
+    const [isMounted, setIsMounted] = useState(false);
+    useEffect(() => setIsMounted(true), []);
 
     // Controle de Abertura dos Dropdowns (Apenas um aberto por vez)
     const [openDropdown, setOpenDropdown] = useState<'city' | 'neighborhood' | null>(null);
@@ -244,13 +275,37 @@ export default function SearchFilters({
         }
     }, [selectedCities, neighborhoodsWithCount]);
 
-    // Sincronização com URL
+    // Sincronização com URL de forma segura e sem loops
     useEffect(() => {
         const finality = searchParams.get('finality');
-        if (finality && (finality === 'sale' || finality === 'rent')) {
-            setSearchMode(finality);
+        if (finality && enabledTransactions.includes(finality) && searchMode !== finality) {
+            setSearchMode(finality as 'sale' | 'rent');
         }
-    }, [searchParams]);
+        
+        const qVal = searchParams.get('q') || '';
+        if (qVal !== queryParam) setQueryParam(qVal);
+
+        const typeVal = searchParams.get('type') || 'all';
+        if (typeVal !== propertyType) setPropertyType(typeVal);
+
+        const stateVal = searchParams.get('state') || '';
+        if (stateVal !== selectedState) setSelectedState(stateVal);
+
+        const citiesVal = searchParams.get('cities')?.split(',').filter(Boolean) || [];
+        if (JSON.stringify(citiesVal) !== JSON.stringify(selectedCities)) setSelectedCities(citiesVal);
+
+        const neighVal = searchParams.get('neighborhoods')?.split(',').filter(Boolean) || [];
+        if (JSON.stringify(neighVal) !== JSON.stringify(selectedNeighborhoods)) setSelectedNeighborhoods(neighVal);
+
+        const roomsVal = searchParams.get('rooms')?.split(',').filter(Boolean) || [];
+        if (JSON.stringify(roomsVal) !== JSON.stringify(rooms)) setRooms(roomsVal);
+
+        const minVal = searchParams.get('minPrice') || '';
+        if (minVal !== minPrice) setMinPrice(minVal);
+
+        const maxVal = searchParams.get('maxPrice') || '';
+        if (maxVal !== maxPrice) setMaxPrice(maxVal);
+    }, [searchParams.toString()]);
 
     // Handlers
     const handleSearchSubmit = (e?: React.FormEvent) => {
@@ -346,7 +401,7 @@ export default function SearchFilters({
     return (
         <div className={cn(styles.card, "shadow-soft transition-all duration-300", className)}>
             <form onSubmit={handleSearchSubmit} className="space-y-6">
-                {showTabs && (
+                {showTabs && isMounted && (
                     <Tabs value={searchMode} onValueChange={(v: any) => setSearchMode(v)} className="w-full max-w-[240px]">
                         <TabsList className={cn("grid w-full grid-cols-2 p-1 h-11 rounded-xl", styles.tabs)}>
                             <TabsTrigger value="sale" className={cn("font-bold text-[10px] uppercase tracking-widest rounded-lg", styles.tabActive)}>Comprar</TabsTrigger>

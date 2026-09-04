@@ -4,7 +4,9 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { createLead } from '@/app/sites/actions';
+import { getStoredCampaignData } from '@/lib/campaign';
 import { useToast } from '@/hooks/use-toast';
+import { trackEvent } from '@/lib/tracking';
 
 const leadSchema = z.object({
   name: z.string().min(1, 'O nome é obrigatório.'),
@@ -80,6 +82,11 @@ export function WhatsAppLeadModal({ isOpen, onClose, broker, property, source, o
         : 'Lead capturado pelo widget do WhatsApp.',
     };
 
+    const campaignData = getStoredCampaignData();
+    if (campaignData) {
+      leadData.campaignData = campaignData;
+    }
+
     if (property) {
       leadData.propertyId = property.id;
       leadData.propertyName = property.informacoesbasicas.nome;
@@ -96,6 +103,16 @@ export function WhatsAppLeadModal({ isOpen, onClose, broker, property, source, o
         : `Olá! Meu nome é ${data.name} e gostaria de mais informações.`;
 
       const waUrl = `https://wa.me/${waNumber}?text=${encodeURIComponent(message)}`;
+      
+      trackEvent('generate_lead', {
+        propertyId: property?.id,
+        origin: origin,
+        tipo_contato: 'whatsapp',
+      });
+      trackEvent('whatsapp_click', {
+        propertyId: property?.id,
+        origin: origin,
+      });
       
       toast({
         title: 'Contato Enviado!',

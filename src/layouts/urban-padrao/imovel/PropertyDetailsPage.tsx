@@ -10,6 +10,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { createLead } from '@/app/sites/actions';
+import { getStoredCampaignData } from '@/lib/campaign';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -188,6 +189,7 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
 
   const onSubmit = async (data: LeadFormData) => {
     setIsSubmitting(true);
+    const campaignData = getStoredCampaignData();
     const result = await createLead({
       brokerId: broker.id,
       name: data.name,
@@ -197,6 +199,7 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
       message: data.message,
       source: 'property_form',
       origin: 'form',
+      ...(campaignData ? { campaignData } : {}),
     });
     if (result.success) {
       toast({ title: 'Mensagem Enviada!' });

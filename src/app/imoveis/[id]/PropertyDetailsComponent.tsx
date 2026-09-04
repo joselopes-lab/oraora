@@ -21,6 +21,7 @@ import { Badge } from '@/components/ui/badge';
 import { useJsApiLoader, GoogleMap, Marker, InfoWindow, Libraries } from '@react-google-maps/api';
 import { signOut } from 'firebase/auth';
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
+import { resolveConstructorByBuilderId } from '@/services/constructorResolutionService';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import SearchFilters from '@/components/SearchFilters';
@@ -28,6 +29,7 @@ import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { WhatsAppWidget } from '@/layouts/urban-padrao/components/WhatsAppWidget';
 import { WhatsAppLeadModal } from '@/components/WhatsAppLeadModal';
 import { Skeleton } from '@/components/ui/skeleton';
+import PriceTableViewer from '@/components/PriceTableViewer';
 
 type Property = {
   id: string;
@@ -89,11 +91,12 @@ type LeadFormData = z.infer<typeof leadSchema>;
 
 type PropertyDetailsProps = {
   initialProperty?: Property | null;
+  priceTableInfo?: any;
 };
 
 const googleMapsLibraries: Libraries = ['places'];
 
-export default function PropertyDetailsComponent({ initialProperty = null }: PropertyDetailsProps) {
+export default function PropertyDetailsComponent({ initialProperty = null, priceTableInfo = null }: PropertyDetailsProps) {
   const params = useParams();
   const id = params.id as string;
   const firestore = useFirestore();
@@ -196,14 +199,12 @@ export default function PropertyDetailsComponent({ initialProperty = null }: Pro
       setLoading(false);
       const fetchExtra = async () => {
         try {
-          const targetId = propData.brokerId || propData.builderId;
-          if (targetId) {
-            const brSnap = await getDoc(doc(firestore, 'brokers', targetId));
+          if (propData.brokerId) {
+            const brSnap = await getDoc(doc(firestore, 'brokers', propData.brokerId));
             if (brSnap.exists()) setBrokerInfo(brSnap.data());
-            else {
-              const bSnap = await getDoc(doc(firestore, 'constructors', targetId));
-              if (bSnap.exists()) setBrokerInfo(bSnap.data());
-            }
+          } else if (propData.builderId) {
+            const constructorData = await resolveConstructorByBuilderId(firestore, propData.builderId);
+            if (constructorData) setBrokerInfo(constructorData);
           }
           if (propData.localizacao?.cidade) {
             const qSim = query(collection(firestore, 'properties'), where('isVisibleOnSite', '==', true), where('localizacao.cidade', '==', propData.localizacao.cidade), limit(5));
@@ -246,14 +247,12 @@ export default function PropertyDetailsComponent({ initialProperty = null }: Pro
 
         if (fallbackProp && fallbackProp.isVisibleOnSite !== false) {
           setProperty(fallbackProp);
-          const targetId = fallbackProp.brokerId || fallbackProp.builderId;
-          if (targetId) {
-            const brSnap = await getDoc(doc(firestore, 'brokers', targetId));
+          if (fallbackProp.brokerId) {
+            const brSnap = await getDoc(doc(firestore, 'brokers', fallbackProp.brokerId));
             if (brSnap.exists()) setBrokerInfo(brSnap.data());
-            else {
-              const bSnap = await getDoc(doc(firestore, 'constructors', targetId));
-              if (bSnap.exists()) setBrokerInfo(bSnap.data());
-            }
+          } else if (fallbackProp.builderId) {
+            const constructorData = await resolveConstructorByBuilderId(firestore, fallbackProp.builderId);
+            if (constructorData) setBrokerInfo(constructorData);
           }
           const qSim = query(collection(firestore, 'properties'), where('isVisibleOnSite', '==', true), where('localizacao.cidade', '==', fallbackProp.localizacao.cidade), limit(5));
           const simSnap = await getDocs(qSim);
@@ -631,6 +630,8 @@ export default function PropertyDetailsComponent({ initialProperty = null }: Pro
 
               {renderPriceSection()}
 
+              {priceTableInfo && <PriceTableViewer priceTableInfo={priceTableInfo} />}
+
               <div className="prose text-gray-600 max-w-none leading-relaxed text-left">
                 <h2 className="text-2xl font-bold mb-4 text-slate-900 uppercase tracking-tight">Sobre o imóvel</h2>
                 <div dangerouslySetInnerHTML={{ __html: property.informacoesbasicas.descricao || '' }} />
@@ -777,6 +778,7 @@ export default function PropertyDetailsComponent({ initialProperty = null }: Pro
                     <li><Link className="hover:text-primary transition-colors" href="/sobre">Sobre</Link></li>
                     <li><Link className="hover:text-primary transition-colors" href="/contato">Contato</Link></li>
                     <li><a className="hover:text-primary transition-colors" href="#">Blog</a></li>
+                    <li><Link className="hover:text-primary transition-colors" href="/o-mercado-tem-rosto">O Mercado Tem Rosto</Link></li>
                   </ul>
                 </div>
                 <div>

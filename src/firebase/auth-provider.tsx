@@ -10,9 +10,21 @@ export interface UserProfile {
   id: string;
   username: string;
   email: string;
-  userType: 'admin' | 'broker' | 'constructor' | 'client';
+  userType: 'admin' | 'broker' | 'constructor' | 'construtora' | 'client';
   planId?: string;
   personaIds?: string[];
+  tenantId?: string;
+  moduleAccess?: {
+    crm?: boolean;
+    agenda?: boolean;
+    properties?: boolean;
+    canalPro?: boolean;
+    radar?: boolean;
+    oralink?: boolean;
+    marketing?: boolean;
+    intelligence?: boolean;
+    ai?: boolean;
+  };
 }
 
 interface AuthContextState {

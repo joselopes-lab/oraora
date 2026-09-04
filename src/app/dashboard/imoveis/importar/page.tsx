@@ -274,6 +274,19 @@ function mapPropertyRecord(prop: PropertyImport, transactionMode: 'sale' | 'rent
   const youtubeVideoUrl = String(getRawVal(prop, ['youtubeVideoUrl', 'youtube', 'videoUrl', 'video']) || '');
   const link = String(getRawVal(prop, ['link', 'url']) || '');
 
+  // Project Association & Integration Metadata
+  const projectId = getRawVal(prop, ['projectId', 'empreendimento_id', 'idProjeto', 'project_id']);
+  const empreendimentoId = getRawVal(prop, ['empreendimentoId', 'empreendimento_id']);
+  const projectRef = getRawVal(prop, ['projectRef', 'project_ref']);
+  const builderInfo = prop.builderInfo || (getRawVal(prop, ['builderId', 'builderName', 'builderProjectId']) ? {
+    builderId: getRawVal(prop, ['builderId', 'builder_id']),
+    builderName: getRawVal(prop, ['builderName', 'builder_name']),
+    projectId: getRawVal(prop, ['builderProjectId', 'builder_project_id', 'projectId'])
+  } : undefined);
+  const externalId = getRawVal(prop, ['externalId', 'external_id', 'idExterno']);
+  const externalSource = getRawVal(prop, ['externalSource', 'external_source', 'origemExterna']);
+  const importSessionId = getRawVal(prop, ['importSessionId', 'import_session_id', 'sessaoImportacao']);
+
   return {
     informacoesbasicas: {
       nome,
@@ -310,6 +323,13 @@ function mapPropertyRecord(prop: PropertyImport, transactionMode: 'sale' | 'rent
     midia,
     youtubeVideoUrl,
     link,
+    projectId,
+    empreendimentoId,
+    projectRef,
+    builderInfo,
+    externalId,
+    externalSource,
+    importSessionId,
     isVisibleOnSite: true,
   };
 }

@@ -52,7 +52,8 @@ import {
   Copy,
   ExternalLink,
   Smartphone,
-  Share2
+  Share2,
+  Sparkles
 } from 'lucide-react';
 
 type OralinkLink = {
@@ -72,6 +73,7 @@ type OralinkData = {
   featuredPropertyIds?: string[];
   videoUrl?: string;
   showVideo?: boolean;
+  oralinkAiAssistantEnabled?: boolean;
   // Color Customization
   backgroundColor?: string;
   textColor?: string;
@@ -260,6 +262,7 @@ export default function OralinkManagementPage() {
     featuredPropertyIds: [],
     videoUrl: '',
     showVideo: false,
+    oralinkAiAssistantEnabled: false,
     backgroundColor: '90 20% 97%',
     textColor: '110 16% 8%',
     buttonBgColor: '80 99% 49%',
@@ -282,12 +285,13 @@ export default function OralinkManagementPage() {
         ...prev,
         ...brokerData.oralink,
         links: (brokerData.oralink.links || []).map((l: any) => 
-            ({ ...l, url: denormalizeLink(l.icon, l.url) })
+            ({ ...l, active: l.active ?? true, url: denormalizeLink(l.icon, l.url) })
         ),
         // Clean the array from empty/null values on load
         featuredPropertyIds: (brokerData.oralink.featuredPropertyIds || []).filter((id: any) => typeof id === 'string' && id !== ''),
         showVideo: brokerData.oralink.showVideo ?? false,
         videoUrl: brokerData.oralink.videoUrl || '',
+        oralinkAiAssistantEnabled: brokerData.oralink.oralinkAiAssistantEnabled ?? false,
       }));
     } else if (userProfile) {
       setOralink(prev => ({ ...prev, displayName: userProfile.username }));
@@ -624,6 +628,26 @@ export default function OralinkManagementPage() {
         </section>
 
         <section className="bg-white p-6 rounded-xl border border-gray-100 shadow-soft">
+          <div className="flex items-center gap-3 mb-4">
+            <Sparkles className="size-5 text-primary" />
+            <h2 className="text-xl font-bold text-text-main">Assistente IA</h2>
+          </div>
+          <p className="text-sm text-text-secondary leading-relaxed mb-4 text-left">
+            Permita que seus clientes encontrem imóveis do seu portfólio conversando com um assistente virtual baseado no seu catálogo.
+          </p>
+          <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between">
+            <div className="text-left">
+              <span className="text-xs font-bold text-slate-900 block">Assistente IA no Oralink</span>
+              <span className="text-[11px] text-slate-500">Seu cliente poderá conversar com a IA diretamente pela sua página de links.</span>
+            </div>
+            <Switch 
+              checked={oralink.oralinkAiAssistantEnabled || false} 
+              onCheckedChange={checked => setOralink(prev => ({ ...prev, oralinkAiAssistantEnabled: checked }))} 
+            />
+          </div>
+        </section>
+
+        <section className="bg-white p-6 rounded-xl border border-gray-100 shadow-soft">
           <div className="flex items-center gap-3 mb-6">
             <Palette className="size-5 text-primary" />
             <h2 className="text-xl font-bold text-text-main">2. Personalização de Cores</h2>
@@ -782,8 +806,9 @@ export default function OralinkManagementPage() {
                 </div>
                 <div className="flex items-center gap-4">
                   <Switch 
-                    checked={link.active} 
+                    checked={link.active ?? true} 
                     onCheckedChange={checked => handleUpdateLink(link.id, { active: checked })}
+                    className="data-[state=checked]:bg-primary data-[state=unchecked]:bg-slate-200"
                   />
                   <button onClick={() => handleRemoveLink(link.id)} className="p-2 text-gray-300 hover:text-red-500 transition-colors cursor-pointer bg-transparent border-none outline-none">
                     <Trash2 className="size-5" />
@@ -854,7 +879,7 @@ export default function OralinkManagementPage() {
                         )}
                       >
                         <div className="relative size-14 rounded-lg overflow-hidden bg-gray-100 shrink-0">
-                          <Image src={prop.midia?.[0] || 'https://placehold.co/100x100'} alt={prop.informacoesbasicas.nome} fill className="object-cover" />
+                          <Image src={prop.midia?.[0] || 'https://picsum.photos/seed/fallback/600/400'} alt={prop.informacoesbasicas.nome} fill className="object-cover" />
                         </div>
                         <div className="flex-1 min-w-0 text-left">
                           <h4 className="font-bold text-sm truncate">{prop.informacoesbasicas.nome}</h4>
@@ -884,7 +909,7 @@ export default function OralinkManagementPage() {
             {selectedProperties.map(prop => (
               <div key={prop.id} className="flex gap-4 p-3 border border-gray-100 rounded-lg group relative">
                 <div className="size-16 rounded-lg overflow-hidden relative shrink-0">
-                  <Image src={prop.midia?.[0] || 'https://placehold.co/100x100'} alt={prop.informacoesbasicas.nome} fill className="object-cover" />
+                  <Image src={prop.midia?.[0] || 'https://picsum.photos/seed/fallback/600/400'} alt={prop.informacoesbasicas.nome} fill className="object-cover" />
                 </div>
                 <div className="flex-1 min-w-0 text-left">
                   <h4 className="font-bold text-sm truncate">{prop.informacoesbasicas.nome}</h4>

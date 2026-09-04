@@ -72,7 +72,7 @@ export default function PersonaDetailView({ persona, properties, canEdit }: Pers
                 <div className="bg-white rounded-xl shadow-soft border border-gray-100 overflow-hidden">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
                         <div className="md:col-span-1 aspect-square md:aspect-auto w-full bg-gray-100">
-                           <img alt="Persona" className="w-full h-full object-cover" src={persona.imageUrl || "https://placehold.co/400x225.png"}/>
+                           <img alt="Persona" className="w-full h-full object-cover" src={persona.imageUrl || "https://picsum.photos/seed/fallback/600/400"}/>
                         </div>
                         <div className="p-6 md:col-span-2">
                             <h3 className="text-lg font-bold text-text-main mb-3">Sobre a Persona</h3>

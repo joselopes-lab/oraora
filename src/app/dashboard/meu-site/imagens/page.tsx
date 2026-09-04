@@ -15,6 +15,9 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Progress } from '@/components/ui/progress';
 import { uploadFile } from '@/lib/storage';
+import ImageEditorModal from '@/components/ImageEditorModal';
+import ImageFieldInfoModal from '@/components/ImageFieldInfoModal';
+import { Info } from 'lucide-react';
 
 // Schema for the image settings
 const imageSettingsSchema = z.object({
@@ -84,14 +87,67 @@ export default function EditSiteImagesPage() {
     }
   }, [siteData, form]);
   
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>, fieldName: keyof ImageSettingsFormData, uploadKey: string) => {
-    const file = event.target.files?.[0];
-    if (!file || !user || !storage) return;
+  const [editorModal, setEditorModal] = useState<{
+    source: string | null;
+    fieldName: keyof ImageSettingsFormData | null;
+    uploadKey: string | null;
+    aspectRatio: number | null;
+    mode: 'image' | 'logo';
+  }>({
+    source: null,
+    fieldName: null,
+    uploadKey: null,
+    aspectRatio: null,
+    mode: 'image',
+  });
 
+  const [infoModal, setInfoModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    aspectRatio: string;
+    formats: string;
+    recommendation: string;
+    note: string;
+    transparency?: boolean;
+  }>({
+    isOpen: false,
+    title: '',
+    aspectRatio: '',
+    formats: '',
+    recommendation: '',
+    note: ''
+  });
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>, fieldName: keyof ImageSettingsFormData, uploadKey: string, aspectRatio: number | null, mode: 'image' | 'logo') => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setEditorModal({
+        source: e.target?.result as string,
+        fieldName,
+        uploadKey,
+        aspectRatio,
+        mode,
+      });
+    };
+    reader.readAsDataURL(file);
+    // Reset file input
+    event.target.value = '';
+  };
+
+  const handleCropConfirm = async (blob: Blob) => {
+    const { fieldName, uploadKey } = editorModal;
+    if (!fieldName || !uploadKey || !user || !storage) return;
+
+    setEditorModal({ source: null, fieldName: null, uploadKey: null, aspectRatio: null, mode: 'image' });
     setUploads(prev => ({ ...prev, [uploadKey]: { progress: 0, isUploading: true, error: null } }));
 
     try {
       const path = `brokers/${user.uid}/site_assets`;
+      const file = new File([blob], `${uploadKey}.png`, { type: 'image/png' });
+
       const onProgress = (progress: number) => {
         setUploads(prev => ({ ...prev, [uploadKey]: { ...prev[uploadKey], progress, isUploading: true } as UploadState }));
       };
@@ -100,7 +156,7 @@ export default function EditSiteImagesPage() {
       
       form.setValue(fieldName, downloadURL, { shouldDirty: true });
       setUploads(prev => ({ ...prev, [uploadKey]: { progress: 100, isUploading: false, error: null } }));
-      toast({ title: 'Upload Concluído!', description: 'A imagem foi enviada. Salve as alterações para publicar.' });
+      toast({ title: 'Imagem Atualizada!', description: 'A imagem foi processada e salva.' });
 
     } catch (error) {
       console.error('Upload error:', error);
@@ -173,7 +229,19 @@ export default function EditSiteImagesPage() {
                     name="heroImageUrl"
                     render={({ field }) => (
                         <FormItem>
-                            <FormLabel>Imagem de Fundo da Seção Hero</FormLabel>
+                            <FormLabel className="flex items-center gap-2">
+                                Imagem principal
+                                <button type="button" onClick={() => setInfoModal({
+                                    isOpen: true,
+                                    title: 'Imagem principal',
+                                    aspectRatio: '16:9',
+                                    formats: 'JPG, JPEG, PNG ou WEBP',
+                                    recommendation: 'Utilizar imagem em alta resolução e formato horizontal.',
+                                    note: 'A imagem utiliza object-cover no site e poderá sofrer cortes nas extremidades. O editor permite ajustar o enquadramento antes do envio.',
+                                })}>
+                                    <Info size={16} className="text-gray-400 hover:text-primary" />
+                                </button>
+                            </FormLabel>
                             <div className="flex items-center gap-4 mt-2">
                                  <div className="relative w-48 h-28 bg-gray-100 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden">
                                     {field.value ? (
@@ -193,7 +261,7 @@ export default function EditSiteImagesPage() {
                                             type="file"
                                             accept="image/*"
                                             className="sr-only"
-                                            onChange={(e) => handleFileChange(e, "heroImageUrl", "heroImage")}
+                                            onChange={(e) => handleFileSelect(e, "heroImageUrl", "heroImage", 16/9, 'image')}
                                             disabled={uploads.heroImage?.isUploading}
                                         />
                                     </label>
@@ -225,7 +293,19 @@ export default function EditSiteImagesPage() {
                     name="aboutImageUrl"
                     render={({ field }) => (
                         <FormItem>
-                            <FormLabel>Imagem da Seção "Sobre"</FormLabel>
+                            <FormLabel className="flex items-center gap-2">
+                                Imagem da seção "Sobre"
+                                <button type="button" onClick={() => setInfoModal({
+                                    isOpen: true,
+                                    title: 'Imagem da seção "Sobre"',
+                                    aspectRatio: '4:3',
+                                    formats: 'JPG, JPEG, PNG ou WEBP',
+                                    recommendation: 'Utilizar imagem horizontal ou levemente retangular, mantendo o elemento principal afastado das bordas.',
+                                    note: 'A imagem utiliza object-cover e poderá sofrer cortes durante a exibição. O editor permite ajustar o enquadramento.',
+                                })}>
+                                    <Info size={16} className="text-gray-400 hover:text-primary" />
+                                </button>
+                            </FormLabel>
                             <div className="flex items-center gap-4 mt-2">
                                  <div className="relative w-48 h-28 bg-gray-100 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden">
                                     {field.value ? (
@@ -245,7 +325,7 @@ export default function EditSiteImagesPage() {
                                             type="file"
                                             accept="image/*"
                                             className="sr-only"
-                                            onChange={(e) => handleFileChange(e, "aboutImageUrl", "aboutImage")}
+                                            onChange={(e) => handleFileSelect(e, "aboutImageUrl", "aboutImage", 4/3, 'image')}
                                             disabled={uploads.aboutImage?.isUploading}
                                         />
                                     </label>
@@ -277,7 +357,20 @@ export default function EditSiteImagesPage() {
                     name="footerLogoUrl"
                     render={({ field }) => (
                         <FormItem>
-                            <FormLabel>Logo do Rodapé</FormLabel>
+                            <FormLabel className="flex items-center gap-2">
+                                Logo do rodapé
+                                <button type="button" onClick={() => setInfoModal({
+                                    isOpen: true,
+                                    title: 'Logo do rodapé',
+                                    aspectRatio: 'Livre',
+                                    formats: 'PNG ou WEBP',
+                                    recommendation: 'Preferir uma logo com fundo transparente e pouco espaço vazio ao redor da marca.',
+                                    note: 'A logo utiliza object-contain e NÃO deve sofrer crop destrutivo. A proporção original deve ser preservada.',
+                                    transparency: true
+                                })}>
+                                    <Info size={16} className="text-gray-400 hover:text-primary" />
+                                </button>
+                            </FormLabel>
                             <div className="flex items-center gap-4 mt-2">
                                  <div className="relative w-48 h-28 bg-gray-800 rounded-lg border-2 border-dashed border-gray-600 flex items-center justify-center overflow-hidden p-2">
                                     {field.value ? (
@@ -297,7 +390,7 @@ export default function EditSiteImagesPage() {
                                             type="file"
                                             accept="image/*"
                                             className="sr-only"
-                                            onChange={(e) => handleFileChange(e, "footerLogoUrl", "footerLogo")}
+                                            onChange={(e) => handleFileSelect(e, "footerLogoUrl", "footerLogo", null, 'logo')}
                                             disabled={uploads.footerLogo?.isUploading}
                                         />
                                     </label>
@@ -328,7 +421,19 @@ export default function EditSiteImagesPage() {
                     name="processImageUrl"
                     render={({ field }) => (
                         <FormItem>
-                            <FormLabel>Imagem da Seção "Processo" (Página de Serviços)</FormLabel>
+                            <FormLabel className="flex items-center gap-2">
+                                Imagem da seção "Processo" (Página de Serviços)
+                                <button type="button" onClick={() => setInfoModal({
+                                    isOpen: true,
+                                    title: 'Imagem da seção "Processo"',
+                                    aspectRatio: '16:9',
+                                    formats: 'JPG, JPEG, PNG ou WEBP',
+                                    recommendation: 'Utilizar imagem horizontal e em boa resolução.',
+                                    note: 'A imagem ocupa uma área horizontal no site e utiliza object-cover. O enquadramento pode ser ajustado no editor antes do upload.',
+                                })}>
+                                    <Info size={16} className="text-gray-400 hover:text-primary" />
+                                </button>
+                            </FormLabel>
                             <div className="flex items-center gap-4 mt-2">
                                  <div className="relative w-48 h-28 bg-gray-100 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden">
                                     {field.value ? (
@@ -348,7 +453,7 @@ export default function EditSiteImagesPage() {
                                             type="file"
                                             accept="image/*"
                                             className="sr-only"
-                                            onChange={(e) => handleFileChange(e, "processImageUrl", "processImage")}
+                                            onChange={(e) => handleFileSelect(e, "processImageUrl", "processImage", 16/9, 'image')}
                                             disabled={uploads.processImage?.isUploading}
                                         />
                                     </label>
@@ -376,6 +481,25 @@ export default function EditSiteImagesPage() {
           </section>
         </form>
       </FormProvider>
+      {editorModal.source && (
+          <ImageEditorModal
+            source={editorModal.source}
+            aspectRatio={editorModal.aspectRatio}
+            mode={editorModal.mode}
+            onCancel={() => setEditorModal({ source: null, fieldName: null, uploadKey: null, aspectRatio: null, mode: 'image' })}
+            onConfirm={handleCropConfirm}
+          />
+      )}
+      <ImageFieldInfoModal
+        isOpen={infoModal.isOpen}
+        onClose={() => setInfoModal({ ...infoModal, isOpen: false })}
+        title={infoModal.title}
+        aspectRatio={infoModal.aspectRatio}
+        formats={infoModal.formats}
+        recommendation={infoModal.recommendation}
+        note={infoModal.note}
+        transparency={infoModal.transparency}
+      />
     </div>
   );
 }

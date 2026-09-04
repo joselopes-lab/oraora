@@ -43,8 +43,8 @@ export async function getThemePage(themeId: string | undefined, pageKey: PageKey
     throw new Error(`[THEME_LOADER] Não foi possível carregar página "${pageKey}" para o tema "${id}".`);
   }
 
-  const module = await loader();
-  return module.default;
+  const themeModule = await loader();
+  return themeModule.default;
 }
 
 /**

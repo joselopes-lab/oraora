@@ -80,7 +80,7 @@ export default function RadarDashboardLayout({ children }: { children: ReactNode
                 <div className="relative max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
                     <div className="flex items-center">
                         <Link href="/radar/dashboard" className="flex items-center gap-2 group cursor-pointer">
-                            <Image src={siteData?.logoUrl || "https://dotestudio.com.br/wp-content/uploads/2025/08/oraora.png"} alt="Oraora Logo" width={160} height={40} className="h-6 w-auto" />
+                            <Image src={siteData?.logoUrl || "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="} alt="Oraora Logo" width={160} height={40} className="h-6 w-auto" />
                         </Link>
                     </div>
                     
@@ -149,7 +149,7 @@ export default function RadarDashboardLayout({ children }: { children: ReactNode
             <footer className="mt-20 border-t border-gray-100 py-10">
                 <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
                    <Link href="/" className="flex items-center gap-3 group cursor-pointer">
-                        <Image src={siteData?.logoUrl || "https://dotestudio.com.br/wp-content/uploads/2025/08/oraora.png"} alt="Oraora Logo" width={120} height={30} className="h-8 w-auto opacity-50" />
+                        <Image src={siteData?.logoUrl || "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="} alt="Oraora Logo" width={120} height={30} className="h-8 w-auto opacity-50" />
                     </Link>
                     <p className="text-xs text-gray-400">© 2025 Oraora Tecnologia. Todos os direitos reservados. CNPJ: 64.052.552/0001-26</p>
                     <div className="flex gap-6 text-xs font-bold text-gray-400 uppercase tracking-widest">

@@ -1,33 +1,15 @@
-'use client';
-import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
-import { useFirestore } from '@/firebase';
-import { notFound, useParams } from 'next/navigation';
+import { adminDb } from '@/firebase/index.server';
+import { notFound } from 'next/navigation';
 import { getThemePage } from '@/layouts/registry';
-import { useEffect, useState, use } from 'react';
-import { getBrokerData } from '../../utils';
-import { incrementMetric } from '../../actions';
+import { getBrokerData, serializeForClient } from '../../utils.server';
+import { FieldValue, FieldPath } from 'firebase-admin/firestore';
 
 // Force dynamic rendering to ensure data is fresh on every request
 export const dynamic = 'force-dynamic';
 
-type Broker = {
-  id: string;
-  brandName: string;
-  logoUrl?: string;
-  primaryColor?: string;
-  secondaryColor?: string;
-  accentColor?: string;
-  backgroundColor?: string;
-  foregroundColor?: string;
-  slug: string;
-  layoutId?: string;
-  businessSettings?: {
-    enabledTransactions: string[];
-  }
-};
-
 type Property = {
   id: string;
+  isVisibleOnSite?: boolean;
   informacoesbasicas: {
     nome: string;
     status: string;
@@ -52,89 +34,117 @@ type Property = {
   };
 };
 
-export default function BrokerSearchPage({ params }: { params: Promise<{ slug: string }> }) {
-  const { slug } = use(params);
-  const [broker, setBroker] = useState<Broker | null>(null);
-  const [properties, setProperties] = useState<Property[]>([]);
-  const [loading, setLoading] = useState(true);
-  const firestore = useFirestore();
+async function getPortfolioProperties(brokerId: string): Promise<Property[]> {
+  const portfolioRef = adminDb.collection('portfolios').doc(brokerId);
+  const portfolioSnap = await portfolioRef.get();
 
-  const [SearchPageComponent, setSearchPageComponent] = useState<React.ComponentType<any> | null>(null);
-
-  useEffect(() => {
-    async function fetchData() {
-      if (!firestore || !slug) return;
-      try {
-        const brokerData = await getBrokerData(firestore, slug);
-
-        if (!brokerData) {
-          setBroker(null);
-          setLoading(false);
-          return;
-        }
-
-        setBroker(brokerData as Broker);
-        const enabledTransactions = brokerData.businessSettings?.enabledTransactions || ['sale', 'rent'];
-
-        const LoadedSearchPage = await getThemePage(brokerData.layoutId, 'search');
-        setSearchPageComponent(() => LoadedSearchPage);
-
-        // Increment access metrics
-        await incrementMetric(brokerData.id, 'siteHits');
-
-        // Fetch portfolio properties
-        const portfolioRef = doc(firestore, 'portfolios', brokerData.id);
-        const portfolioSnap = await getDoc(portfolioRef);
-        const portfolioPropertyIds = portfolioSnap.exists() ? portfolioSnap.data()?.propertyIds || [] : [];
-        
-        let fetchedPortfolioProperties: Property[] = [];
-        if (portfolioPropertyIds.length > 0) {
-            const propertiesRef = collection(firestore, 'properties');
-            for (let i = 0; i < portfolioPropertyIds.length; i += 30) {
-                const batch = portfolioPropertyIds.slice(i, i + 30);
-                if (batch.length > 0) {
-                    const propertiesQuery = query(propertiesRef, where('__name__', 'in', batch));
-                    const propertiesSnap = await getDocs(propertiesQuery);
-                    propertiesSnap.forEach(docSnap => {
-                        const data = docSnap.data() as any;
-                        if (data.isVisibleOnSite !== false) {
-                            fetchedPortfolioProperties.push({ id: docSnap.id, ...data } as Property);
-                        }
-                    });
-                }
-            }
-        }
-        
-        // Fetch broker-specific properties
-        const brokerPropertiesRef = collection(firestore, 'brokerProperties');
-        const brokerPropsQuery = query(brokerPropertiesRef, where('brokerId', '==', brokerData.id), where('isVisibleOnSite', '==', true));
-        const brokerPropsSnapshot = await getDocs(brokerPropsQuery);
-        const fetchedBrokerProperties = brokerPropsSnapshot.docs
-            .map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as any));
-
-        setProperties([...fetchedPortfolioProperties, ...fetchedBrokerProperties]);
-        
-      } catch (error) {
-        console.error("Error fetching data:", error);
-        setBroker(null);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchData();
-  }, [firestore, slug]);
-
-  if (loading || !SearchPageComponent) {
-      return (
-          <div className="flex h-screen w-full items-center justify-center">
-              <div className="animate-spin size-8 border-4 border-primary border-t-transparent rounded-full"></div>
-          </div>
-      );
+  const propertyIds = portfolioSnap.exists ? portfolioSnap.data()?.propertyIds || [] : [];
+  if (!Array.isArray(propertyIds) || propertyIds.length === 0) {
+    return [];
   }
   
-  if (!broker) {
-      return notFound();
+  const propertiesData: Property[] = [];
+  const propertiesRef = adminDb.collection('properties');
+
+  for (let i = 0; i < propertyIds.length; i += 30) {
+    const batch = propertyIds.slice(i, i + 30);
+    if (batch && batch.length > 0) {
+        const snap = await propertiesRef.where(FieldPath.documentId(), 'in', batch).get();
+        snap.forEach(docSnap => {
+            const data = docSnap.data() as any;
+            if (data.isVisibleOnSite !== false) {
+                propertiesData.push({ id: docSnap.id, ...data });
+            }
+        });
+    }
   }
 
-  return <SearchPageComponent broker={broker as any} properties={properties} />;
+  return propertiesData;
+}
+
+async function getBrokerProperties(brokerId: string): Promise<Property[]> {
+  const snap = await adminDb.collection('brokerProperties')
+    .where('brokerId', '==', brokerId)
+    .where('isVisibleOnSite', '==', true)
+    .get();
+  
+  return snap.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as any));
+}
+
+async function getPublishedAvulsoProperties(brokerId: string): Promise<Property[]> {
+  const selSnap = await adminDb.collection('brokerSelectedProperties')
+    .where('brokerId', '==', brokerId)
+    .where('publishedOnSite', '==', true)
+    .get();
+  
+  const propertyIds = selSnap.docs.map(doc => doc.data().propertyId).filter(Boolean);
+  if (propertyIds.length === 0) return [];
+
+  const propertiesData: Property[] = [];
+  const propertiesRef = adminDb.collection('properties');
+
+  for (let i = 0; i < propertyIds.length; i += 30) {
+    const batch = propertyIds.slice(i, i + 30);
+    if (batch && batch.length > 0) {
+      const snap = await propertiesRef.where(FieldPath.documentId(), 'in', batch).get();
+      snap.forEach(docSnap => {
+        const data = docSnap.data() as any;
+        if (data.isVisibleOnSite !== false) {
+          delete data.builderId;
+          delete data.tenantId;
+          delete data.constructorId;
+          delete data.ownerId;
+          propertiesData.push({ id: docSnap.id, ...data });
+        }
+      });
+    }
+  }
+
+  return propertiesData;
+}
+
+export default async function BrokerSearchPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  const broker = await getBrokerData(slug);
+
+  if (!broker) {
+    notFound();
+  }
+
+  // Increment access metrics
+  try {
+    await adminDb.collection('corretorMetrics').doc(broker.id).set({
+      siteHits: FieldValue.increment(1)
+    }, { merge: true });
+  } catch (e) {
+    console.error("Erro ao rastrear acesso:", e);
+  }
+
+  const [portfolioProperties, brokerProperties, publishedAvulsoProperties] = await Promise.all([
+    getPortfolioProperties(broker.id),
+    getBrokerProperties(broker.id),
+    getPublishedAvulsoProperties(broker.id)
+  ]);
+
+  const allProperties = [...portfolioProperties, ...brokerProperties, ...publishedAvulsoProperties];
+  const layoutId = (broker as any).layoutId;
+  const SearchPageComponent = await getThemePage(layoutId, 'search');
+
+  const serializedBroker = serializeForClient({
+    id: broker.id,
+    brandName: broker.brandName,
+    logoUrl: broker.logoUrl,
+    primaryColor: broker.primaryColor,
+    secondaryColor: broker.secondaryColor,
+    accentColor: broker.accentColor,
+    backgroundColor: broker.backgroundColor,
+    foregroundColor: broker.foregroundColor,
+    slug: broker.slug,
+    layoutId: broker.layoutId,
+    businessSettings: broker.businessSettings,
+  });
+
+  const serializedProperties = serializeForClient(allProperties);
+
+  return <SearchPageComponent broker={serializedBroker} properties={serializedProperties} />;
 }

@@ -7,6 +7,9 @@ import { doc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
 import { sendPasswordResetEmail } from 'firebase/auth';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { createConstructorMemberServer } from '../../actions.server';
 
 type ConstructorDoc = {
     id: string;
@@ -25,6 +28,7 @@ type ConstructorDoc = {
     publicEmail: string;
     logoUrl: string;
     isVisibleOnSite: boolean;
+    members?: { uid: string; role: 'admin' | 'gerente' | 'vendas' | 'marketing' }[];
 };
 
 type UserDoc = {
@@ -53,6 +57,52 @@ export default function EditConstructorPage() {
       [firestore, id]
     );
     const { data: userDoc, isLoading: isUserLoading } = useDoc<UserDoc>(userDocRef);
+
+    const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
+    const [memberName, setMemberName] = useState('');
+    const [memberEmail, setMemberEmail] = useState('');
+    const [memberPassword, setMemberPassword] = useState('');
+    const [memberRole, setMemberRole] = useState<'admin' | 'gerente' | 'vendas' | 'marketing'>('vendas');
+    const [isSubmittingMember, setIsSubmittingMember] = useState(false);
+
+    const handleAddMember = async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!memberName || !memberEmail || !memberPassword) {
+        toast({ variant: 'destructive', title: 'Preencha todos os campos obrigatórios.' });
+        return;
+      }
+      setIsSubmittingMember(true);
+      try {
+        const idToken = await auth?.currentUser?.getIdToken();
+        if (!idToken) {
+          toast({ variant: 'destructive', title: 'Usuário não autenticado.' });
+          setIsSubmittingMember(false);
+          return;
+        }
+        const result = await createConstructorMemberServer({
+          constructorId: id,
+          name: memberName,
+          email: memberEmail,
+          password: memberPassword,
+          role: memberRole,
+          idToken,
+        });
+        if (result.success) {
+          toast({ title: 'Membro Adicionado!', description: `O usuário ${memberName} foi cadastrado com sucesso.` });
+          setIsAddMemberOpen(false);
+          setMemberName('');
+          setMemberEmail('');
+          setMemberPassword('');
+          setMemberRole('vendas');
+        } else {
+          toast({ variant: 'destructive', title: 'Erro ao cadastrar membro', description: result.error });
+        }
+      } catch (err: any) {
+        toast({ variant: 'destructive', title: 'Erro', description: err.message || 'Erro inesperado.' });
+      } finally {
+        setIsSubmittingMember(false);
+      }
+    };
 
     const handleSave = async (data: ConstructorFormData) => {
         if (!firestore || !id) return;
@@ -165,7 +215,7 @@ export default function EditConstructorPage() {
     };
 
     return (
-        <main className="flex-grow flex flex-col py-8 px-4 md:px-10 max-w-[1440px] mx-auto w-full">
+        <main className="flex-grow flex flex-col py-8 px-4 md:px-10 max-w-[1440px] mx-auto w-full space-y-8">
             <ConstructorForm 
                 onSave={handleSave} 
                 isEditing={true} 
@@ -173,6 +223,76 @@ export default function EditConstructorPage() {
                 isSubmitting={isSubmitting}
                 onResetPassword={handleResetPassword}
             />
+
+            <section className="bg-white rounded-xl border border-card-border shadow-sm overflow-hidden">
+                <div className="px-6 py-4 border-b border-card-border bg-gray-50/50 flex justify-between items-center">
+                    <h3 className="font-bold text-lg flex items-center gap-2">
+                        <span className="material-symbols-outlined text-text-secondary">group</span>
+                        Usuários da Construtora
+                        <span className="text-sm font-normal text-text-secondary bg-white px-2 py-0.5 rounded-full border border-card-border ml-2">{constructorDoc.members?.length || 0} membros</span>
+                    </h3>
+                    <Dialog open={isAddMemberOpen} onOpenChange={setIsAddMemberOpen}>
+                        <DialogTrigger asChild>
+                            <Button size="sm" className="text-sm font-bold bg-primary text-text-main hover:bg-primary-hover flex items-center gap-1 transition-colors">
+                                <span className="material-symbols-outlined text-lg">person_add</span>
+                                Adicionar usuário
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-md bg-white">
+                            <DialogHeader>
+                                <DialogTitle>Adicionar usuário</DialogTitle>
+                                <DialogDescription>Cadastre um novo usuário para esta construtora.</DialogDescription>
+                            </DialogHeader>
+                            <form onSubmit={handleAddMember} className="space-y-4 py-2">
+                                <div>
+                                    <label className="text-xs font-bold text-text-main uppercase">Nome</label>
+                                    <input type="text" className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" placeholder="Nome completo" value={memberName} onChange={e => setMemberName(e.target.value)} required />
+                                </div>
+                                <div>
+                                    <label className="text-xs font-bold text-text-main uppercase">Email de Acesso</label>
+                                    <input type="email" className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" placeholder="email@construtora.com" value={memberEmail} onChange={e => setMemberEmail(e.target.value)} required />
+                                </div>
+                                <div>
+                                    <label className="text-xs font-bold text-text-main uppercase">Senha Inicial</label>
+                                    <input type="password" className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" placeholder="********" value={memberPassword} onChange={e => setMemberPassword(e.target.value)} required />
+                                </div>
+                                <div>
+                                    <label className="text-xs font-bold text-text-main uppercase">Cargo / Papel</label>
+                                    <select className="w-full mt-1 px-3 py-2 border rounded-lg text-sm bg-white" value={memberRole} onChange={e => setMemberRole(e.target.value as any)}>
+                                        <option value="admin">Admin</option>
+                                        <option value="gerente">Gerente</option>
+                                        <option value="vendas">Vendas</option>
+                                        <option value="marketing">Marketing</option>
+                                    </select>
+                                </div>
+                                <DialogFooter className="pt-4">
+                                    <Button type="button" variant="outline" onClick={() => setIsAddMemberOpen(false)}>Cancelar</Button>
+                                    <Button type="submit" disabled={isSubmittingMember} className="bg-primary text-text-main hover:bg-primary-hover font-bold">
+                                        {isSubmittingMember ? 'Salvando...' : 'Criar Membro'}
+                                    </Button>
+                                </DialogFooter>
+                            </form>
+                        </DialogContent>
+                    </Dialog>
+                </div>
+                <div className="divide-y divide-card-border">
+                    {constructorDoc.members && constructorDoc.members.length > 0 ? (
+                        constructorDoc.members.map((m: any, idx: number) => (
+                            <div key={m.uid || idx} className="p-4 flex items-center justify-between">
+                                <div>
+                                    <p className="text-sm font-bold text-text-main">UID: {m.uid}</p>
+                                    <p className="text-xs text-text-secondary uppercase">Cargo: {m.role}</p>
+                                </div>
+                                <span className="px-2 py-1 text-xs font-medium uppercase border rounded-md">{m.role}</span>
+                            </div>
+                        ))
+                    ) : (
+                        <div className="p-8 text-center text-text-secondary">
+                            <p>Nenhum membro registrado além do proprietário.</p>
+                        </div>
+                    )}
+                </div>
+            </section>
         </main>
     );
 }

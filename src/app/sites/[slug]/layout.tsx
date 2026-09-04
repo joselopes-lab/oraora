@@ -1,6 +1,9 @@
 
 import type { Metadata } from 'next';
 import { getBrokerData } from '../utils.server';
+import { BrokerTrackingLoader } from '@/components/privacy/BrokerTrackingLoader';
+import CampaignCaptureInitializer from '@/components/CampaignCaptureInitializer';
+import BrokerAiChatWidget from '../components/BrokerAiChatWidget';
 
 type Props = {
   params: Promise<{ slug: string }>;
@@ -10,6 +13,7 @@ type Props = {
 /**
  * @fileOverview Layout principal para os sites dos corretores (Tenancy).
  * Gerencia o Favicon dinâmico e o título padrão do site baseado nas configurações do corretor.
+ * Injeta o carregador de scripts de tracking e o hook de captura de campanhas.
  */
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
@@ -42,6 +46,29 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   };
 }
 
-export default function BrokerLayout({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
+export default async function BrokerLayout({ params, children }: { params: Promise<{ slug: string }>, children: React.ReactNode }) {
+  const { slug } = await params;
+  const broker = await getBrokerData(slug) as any;
+
+  // Normalização do WhatsApp/Telefone para o widget
+  const rawPhone = broker?.whatsapp || broker?.phone || broker?.telefone || '';
+  const cleanPhone = rawPhone.replace(/\D/g, '');
+
+  return (
+    <>
+      <CampaignCaptureInitializer />
+      <BrokerTrackingLoader 
+        gaId={broker?.googleAnalyticsId} 
+        gtmId={broker?.gtmId} 
+        pixelId={broker?.metaPixelId} 
+      />
+      {children}
+      <BrokerAiChatWidget 
+        slug={slug} 
+        brokerName={broker?.brandName} 
+        brokerPhone={cleanPhone} 
+        oralinkAiEnabled={broker?.oralink?.oralinkAiAssistantEnabled ?? false}
+      />
+    </>
+  );
 }

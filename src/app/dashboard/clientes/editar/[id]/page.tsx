@@ -15,6 +15,8 @@ type Lead = {
     propertyInterest?: string;
     source?: string;
     status: "new" | "contacted" | "qualified" | "proposal" | "converted" | "lost";
+    dealStatus?: 'open' | 'won' | 'lost';
+    dealValue?: number;
     createdAt: string;
      address?: {
         street?: string;

@@ -29,7 +29,7 @@ export function VertexTestimonials({ items }: VertexTestimonialsProps) {
         >
           <Quote className="size-10 text-primary/20 mb-6 group-hover:text-primary transition-colors fill-current" />
           <p className="text-lg text-slate-700 dark:text-slate-300 font-medium leading-relaxed italic mb-8 flex-1">
-            "{item.text}"
+            &ldquo;{item.text}&rdquo;
           </p>
           <div className="flex items-center gap-4 border-t border-slate-50 dark:border-white/5 pt-6">
             <div className="size-12 rounded-full bg-slate-100 dark:bg-white/5 overflow-hidden flex items-center justify-center font-bold text-slate-400">

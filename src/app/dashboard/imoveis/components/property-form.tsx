@@ -17,7 +17,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { useFirestore, useUser, useFirebase, useCollection, useMemoFirebase } from "@/firebase";
+import { useFirestore, useUser, useFirebase, useCollection, useMemoFirebase, useDoc } from "@/firebase";
 import { collection, query, where, doc } from "firebase/firestore";
 import { useForm, FormProvider, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -101,6 +101,7 @@ const propertyFormSchema = z.object({
   builderId: z.string().optional(),
   brokerId: z.string().optional(),
   clientId: z.string().optional(),
+  projectId: z.string().optional(), // Added projectId
   personaIds: z.array(z.string()).optional().default([]),
   link: z.string().optional(),
   informacoesbasicas: z.object({
@@ -191,6 +192,8 @@ type PropertyFormProps = {
     onSave: (data: PropertyFormData) => void;
     isEditing: boolean;
     isSubmitting?: boolean;
+    isAvulso?: boolean;
+    collectionName?: 'properties' | 'brokerProperties';
 };
 
 const bedroomOptions = ["1", "2", "3", "4", "5+"];
@@ -264,10 +267,10 @@ type UploadState = {
 };
 
 
-export default function PropertyForm({ propertyData, onSave, isEditing, isSubmitting: parentSubmitting }: PropertyFormProps) {
+export default function PropertyForm({ propertyData, onSave, isEditing, isSubmitting: parentSubmitting, isAvulso: isAvulsoProp, collectionName }: PropertyFormProps) {
     const { firestore, user, storage } = useFirebase();
     const pathname = usePathname();
-    const isAvulso = pathname.includes('/avulso/');
+    const isAvulso = isAvulsoProp ?? pathname.includes('/avulso/');
     const cancelUrl = pathname.includes('/avulso/') ? '/dashboard/avulso' : '/dashboard/imoveis';
 
     const clientsQuery = useMemoFirebase(() => user ? query(collection(firestore, 'leads'), where('brokerId', '==', user.uid)) : null, [firestore, user]);
@@ -278,6 +281,19 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
 
     const constructorsQuery = useMemoFirebase(() => firestore ? query(collection(firestore, 'constructors')) : null, [firestore]);
     const { data: constructors, isLoading: areConstructorsLoading } = useCollection<Constructor>(constructorsQuery);
+
+    const userDocRef = useMemoFirebase(() => firestore && user ? doc(firestore, 'users', user.uid) : null, [firestore, user]);
+    const { data: userProfile } = useDoc<any>(userDocRef);
+
+    const builderId = userProfile?.tenantId || userProfile?.id || user?.uid;
+    const projectsQuery = useMemoFirebase(() => {
+        if (!firestore || !user || isAvulso) return null;
+        if (userProfile?.userType === 'admin') {
+            return query(collection(firestore, 'projects'));
+        }
+        return builderId ? query(collection(firestore, 'projects'), where('builderId', '==', builderId)) : null;
+    }, [firestore, user, userProfile, builderId, isAvulso]);
+    const { data: projects, isLoading: areProjectsLoading } = useCollection<any>(projectsQuery);
 
     const { toast } = useToast();
     const [isGeneratingSeo, setIsGeneratingSeo] = useState(false);
@@ -334,7 +350,7 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
     const handleInternalSave = async (data: PropertyFormData) => {
         if (!user) return;
         setLocalSubmitting(true);
-        const colName = isAvulso ? 'brokerProperties' : 'properties';
+        const colName = collectionName ?? (isAvulso ? 'brokerProperties' : 'properties');
         
         try {
             const res = await savePropertyServer(colName, (propertyData as any)?.id || null, data, user.uid);
@@ -533,6 +549,24 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
                                             <select {...field} className="w-full rounded-lg border-card-border bg-[#f7f8f5] focus:border-primary focus:ring-primary text-text-main h-11 px-3" disabled={areConstructorsLoading}>
                                                 <option key="constructor-none" value="">{areConstructorsLoading ? 'Carregando...' : 'Selecione uma construtora...'}</option>
                                                 {constructors?.map((c) => <option key={`builder-${c.id}`} value={c.id}>{c.name}</option>)}
+                                            </select>
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                    )}
+                                />
+                            </div>
+                            <div className="lg:col-span-12">
+                                <FormField
+                                    control={form.control}
+                                    name="projectId"
+                                    render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Empreendimento Associado</FormLabel>
+                                        <FormControl>
+                                            <select {...field} className="w-full rounded-lg border-card-border bg-[#f7f8f5] focus:border-primary focus:ring-primary text-text-main h-11 px-3" disabled={areProjectsLoading}>
+                                                <option key="project-none" value="">{areProjectsLoading ? 'Carregando...' : 'Selecione um empreendimento...'}</option>
+                                                {projects?.map((p) => <option key={`project-${p.id}`} value={p.id}>{p.nome || p.name || 'Sem nome'}</option>)}
                                             </select>
                                         </FormControl>
                                         <FormMessage />

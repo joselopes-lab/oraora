@@ -290,9 +290,9 @@ export default function AjudaClientPage() {
                                 </AccordionContent>
                             </AccordionItem>
                             <AccordionItem value="ativacao" className="border-none bg-white rounded-2xl px-6 shadow-sm border border-slate-100">
-                                <AccordionTrigger className="hover:no-underline font-bold text-slate-900 py-6 text-left">O que é a Academia Oraora?</AccordionTrigger>
+                                <AccordionTrigger className="hover:no-underline font-bold text-slate-900 py-6 text-left">O que é o Guia de Ativação?</AccordionTrigger>
                                 <AccordionContent className="text-slate-500 pb-6 leading-relaxed">
-                                    Localizada no menu <strong>Crescimento &rsaquo; Academia Oraora</strong>, esta ferramenta monitora sua evolução na plataforma. Ela mostra quais etapas faltam para que seu ecossistema digital esteja 100% configurado (Logo, Cores, Imóveis e Oralink).
+                                    Localizada no menu <strong>Crescimento &rsaquo; Guia de Ativação</strong>, esta ferramenta monitora sua evolução na plataforma. Ela mostra quais etapas faltam para que seu ecossistema digital esteja 100% configurado (Logo, Cores, Imóveis e Oralink).
                                 </AccordionContent>
                             </AccordionItem>
                         </Accordion>

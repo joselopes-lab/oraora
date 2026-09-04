@@ -218,9 +218,9 @@ export default function SobreClientPage({ broker }: SobrePageProps) {
                     <span className="material-symbols-outlined">handshake</span>
                   </div>
                   <div>
-                    <h4 className="text-lg font-bold text-text-main group-hover:text-primary transition-colors">Negociação "Harvard"</h4>
+                    <h4 className="text-lg font-bold text-text-main group-hover:text-primary transition-colors">Negociação &quot;Harvard&quot;</h4>
                     <p className="text-text-muted text-sm mt-1 leading-relaxed">
-                      Certificado em negociação complexa, garanto que seus interesses sejam defendidos com técnica e firmeza para obter o melhor "deal".
+                      Certificado em negociação complexa, garanto que seus interesses sejam defendidos com técnica e firmeza para obter o melhor &quot;deal&quot;.
                     </p>
                   </div>
                 </div>

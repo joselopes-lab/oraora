@@ -332,6 +332,7 @@ export default function PoliticaDePrivacidadePage() {
                         <li><Link className="hover:text-primary transition-colors" href="/sobre">Sobre</Link></li>
                         <li><Link className="hover:text-primary transition-colors" href="/contato">Contato</Link></li>
                         <li><a className="hover:text-primary transition-colors" href="#">Blog</a></li>
+                        <li><Link className="hover:text-primary transition-colors" href="/o-mercado-tem-rosto">O Mercado Tem Rosto</Link></li>
                     </ul>
                 </div>
                 <div>

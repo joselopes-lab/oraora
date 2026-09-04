@@ -2,6 +2,7 @@
 'use client';
 
 import { Firestore, collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
+import { resolveConstructorByBuilderId } from './constructorResolutionService';
 
 /**
  * @fileOverview ORAORA KNOWLEDGE ENGINE 1.0
@@ -109,12 +110,10 @@ export class KnowledgeService {
    * Constrói o grafo de relação entre Construtora e Portfólio.
    */
   public async getConstructorNode(constructorId: string): Promise<KnowledgeNode<ConstructorKnowledge> | null> {
-    const constRef = doc(this.db, 'constructors', constructorId);
-    const constSnap = await getDoc(constRef);
+    const constructorData = await resolveConstructorByBuilderId(this.db, constructorId);
+    if (!constructorData) return null;
 
-    if (!constSnap.exists()) return null;
-
-    const data = constSnap.data();
+    const data = constructorData;
     
     // Busca imóveis vinculados a esta construtora
     const q = query(collection(this.db, 'properties'), where('builderId', '==', constructorId));
@@ -123,7 +122,7 @@ export class KnowledgeService {
 
     return {
       data: {
-        id: constructorId,
+        id: constructorData.id,
         name: data.name,
         activeProjects: projectIds,
         brokerPartnership: true

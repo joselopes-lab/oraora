@@ -47,6 +47,15 @@ export default function EditPropertyPage() {
             // Sanitize data to remove undefined values, which Firestore doesn't support.
             const sanitizedData = JSON.parse(JSON.stringify(data));
 
+            if (propertyData?.builderId) {
+                sanitizedData.builderId = propertyData.builderId;
+            }
+            if (propertyData?.tenantId) {
+                sanitizedData.tenantId = propertyData.tenantId;
+            } else {
+                delete sanitizedData.tenantId;
+            }
+
             await setDoc(propertyDocRef, sanitizedData, { merge: true });
             
             toast({

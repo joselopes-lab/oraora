@@ -31,22 +31,14 @@ export default function NewConstructorPage() {
             // 2. Update Auth profile
             await updateProfile(user, { displayName: data.name });
 
-            // 3. Create user document in 'users' collection
-            const userDocRef = doc(firestore, 'users', user.uid);
-            const userData = {
-                id: user.uid,
-                username: data.name,
-                email: data.accessEmail,
-                userType: 'constructor',
-                isActive: true,
-                planId: 'constructor-default',
-            };
-            setDocumentNonBlocking(userDocRef, userData, { merge: true });
-
-            // 4. Create constructor document in 'constructors' collection
-            const constructorDocRef = doc(firestore, 'constructors', user.uid);
+            // 3. Create constructor document with an independent ID (tenantId) in 'constructors' collection
+            const constructorDocRef = doc(collection(firestore, 'constructors'));
+            const tenantId = constructorDocRef.id;
             const constructorData = {
-                id: user.uid,
+                id: tenantId,
+                tenantId: tenantId,
+                ownerId: user.uid,
+                members: [{ uid: user.uid, role: 'admin' }],
                 userId: user.uid,
                 websiteUrl: data.website || '',
                 name: data.name,
@@ -65,6 +57,19 @@ export default function NewConstructorPage() {
                 accessEmail: data.accessEmail
             };
             setDocumentNonBlocking(constructorDocRef, constructorData, { merge: true });
+
+            // 4. Create user document in 'users' collection with tenantId
+            const userDocRef = doc(firestore, 'users', user.uid);
+            const userData = {
+                id: user.uid,
+                username: data.name,
+                email: data.accessEmail,
+                userType: 'constructor',
+                tenantId: tenantId,
+                isActive: true,
+                planId: 'constructor-default',
+            };
+            setDocumentNonBlocking(userDocRef, userData, { merge: true });
 
 
             toast({

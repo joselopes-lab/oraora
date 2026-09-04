@@ -31,10 +31,16 @@ service cloud.firestore {
 
     // 1. USUÁRIOS E LOGS
     match /users/{userId} {
-      allow get: if true;
+      allow get: if isOwner(userId) || isAdmin();
       allow list: if isAdmin();
       allow create: if isOwner(userId);
-      allow update: if isOwner(userId) || isAdmin();
+      allow update: if isAdmin() || (
+        isOwner(userId) &&
+        (resource.data.tenantId == null || request.resource.data.tenantId == resource.data.tenantId) &&
+        (resource.data.userType == null || request.resource.data.userType == resource.data.userType) &&
+        (resource.data.role == null || request.resource.data.role == resource.data.role) &&
+        (resource.data.isAdmin == null || request.resource.data.isAdmin == resource.data.isAdmin)
+      );
       allow delete: if isAdmin();
 
       match /activityLog/{logId} {
@@ -91,10 +97,43 @@ service cloud.firestore {
       }
     }
 
-    // 4. IMÓVEIS
+    // 4. IMÓVEIS E PROJETOS
     match /properties/{propertyId} {
       allow read, list: if true;
-      allow write: if isAdmin() || (isUserOfType('constructor') && request.resource.data.builderId == request.auth.uid);
+      allow write: if isAdmin() || (
+        isUserOfType('constructor') && (
+          // Compatibilidade Legada: Imóveis sem tenantId e com builderId correspondente
+          (resource == null && !('tenantId' in request.resource.data) && request.resource.data.builderId == request.auth.uid) ||
+          (resource != null && !('tenantId' in resource.data) && resource.data.builderId == request.auth.uid && request.resource.data.builderId == resource.data.builderId) ||
+          // Novos Imóveis com tenantId: Validação de tenant, membership em constructors e role (admin ou gerente)
+          (
+            isSignedIn() &&
+            (resource == null || resource.data.tenantId == request.resource.data.tenantId) && // Imutabilidade de tenantId em update
+            (resource == null || resource.data.builderId == request.resource.data.builderId) && // Imutabilidade de builderId em update
+            request.resource.data.tenantId == getUserData().tenantId &&
+            // Verifica se o usuário é membro com role 'admin' ou 'gerente' na construtora do tenant
+            get(/databases/$(database)/documents/constructors/$(request.resource.data.tenantId)).data.members != null &&
+            get(/databases/$(database)/documents/constructors/$(request.resource.data.tenantId)).data.members.hasAny([
+              { 'uid': request.auth.uid, 'role': 'admin' },
+              { 'uid': request.auth.uid, 'role': 'gerente' }
+            ])
+          )
+        )
+      );
+    }
+
+    match /projects/{projectId} {
+      allow read, list: if isAdmin() || (isSignedIn() && (
+        resource.data.builderId == request.auth.uid ||
+        resource.data.isPublished == true ||
+        (isUserOfType('constructor') && getUserData().tenantId != null && resource.data.builderId == getUserData().tenantId)
+      ));
+      allow write: if isAdmin() || (
+        isUserOfType('constructor') && (
+          (resource == null && (request.resource.data.builderId == request.auth.uid || (getUserData().tenantId != null && request.resource.data.builderId == getUserData().tenantId))) ||
+          (resource != null && (resource.data.builderId == request.auth.uid || (getUserData().tenantId != null && resource.data.builderId == getUserData().tenantId)))
+        )
+      );
     }
 
     match /brokerProperties/{propertyId} {
@@ -180,8 +219,58 @@ service cloud.firestore {
     }
 
     match /constructors/{constructorId} {
-      allow read, list: if true;
-      allow write: if isOwner(constructorId) || isAdmin();
+      // Leitura permitida para Super Admin, dono legado (constructorId == auth.uid),
+      // membros do tenant ou se a construtora estiver publicada (para leitura pública básica / vitrine).
+      allow read: if isAdmin() || isOwner(constructorId) || 
+        (isSignedIn() && resource.data.tenantId == getUserData().tenantId) ||
+        (resource.data.isVisibleOnSite != false);
+      
+      allow list: if isSignedIn();
+
+      // Escrita com proteções robustas para membros, tenantId, ownerId e papéis
+      allow write: if isAdmin() || 
+        isOwner(constructorId) || 
+        (
+          isSignedIn() && 
+          (
+            (resource != null && resource.data.tenantId == getUserData().tenantId) || 
+            (request.resource.data.tenantId == constructorId || request.resource.data.id == constructorId)
+          ) &&
+          (
+            // Verifica se o usuário é admin na lista de members da construtora existente ou nova
+            resource == null || 
+            (
+              resource.data.members != null &&
+              resource.data.members.hasAny([{ 'uid': request.auth.uid, 'role': 'admin' }])
+            ) ||
+            (
+              resource == null &&
+              request.resource.data.members != null &&
+              request.resource.data.members.hasAny([{ 'uid': request.auth.uid, 'role': 'admin' }])
+            )
+          ) &&
+          // Imutabilidade de tenantId e ownerId em atualizações
+          (
+            resource == null || 
+            (
+              (resource.data.tenantId == null || request.resource.data.tenantId == resource.data.tenantId) &&
+              (resource.data.ownerId == null || request.resource.data.ownerId == resource.data.ownerId)
+            )
+          ) &&
+          // Proteções para o array members (em atualizações)
+          (
+            resource == null ||
+            request.resource.data.members == null ||
+            (
+              // 1. O usuário solicitante não pode remover a si mesmo da lista de membros
+              request.resource.data.members.hasAny([{ 'uid': request.auth.uid, 'role': 'admin' }]) &&
+              // 2. Validação de estrutura e roles permitidas para cada membro no array
+              !(request.resource.data.members.hasAny([
+                { 'role': 'superadmin' }, { 'role': 'owner' }, { 'role': 'unauthorized' }
+              ]))
+            )
+          )
+        );
     }
 
     match /radarLists/{userId} {
@@ -211,6 +300,33 @@ service cloud.firestore {
     match /helpVideos/{videoId} {
       allow read, list: if isSignedIn();
       allow write: if isAdmin();
+    }
+
+    // 12. TABELAS DE PREÇOS
+    match /priceTables/{tableId} {
+      allow read, list: if isSignedIn();
+      allow write: if isAdmin() || (
+        isUserOfType('constructor') &&
+        request.resource.data.tenantId == getUserData().tenantId &&
+        get(/databases/$(database)/documents/constructors/$(request.resource.data.tenantId)).data.members != null &&
+        get(/databases/$(database)/documents/constructors/$(request.resource.data.tenantId)).data.members.hasAny([
+          { 'uid': request.auth.uid, 'role': 'admin' },
+          { 'uid': request.auth.uid, 'role': 'gerente' }
+        ])
+      );
+
+      match /versions/{versionId} {
+        allow read, list: if isSignedIn();
+        allow write: if isAdmin() || (
+          isUserOfType('constructor') &&
+          get(/databases/$(database)/documents/priceTables/$(tableId)).data.tenantId == getUserData().tenantId &&
+          get(/databases/$(database)/documents/constructors/$(get(/databases/$(database)/documents/priceTables/$(tableId)).data.tenantId)).data.members != null &&
+          get(/databases/$(database)/documents/constructors/$(get(/databases/$(database)/documents/priceTables/$(tableId)).data.tenantId)).data.members.hasAny([
+            { 'uid': request.auth.uid, 'role': 'admin' },
+            { 'uid': request.auth.uid, 'role': 'gerente' }
+          ])
+        );
+      }
     }
   }
 }

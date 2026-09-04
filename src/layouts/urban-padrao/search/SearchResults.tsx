@@ -69,8 +69,18 @@ export default function SearchResults({ broker, properties }: SearchResultsPageP
     const { user } = useUser();
     const firestore = useFirestore();
 
-    const isPortalAccess = pathname.startsWith('/sites');
-    const searchUrl = isPortalAccess ? `/sites/${broker.slug}/search` : '/search';
+    const searchUrl = useMemo(() => {
+        if (typeof window !== 'undefined') {
+            const host = window.location.hostname.toLowerCase();
+            const cleanHost = host.startsWith('www.') ? host.slice(4) : host;
+            const isMainPlatform = cleanHost === 'oraora.com.br' || cleanHost === 'www.oraora.com.br' || cleanHost.includes('localhost') || cleanHost.includes('run.app') || cleanHost.includes('web.app') || cleanHost.includes('firebase');
+            if (!isMainPlatform) {
+                return '/search';
+            }
+        }
+        const isPortalAccess = pathname.startsWith('/sites');
+        return isPortalAccess ? `/sites/${broker.slug}/search` : '/search';
+    }, [pathname, broker.slug]);
 
     const radarListDocRef = useMemoFirebase(() => (user ? doc(firestore, 'radarLists', user.uid) : null), [user, firestore]);
     const { data: radarList } = useDoc<RadarList>(radarListDocRef);

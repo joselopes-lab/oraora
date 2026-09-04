@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useMemo } from 'react';
+import { getLeadOrigin } from '@/lib/lead-origin';
 import { useCollection, useFirestore, useMemoFirebase, useAuthContext, deleteDocumentNonBlocking } from '@/firebase';
 import { collection, query, where, doc, orderBy, writeBatch, serverTimestamp, getDocs, getDoc, Timestamp, limit } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
@@ -59,12 +60,15 @@ type Lead = {
     email: string;
     source: string;
     origin?: 'whatsapp' | 'form';
+    campaignData?: Record<string, string>;
     createdAt: Timestamp;
     status: LeadStatus;
     tempoPorEtapa?: { [key: string]: number };
     tempoTotalFechamentoEmDias?: number;
     leadScore?: number;
     leadQualification?: 'Quente' | 'Morno' | 'Frio';
+    dealStatus?: 'open' | 'won' | 'lost';
+    dealValue?: number;
 };
 
 type LeadFunnelColumn = {
@@ -175,6 +179,9 @@ const LeadCard = ({ lead, columns, onMove, onDragStart, onDeleteClick }: { lead:
                             <span className="material-symbols-outlined text-[12px]">{qualificationIcons[lead.leadQualification]}</span> {lead.leadQualification}
                         </span>
                     )}
+                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-bold bg-slate-100 text-slate-700">
+                        {getLeadOrigin(lead.campaignData)}
+                    </span>
                 </div>
                 <div className="flex items-center gap-1">
                     {canMovePrev && (
@@ -207,6 +214,10 @@ export default function LeadsPage() {
     const [isFunnelEditorOpen, setIsFunnelEditorOpen] = useState(false);
     const [hasCheckedForDefaultColumns, setHasCheckedForDefaultColumns] = useState(false);
     const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
+    const [isWonModalOpen, setIsWonModalOpen] = useState(false);
+    const [pendingMove, setPendingMove] = useState<{ leadId: string; fromStatus: string; toStatus: string } | null>(null);
+    const [modalDealValue, setModalDealValue] = useState<string>('');
+    const [modalError, setModalError] = useState<string>('');
 
 
     const leadsQuery = useMemoFirebase(
@@ -276,6 +287,83 @@ export default function LeadsPage() {
         }
     }, [areColumnsLoading, columns, user?.uid, firestore, toast, hasCheckedForDefaultColumns]);
 
+    const handleConfirmWon = async () => {
+        const num = Number(modalDealValue);
+        if (!modalDealValue || isNaN(num) || num <= 0) {
+            setModalError('Informe um valor de venda válido.');
+            return;
+        }
+        if (!pendingMove || !firestore || !user?.uid || !columns) return;
+
+        const { leadId, fromStatus, toStatus } = pendingMove;
+        setIsWonModalOpen(false);
+
+        const leadRef = doc(firestore, 'leads', leadId);
+        const historyRef = collection(leadRef, 'statusHistory');
+
+        try {
+            const now = new Date();
+            const leadDoc = await getDoc(leadRef);
+            if (!leadDoc.exists()) throw new Error("Lead document not found");
+            const leadData = leadDoc.data();
+            const createdAt = leadData.createdAt?.toDate() || new Date();
+            const tempoPorEtapa = leadData.tempoPorEtapa || {};
+
+            const historyQuery = query(historyRef, orderBy('changedAt', 'desc'), limit(1));
+            const lastHistorySnap = await getDocs(historyQuery);
+            
+            const stageStartDate = lastHistorySnap.empty 
+                ? createdAt 
+                : lastHistorySnap.docs[0].data().changedAt.toDate();
+
+            const durationInHours = (now.getTime() - stageStartDate.getTime()) / (1000 * 60 * 60);
+            const newTimeInStage = (tempoPorEtapa[fromStatus] || 0) + durationInHours;
+            
+            const batch = writeBatch(firestore);
+
+            const closingTimeInDays = (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24);
+
+            const leadUpdateData: { [key: string]: any } = {
+                status: toStatus,
+                tempoPorEtapa: { ...tempoPorEtapa, [fromStatus]: newTimeInStage },
+                tempoTotalFechamentoEmDias: closingTimeInDays,
+                dealStatus: 'won',
+                dealValue: num,
+            };
+            
+            batch.update(leadRef, leadUpdateData);
+
+            const newHistoryRef = doc(historyRef);
+            const historyData = { fromStatus, toStatus, changedAt: serverTimestamp(), brokerId: user.uid };
+            batch.set(newHistoryRef, historyData);
+
+            await batch.commit();
+
+            toast({
+                title: 'Negócio Ganho Registrado!',
+                description: `Lead movido para "${columns.find(c => c.id === toStatus)?.title}" com valor de R$ ${num.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}.`
+            });
+
+        } catch (error) {
+            console.error("Erro ao registrar negócio ganho:", error);
+            toast({
+                variant: "destructive",
+                title: "Erro ao atualizar lead",
+                description: "Não foi possível registrar o negócio ganho.",
+            });
+        } finally {
+            setPendingMove(null);
+            setModalDealValue('');
+        }
+    };
+
+    const handleCancelWon = () => {
+        setIsWonModalOpen(false);
+        setPendingMove(null);
+        setModalDealValue('');
+        setModalError('');
+    };
+
     const handleMoveLead = async (leadId: string, direction: 'prev' | 'next' | LeadStatus) => {
         const leadToMove = leads?.find(l => l.id === leadId);
         if (!leadToMove || !firestore || !user?.uid || !columns) return;
@@ -293,6 +381,17 @@ export default function LeadsPage() {
         }
     
         if (fromStatus === toStatus) return;
+
+        const targetColumn = columns.find(c => c.id === toStatus);
+        const isConvertedColumn = toStatus === 'converted' || targetColumn?.title?.toLowerCase().includes('convert') || targetColumn?.title?.toLowerCase().includes('ganho');
+
+        if (isConvertedColumn && !(leadToMove.dealStatus === 'won' && typeof leadToMove.dealValue === 'number' && leadToMove.dealValue > 0)) {
+            setPendingMove({ leadId, fromStatus, toStatus });
+            setModalDealValue(leadToMove.dealValue ? leadToMove.dealValue.toString() : '');
+            setModalError('');
+            setIsWonModalOpen(true);
+            return;
+        }
     
         const leadRef = doc(firestore, 'leads', leadId);
         const historyRef = collection(leadRef, 'statusHistory');
@@ -657,6 +756,11 @@ export default function LeadsPage() {
                                                 <span className="material-symbols-outlined text-[12px]">{sourceIcons[lead.source] || 'help'}</span> {lead.source}
                                             </span>
                                         )}
+                                        <div className="mt-1">
+                                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-bold bg-slate-100 text-slate-700">
+                                                {getLeadOrigin(lead.campaignData)}
+                                            </span>
+                                        </div>
                                     </TableCell>
                                     <TableCell>
                                         {lead.createdAt && <ClientSideDate date={lead.createdAt.toDate()} />}
@@ -736,6 +840,65 @@ export default function LeadsPage() {
                 </DialogFooter>
             </DialogContent>
         </Dialog>
+        {isWonModalOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-fadeIn">
+                <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-md w-full overflow-hidden flex flex-col p-6 space-y-6">
+                    <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+                        <div>
+                            <h3 className="font-extrabold text-lg text-slate-900">Negócio ganho</h3>
+                            <p className="text-xs text-slate-500 mt-0.5">Informe o valor final da venda fechada</p>
+                        </div>
+                        <button 
+                            type="button"
+                            onClick={handleCancelWon}
+                            className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 transition-colors cursor-pointer"
+                        >
+                            <span className="material-symbols-outlined text-[18px]">close</span>
+                        </button>
+                    </div>
+
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wide mb-2">Valor da Venda (R$)</label>
+                            <div className="relative">
+                                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-bold">R$</span>
+                                <Input 
+                                    type="number"
+                                    step="0.01"
+                                    autoFocus
+                                    className="w-full pl-10 pr-4 bg-slate-50 border border-slate-200 rounded-xl py-3 text-sm text-slate-900 font-semibold focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all placeholder-slate-400"
+                                    placeholder="0,00"
+                                    value={modalDealValue}
+                                    onChange={e => {
+                                        setModalDealValue(e.target.value);
+                                        setModalError('');
+                                    }}
+                                />
+                            </div>
+                            {modalError && <p className="text-xs text-rose-500 font-medium mt-1.5">{modalError}</p>}
+                        </div>
+                    </div>
+
+                    <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+                        <Button 
+                            type="button" 
+                            variant="outline"
+                            onClick={handleCancelWon}
+                            className="border-slate-200 text-slate-700 font-medium text-xs px-4 py-2.5 rounded-xl hover:bg-slate-50"
+                        >
+                            Cancelar
+                        </Button>
+                        <Button 
+                            type="button"
+                            onClick={handleConfirmWon}
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-xs"
+                        >
+                            Confirmar Negócio Ganho
+                        </Button>
+                    </div>
+                </div>
+            </div>
+        )}
       </AlertDialog>
     );
 }

@@ -12,6 +12,7 @@ import {
 import {
   collection,
   query,
+  where,
   doc,
   deleteDoc,
   arrayUnion,
@@ -19,7 +20,10 @@ import {
 } from 'firebase/firestore';
 import Link from 'next/link';
 import Image from 'next/image';
+import { getAllProjectsServer } from '@/app/dashboard/construtoras/empreendimentos/actions.server';
+import { updatePropertyCanalProServer } from './canal-pro.actions.server';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
 import {
   Table,
   TableBody,
@@ -90,6 +94,7 @@ type Property = {
   id: string;
   builderId?: string;
   brokerId?: string;
+  projectId?: string;
   informacoesbasicas?: {
     nome?: string;
     status?: string;
@@ -139,12 +144,108 @@ export default function ImoveisPage() {
     setCurrentPage(1);
   }, [searchTerm, selectedState]);
 
+  const constructorId = userProfile?.tenantId || userProfile?.id || user?.uid;
+  const isAdmin = userProfile?.userType === 'admin';
+  const isConstructor = userProfile?.userType === 'constructor' || userProfile?.userType === 'construtora';
+
+  // Fetch projects securely via server action
+  const [projects, setProjects] = useState<any[]>([]);
+  const [areProjectsLoading, setAreProjectsLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadProjects() {
+      try {
+        const data = await getAllProjectsServer();
+        setProjects(data || []);
+      } catch (err) {
+        console.error('Erro ao carregar projetos no servidor:', err);
+      } finally {
+        setAreProjectsLoading(false);
+      }
+    }
+    loadProjects();
+  }, []);
+
+  const projectMap = useMemo(() => {
+    if (!projects) return {};
+    return projects.reduce((acc, proj) => ({
+      ...acc,
+      [proj.id]: proj
+    }), {} as Record<string, any>);
+  }, [projects]);
+
   // Fetch constructor properties
-  const propertiesQuery = useMemoFirebase(
-    () => (firestore ? query(collection(firestore, 'properties')) : null),
-    [firestore]
+  const propertiesQueryTenant = useMemoFirebase(
+    () => {
+      if (!firestore || !isReady) return null;
+      if (isAdmin || !isConstructor) {
+        return query(collection(firestore, 'properties'));
+      }
+      return constructorId ? query(collection(firestore, 'properties'), where('tenantId', '==', constructorId)) : null;
+    },
+    [firestore, isReady, isAdmin, isConstructor, constructorId]
   );
-  const { data: properties, isLoading: arePropertiesLoading } = useCollection<Property>(propertiesQuery);
+  const { data: tenantProperties, isLoading: areTenantLoading } = useCollection<Property>(propertiesQueryTenant);
+
+  const propertiesQueryBuilder = useMemoFirebase(
+    () => {
+      if (!firestore || !isReady || isAdmin || !isConstructor) return null;
+      return constructorId ? query(collection(firestore, 'properties'), where('builderId', '==', constructorId)) : null;
+    },
+    [firestore, isReady, isAdmin, isConstructor, constructorId]
+  );
+  const { data: builderProperties, isLoading: areBuilderLoading } = useCollection<Property>(propertiesQueryBuilder);
+
+  const properties = useMemo(() => {
+    const map = new Map<string, Property>();
+
+    // 1. Add projects as empreendimentos
+    projects?.forEach(proj => {
+      if (isConstructor && !isAdmin) {
+        const builderId = proj.builderId;
+        if (builderId && constructorId && builderId !== constructorId && builderId !== userProfile?.id && builderId !== user?.uid) {
+          return;
+        }
+      }
+
+      map.set(proj.id, {
+        id: proj.id,
+        builderId: proj.builderId,
+        projectId: proj.id,
+        informacoesbasicas: {
+          nome: proj.name || proj.tituloComercial || 'Empreendimento',
+          status: proj.status || proj.informacoesbasicas?.status || 'Lançamento',
+        },
+        title: proj.name || proj.tituloComercial,
+        nome: proj.name,
+        localizacao: proj.localizacao,
+        midia: proj.midia,
+        media: proj.media,
+        isProject: true,
+        ...proj
+      });
+    });
+
+    // 2. Add properties / units
+    const rawProps = isAdmin || !isConstructor ? (tenantProperties || []) : (() => {
+      const pMap = new Map<string, Property>();
+      tenantProperties?.forEach(p => pMap.set(p.id, p));
+      builderProperties?.forEach(p => pMap.set(p.id, p));
+      return Array.from(pMap.values());
+    })();
+
+    rawProps.forEach(prop => {
+      if (!map.has(prop.id)) {
+        map.set(prop.id, prop);
+      }
+    });
+
+    return Array.from(map.values());
+  }, [projects, tenantProperties, builderProperties, isAdmin, isConstructor, constructorId, userProfile, user]);
+
+  const canalProCount = useMemo(() => {
+      return properties.filter(p => p.publishToCanalPro === true).length;
+  }, [properties]);
 
   // Fetch constructors to display names
   const constructorsQuery = useMemoFirebase(
@@ -174,9 +275,13 @@ export default function ImoveisPage() {
   };
 
   const getPropertyLocation = (p: Property) => {
-    if (p.localizacao) {
-      const city = p.localizacao.cidade || '';
-      const state = p.localizacao.estado || '';
+    let loc = p.localizacao;
+    if (!loc && p.projectId && projectMap[p.projectId]) {
+      loc = projectMap[p.projectId].localizacao;
+    }
+    if (loc) {
+      const city = loc.cidade || '';
+      const state = loc.estado || '';
       return city && state ? `${city}, ${state}` : city || state || 'Localização não informada';
     }
     if (p.location) {
@@ -188,7 +293,11 @@ export default function ImoveisPage() {
   };
 
   const getPropertyImage = (p: Property) => {
-    return p.midia?.[0] || p.media?.[0] || 'https://placehold.co/400x300?text=Sem+Foto';
+    try {
+      return p.midia?.[0] || p.media?.[0] || 'https://picsum.photos/seed/fallback/600/400';
+    } catch {
+      return 'https://picsum.photos/seed/fallback/600/400';
+    }
   };
 
   const handleTogglePortfolio = async (property: Property) => {
@@ -228,6 +337,31 @@ export default function ImoveisPage() {
     }
   };
 
+  const handleToggleCanalPro = async (property: Property) => {
+      try {
+          const newState = !property.publishToCanalPro;
+          const result = await updatePropertyCanalProServer(property.id, newState);
+          if (result.success) {
+              toast({
+                  title: "Sucesso",
+                  description: `Imóvel ${newState ? 'publicado' : 'removido'} do Canal Pro.`
+              });
+          } else {
+              toast({
+                  variant: 'destructive',
+                  title: 'Erro',
+                  description: result.error || 'Erro ao atualizar Canal Pro.'
+              });
+          }
+      } catch (err) {
+          toast({
+              variant: 'destructive',
+              title: 'Erro',
+              description: 'Erro inesperado.'
+          });
+      }
+  };
+
   const handleDelete = async () => {
     if (propertyToDelete && firestore) {
       try {
@@ -252,7 +386,10 @@ export default function ImoveisPage() {
 
     if (properties) {
       properties.forEach((p) => {
-        const rawState = (p.localizacao?.estado || p.location?.state || '').trim();
+        let rawState = (p.localizacao?.estado || p.location?.state || '').trim();
+        if (!rawState && p.projectId && projectMap[p.projectId]) {
+          rawState = (projectMap[p.projectId].localizacao?.estado || '').trim();
+        }
         if (rawState) {
           propertyStateCounts[rawState] = (propertyStateCounts[rawState] || 0) + 1;
         }
@@ -292,7 +429,7 @@ export default function ImoveisPage() {
     });
 
     return Array.from(optionsMap.values());
-  }, [properties]);
+  }, [properties, projectMap]);
 
   const filteredProperties = useMemo(() => {
     if (!properties) return [];
@@ -311,7 +448,10 @@ export default function ImoveisPage() {
       let matchesState = true;
       if (selectedState) {
         const selLower = selectedState.toLowerCase().trim();
-        const rawState = (p.localizacao?.estado || p.location?.state || '').toLowerCase().trim();
+        let rawState = (p.localizacao?.estado || p.location?.state || '').toLowerCase().trim();
+        if (!rawState && p.projectId && projectMap[p.projectId]) {
+          rawState = (projectMap[p.projectId].localizacao?.estado || '').toLowerCase().trim();
+        }
 
         const matchedStandard = ALL_BRAZILIAN_STATES.find(
           (s) => s.uf.toLowerCase() === selLower || s.name.toLowerCase() === selLower
@@ -332,7 +472,7 @@ export default function ImoveisPage() {
 
       return matchesSearch && matchesState;
     });
-  }, [properties, searchTerm, selectedState, constructorMap]);
+  }, [properties, projectMap, searchTerm, selectedState, constructorMap]);
 
   const totalPages = useMemo(() => {
     return Math.max(1, Math.ceil(filteredProperties.length / ITEMS_PER_PAGE));
@@ -343,7 +483,7 @@ export default function ImoveisPage() {
     return filteredProperties.slice(start, start + ITEMS_PER_PAGE);
   }, [filteredProperties, currentPage]);
 
-  const isLoading = !isReady || arePropertiesLoading || isPortfolioLoading;
+  const isLoading = !isReady || areTenantLoading || areBuilderLoading || areProjectsLoading || isPortfolioLoading;
 
   if (isLoading) {
     return (
@@ -420,18 +560,19 @@ export default function ImoveisPage() {
               <TableHead className="px-6 py-4 font-bold uppercase text-[10px]">Empreendimento</TableHead>
               <TableHead className="px-6 py-4 font-bold uppercase text-[10px]">Construtora</TableHead>
               <TableHead className="px-6 py-4 font-bold uppercase text-[10px]">Status</TableHead>
+              <TableHead className="px-6 py-4 font-bold uppercase text-[10px]">Canal Pro</TableHead>
               <TableHead className="px-6 py-4 font-bold uppercase text-[10px] text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {paginatedProperties.length > 0 ? (
-              paginatedProperties.map((p) => {
-                const inPortfolio = portfolioSet.has(p.id);
-                const constructorName = p.builderId ? (constructorMap[p.builderId] || 'Construtora Parceira') : 'Construtora';
-                const status = p.informacoesbasicas?.status || 'Lançamento';
+              paginatedProperties.map((p, index) => {
+                const inPortfolio = portfolioSet.has(p?.id);
+                const constructorName = p?.builderId ? (constructorMap[p.builderId] || 'Construtora Parceira') : 'Construtora';
+                const status = p?.informacoesbasicas?.status || 'Lançamento';
 
                 return (
-                  <TableRow key={p.id} className="group hover:bg-slate-50/50 transition-colors">
+                  <TableRow key={p?.id || index} className="group hover:bg-slate-50/50 transition-colors">
                     <TableCell className="px-6 py-4">
                       <div className="flex items-center gap-4">
                         <div className="size-16 rounded-xl overflow-hidden bg-slate-100 shrink-0 border border-slate-200 relative">
@@ -461,6 +602,9 @@ export default function ImoveisPage() {
                       }`}>
                         {status}
                       </span>
+                    </TableCell>
+                    <TableCell className="px-6 py-4">
+                        <Switch checked={!!p.publishToCanalPro} onCheckedChange={() => handleToggleCanalPro(p)} />
                     </TableCell>
                     <TableCell className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">

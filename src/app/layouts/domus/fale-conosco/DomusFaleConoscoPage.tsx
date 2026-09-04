@@ -10,6 +10,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { createLead } from '@/app/sites/actions';
+import { getStoredCampaignData } from '@/lib/campaign';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -102,6 +103,7 @@ export default function DomusFaleConoscoPage({ broker }: DomusFaleConoscoPagePro
 
   const onSubmit = async (data: FormData) => {
     setIsSubmitting(true);
+    const campaignData = getStoredCampaignData();
     const result = await createLead({
       brokerId: broker.id,
       name: data.name,
@@ -111,6 +113,7 @@ export default function DomusFaleConoscoPage({ broker }: DomusFaleConoscoPagePro
       message: data.message,
       source: 'contact_page',
       origin: 'form',
+      ...(campaignData ? { campaignData } : {}),
     });
 
     if (result.success) {

@@ -283,7 +283,7 @@ export default function AvulsoPage() {
                                     <TableCell className="px-6 py-4">
                                         <div className="flex items-center gap-4">
                                             <div className="h-16 w-24 rounded-lg overflow-hidden bg-gray-200 shrink-0 border border-gray-100">
-                                                <Image alt={getPropertyName(property)} className="h-full w-full object-cover" src={property.midia?.[0] || 'https://placehold.co/100x100'} width={96} height={64} />
+                                                <Image alt={getPropertyName(property)} className="h-full w-full object-cover" src={property.midia?.[0] || 'https://picsum.photos/seed/fallback/600/400'} width={96} height={64} />
                                             </div>
                                             <div>
                                                 <p className="font-bold text-text-main text-base">{getPropertyName(property)}</p>
