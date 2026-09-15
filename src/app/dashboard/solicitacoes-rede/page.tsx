@@ -221,7 +221,7 @@ export default function CentralOportunidadesPage() {
                                         <Avatar className="size-12 border-2 border-slate-50"><AvatarFallback className="bg-slate-100 text-slate-400 font-bold uppercase">{op.brokerName?.charAt(0)}</AvatarFallback></Avatar>
                                         <div>
                                         <p className="text-sm font-black text-slate-900 uppercase tracking-tight">{op.brokerName}</p>
-                                        <p className="text-[10px] text-slate-400 font-bold uppercase">{op.network?.publishedAt ? formatDistanceToNow(op.network.publishedAt.toDate(), { addSuffix: true, locale: ptBR }) : ''}</p>
+                                        <p className="text-[10px] text-slate-400 font-bold uppercase">{(() => { const d = normalizeDate(op.network?.publishedAt); return d ? formatDistanceToNow(d, { addSuffix: true, locale: ptBR }) : ''; })()}</p>
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-3">

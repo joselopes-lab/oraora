@@ -10,6 +10,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useCollection, useFirestore, useMemoFirebase, setDocumentNonBlocking, deleteDocumentNonBlocking, useUser } from "@/firebase";
+import { normalizeDate } from "@/lib/utils";
 import { collection, query, doc, Timestamp } from "firebase/firestore";
 import { Button } from '@/components/ui/button';
 import {
@@ -328,14 +329,17 @@ export default function UserManagementPage() {
                     </div>
                 </TableCell>
                 <TableCell className="px-6 py-4 whitespace-nowrap text-sm text-text-secondary">
-                   {user.lastAccess ? (
-                     <ClientSideDate 
-                        date={user.lastAccess.toDate()} 
-                        options={{ day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }} 
-                     />
-                   ) : (
-                     <span className="italic opacity-50">Nunca</span>
-                   )}
+                   {(() => {
+                      const d = normalizeDate(user.lastAccess);
+                      return d ? (
+                        <ClientSideDate 
+                           date={d} 
+                           options={{ day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }} 
+                        />
+                      ) : (
+                        <span className="italic opacity-50">Nunca</span>
+                      );
+                   })()}
                 </TableCell>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                   <div className="flex items-center justify-end gap-2">

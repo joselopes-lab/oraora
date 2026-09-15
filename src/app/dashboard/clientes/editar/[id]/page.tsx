@@ -42,11 +42,25 @@ export default function EditClientPage() {
 
     const { data: client, isLoading } = useDoc<Lead>(leadDocRef);
 
+    const cleanUndefined = (obj: any): any => {
+        if (obj === null || typeof obj !== 'object') {
+            return obj;
+        }
+        if (Array.isArray(obj)) {
+            return obj.map(cleanUndefined);
+        }
+        return Object.fromEntries(
+            Object.entries(obj)
+                .filter(([_, v]) => v !== undefined)
+                .map(([k, v]) => [k, cleanUndefined(v)])
+        );
+    };
+
     const handleSave = async (data: ClientFormData) => {
         if (!leadDocRef) return;
         setIsSubmitting(true);
         try {
-            await setDocumentNonBlocking(leadDocRef, data, { merge: true });
+            await setDocumentNonBlocking(leadDocRef, cleanUndefined(data), { merge: true });
             toast({
                 title: 'Cliente Atualizado!',
                 description: `Os dados de "${data.name}" foram salvos.`,

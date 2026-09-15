@@ -16,7 +16,7 @@ import { Button } from '@/components/ui/button';
 import { useUser, useDoc, useFirestore, useMemoFirebase, setDocumentNonBlocking } from '@/firebase';
 import { arrayRemove, arrayUnion, doc, getDoc } from 'firebase/firestore';
 import { useRouter, notFound, usePathname } from 'next/navigation';
-import { cn } from '@/lib/utils';
+import { cn, formatArea } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StreetViewPanoramaView } from '@/components/StreetViewPanorama';
 import { WhatsAppWidget } from '../components/WhatsAppWidget';
@@ -348,7 +348,7 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
             <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm grid grid-cols-2 md:grid-cols-4 gap-6 items-center justify-items-center">
               <div className="flex flex-col items-center gap-1 text-center">
                 <span className="material-symbols-outlined text-primary text-3xl">square_foot</span>
-                <span className="text-2xl font-black text-text-main">{caracteristicasimovel.tamanho}</span>
+                <span className="text-2xl font-black text-text-main">{formatArea(caracteristicasimovel.tamanho)}</span>
                 <span className="text-xs text-text-muted uppercase tracking-wider font-bold">Área Útil</span>
               </div>
               <div className="flex flex-col items-center gap-1 text-center border-l border-gray-100 pl-6 w-full">
@@ -365,7 +365,7 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
             <div className="flex flex-wrap gap-3">
                 <Badge variant="outline" className="px-4 py-2 bg-gray-50">{formatQuartos(caracteristicasimovel.quartos)} Quartos</Badge>
                 <Badge variant="outline" className="px-4 py-2 bg-gray-50">{caracteristicasimovel.vagas} Vagas</Badge>
-                <Badge variant="outline" className="px-4 py-2 bg-gray-50">{caracteristicasimovel.tamanho} úteis</Badge>
+                <Badge variant="outline" className="px-4 py-2 bg-gray-50">{formatArea(caracteristicasimovel.tamanho)} úteis</Badge>
             </div>
             <div>
               <h2 className="text-2xl font-bold text-text-main mb-4">Sobre o Imóvel</h2>

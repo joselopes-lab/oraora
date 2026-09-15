@@ -4,7 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useState, useMemo } from 'react';
-import { cn } from '@/lib/utils';
+import { cn, formatArea } from '@/lib/utils';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -289,7 +289,7 @@ export default function SearchResultsComponent({ properties }: SearchResultsComp
                                             <div className="mt-auto pt-4 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-400 font-black uppercase tracking-widest">
                                                 <div className="flex items-center gap-4">
                                                   <span className="flex items-center gap-1.5"><span className="material-symbols-outlined text-primary text-base">bed</span> {formatQuartos(property.caracteristicasimovel.quartos)}</span>
-                                                  <span className="flex items-center gap-1.5"><span className="material-symbols-outlined text-primary text-base">square_foot</span> {property.caracteristicasimovel.tamanho}</span>
+                                                  <span className="flex items-center gap-1.5"><span className="material-symbols-outlined text-primary text-base">square_foot</span> {formatArea(property.caracteristicasimovel.tamanho)}</span>
                                                 </div>
                                                 <span className="material-symbols-outlined text-slate-200 group-hover:text-primary transition-colors">arrow_forward</span>
                                             </div>

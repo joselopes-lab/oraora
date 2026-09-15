@@ -391,7 +391,7 @@ export default function OportunidadeDetalhesPage() {
                                               <div className="size-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 border font-bold uppercase">{res.brokerName.charAt(0)}</div>
                                               <div>
                                                 <p className="text-sm font-black text-slate-900 uppercase">{res.brokerName}</p>
-                                                <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">{format(res.createdAt.toDate(), "dd MMM, HH:mm", { locale: ptBR })}</p>
+                                                <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">{format((() => { const d = normalizeDate(res.createdAt); return d ? format(d, "dd MMM, HH:mm", { locale: ptBR }) : ""; })(), "dd MMM, HH:mm", { locale: ptBR })}</p>
                                               </div>
                                             </div>
                                             <ResponseStepper status={res.status} />
@@ -452,7 +452,7 @@ export default function OportunidadeDetalhesPage() {
               <section className="bg-white rounded-3xl p-8 border border-slate-100 shadow-soft text-left">
                   <div className="flex items-center gap-3 mb-8"><History className="size-5 text-slate-400" /><h3 className="font-black text-slate-900 uppercase text-xs tracking-widest">Timeline</h3></div>
                   <div className="relative pl-6 space-y-8 before:absolute before:left-[5px] before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-100">
-                      <div className="relative"><div className="absolute -left-[24px] top-1 size-2.5 rounded-full bg-primary border-2 border-white shadow-sm"></div><p className="text-xs font-black text-slate-900 uppercase">Solicitação Publicada</p><p className="text-[10px] text-slate-400 font-bold">{format(lead.network.publishedAt.toDate(), "dd 'de' MMM, HH:mm", { locale: ptBR })}</p></div>
+                      <div className="relative"><div className="absolute -left-[24px] top-1 size-2.5 rounded-full bg-primary border-2 border-white shadow-sm"></div><p className="text-xs font-black text-slate-900 uppercase">Solicitação Publicada</p><p className="text-[10px] text-slate-400 font-bold">{format((() => { const d = normalizeDate(lead.network?.publishedAt); return d ? format(d, "dd 'de' MMM, HH:mm", { locale: ptBR }) : ""; })(), "dd 'de' MMM, HH:mm", { locale: ptBR })}</p></div>
                   </div>
               </section>
 

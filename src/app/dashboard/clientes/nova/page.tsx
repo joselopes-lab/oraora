@@ -13,6 +13,20 @@ export default function NewClientPage() {
     const { user } = useUser();
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    const cleanUndefined = (obj: any): any => {
+        if (obj === null || typeof obj !== 'object') {
+            return obj;
+        }
+        if (Array.isArray(obj)) {
+            return obj.map(cleanUndefined);
+        }
+        return Object.fromEntries(
+            Object.entries(obj)
+                .filter(([_, v]) => v !== undefined)
+                .map(([k, v]) => [k, cleanUndefined(v)])
+        );
+    };
+
     const handleSave = async (data: ClientFormData) => {
         if (!firestore || !user) {
             toast({ variant: 'destructive', title: 'Erro de Autenticação', description: 'Você precisa estar logado para criar um cliente.' });
@@ -46,14 +60,16 @@ export default function NewClientPage() {
               qualification = 'Morno';
             }
 
-            await addDocumentNonBlocking(leadsCollectionRef, {
+            const rawPayload = {
                 ...data,
                 message: '', // Add empty message for consistency
                 brokerId: user.uid,
                 createdAt: serverTimestamp(),
                 leadScore: score,
                 leadQualification: qualification
-            });
+            };
+
+            await addDocumentNonBlocking(leadsCollectionRef, cleanUndefined(rawPayload));
             
             toast({
                 title: 'Cliente Cadastrado!',

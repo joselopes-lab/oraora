@@ -8,7 +8,7 @@ import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { useState, useMemo, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import SearchFilters from '@/components/SearchFilters';
-import { cn } from '@/lib/utils';
+import { cn, formatArea } from '@/lib/utils';
 
 type Broker = {
   id: string;
@@ -321,7 +321,7 @@ export default function SearchResults({ broker, properties }: SearchResultsPageP
                                             {property.caracteristicasimovel.tamanho && (
                                                 <div className="flex items-center gap-1.5">
                                                     <span className="material-symbols-outlined text-primary text-[20px]" style={{color: cardIconColor}}>square_foot</span>
-                                                    <span className="text-sm font-semibold text-[#111418]">{property.caracteristicasimovel.tamanho}</span>
+                                                    <span className="text-sm font-semibold text-[#111418]">{formatArea(property.caracteristicasimovel.tamanho)}</span>
                                                 </div>
                                             )}
                                         </div>

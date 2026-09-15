@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { NewLeadForm } from './new-lead-form';
+import Link from 'next/link';
 
 interface ClientListProps {
   constructorId: string;
@@ -80,7 +81,9 @@ export function ConstructorClientsClient({ constructorId, initialLeads }: Client
                         {leads.map(lead => (
                             <TableRow key={lead.id}>
                                 <TableCell className="font-medium text-text-main">
-                                    <div>{lead.name || 'Sem nome'}</div>
+                                    <Link href={`/dashboard/construtoras/${constructorId}/leads/${lead.id}`} className="hover:text-primary transition-colors font-bold block">
+                                        {lead.name || 'Sem nome'}
+                                    </Link>
                                     <div className="text-xs text-text-secondary">{lead.cpf ? `CPF: ${lead.cpf}` : (lead.profession || '')}</div>
                                 </TableCell>
                                 <TableCell>

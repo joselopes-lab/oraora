@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { collection, getDocs, query, doc, arrayRemove, arrayUnion, where } from 'firebase/firestore';
 import { useFirestore, useUser, useDoc, useMemoFirebase, setDocumentNonBlocking, useAuthContext, useAuth } from '@/firebase';
 import { useEffect, useState, useMemo, Suspense } from 'react';
-import { cn } from '@/lib/utils';
+import { cn, formatArea } from '@/lib/utils';
 import { fetchPublishedProperties } from '@/app/sites/utils';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -390,7 +390,7 @@ export default function BrokerHomePage() {
                       <div className="mt-auto pt-4 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-400 font-black uppercase tracking-widest">
                         <div className="flex items-center gap-4">
                           <span className="flex items-center gap-1.5 text-left"><span className="material-symbols-outlined text-primary text-base">bed</span> {formatQuartos(property.caracteristicasimovel?.quartos)}</span>
-                          <span className="flex items-center gap-1.5 text-left"><span className="material-symbols-outlined text-primary text-base">square_foot</span> {property.caracteristicasimovel?.tamanho || 'N/A'}</span>
+                          <span className="flex items-center gap-1.5 text-left"><span className="material-symbols-outlined text-primary text-base">square_foot</span> {formatArea(property.caracteristicasimovel?.tamanho) || 'N/A'}</span>
                         </div>
                         <span className="material-symbols-outlined text-slate-200 group-hover:text-primary transition-colors">arrow_forward</span>
                       </div>

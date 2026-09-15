@@ -10,6 +10,10 @@ export const ActivationPanel = ({ userProfile }: { userProfile: any }) => {
   const firestore = useFirestore();
   const router = useRouter();
 
+  if (userProfile?.userType !== 'broker') {
+    return null;
+  }
+
   useEffect(() => {
     if (userProfile?.id) {
       const savedState = localStorage.getItem(`activation-panel-state:${userProfile.id}`);

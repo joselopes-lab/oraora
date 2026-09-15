@@ -27,7 +27,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Progress } from "@/components/ui/progress";
-import { Loader2, Trash2, ExternalLink, Briefcase } from "lucide-react";
+import { Loader2, Trash2, ArrowRight, Briefcase } from "lucide-react";
 
 type Property = {
   id: string;
@@ -65,6 +65,8 @@ export default function MyPortfolioPage() {
     const [portfolioProperties, setPortfolioProperties] = useState<Property[]>([]);
     const [isDataLoading, setIsDataLoading] = useState(true);
     const [propertyToDelete, setPropertyToDelete] = useState<Property | null>(null);
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 10;
 
     const brokerPropertiesQuery = useMemoFirebase(
       () => (user && firestore ? query(collection(firestore, 'brokerProperties'), where('brokerId', '==', user.uid), where('inPortfolio', '==', true)) : null),
@@ -120,6 +122,19 @@ export default function MyPortfolioPage() {
         return [...(myOwnedPortfolio || []), ...portfolioProperties].sort((a, b) => a.informacoesbasicas.nome.localeCompare(b.informacoesbasicas.nome));
     }, [myOwnedPortfolio, portfolioProperties]);
 
+    const totalPages = Math.ceil(combinedPortfolio.length / itemsPerPage);
+
+    const paginatedPortfolio = useMemo(() => {
+        const start = (currentPage - 1) * itemsPerPage;
+        return combinedPortfolio.slice(start, start + itemsPerPage);
+    }, [combinedPortfolio, currentPage]);
+
+    useEffect(() => {
+        if (currentPage > totalPages && totalPages > 0) {
+            setCurrentPage(totalPages);
+        }
+    }, [totalPages, currentPage]);
+
     const constructorMap = useMemo(() => {
         if (!constructors) return {};
         return constructors.reduce((acc, c) => ({ ...acc, [c.id]: c.name }), {} as Record<string, string>);
@@ -171,7 +186,7 @@ export default function MyPortfolioPage() {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {combinedPortfolio.length > 0 ? combinedPortfolio.map(p => (
+                        {paginatedPortfolio.length > 0 ? paginatedPortfolio.map(p => (
                             <TableRow key={p.id} className="group hover:bg-slate-50/50 transition-colors">
                                 <TableCell className="px-6 py-4">
                                     <div className="flex items-center gap-4">
@@ -191,8 +206,10 @@ export default function MyPortfolioPage() {
                                 </TableCell>
                                 <TableCell className="px-6 py-4 text-right">
                                     <div className="flex items-center justify-end gap-2">
-                                        <Button asChild variant="ghost" size="icon" className="size-8 text-slate-400 hover:text-primary">
-                                            <Link href={`/dashboard/imoveis/${p.id}`}><ExternalLink size={16} /></Link>
+                                        <Button asChild variant="outline" size="sm" className="border-slate-200 text-slate-700 bg-white hover:bg-slate-50 font-medium rounded-xl h-9 text-xs gap-1.5 shadow-sm">
+                                            <Link href={`/dashboard/imoveis/${p.id}`}>
+                                                 Saiba mais <ArrowRight className="size-3.5 text-slate-400" />
+                                             </Link>
                                         </Button>
                                         <Button variant="ghost" size="icon" className="size-8 text-slate-400 hover:text-red-500" onClick={() => setPropertyToDelete(p)}>
                                             <Trash2 size={16} />
@@ -210,6 +227,16 @@ export default function MyPortfolioPage() {
                         )}
                     </TableBody>
                 </Table>
+                {combinedPortfolio.length > 10 && (
+                    <div className="bg-white px-6 py-4 border-t border-slate-100 flex items-center justify-between">
+                        <span className="text-sm text-slate-500">Mostrando <span className="font-bold text-slate-900">{(currentPage - 1) * itemsPerPage + 1}-{Math.min(currentPage * itemsPerPage, combinedPortfolio.length)}</span> de <span className="font-bold text-slate-900">{combinedPortfolio.length}</span> imóveis</span>
+                        <div className="flex gap-2 items-center">
+                            <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>Anterior</Button>
+                            <span className="text-sm flex items-center px-2 text-slate-600">Página {currentPage} de {totalPages || 1}</span>
+                            <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages || totalPages === 0}>Próxima</Button>
+                        </div>
+                    </div>
+                )}
             </div>
 
             <AlertDialog open={!!propertyToDelete} onOpenChange={() => setPropertyToDelete(null)}>

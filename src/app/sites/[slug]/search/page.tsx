@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { getThemePage } from '@/layouts/registry';
 import { getBrokerData, serializeForClient } from '../../utils.server';
 import { FieldValue, FieldPath } from 'firebase-admin/firestore';
+import { Suspense } from 'react';
 
 // Force dynamic rendering to ensure data is fresh on every request
 export const dynamic = 'force-dynamic';
@@ -146,5 +147,9 @@ export default async function BrokerSearchPage({ params }: { params: Promise<{ s
 
   const serializedProperties = serializeForClient(allProperties);
 
-  return <SearchPageComponent broker={serializedBroker} properties={serializedProperties} />;
+  return (
+    <Suspense fallback={<div className="py-20 text-center text-slate-400">Carregando busca...</div>}>
+      <SearchPageComponent broker={serializedBroker} properties={serializedProperties} />
+    </Suspense>
+  );
 }

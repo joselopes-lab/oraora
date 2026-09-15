@@ -75,10 +75,15 @@ export default function AtivacaoPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {setupSteps.map((step) => (
-          <div key={step.id} className={cn(
-            "p-6 rounded-2xl border transition-all flex flex-col gap-4 group relative",
-            step.completed ? "border-slate-800 bg-slate-950 shadow-lg" : "bg-white border-slate-100 shadow-soft"
-          )}>
+          <div 
+            key={step.id} 
+            onClick={step.action ? step.action : undefined}
+            className={cn(
+              "p-6 rounded-2xl border transition-all flex flex-col gap-4 group relative",
+              step.completed ? "border-slate-800 bg-slate-950 shadow-lg" : "bg-white border-slate-100 shadow-soft",
+              step.action ? "cursor-pointer hover:border-primary/50 hover:shadow-md" : ""
+            )}
+          >
             <div className="flex items-center justify-between">
               <div className={cn(
                 "size-12 rounded-xl flex items-center justify-center transition-colors",
@@ -97,7 +102,7 @@ export default function AtivacaoPage() {
             </div>
             <div>
               <div className="flex items-center gap-2 mb-2">
-                <h3 className={cn("font-bold text-sm uppercase tracking-tight", step.completed ? "text-white" : "text-text-main")}>{step.title}</h3>
+                <h3 className={cn("font-bold text-sm uppercase tracking-tight transition-colors", step.completed ? "text-white" : "text-text-main", step.action ? "group-hover:text-primary" : "")}>{step.title}</h3>
                 {step.completed && (
                   <span className="text-[10px] font-black text-green-600 uppercase tracking-widest bg-green-100 px-2 py-0.5 rounded">Concluído</span>
                 )}
@@ -113,7 +118,12 @@ export default function AtivacaoPage() {
               </Button>
             ) : (
               <Button 
-                onClick={step.action} 
+                onClick={(e) => {
+                  if (step.action) {
+                    e.stopPropagation();
+                    step.action();
+                  }
+                }} 
                 variant={step.completed ? "ghost" : "outline"} 
                 className={cn(
                   "mt-auto w-full h-11 rounded-xl font-bold transition-all",

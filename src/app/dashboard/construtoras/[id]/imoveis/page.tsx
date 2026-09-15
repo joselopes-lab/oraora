@@ -9,7 +9,8 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
+import { getAllProjectsServer } from '@/app/dashboard/construtoras/empreendimentos/actions.server';
 
 type User = {
   userType: 'admin' | 'broker' | 'constructor';
@@ -159,16 +160,30 @@ export default function ConstrutoraImoveisCentralPage() {
   );
   const { data: builderProperties, isLoading: isBuilderLoading } = useCollection<Property>(propertiesQueryBuilder);
 
-  const projectsQuery = useMemoFirebase(
-    () => (firestore && id ? query(collection(firestore, 'projects'), where('builderId', '==', id)) : null),
-    [firestore, id]
-  );
-  const { data: projects } = useCollection<any>(projectsQuery);
+  const [projects, setProjects] = useState<any[]>([]);
+  const [areProjectsLoading, setAreProjectsLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadProjects() {
+      try {
+        const res = await getAllProjectsServer();
+        const projectsList = res?.success ? res.projects : (Array.isArray(res) ? res : []);
+        setProjects(projectsList || []);
+      } catch (err) {
+        console.error('Erro ao carregar projetos no servidor:', err);
+      } finally {
+        setAreProjectsLoading(false);
+      }
+    }
+    loadProjects();
+  }, []);
 
   const projectMap = useMemo(() => {
     if (!projects) return {};
-    return projects.reduce((acc, p) => ({ ...acc, [p.id]: p }), {} as Record<string, any>);
-  }, [projects]);
+    return projects
+      .filter(p => !id || p.builderId === id)
+      .reduce((acc, p) => ({ ...acc, [p.id]: p }), {} as Record<string, any>);
+  }, [projects, id]);
 
   const properties = useMemo(() => {
     const map = new Map<string, Property>();

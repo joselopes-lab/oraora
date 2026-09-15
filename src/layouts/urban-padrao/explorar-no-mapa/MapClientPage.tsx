@@ -6,7 +6,7 @@ import { UrbanPadraoHeader } from '../components/UrbanPadraoHeader';
 import { WhatsAppWidget } from '../components/WhatsAppWidget';
 import { GoogleMap, useJsApiLoader, Marker, InfoWindow, Libraries } from '@react-google-maps/api';
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { cn } from '@/lib/utils';
+import { cn, formatArea } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
 
 type Broker = {
@@ -528,7 +528,7 @@ export default function MapClientPage({ broker, properties }: MapClientPageProps
                         </div>
                         <div className="flex gap-3 text-xs text-text-muted font-medium pt-2 border-t border-gray-100 mt-2">
                             <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[14px]">bed</span> {Array.isArray(property.caracteristicasimovel.quartos) ? property.caracteristicasimovel.quartos.join(', ') : property.caracteristicasimovel.quartos}</span>
-                            <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[14px]">square_foot</span> {property.caracteristicasimovel.tamanho}</span>
+                            <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[14px]">square_foot</span> {formatArea(property.caracteristicasimovel.tamanho)}</span>
                         </div>
                     </div>
                   </div>
@@ -593,7 +593,7 @@ export default function MapClientPage({ broker, properties }: MapClientPageProps
                             </div>
                             <div className="flex flex-col items-center justify-center p-2 bg-gray-50 rounded-lg">
                                 <span className="material-symbols-outlined text-gray-400 mb-1 text-xl">square_foot</span>
-                                <span className="text-xs font-bold text-text-main">{selectedProperty.caracteristicasimovel.tamanho}</span>
+                                <span className="text-xs font-bold text-text-main">{formatArea(selectedProperty.caracteristicasimovel.tamanho)}</span>
                             </div>
                             </div>
                             <div>

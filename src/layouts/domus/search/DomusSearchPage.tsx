@@ -10,7 +10,7 @@ import { DomusFooter } from '../components/DomusFooter';
 import { WhatsAppWidget } from '@/app/sites/urban-padrao/components/WhatsAppWidget';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { useState, useMemo } from 'react';
-import { cn } from '@/lib/utils';
+import { cn, formatArea } from '@/lib/utils';
 import SearchFilters from '@/components/SearchFilters';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -276,7 +276,7 @@ export default function DomusSearchPage({ broker, properties }: { broker: Broker
                                     </div>
                                     <div className="mt-auto flex gap-6 text-[10px] text-slate-400 font-black uppercase tracking-[0.2em] border-t border-slate-50 dark:border-slate-800 pt-6">
                                         <span className="flex items-center gap-2"><span className="material-symbols-outlined text-primary text-lg">bed</span> {formatQuartos(property.caracteristicasimovel.quartos)}</span>
-                                        <span className="flex items-center gap-2"><span className="material-symbols-outlined text-primary text-lg">square_foot</span> {property.caracteristicasimovel.tamanho}</span>
+                                        <span className="flex items-center gap-2"><span className="material-symbols-outlined text-primary text-lg">square_foot</span> {formatArea(property.caracteristicasimovel.tamanho)}</span>
                                     </div>
                                 </div>
                             </Link>

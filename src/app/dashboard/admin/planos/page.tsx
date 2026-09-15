@@ -19,6 +19,7 @@ type Plan = {
     type: 'corretor' | 'construtora';
     isActive: boolean;
     propertyLimit?: number;
+    trialDays?: number;
 };
 
 type User = {

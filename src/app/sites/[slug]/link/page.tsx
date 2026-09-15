@@ -42,6 +42,7 @@ type Broker = {
     footerTextColor?: string;
     statusTagBgColor?: string;
     statusTagTextColor?: string;
+    propertyPriceColor?: string;
   };
 };
 
@@ -150,6 +151,7 @@ export default async function OralinkPublicPage({ params }: { params: Promise<{ 
   const footerTextHex = oralink.footerTextColor ? hslToHex(oralink.footerTextColor) : (broker.foregroundColor ? hslToHex(broker.foregroundColor) : '#141811');
   const tagBgHex = oralink.statusTagBgColor ? hslToHex(oralink.statusTagBgColor) : (broker.primaryColor ? hslToHex(broker.primaryColor) : '#c3e738');
   const tagTextHex = oralink.statusTagTextColor ? hslToHex(oralink.statusTagTextColor) : (broker.foregroundColor ? hslToHex(broker.foregroundColor) : '#141811');
+  const propertyPriceHex = oralink.propertyPriceColor ? hslToHex(oralink.propertyPriceColor) : (broker.primaryColor ? hslToHex(broker.primaryColor) : '#16a34a');
 
   const whatsappLink = broker.whatsappUrl?.replace('wa.me.com.br', 'wa.me') || '#';
 
@@ -218,7 +220,7 @@ export default async function OralinkPublicPage({ params }: { params: Promise<{ 
                     <h5 className="font-bold text-base uppercase truncate mb-1" style={{ color: cardTextHex }}>{prop.informacoesbasicas.nome}</h5>
                     <div className="flex justify-between items-center">
                       <p className="text-xs opacity-60" style={{ color: cardTextHex }}>{prop.localizacao.bairro}, {prop.localizacao.cidade}</p>
-                      <p className="text-sm font-black" style={{ color: btnBgHex }}>{(prop.informacoesbasicas.rentPrice || prop.informacoesbasicas.valor) != null ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(prop.informacoesbasicas.rentPrice || prop.informacoesbasicas.valor!) : 'Sob Consulta'}</p>
+                      <p className="text-sm font-black" style={{ color: propertyPriceHex }}>{(prop.informacoesbasicas.rentPrice || prop.informacoesbasicas.valor) != null ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(prop.informacoesbasicas.rentPrice || prop.informacoesbasicas.valor!) : 'Sob Consulta'}</p>
                     </div>
                   </div>
                 </Link>

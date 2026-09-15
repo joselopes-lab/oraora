@@ -1,4 +1,5 @@
 'use client';
+import { formatCepDisplay, normalizeCep } from '@/lib/utils';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
@@ -47,7 +48,7 @@ export default function NewProjectPage() {
           cidade: values.cidade,
           bairro: values.bairro,
           address: values.address,
-          cep: values.cep,
+          cep: normalizeCep(values.cep),
         }
       });
       toast({ title: 'Empreendimento criado!', description: 'Redirecionando...' });
@@ -102,6 +103,31 @@ export default function NewProjectPage() {
                   </select>
               </FormItem>
           )} />
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <FormField control={form.control} name="address" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Endereço (Rua, Número)</FormLabel>
+                <FormControl><Input placeholder="Ex: Av. Beira Mar, 1000" {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+            <FormField control={form.control} name="cep" render={({ field }) => (
+              <FormItem>
+                <FormLabel>CEP</FormLabel>
+                <FormControl>
+                  <Input 
+                    placeholder="00000-000" 
+                    {...field} 
+                    value={formatCepDisplay(field.value)}
+                    onChange={(e) => field.onChange(formatCepDisplay(e.target.value))}
+                    maxLength={9}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+          </div>
           <Button type="submit" disabled={isSubmitting}>Salvar</Button>
         </form>
       </Form>

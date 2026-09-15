@@ -4,8 +4,9 @@ import { useUser } from '@/firebase';
 import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { createPriceTableServer, getPriceTablePdfUrlServer, getConstructorTableFormDataServer } from '../tabelas.actions.server';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { createPriceTableServer, getPriceTablePdfUrlServer, getConstructorTableFormDataServer, deleteConstructorPriceTableServer } from '../tabelas.actions.server';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
@@ -96,6 +97,29 @@ export default function ConstructorTabelasPage() {
       toast({ title: 'Erro', description: err.message, variant: 'destructive' });
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  const [tableToDelete, setTableToDelete] = useState<any | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDeleteTable = async () => {
+    if (!user || !tableToDelete) return;
+    setIsDeleting(true);
+    try {
+      const idToken = await user.getIdToken();
+      const res = await deleteConstructorPriceTableServer({ tableId: tableToDelete.id, idToken });
+      if (res.success) {
+        toast({ title: 'Tabela excluída com sucesso.' });
+        setTableToDelete(null);
+        fetchData();
+      } else {
+        toast({ title: 'Erro ao excluir tabela', description: res.error, variant: 'destructive' });
+      }
+    } catch (err: any) {
+      toast({ title: 'Erro', description: err.message, variant: 'destructive' });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -241,13 +265,40 @@ export default function ConstructorTabelasPage() {
                                 )}
                                 <p className="text-xs text-gray-400 mt-2">Data: {t.createdAt?.seconds ? new Date(t.createdAt.seconds * 1000).toLocaleDateString() : (typeof t.createdAt === 'string' ? new Date(t.createdAt).toLocaleDateString() : 'N/A')}</p>
                             </div>
-                            <Button size="sm" variant="outline" onClick={() => handleViewPdf(t)}>Visualizar PDF</Button>
+                            <div className="flex items-center gap-2">
+                                <Button size="sm" variant="outline" onClick={() => handleViewPdf(t)}>Visualizar PDF</Button>
+                                <Button size="sm" variant="destructive" onClick={() => setTableToDelete(t)}>Excluir</Button>
+                            </div>
                         </div>
                     );
                 })}
             </div>
         )}
       </div>
+
+      <AlertDialog open={!!tableToDelete} onOpenChange={(open) => !open && setTableToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir tabela de preços?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação removerá a tabela cadastrada. O arquivo PDF associado também poderá ser removido conforme a estrutura atual de armazenamento.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isDeleting}
+              onClick={(e) => {
+                e.preventDefault();
+                handleDeleteTable();
+              }}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {isDeleting ? 'Excluindo...' : 'Excluir'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

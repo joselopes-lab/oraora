@@ -16,6 +16,7 @@ import Link from 'next/link';
 import { useCollection, useFirestore, useMemoFirebase, deleteDocumentNonBlocking } from "@/firebase";
 import { collection, query, orderBy, doc, Timestamp } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
+import { normalizeDate } from "@/lib/utils";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -145,7 +146,7 @@ export default function InviteRequestsPage() {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-slate-400 text-xs font-medium">
-                      {invite.createdAt?.toDate().toLocaleDateString('pt-BR')}
+                      {(() => { const d = normalizeDate(invite.createdAt); return d ? d.toLocaleDateString('pt-BR') : '—'; })()}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">

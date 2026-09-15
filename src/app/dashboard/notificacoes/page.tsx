@@ -9,7 +9,7 @@ import { ptBR } from 'date-fns/locale';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { cn } from '@/lib/utils';
+import { cn, normalizeDate } from '@/lib/utils';
 import { Zap, MessageCircle, CheckCircle2, Ban, Clock, Handshake } from 'lucide-react';
 
 type Announcement = {
@@ -78,7 +78,7 @@ export default function NotificacoesPage() {
     };
 
     filteredAnnouncements.forEach(ann => {
-      const date = ann.createdAt.toDate();
+      const date = normalizeDate(ann.createdAt) || new Date();
       if (isToday(date)) {
         groups['Hoje'].push(ann);
       } else if (isYesterday(date)) {
@@ -167,7 +167,7 @@ export default function NotificacoesPage() {
                       <div className="flex justify-between items-start">
                         <h4 className="text-slate-900 dark:text-slate-100 font-bold text-lg leading-tight uppercase tracking-tight">{ann.title}</h4>
                         <span className="text-[10px] font-bold text-slate-400 uppercase">
-                          {format(ann.createdAt.toDate(), 'HH:mm')}
+                          {format((() => { const d = normalizeDate(ann.createdAt); return d ? format(d, "HH:mm") : "—"; })(), 'HH:mm')}
                         </span>
                       </div>
                       <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed max-w-2xl">{ann.content}</p>

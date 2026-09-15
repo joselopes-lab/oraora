@@ -1,10 +1,11 @@
 
 'use server';
 
-import { adminDb } from '@/firebase/index.server';
+import { adminAuth, adminDb } from '@/firebase/index.server';
 import { FieldValue } from 'firebase-admin/firestore';
 import { revalidatePath, revalidateTag } from 'next/cache';
 import { resolvePhysicalIdentityServer } from '@/lib/property-identity.server';
+import { cookies, headers } from 'next/headers';
 
 /**
  * @fileOverview Ações de servidor para persistência de imóveis com revalidação de cache.
@@ -25,27 +26,78 @@ export async function savePropertyServer(
     // Resolve atomic physical identity
     const { physicalPropertyId, identityFingerprint } = await resolvePhysicalIdentityServer(data);
 
-    // Server-side tenantId resolution for NEW properties created by constructor users
-    let resolvedTenantId = data.tenantId; // fallback or ignored if client sent it, but we override or fetch securely
-    if (isNew && userId) {
+    // Server-side tenantId and user resolution
+    let resolvedTenantId = data.tenantId;
+    let requesterUid = userId;
+    if (!requesterUid) {
       try {
-        const userDoc = await adminDb.collection('users').doc(userId).get();
+        const cookieStore = await cookies();
+        const sessionCookie = cookieStore.get('session')?.value || 
+                              cookieStore.get('firebase-auth-token')?.value ||
+                              cookieStore.get('token')?.value ||
+                              cookieStore.get('auth-token')?.value;
+        if (sessionCookie) {
+          try {
+            const decoded = await adminAuth.verifySessionCookie(sessionCookie, true);
+            requesterUid = decoded.uid;
+          } catch {
+            const decoded = await adminAuth.verifyIdToken(sessionCookie);
+            requesterUid = decoded.uid;
+          }
+        }
+      } catch {}
+    }
+
+    let requesterUserType = '';
+    if (requesterUid) {
+      try {
+        const userDoc = await adminDb.collection('users').doc(requesterUid).get();
         if (userDoc.exists) {
           const userData = userDoc.data();
-          if (userData?.userType === 'constructor' && userData?.tenantId) {
-            resolvedTenantId = userData.tenantId;
-          } else if (userData?.userType === 'constructor') {
-            resolvedTenantId = userId; // fallback to legacy behavior where userId == constructorId
+          requesterUserType = userData?.userType;
+          if (requesterUserType === 'constructor') {
+            resolvedTenantId = userData?.tenantId || requesterUid;
           }
         }
       } catch (err) {
-        console.warn('Could not resolve tenantId for property creation:', err);
+        console.warn('Could not resolve user for property save:', err);
       }
-    } else if (!isNew) {
-      // For existing properties, preserve existing tenantId if any, or don't overwrite unless needed
+    }
+
+    if (!isNew) {
       const existingDoc = await docRef.get();
       if (existingDoc.exists) {
         resolvedTenantId = existingDoc.data()?.tenantId;
+      }
+    }
+
+    if (collectionName === 'properties') {
+      if (requesterUserType !== 'admin' && requesterUserType !== 'constructor') {
+        throw new Error('Permissão negada. Apenas administradores ou construtoras podem gerenciar imóveis de construtoras.');
+      }
+    } else if (collectionName === 'brokerProperties') {
+      if (requesterUserType !== 'admin') {
+        if (!requesterUid) {
+          throw new Error('Usuário não autenticado.');
+        }
+        if (!isNew) {
+          const existingDoc = await docRef.get();
+          if (existingDoc.exists) {
+            const existingData = existingDoc.data();
+            if (existingData?.brokerId && existingData.brokerId !== requesterUid) {
+              throw new Error('Permissão negada. Este imóvel avulso pertence a outro corretor.');
+            }
+          }
+        }
+        data.brokerId = requesterUid;
+      } else {
+        if (isNew && !data.brokerId && requesterUid) {
+          data.brokerId = requesterUid;
+        }
+      }
+    } else {
+      if (requesterUserType !== 'admin') {
+        throw new Error('Permissão negada.');
       }
     }
 
@@ -56,8 +108,15 @@ export async function savePropertyServer(
         throw new Error('Empreendimento não encontrado.');
       }
       const projectData = projectDoc.data();
-      if (projectData?.builderId !== resolvedTenantId) {
-        throw new Error('Empreendimento não pertence à construtora logada.');
+
+      if (requesterUserType === 'admin') {
+        if (isNew && !resolvedTenantId && projectData?.builderId) {
+          resolvedTenantId = projectData.builderId;
+        }
+      } else if (requesterUserType === 'constructor') {
+        if (projectData?.builderId !== resolvedTenantId) {
+          throw new Error('Empreendimento não pertence à construtora logada.');
+        }
       }
     }
 
@@ -119,14 +178,85 @@ export async function savePropertyServer(
 
 export async function deletePropertyServer(
     collectionName: 'properties' | 'brokerProperties',
-    propertyId: string
+    propertyId: string,
+    userId?: string
 ) {
     try {
-        await adminDb.collection(collectionName).doc(propertyId).delete();
+        let requesterUid: string | null = userId || null;
+
+        if (!requesterUid) {
+            const cookieStore = await cookies();
+            const sessionCookie = cookieStore.get('session')?.value || 
+                                  cookieStore.get('firebase-auth-token')?.value ||
+                                  cookieStore.get('token')?.value ||
+                                  cookieStore.get('auth-token')?.value;
+
+            if (sessionCookie) {
+                try {
+                    const decoded = await adminAuth.verifySessionCookie(sessionCookie, true);
+                    requesterUid = decoded.uid;
+                } catch {
+                    try {
+                        const decoded = await adminAuth.verifyIdToken(sessionCookie);
+                        requesterUid = decoded.uid;
+                    } catch {}
+                }
+            }
+        }
+
+        if (!requesterUid) {
+            const headersList = await headers();
+            const authHeader = headersList.get('authorization');
+            if (authHeader && authHeader.startsWith('Bearer ')) {
+                try {
+                    const decoded = await adminAuth.verifyIdToken(authHeader.substring(7));
+                    requesterUid = decoded.uid;
+                } catch {}
+            }
+        }
+
+        if (!requesterUid) {
+            return { success: false, message: 'Usuário não autenticado no servidor.' };
+        }
+
+        const userDoc = await adminDb.collection('users').doc(requesterUid).get();
+        const userData = userDoc.exists ? userDoc.data() : null;
+
+        const docRef = adminDb.collection(collectionName).doc(propertyId);
+        const docSnap = await docRef.get();
+        if (!docSnap.exists) {
+            return { success: false, message: 'Unidade não encontrada.' };
+        }
+        const propData = docSnap.data();
+
+        if (collectionName === 'properties') {
+            if (userData?.userType === 'constructor') {
+                const tenantId = userData.tenantId || requesterUid;
+                if (propData?.tenantId && propData.tenantId !== tenantId) {
+                    return { success: false, message: 'Acesso negado: unidade pertence a outra construtora.' };
+                }
+            } else if (userData?.userType !== 'admin') {
+                return { success: false, message: 'Acesso negado.' };
+            }
+        } else if (collectionName === 'brokerProperties') {
+            if (userData?.userType !== 'admin') {
+                if (propData?.brokerId && propData.brokerId !== requesterUid) {
+                    return { success: false, message: 'Acesso negado: este imóvel avulso pertence a outro corretor.' };
+                }
+            }
+        }
+
+        const projectId = propData?.projectId;
+
+        await docRef.delete();
         
         revalidatePath('/sitemap.xml');
         revalidatePath('/imoveis');
         revalidateTag('sitemap');
+        if (projectId) {
+            revalidatePath(`/dashboard/construtoras/empreendimentos/${projectId}`);
+            revalidatePath('/dashboard/construtoras/empreendimentos');
+        }
         
         return { success: true };
     } catch (error: any) {

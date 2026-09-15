@@ -7,7 +7,7 @@ import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import SearchFilters from '@/components/SearchFilters';
-import { cn } from '@/lib/utils';
+import { cn, formatArea } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { useUser, useDoc, useFirestore, useMemoFirebase, setDocumentNonBlocking } from '@/firebase';
 import { arrayRemove, arrayUnion, doc } from 'firebase/firestore';
@@ -317,7 +317,7 @@ export default function SearchResults({ broker, properties }: SearchResultsPageP
                                             <div className="mt-auto pt-4 border-t border-gray-100 flex items-center justify-between text-[10px] text-slate-400 font-black uppercase tracking-[0.2em]">
                                                 <div className="flex items-center gap-4">
                                                   <span className="flex items-center gap-1.5"><span className="material-symbols-outlined text-primary text-lg">bed</span> {formatQuartos(property.caracteristicasimovel.quartos)}</span>
-                                                  <span className="flex items-center gap-1.5"><span className="material-symbols-outlined text-primary text-lg">square_foot</span> {property.caracteristicasimovel.tamanho}</span>
+                                                  <span className="flex items-center gap-1.5"><span className="material-symbols-outlined text-primary text-lg">square_foot</span> {formatArea(property.caracteristicasimovel.tamanho)}</span>
                                                 </div>
                                                 <span className="material-symbols-outlined text-slate-200 group-hover:text-primary transition-colors">arrow_forward</span>
                                             </div>

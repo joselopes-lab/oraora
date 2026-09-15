@@ -7,7 +7,7 @@ import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { MapPin, Maximize, Bed, ArrowUpRight } from 'lucide-react';
 import { PropertySDK } from '../../sdk.types';
-import { cn } from '@/lib/utils';
+import { cn, formatArea } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 
 interface VertexPropertyCardProps {
@@ -68,7 +68,7 @@ export function VertexPropertyCard({ property, href = "#" }: VertexPropertyCardP
             </div>
             <div>
               <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Área</p>
-              <p className="text-xs font-bold text-slate-700 dark:text-slate-200">{property.caracteristicasimovel.tamanho}</p>
+              <p className="text-xs font-bold text-slate-700 dark:text-slate-200">{formatArea(property.caracteristicasimovel.tamanho)}</p>
             </div>
           </div>
           <div className="flex items-center gap-3">

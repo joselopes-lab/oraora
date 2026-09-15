@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/table";
 import Image from "next/image";
 import Link from "next/link";
+import { normalizeDate } from "@/lib/utils";
 import { useCollection, useFirestore, useMemoFirebase, useUser, setDocumentNonBlocking, deleteDocumentNonBlocking, useAuthContext, useDoc } from "@/firebase";
 import { collection, query, where, doc, getDocs } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
@@ -294,12 +295,13 @@ export default function AvulsoPage() {
                                                     <span>{(property.informacoesbasicas?.aluguel || property.informacoesbasicas?.valor) ? (property.informacoesbasicas?.aluguel || property.informacoesbasicas.valor!).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'Valor não informado'}</span>
                                                     <span>•</span>
                                                     <span>
-                                                        {property.createdAt 
-                                                            ? (property.createdAt.toDate 
-                                                                ? `${Math.floor((new Date().getTime() - property.createdAt.toDate().getTime()) / (1000 * 60 * 60 * 24))} dias atrás`
-                                                                : 'Data inválida')
-                                                            : 'Data não informada'}
-                                                    </span>
+                                                         {(() => {
+                                                             const d = normalizeDate(property.createdAt);
+                                                             if (!d) return "Data não informada";
+                                                             const days = Math.floor((new Date().getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
+                                                             return `${days} dias atrás`;
+                                                         })()}
+                                                     </span>
                                                 </div>
                                             </div>
                                         </div>

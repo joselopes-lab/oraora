@@ -26,6 +26,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { Zap } from 'lucide-react';
+import { normalizeDate } from '@/lib/utils';
 
 const ClientSideDate = ({ date }: { date: Date }) => {
     const [formattedDate, setFormattedDate] = useState<string | null>(null);
@@ -114,12 +115,6 @@ export default function ClientDetailPage() {
     );
     const { data: brokerData } = useDoc<any>(brokerDocRef);
 
-    const projectsQuery = useMemoFirebase(
-      () => (isReady && firestore ? query(collection(firestore, 'projects')) : null),
-      [isReady, firestore]
-    );
-    const { data: projects } = useCollection<any>(projectsQuery);
-
     // Consulta simplificada para evitar necessidade de índices compostos
     const eventsQuery = useMemoFirebase(
       () => (isReady && firestore && user?.uid ? query(collection(firestore, 'events'), where('brokerId', '==', user.uid)) : null),
@@ -171,7 +166,10 @@ export default function ClientDetailPage() {
                         <span className="material-symbols-outlined text-[18px]">fingerprint</span>
                         <span>ID: #{client.id.substring(0, 6)}</span>
                         <span className="mx-1">•</span>
-                        <span>Cadastrado em <ClientSideDate date={client.createdAt.toDate()} /></span>
+                        <span>Cadastrado em {(() => {
+                            const createdAtDate = normalizeDate(client.createdAt);
+                            return createdAtDate ? <ClientSideDate date={createdAtDate} /> : '—';
+                        })()}</span>
                     </div>
                 </div>
                 <div className="flex gap-3">
@@ -246,7 +244,7 @@ export default function ClientDetailPage() {
                     </div>
                 </div>
             </div>
-            <ClientDetailView client={client as any} personas={[]} recommendedProperties={[]} linkedProperties={[]} clientEvents={clientEvents as any} brokerSlug={brokerData?.slug || client?.brokerId || user?.uid} projects={projects || []} />
+            <ClientDetailView client={client as any} personas={[]} recommendedProperties={[]} linkedProperties={[]} clientEvents={clientEvents as any} brokerSlug={brokerData?.slug || client?.brokerId || user?.uid} projects={[]} />
         </main>
     );
 }

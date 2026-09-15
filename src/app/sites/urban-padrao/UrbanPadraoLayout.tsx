@@ -10,7 +10,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useUser, useDoc, useFirestore, useMemoFirebase, setDocumentNonBlocking } from '@/firebase';
 import { arrayRemove, arrayUnion, doc, collection, query, where, getDocs, getDoc, writeBatch } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { cn } from '@/lib/utils';
+import { cn, formatArea } from '@/lib/utils';
 import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { useState, useEffect, Suspense } from 'react';
@@ -397,7 +397,7 @@ export default function UrbanPadraoLayout({ broker, properties }: UrbanPadraoPag
                         <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[18px]" style={{color: cardIconColor}}>bed</span> {formatQuartos(quartos)} Quartos</span>
                       )}
                       {property.caracteristicasimovel.tamanho && (
-                        <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[18px]" style={{color: cardIconColor}}>square_foot</span> {property.caracteristicasimovel.tamanho}</span>
+                        <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[18px]" style={{color: cardIconColor}}>square_foot</span> {formatArea(property.caracteristicasimovel.tamanho)}</span>
                       )}
                     </div>
                   </div>

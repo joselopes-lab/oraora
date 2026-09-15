@@ -8,7 +8,7 @@ import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { useState, useEffect, useMemo } from 'react';
 import { WhatsAppWidget } from '@/app/sites/urban-padrao/components/WhatsAppWidget';
 import { useRouter } from 'next/navigation';
-import { cn } from '@/lib/utils';
+import { cn, formatArea } from '@/lib/utils';
 import SearchFilters from '@/components/SearchFilters';
 
 
@@ -473,7 +473,7 @@ export default function DomusLayout({ broker, properties }: DomusLayoutProps) {
                       <span className="material-symbols-outlined text-lg" style={{ color: 'var(--card-icon)' }}>directions_car</span> {property.caracteristicasimovel.vagas}
                     </div>
                     <div className="flex items-center gap-1 text-[#161811]/60 dark:text-white/60 text-sm">
-                      <span className="material-symbols-outlined text-lg" style={{ color: 'var(--card-icon)' }}>square_foot</span> {property.caracteristicasimovel.tamanho}
+                      <span className="material-symbols-outlined text-lg" style={{ color: 'var(--card-icon)' }}>square_foot</span> {formatArea(property.caracteristicasimovel.tamanho)}
                     </div>
                   </div>
                   <div className="flex flex-col mt-2">

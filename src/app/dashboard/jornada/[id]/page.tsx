@@ -268,7 +268,7 @@ const formatTimelineDate = (createdAt: any) => {
   if (!createdAt) return '';
   try {
     if (typeof createdAt.toDate === 'function') {
-      return format(createdAt.toDate(), 'dd/MM/yyyy, HH:mm', { locale: ptBR });
+      return format((normalizeDate(createdAt) || new Date()), 'dd/MM/yyyy, HH:mm', { locale: ptBR });
     }
     const d = new Date(createdAt);
     if (!isNaN(d.getTime())) {
@@ -873,7 +873,7 @@ export default function JourneyDetailPage() {
         let logDate = new Date();
         if (log.createdAt) {
           if (typeof (log.createdAt as any).toDate === 'function') {
-            logDate = (log.createdAt as any).toDate();
+            logDate = (normalizeDate(log.createdAt) || new Date());
           } else {
             logDate = new Date(log.createdAt as any);
           }
@@ -923,7 +923,7 @@ export default function JourneyDetailPage() {
     if (journey?.createdAt) {
       let createDate = new Date();
       if (typeof (journey.createdAt as any).toDate === 'function') {
-        createDate = (journey.createdAt as any).toDate();
+        createDate = (normalizeDate(journey.createdAt) || new Date());
       } else {
         createDate = new Date(journey.createdAt as any);
       }
@@ -996,7 +996,7 @@ export default function JourneyDetailPage() {
     if (client.financing && !list.some(f => f.bank === client.financing?.bank && f.value === client.financing?.value)) {
       list.unshift({ 
         ...client.financing, 
-        createdAt: (client.financing as any).createdAt || client.createdAt?.toDate().toISOString() || new Date().toISOString() 
+        createdAt: (client.financing as any).createdAt || (normalizeDate(client.createdAt)?.toISOString() || new Date().toISOString()).toISOString() || new Date().toISOString() 
       });
     }
     return list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());

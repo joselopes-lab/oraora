@@ -117,6 +117,22 @@ export class PriceTableRepository {
     return tables;
   }
 
+  async getTablesByProjectIds(projectIds: string[]): Promise<PriceTable[]> {
+    if (!projectIds || projectIds.length === 0) return [];
+    const tables: PriceTable[] = [];
+    const batches: string[][] = [];
+    for (let i = 0; i < projectIds.length; i += 30) {
+      batches.push(projectIds.slice(i, i + 30));
+    }
+    for (const batch of batches) {
+      const snap = await this.collection.where('projectId', 'in', batch).get();
+      snap.forEach(doc => {
+        tables.push({ id: doc.id, ...doc.data() } as PriceTable);
+      });
+    }
+    return tables;
+  }
+
   async listTablesByTenant(tenantId: string): Promise<PriceTable[]> {
     const snap = await this.collection.where('tenantId', '==', tenantId).get();
     return snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as PriceTable));

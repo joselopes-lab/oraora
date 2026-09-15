@@ -5,10 +5,46 @@ import { useToast } from '@/hooks/use-toast';
 import { getBrokerPriceTablesAction, getPriceTablePdfUrlServer } from '@/app/dashboard/construtoras/tabelas.actions.server';
 import PriceTableViewer from '@/components/PriceTableViewer';
 import { Button } from '@/components/ui/button';
-import { Loader2, FileText, Search, ArrowRight } from 'lucide-react';
+import { Loader2, FileText, Search, ArrowRight, Calendar } from 'lucide-react';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { useAuth, useUser } from '@/firebase';
+
+function formatDate(dateInput: any): string {
+  if (!dateInput) return '-';
+  try {
+    const d = new Date(dateInput);
+    if (isNaN(d.getTime())) return String(dateInput).substring(0, 10);
+    return new Intl.DateTimeFormat('pt-BR', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    }).format(d);
+  } catch (e) {
+    return String(dateInput).substring(0, 10);
+  }
+}
+
+function getRelativeTimeString(dateInput: any): string {
+  if (!dateInput) return '';
+  try {
+    const d = new Date(dateInput);
+    if (isNaN(d.getTime())) return '';
+    const now = new Date();
+    const diffTime = now.getTime() - d.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    if (diffDays === 0) return 'Atualizada hoje';
+    if (diffDays === 1) return 'Atualizada ontem';
+    if (diffDays > 1 && diffDays < 30) return `Atualizada há ${diffDays} dias`;
+    if (diffDays >= 30) {
+      const diffMonths = Math.floor(diffDays / 30);
+      return diffMonths === 1 ? 'Atualizada há 1 mês' : `Atualizada há ${diffMonths} meses`;
+    }
+    return '';
+  } catch (e) {
+    return '';
+  }
+}
 
 export default function BrokerPriceTablesPage() {
   const auth = useAuth();
@@ -159,22 +195,35 @@ export default function BrokerPriceTablesPage() {
                         <h3 className="text-lg font-black text-slate-900 dark:text-white group-hover:text-primary transition-colors tracking-tight">{table.name}</h3>
                       </div>
 
-                      <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl space-y-1">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Documento Comercial</span>
-                        <p className="text-sm font-bold text-slate-700 dark:text-slate-300">
-                          {table.sourceFile?.storagePath ? 'PDF original da construtora' : 'PDF não disponível'}
+                      <div className="bg-primary/5 dark:bg-primary/10 border border-primary/10 p-4 rounded-2xl space-y-0.5">
+                        <span className="flex items-center gap-1.5 text-primary text-[10px] font-black uppercase tracking-widest">
+                          <Calendar className="size-3.5" /> Data da Tabela
+                        </span>
+                        <p className="text-base font-black text-slate-900 dark:text-white">
+                          {formatDate(table.createdAt || table.updatedAt)}
                         </p>
+                        {getRelativeTimeString(table.createdAt || table.updatedAt) && (
+                          <p className="text-xs text-slate-500 font-medium pt-0.5">
+                            {getRelativeTimeString(table.createdAt || table.updatedAt)}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="flex items-center justify-between text-xs text-slate-500 px-1 pt-1">
+                        <span className="flex items-center gap-1.5 font-medium">
+                          <FileText className="size-3.5 text-slate-400" /> Documento PDF
+                        </span>
+                        <span className="font-semibold text-slate-700 dark:text-slate-300 truncate max-w-[150px]">
+                          {table.sourceFile?.fileName || 'Disponível'}
+                        </span>
                       </div>
                     </div>
 
-                    <div className="pt-6 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between mt-6">
-                      <span className="text-[11px] text-slate-400 font-medium">
-                        Cadastrada em {table.createdAt ? String(table.createdAt).substring(0, 10) : '-'}
-                      </span>
+                    <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end mt-4">
                       <Button
                         onClick={() => handleViewPdf(table)}
                         size="sm"
-                        className="rounded-xl font-bold gap-1.5"
+                        className="rounded-xl font-bold gap-1.5 w-full"
                       >
                         Ver Tabela <ArrowRight className="size-4" />
                       </Button>

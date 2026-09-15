@@ -20,7 +20,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
-import { cn } from '@/lib/utils';
+import { cn, normalizeDate } from '@/lib/utils';
 import { useCollection, useFirestore, useMemoFirebase, addDocumentNonBlocking, deleteDocumentNonBlocking, useAuthContext } from '@/firebase';
 import { collection, query, orderBy, doc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
@@ -338,7 +338,7 @@ export default function ComunicadosPage() {
                   </td>
                   <td className="px-6 py-5">
                     <div className="flex flex-col text-sm text-slate-700">
-                      <span>{ann.createdAt ? format(ann.createdAt.toDate(), "dd/MM/yyyy, HH:mm", { locale: ptBR }) : '-'}</span>
+                      <span>{(() => { const d = normalizeDate(ann.createdAt); return d ? format(d, "dd/MM/yyyy, HH:mm", { locale: ptBR }) : '-'; })()}</span>
                     </div>
                   </td>
                   <td className="px-6 py-5">

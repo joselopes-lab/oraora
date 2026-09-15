@@ -27,7 +27,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { cn } from '@/lib/utils';
+import { cn, normalizeDate } from '@/lib/utils';
 import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
@@ -197,7 +197,10 @@ const LeadCard = ({ lead, columns, onMove, onDragStart, onDeleteClick }: { lead:
                 </div>
             </div>
              <div className="absolute bottom-2 right-2 text-[10px] text-gray-400">
-                {lead.createdAt && <ClientSideDate date={lead.createdAt.toDate()} options={{ day: '2-digit', month: 'short' }} />}
+                {(() => {
+                    const d = normalizeDate(lead.createdAt);
+                    return d ? <ClientSideDate date={d} options={{ day: '2-digit', month: 'short' }} /> : '—';
+                })()}
             </div>
         </div>
     );
@@ -763,7 +766,7 @@ export default function LeadsPage() {
                                         </div>
                                     </TableCell>
                                     <TableCell>
-                                        {lead.createdAt && <ClientSideDate date={lead.createdAt.toDate()} />}
+                                        {lead.createdAt && <ClientSideDate date={(() => { const d = normalizeDate(lead.createdAt); return d ? <ClientSideDate date={d} /> : null; })()} />}
                                     </TableCell>
                                     <TableCell className="text-right">
                                         <div className="flex items-center justify-end gap-0.5">

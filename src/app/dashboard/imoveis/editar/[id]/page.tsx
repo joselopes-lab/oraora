@@ -95,7 +95,7 @@ export default function EditPropertyPage() {
     }
     
     // Data Normalization
-    const normalizedPropertyData = { ...propertyData };
+    const normalizedPropertyData = { ...propertyData, id };
     if (normalizedPropertyData.caracteristicasimovel) {
         let quartos = normalizedPropertyData.caracteristicasimovel.quartos;
         

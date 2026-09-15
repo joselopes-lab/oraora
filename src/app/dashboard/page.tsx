@@ -31,12 +31,13 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useDoc, useFirebase, useMemoFirebase } from "@/firebase";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { doc, collection, query, where, orderBy, limit, Timestamp } from "firebase/firestore";
 import { useEffect, useState, useMemo, useContext } from "react";
 import { format, startOfMonth, endOfMonth, parseISO, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import EventForm, { EventFormData } from './agenda/components/event-form';
-import { cn } from "@/lib/utils";
+import { cn, normalizeDate } from "@/lib/utils";
 import { useCollection, addDocumentNonBlocking } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -127,6 +128,45 @@ type LeadFunnelColumn = {
   order: number;
 };
 
+const normalizeDate = (value: unknown): Date | undefined => {
+  if (!value) return undefined;
+
+  if (
+    typeof value === 'object' &&
+    value !== null &&
+    'toDate' in value &&
+    typeof (value as { toDate?: unknown }).toDate === 'function'
+  ) {
+    try {
+      const date = (value as { toDate: () => Date }).toDate();
+      return date instanceof Date && !Number.isNaN(date.getTime()) ? date : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
+  if (value instanceof Date) {
+    return !Number.isNaN(value.getTime()) ? value : undefined;
+  }
+
+  if (
+    typeof value === 'object' &&
+    value !== null &&
+    'seconds' in value &&
+    typeof (value as { seconds?: unknown }).seconds === 'number'
+  ) {
+    const date = new Date((value as { seconds: number }).seconds * 1000);
+    return !Number.isNaN(date.getTime()) ? date : undefined;
+  }
+
+  if (typeof value === 'string' || typeof value === 'number') {
+    const date = new Date(value);
+    return !Number.isNaN(date.getTime()) ? date : undefined;
+  }
+
+  return undefined;
+};
+
 const ClientSideDate = ({ date, options }: { date: Date | null | undefined, options?: Intl.DateTimeFormatOptions }) => {
   const [formattedDate, setFormattedDate] = useState<string | null>(null);
 
@@ -160,6 +200,7 @@ export default function DashboardPage() {
   const { firestore } = useFirebase();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { toast } = useToast();
+  const router = useRouter();
   const { openOnboarding } = useOnboarding();
 
   const isBroker = userProfile?.userType === 'broker';
@@ -171,6 +212,54 @@ export default function DashboardPage() {
       [firestore, user?.uid, isBroker]
   );
   const { data: brokerProfile, isLoading: isBrokerLoading } = useDoc<BrokerProfile>(brokerDocRef);
+
+  const planDocRef = useMemoFirebase(
+      () => (firestore && isBroker && userProfile?.planId ? doc(firestore, 'plans', userProfile.planId) : null),
+      [firestore, isBroker, userProfile?.planId]
+  );
+  const { data: planData } = useDoc<{ name?: string; price?: number; trialDays?: number; type?: string }>(planDocRef);
+
+  const trialInfo = useMemo(() => {
+    if (!userProfile || !isBroker) return null;
+    const { planStatus, trialEndsAt } = userProfile;
+    if (planStatus === 'active' && !trialEndsAt) {
+      return { type: 'active', message: 'Seu plano está ativo', isExpired: false, isExpiringToday: false, daysRemaining: 0, formattedDate: '', alertLevel: 'normal' };
+    }
+    if (!trialEndsAt) {
+      return { type: 'unconfigured', message: 'Período de acesso não configurado.', isExpired: false, isExpiringToday: false, daysRemaining: 0, formattedDate: '', alertLevel: 'normal' };
+    }
+    const end = typeof trialEndsAt.toDate === 'function' ? trialEndsAt.toDate() : new Date(trialEndsAt);
+    const now = new Date();
+    
+    // Definitive expiration condition based on real date/time comparison
+    const isExpired = end.getTime() <= now.getTime();
+    const diffTime = end.getTime() - now.getTime();
+    
+    // Less than 24 hours remaining but not expired yet
+    const isExpiringToday = !isExpired && diffTime < 24 * 60 * 60 * 1000;
+    
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const formattedDate = format(end, "dd/MM/yyyy", { locale: ptBR });
+    const daysRemaining = diffDays > 0 ? diffDays : 0;
+
+    let alertLevel = 'normal';
+    if (isExpired) {
+      alertLevel = 'expired';
+    } else if (isExpiringToday || daysRemaining <= 2) {
+      alertLevel = 'urgent';
+    } else if (daysRemaining <= 7) {
+      alertLevel = 'warning';
+    }
+
+    return {
+      type: 'trial',
+      daysRemaining,
+      formattedDate,
+      isExpired,
+      isExpiringToday,
+      alertLevel
+    };
+  }, [userProfile, isBroker]);
 
   const transactionsQuery = useMemoFirebase(
     () => (isReady && user?.uid && firestore ? query(collection(firestore, 'transactions'), where('brokerId', '==', user.uid)) : null),
@@ -239,7 +328,11 @@ export default function DashboardPage() {
 
   const clients = useMemo(() => {
       if (!initialLeads) return [];
-      return [...initialLeads].sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0));
+      return [...initialLeads].sort((a, b) => {
+          const timeA = normalizeDate(a.createdAt)?.getTime() || 0;
+          const timeB = normalizeDate(b.createdAt)?.getTime() || 0;
+          return timeB - timeA;
+      });
   }, [initialLeads]);
 
   const upcomingEvents = useMemo(() => {
@@ -345,6 +438,64 @@ export default function DashboardPage() {
                 </Dialog>
             </div>
         </div>
+
+        {/* Broker Plan Trial Highlight Banner */}
+        {isBroker && trialInfo && (
+            <div className={cn(
+                "p-6 rounded-2xl shadow-soft border flex flex-col md:flex-row items-start md:items-center justify-between gap-6 transition-all",
+                trialInfo.alertLevel === 'expired' ? "bg-red-50 border-red-200" :
+                trialInfo.alertLevel === 'urgent' ? "bg-amber-50 border-amber-200" :
+                trialInfo.alertLevel === 'warning' ? "bg-blue-50 border-blue-200" :
+                "bg-white border-slate-200"
+            )}>
+                <div className="flex items-start gap-4">
+                    <div className={cn(
+                        "p-3 rounded-xl flex items-center justify-center shrink-0",
+                        trialInfo.alertLevel === 'expired' ? "bg-red-500 text-white" :
+                        trialInfo.alertLevel === 'urgent' ? "bg-amber-500 text-white" :
+                        trialInfo.alertLevel === 'warning' ? "bg-blue-500 text-white" :
+                        "bg-primary/10 text-primary"
+                    )}>
+                        <Zap className="size-6" />
+                    </div>
+                    <div className="space-y-1 text-left">
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Plano Atual</span>
+                            <span className="text-xs font-bold bg-slate-100 text-slate-800 px-2 py-0.5 rounded-full">
+                                {planData?.name || 'Plano Free'}
+                            </span>
+                        </div>
+                        <h4 className="text-xl font-black text-slate-900 tracking-tight">
+                            {trialInfo.type === 'unconfigured' ? 'Período de acesso não configurado.' :
+                             trialInfo.type === 'active' ? 'Seu plano está ativo' :
+                             trialInfo.isExpired ? 'Seu período gratuito terminou.' :
+                             trialInfo.isExpiringToday ? 'Seu período gratuito termina hoje' :
+                             trialInfo.alertLevel === 'urgent' ? 'Seu período gratuito termina em breve' :
+                             trialInfo.alertLevel === 'warning' ? 'Seu período gratuito está chegando ao fim' :
+                             'Seu acesso está ativo'}
+                        </h4>
+                        <p className="text-sm font-medium text-slate-600">
+                            {trialInfo.type === 'unconfigured' ? 'Sua conta possui um plano associado, mas as informações de período gratuito não estão configuradas.' :
+                             trialInfo.type === 'active' ? 'Assinatura ativa sem limite de período gratuito.' :
+                             trialInfo.isExpired ? '0 dias restantes • Seu período gratuito acabou.' :
+                             trialInfo.isExpiringToday ? '0 dias restantes • Seu período gratuito termina hoje.' :
+                             `${trialInfo.daysRemaining} ${trialInfo.daysRemaining === 1 ? 'dia restante' : 'dias restantes'} • Seu período gratuito termina em ${trialInfo.formattedDate}.`}
+                        </p>
+                    </div>
+                </div>
+                <Button 
+                    onClick={() => {
+                        router.push('/dashboard/planos');
+                    }}
+                    className={cn(
+                        "font-bold px-6 h-11 rounded-xl shadow-md transition-all shrink-0 w-full md:w-auto",
+                        trialInfo.alertLevel === 'expired' ? "bg-red-600 hover:bg-red-700 text-white" : "bg-slate-900 text-white hover:bg-black"
+                    )}
+                >
+                    Fazer upgrade
+                </Button>
+            </div>
+        )}
 
         {/* Onboarding Alert */}
         {isBroker && !brokerProfile?.onboardingCompleted && showAlert && (
@@ -541,32 +692,41 @@ export default function DashboardPage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {clients?.slice(0, 5).map(lead => (
-                                    <TableRow key={lead.id} className="hover:bg-slate-50/50 transition-colors">
-                                        <TableCell className="pl-6 py-4">
-                                            <div className="flex items-center gap-3">
-                                                <Avatar className="size-9 border-2 border-white shadow-sm"><AvatarFallback className="bg-primary/10 text-green-700 font-bold text-xs">{lead.name.charAt(0)}</AvatarFallback></Avatar>
-                                                <div>
-                                                    <p className="text-sm font-bold text-slate-900 leading-none mb-1">{lead.name}</p>
-                                                    <p className="text-[10px] text-slate-400 font-bold uppercase"><ClientSideDate date={lead.createdAt?.toDate()} options={{ day: '2-digit', month: 'short' }} /></p>
+                                {clients?.slice(0, 5).map(lead => {
+                                    const createdAtDate = normalizeDate(lead.createdAt);
+                                    return (
+                                        <TableRow key={lead.id} className="hover:bg-slate-50/50 transition-colors">
+                                            <TableCell className="pl-6 py-4">
+                                                <div className="flex items-center gap-3">
+                                                    <Avatar className="size-9 border-2 border-white shadow-sm"><AvatarFallback className="bg-primary/10 text-green-700 font-bold text-xs">{lead.name.charAt(0)}</AvatarFallback></Avatar>
+                                                    <div>
+                                                        <p className="text-sm font-bold text-slate-900 leading-none mb-1">{lead.name}</p>
+                                                        <p className="text-[10px] text-slate-400 font-bold uppercase">
+                                                            {createdAtDate ? (
+                                                                <ClientSideDate date={createdAtDate} options={{ day: '2-digit', month: 'short' }} />
+                                                            ) : (
+                                                                '—'
+                                                            )}
+                                                        </p>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell className="text-xs text-slate-500 font-medium max-w-[200px] truncate">
-                                            <div>{lead.propertyInterest || 'N/A'}</div>
-                                            {lead.propertyName && (
-                                                <div className="mt-1 flex items-center gap-1 text-[9px] font-bold text-primary uppercase">
-                                                    <span className="material-symbols-outlined text-[12px]">apartment</span>
-                                                    {lead.propertyName}
-                                                </div>
-                                            )}
-                                        </TableCell>
-                                        <TableCell className="text-center"><Badge variant="outline" className={cn("font-bold text-[9px] uppercase tracking-tighter", getStatusBadgeClass(lead.status))}>{lead.status}</Badge></TableCell>
-                                        <TableCell className="text-right pr-6">
-                                            <Button asChild variant="ghost" size="icon" className="size-8 rounded-lg text-slate-300 hover:text-primary transition-colors"><Link href={`/dashboard/clientes/${lead.id}`}><span className="material-symbols-outlined">more_horiz</span></Link></Button>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
+                                            </TableCell>
+                                            <TableCell className="text-xs text-slate-500 font-medium max-w-[200px] truncate">
+                                                <div>{lead.propertyInterest || 'N/A'}</div>
+                                                {lead.propertyName && (
+                                                    <div className="mt-1 flex items-center gap-1 text-[9px] font-bold text-primary uppercase">
+                                                        <span className="material-symbols-outlined text-[12px]">apartment</span>
+                                                        {lead.propertyName}
+                                                    </div>
+                                                )}
+                                            </TableCell>
+                                            <TableCell className="text-center"><Badge variant="outline" className={cn("font-bold text-[9px] uppercase tracking-tighter", getStatusBadgeClass(lead.status))}>{lead.status}</Badge></TableCell>
+                                            <TableCell className="text-right pr-6">
+                                                <Button asChild variant="ghost" size="icon" className="size-8 rounded-lg text-slate-300 hover:text-primary transition-colors"><Link href={`/dashboard/clientes/${lead.id}`}><span className="material-symbols-outlined">more_horiz</span></Link></Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    );
+                                })}
                                 {(!clients || clients.length === 0) && (
                                     <TableRow><TableCell colSpan={4} className="text-center p-20 text-slate-400 italic">Nenhum lead registrado.</TableCell></TableRow>
                                 )}

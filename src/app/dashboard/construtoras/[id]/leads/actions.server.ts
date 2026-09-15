@@ -160,3 +160,140 @@ export async function createConstructorLeadAction(constructorId: string, data: a
 
   return await leadRepository.create(leadData);
 }
+
+export async function getConstructorLeadDetailAction(constructorId: string, leadId: string, idToken?: string) {
+  const uid = await getRequesterUid(idToken);
+  const userData = await getRequesterData(uid);
+  
+  // Authorization check: Is user an admin or a member of this constructor?
+  if (userData?.userType !== 'admin') {
+    if (userData?.tenantId !== constructorId) {
+       throw new Error('Permissão negada. Usuário não pertence a esta construtora.');
+    }
+    
+    const constructorDoc = await adminDb.collection('constructors').doc(constructorId).get();
+    if (!constructorDoc.exists) throw new Error('Construtora não encontrada.');
+    
+    const constructorData = constructorDoc.data();
+    const members = constructorData?.members || [];
+    const requesterMember = members.find((m: any) => m.uid === uid);
+    
+    if (!requesterMember) {
+        throw new Error('Permissão negada. Usuário não é membro desta construtora.');
+    }
+  }
+
+  const lead = await leadRepository.getById(leadId);
+  if (!lead) {
+    throw new Error('Cliente não encontrado.');
+  }
+
+  // Verify lead belongs to constructor tenant
+  if (lead.tenantId && lead.tenantId !== constructorId) {
+    throw new Error('Acesso negado. Este cliente pertence a outra construtora.');
+  }
+
+  // Fetch statusHistory subcollection if any
+  let statusHistory: any[] = [];
+  try {
+    const historySnap = await adminDb.collection('leads').doc(leadId).collection('statusHistory').get();
+    if (!historySnap.empty) {
+      statusHistory = historySnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    } else if (Array.isArray(lead.statusHistory)) {
+      statusHistory = lead.statusHistory;
+    }
+  } catch (e) {
+    if (Array.isArray(lead.statusHistory)) {
+      statusHistory = lead.statusHistory;
+    }
+  }
+
+  // Fetch properties of interest belonging to this constructor
+  let properties: any[] = [];
+  const propertyIds = lead.propertyIds || [];
+  if (Array.isArray(propertyIds) && propertyIds.length > 0) {
+    for (const propId of propertyIds) {
+      try {
+        const propDoc = await adminDb.collection('properties').doc(propId).get();
+        if (propDoc.exists) {
+          const propData = propDoc.data();
+          // Validate property belongs to constructor (tenantId or builderId)
+          if (propData?.tenantId === constructorId || propData?.builderId === constructorId) {
+            properties.push({ id: propDoc.id, ...propData });
+          }
+        }
+      } catch (err) {
+        // ignore individual fetch errors
+      }
+    }
+  }
+
+  return serializeFirestoreData({
+    lead,
+    statusHistory,
+    properties,
+  });
+}
+
+export async function updateConstructorLeadStatusAction(
+  constructorId: string,
+  leadId: string,
+  newStatus: string,
+  idToken?: string
+) {
+  const uid = await getRequesterUid(idToken);
+  const userData = await getRequesterData(uid);
+
+  // Authorization check: Is user an admin or a member of this constructor?
+  if (userData?.userType !== 'admin') {
+    if (userData?.tenantId !== constructorId) {
+      throw new Error('Permissão negada. Usuário não pertence a esta construtora.');
+    }
+
+    const constructorDoc = await adminDb.collection('constructors').doc(constructorId).get();
+    if (!constructorDoc.exists) throw new Error('Construtora não encontrada.');
+
+    const constructorData = constructorDoc.data();
+    const members = constructorData?.members || [];
+    const requesterMember = members.find((m: any) => m.uid === uid);
+
+    if (!requesterMember) {
+      throw new Error('Permissão negada. Usuário não é membro desta construtora.');
+    }
+  }
+
+  const lead = await leadRepository.getById(leadId);
+  if (!lead) {
+    throw new Error('Cliente não encontrado.');
+  }
+
+  if (lead.tenantId && lead.tenantId !== constructorId) {
+    throw new Error('Acesso negado. Este cliente pertence a outra construtora.');
+  }
+
+  const oldStatus = lead.status || 'new';
+  if (oldStatus === newStatus) {
+    return { success: true };
+  }
+
+  // Update lead status
+  await leadRepository.update(leadId, {
+    status: newStatus,
+    updatedAt: new Date().toISOString(),
+  });
+
+  // Add entry to statusHistory subcollection
+  try {
+    await adminDb.collection('leads').doc(leadId).collection('statusHistory').add({
+      oldStatus,
+      newStatus,
+      changedBy: uid,
+      changedAt: new Date().toISOString(),
+    });
+  } catch (e) {
+    // Fallback if subcollection fails, update array field or ignore
+  }
+
+  return { success: true };
+}
+

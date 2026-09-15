@@ -9,6 +9,7 @@ import { Users, TrendingUp, Globe, Target, Layers, Award, DollarSign, BarChart3,
 import MarketingSettingsForm from './MarketingSettingsForm';
 import { getMarketingSettings } from './actions';
 import { Button } from '@/components/ui/button';
+import { normalizeDate } from '@/lib/utils';
 
 interface Lead {
   id: string;
@@ -78,8 +79,8 @@ export default function MarketingPage() {
     }
 
     const filteredLeads = leads.filter(lead => {
-        if (!lead.createdAt) return period === 'all';
-        const date = typeof lead.createdAt.toDate === 'function' ? lead.createdAt.toDate() : new Date(lead.createdAt as any);
+        const date = normalizeDate(lead.createdAt);
+        if (!date) return period === 'all';
         const now = new Date();
 
         if (period === '7days') {

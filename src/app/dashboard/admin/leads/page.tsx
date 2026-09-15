@@ -6,6 +6,7 @@ import { collection, query, orderBy, doc, Timestamp } from "firebase/firestore";
 import Link from "next/link";
 import { useMemo, useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { normalizeDate } from "@/lib/utils";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -116,7 +117,10 @@ const LeadsTable = ({ leads, isLoading, error, brokerNameMap, onLeadDelete }: {
                     </TableCell>
                     <TableCell className="px-6 py-4 text-center">
                         <span className="text-text-secondary font-medium text-xs">
-                           <ClientSideDate date={lead.createdAt.toDate()} />
+                           {(() => {
+                               const d = normalizeDate(lead.createdAt);
+                               return d ? <ClientSideDate date={d} /> : '—';
+                           })()}
                         </span>
                     </TableCell>
                     <TableCell className="px-6 py-4 text-center">

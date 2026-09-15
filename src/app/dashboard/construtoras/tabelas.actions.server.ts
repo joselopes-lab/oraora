@@ -508,12 +508,50 @@ export async function getBrokerPriceTablesAction(data?: { idToken?: string }) {
     return { tables: [] };
   }
 
-  const tables = await priceTableRepository.getTablesByPropertyIds(propertyIds);
+  // Derive projectIds from authorized propertyIds
+  const projectIdsSet = new Set<string>();
+  for (let i = 0; i < propertyIds.length; i += 30) {
+    const batch = propertyIds.slice(i, i + 30);
+    try {
+      const propSnap = await adminDb.collection('properties').where('__name__', 'in', batch).get();
+      propSnap.forEach(doc => {
+        const data = doc.data();
+        const pId = data?.projectId || data?.builderInfo?.projectId || data?.empreendimentoId;
+        if (pId) projectIdsSet.add(pId);
+      });
+    } catch (e) {
+      console.error('Error fetching properties for project resolution:', e);
+    }
+    try {
+      const brokerPropSnap = await adminDb.collection('brokerProperties').where('__name__', 'in', batch).get();
+      brokerPropSnap.forEach(doc => {
+        const data = doc.data();
+        const pId = data?.projectId || data?.builderInfo?.projectId || data?.empreendimentoId;
+        if (pId) projectIdsSet.add(pId);
+      });
+    } catch (e) {
+      console.error('Error fetching brokerProperties for project resolution:', e);
+    }
+  }
+
+  const projectIds = Array.from(projectIdsSet);
+
+  const propertyTables = await priceTableRepository.getTablesByPropertyIds(propertyIds);
+  const projectTables = await priceTableRepository.getTablesByProjectIds(projectIds);
+
+  const tableMap = new Map<string, any>();
+  propertyTables.forEach(t => tableMap.set(t.id, t));
+  projectTables.forEach(t => tableMap.set(t.id, t));
+
+  const tables = Array.from(tableMap.values());
+
   console.log('[PRICE TABLE BROKER DEBUG] TABLES FOUND IN COLLECTION', {
     count: tables.length,
     tables: tables.map(t => ({
       tableId: t.id,
       propertyId: t.propertyId,
+      projectId: t.projectId,
+      targetType: t.targetType,
       tenantId: t.tenantId,
       hasSourceFile: !!t.sourceFile,
       hasStoragePath: !!t.sourceFile?.storagePath
@@ -528,9 +566,17 @@ export async function getBrokerPriceTablesAction(data?: { idToken?: string }) {
        continue;
     }
     
-    // Validate Authorization again for the specific propertyId
-    if (!propertyIds.includes(table.propertyId)) {
-        console.log('[PRICE TABLE BROKER DEBUG] TABLE_SKIPPED', { tableId: table.id, propertyId: table.propertyId, reason: 'PROPERTY_NOT_AUTHORIZED' });
+    // Validate Authorization for propertyId or projectId
+    let isAuthorized = false;
+    if (table.propertyId && propertyIds.includes(table.propertyId)) {
+      isAuthorized = true;
+    }
+    if (table.projectId && projectIds.includes(table.projectId)) {
+      isAuthorized = true;
+    }
+
+    if (!isAuthorized) {
+        console.log('[PRICE TABLE BROKER DEBUG] TABLE_SKIPPED', { tableId: table.id, propertyId: table.propertyId, projectId: table.projectId, reason: 'NOT_AUTHORIZED' });
         continue;
     }
 
@@ -558,6 +604,17 @@ export async function getBrokerPriceTablesAction(data?: { idToken?: string }) {
       if (propDoc.exists) {
         const propData = propDoc.data();
         propertyName = propData?.informacoesbasicas?.nome || propData?.basicInfo?.name || propertyName;
+      } else {
+        const brokerPropDoc = await adminDb.collection('brokerProperties').doc(table.propertyId).get();
+        if (brokerPropDoc.exists) {
+          const propData = brokerPropDoc.data();
+          propertyName = propData?.informacoesbasicas?.nome || propData?.basicInfo?.name || propertyName;
+        }
+      }
+    } else if (table.projectId) {
+      const projDoc = await adminDb.collection('projects').doc(table.projectId).get();
+      if (projDoc.exists) {
+        propertyName = projDoc.data()?.name || propertyName;
       }
     }
 
@@ -694,39 +751,83 @@ export async function getPriceTablePdfUrlServer(data?: { priceTableId?: string; 
 
     // Authorization check
     if (ctx.userType !== 'admin') {
-      const propertyId = tableData?.propertyId;
-      if (!propertyId) {
-        return { success: false, url: null, error: 'Você não possui acesso a esta tabela.' };
-      }
-
       let isAuthorized = false;
 
-      // Check brokerProperties where brokerId == ctx.uid and propertyId == propertyId and inPortfolio == true
-      const bpSnap = await adminDb.collection('brokerProperties')
-        .where('brokerId', '==', ctx.uid)
-        .where('propertyId', '==', propertyId)
-        .where('inPortfolio', '==', true)
-        .limit(1)
-        .get();
-
-      if (!bpSnap.empty) {
+      // Constructor check: allows if user is constructor and tenantId matches
+      if (ctx.userType === 'constructor' && tableData?.tenantId === ctx.tenantId) {
         isAuthorized = true;
       } else {
-        // Check portfolios/{ctx.uid} propertyIds array
+        const propertyId = tableData?.propertyId;
+        const projectId = tableData?.projectId;
+
+        if (!propertyId && !projectId) {
+          return { success: false, url: null, error: 'Você não possui acesso a esta tabela.' };
+        }
+
+        // Get broker portfolio propertyIds
+        const propertyIdsSet = new Set<string>();
+        const bpSnap = await adminDb.collection('brokerProperties')
+          .where('brokerId', '==', ctx.uid)
+          .where('inPortfolio', '==', true)
+          .get();
+        bpSnap.forEach(doc => {
+          propertyIdsSet.add(doc.id);
+        });
+
         const portfolioDoc = await adminDb.collection('portfolios').doc(ctx.uid).get();
         if (portfolioDoc.exists) {
           const pData = portfolioDoc.data();
-          const propertyIds = pData?.propertyIds || [];
-          if (Array.isArray(propertyIds) && propertyIds.includes(propertyId)) {
+          const pIds = pData?.propertyIds || [];
+          pIds.forEach((id: string) => propertyIdsSet.add(id));
+        }
+
+        const propertyIds = Array.from(propertyIdsSet);
+
+        if (propertyId) {
+          if (propertyIds.includes(propertyId)) {
             isAuthorized = true;
+          } else {
+            const bpCheck = await adminDb.collection('brokerProperties')
+              .where('brokerId', '==', ctx.uid)
+              .where('propertyId', '==', propertyId)
+              .where('inPortfolio', '==', true)
+              .limit(1)
+              .get();
+            if (!bpCheck.empty) {
+              isAuthorized = true;
+            }
           }
         }
-      }
 
-      if (!isAuthorized) {
-        // Constructor check: allows if the constructor is the owner of the table
-        if (ctx.userType === 'constructor' && tableData?.tenantId === ctx.tenantId) {
-          isAuthorized = true;
+        if (!isAuthorized && projectId && propertyIds.length > 0) {
+          for (let i = 0; i < propertyIds.length; i += 30) {
+            const batch = propertyIds.slice(i, i + 30);
+            try {
+              const propSnap = await adminDb.collection('properties').where('__name__', 'in', batch).get();
+              propSnap.forEach(doc => {
+                const data = doc.data();
+                const pId = data?.projectId || data?.builderInfo?.projectId || data?.empreendimentoId;
+                if (pId === projectId) {
+                  isAuthorized = true;
+                }
+              });
+            } catch (e) {}
+
+            if (isAuthorized) break;
+
+            try {
+              const brokerPropSnap = await adminDb.collection('brokerProperties').where('__name__', 'in', batch).get();
+              brokerPropSnap.forEach(doc => {
+                const data = doc.data();
+                const pId = data?.projectId || data?.builderInfo?.projectId || data?.empreendimentoId;
+                if (pId === projectId) {
+                  isAuthorized = true;
+                }
+              });
+            } catch (e) {}
+
+            if (isAuthorized) break;
+          }
         }
       }
 
@@ -757,6 +858,89 @@ export async function getPriceTablePdfUrlServer(data?: { priceTableId?: string; 
   } catch (err: any) {
     console.error('[PRICE TABLE PDF URL] ERROR', err);
     return { success: false, url: null, error: err?.message || 'Erro ao gerar URL do PDF' };
+  }
+}
+
+export async function deleteConstructorPriceTableServer(data?: { tableId?: string; idToken?: string }) {
+  console.log('[CONSTRUCTOR TABLE DELETE] START', { tableId: data?.tableId });
+  try {
+    const ctx = await getAuthenticatedUserContext(data?.idToken);
+
+    if (ctx.userType !== 'constructor') {
+      return { success: false, error: 'Acesso negado. Apenas construtoras podem excluir suas tabelas.' };
+    }
+
+    if (!data?.tableId) {
+      return { success: false, error: 'ID da tabela não informado.' };
+    }
+
+    const tableRef = adminDb.collection('priceTables').doc(data.tableId);
+    const tableDoc = await tableRef.get();
+    if (!tableDoc.exists) {
+      return { success: false, error: 'Tabela não encontrada.' };
+    }
+
+    const tableData = tableDoc.data();
+    
+    // Authorization check: table must belong to constructor tenant
+    if (tableData?.tenantId !== ctx.tenantId) {
+      return { success: false, error: 'Acesso negado. Esta tabela pertence a outra construtora.' };
+    }
+
+    const storagePath = tableData?.sourceFile?.storagePath;
+
+    // 1. Delete all versions in subcollection
+    const versionsSnap = await tableRef.collection('versions').get();
+    const batchSize = 400;
+    let batch = adminDb.batch();
+    let count = 0;
+
+    for (const vDoc of versionsSnap.docs) {
+      batch.delete(vDoc.ref);
+      count++;
+      if (count >= batchSize) {
+        await batch.commit();
+        batch = adminDb.batch();
+        count = 0;
+      }
+    }
+    if (count > 0) {
+      await batch.commit();
+    }
+
+    // 2. Delete file from Storage if storagePath exists and is exclusively used by this table/versions
+    // To ensure safety, we only delete the storage file if no other priceTable points to the same storagePath.
+    if (storagePath) {
+      try {
+        const otherTablesSnap = await adminDb.collection('priceTables')
+          .where('sourceFile.storagePath', '==', storagePath)
+          .get();
+
+        const otherUsing = otherTablesSnap.docs.filter(d => d.id !== data.tableId);
+        if (otherUsing.length === 0) {
+          const bucket = adminStorage.bucket();
+          const file = bucket.file(storagePath);
+          const [exists] = await file.exists();
+          if (exists) {
+            await file.delete();
+            console.log('[CONSTRUCTOR TABLE DELETE] STORAGE_FILE_DELETED', { storagePath });
+          }
+        } else {
+          console.log('[CONSTRUCTOR TABLE DELETE] STORAGE_FILE_PRESERVED_SHARED', { storagePath, count: otherUsing.length });
+        }
+      } catch (storageErr) {
+        console.warn('[CONSTRUCTOR TABLE DELETE] STORAGE_DELETE_WARNING', storageErr);
+      }
+    }
+
+    // 3. Delete priceTable document
+    await tableRef.delete();
+
+    console.log('[CONSTRUCTOR TABLE DELETE] SUCCESS', { tableId: data.tableId });
+    return { success: true };
+  } catch (err: any) {
+    console.error('[CONSTRUCTOR TABLE DELETE] ERROR', err);
+    return { success: false, error: err?.message || 'Erro ao excluir tabela de preços.' };
   }
 }
 

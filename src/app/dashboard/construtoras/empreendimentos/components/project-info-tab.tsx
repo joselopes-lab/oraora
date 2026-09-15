@@ -1,6 +1,8 @@
 'use client';
 
+import { formatCurrencyDisplay, parseSmartCurrency, formatCepDisplay, normalizeCep } from '@/lib/utils';
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useUser } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { updateProjectFullServer } from '../actions.server';
@@ -35,8 +37,9 @@ interface ProjectInfoTabProps {
   onUpdateSuccess?: () => void;
 }
 
-export default function ProjectInfoTab({ project }: ProjectInfoTabProps) {
+export default function ProjectInfoTab({ project, onUpdateSuccess }: ProjectInfoTabProps) {
   const { user } = useUser();
+  const router = useRouter();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
@@ -50,9 +53,9 @@ export default function ProjectInfoTab({ project }: ProjectInfoTabProps) {
   const [cidade, setCidade] = useState(project.localizacao?.cidade || '');
   const [bairro, setBairro] = useState(project.localizacao?.bairro || '');
   const [address, setAddress] = useState(project.localizacao?.address || '');
-  const [cep, setCep] = useState(project.localizacao?.cep || '');
+  const [cep, setCep] = useState(project.localizacao?.cep ? formatCepDisplay(project.localizacao.cep) : '');
 
-  const [vgvEstimado, setVgvEstimado] = useState(project.vgvEstimado ? String(project.vgvEstimado) : '');
+  const [vgvEstimado, setVgvEstimado] = useState(project.vgvEstimado ? formatCurrencyDisplay(project.vgvEstimado) : '');
   const [percentualObra, setPercentualObra] = useState(project.percentualObra !== undefined ? String(project.percentualObra) : '0');
   const [dataEntregaEstimada, setDataEntregaEstimada] = useState(project.dataEntregaEstimada || '');
 
@@ -83,7 +86,7 @@ export default function ProjectInfoTab({ project }: ProjectInfoTabProps) {
         name,
         status,
         standard,
-        vgvEstimado: vgvEstimado ? Number(vgvEstimado) : undefined,
+        vgvEstimado: vgvEstimado ? parseSmartCurrency(vgvEstimado) : undefined,
         percentualObra: percentualObra !== '' ? Number(percentualObra) : undefined,
         dataEntregaEstimada,
         descricaoCurta,
@@ -93,13 +96,15 @@ export default function ProjectInfoTab({ project }: ProjectInfoTabProps) {
           cidade,
           bairro,
           address,
-          cep,
+          cep: normalizeCep(cep),
         },
         idToken,
       });
 
       setIsDirty(false);
       toast({ title: 'Salvo com sucesso!', description: 'As informações do empreendimento foram atualizadas.' });
+      router.refresh();
+      onUpdateSuccess?.();
     } catch (e: any) {
       toast({ title: 'Erro ao salvar', description: e.message || 'Tente novamente.', variant: 'destructive' });
     } finally {
@@ -248,8 +253,9 @@ export default function ProjectInfoTab({ project }: ProjectInfoTabProps) {
             <Input 
               id="cep" 
               value={cep} 
-              onChange={(e) => handleFieldChange(setCep, e.target.value)} 
+              onChange={(e) => handleFieldChange(setCep, formatCepDisplay(e.target.value))} 
               placeholder="00000-000"
+              maxLength={9}
             />
           </div>
         </CardContent>
@@ -266,10 +272,15 @@ export default function ProjectInfoTab({ project }: ProjectInfoTabProps) {
             <Label htmlFor="vgv">VGV Estimado (R$)</Label>
             <Input 
               id="vgv" 
-              type="number" 
+              type="text"
+              inputMode="decimal"
               value={vgvEstimado} 
               onChange={(e) => handleFieldChange(setVgvEstimado, e.target.value)} 
-              placeholder="Ex: 45000000"
+              onBlur={() => {
+                const num = parseSmartCurrency(vgvEstimado);
+                setVgvEstimado(num ? formatCurrencyDisplay(num) : '');
+              }}
+              placeholder="Ex: R$ 45.000.000,00"
             />
           </div>
 

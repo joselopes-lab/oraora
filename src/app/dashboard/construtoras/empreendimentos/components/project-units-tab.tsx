@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { formatCurrencyDisplay, parseSmartCurrency } from '@/lib/utils';
+import { useState, useEffect } from 'react';
 import { useUser } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { savePropertyServer, deletePropertyServer } from '@/app/dashboard/imoveis/actions.server';
@@ -12,6 +13,51 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Building2, Plus, Search, CheckCircle2, Clock, XCircle, DollarSign, Maximize2, Bed, Bath, Car, Trash2, Edit, ExternalLink, Layers } from 'lucide-react';
 import Link from 'next/link';
+import { 
+  AlertDialog, 
+  AlertDialogAction, 
+  AlertDialogCancel, 
+  AlertDialogContent, 
+  AlertDialogDescription, 
+  AlertDialogFooter, 
+  AlertDialogHeader, 
+  AlertDialogTitle 
+} from '@/components/ui/alert-dialog';
+
+function CurrencyInput({ value, onChange, placeholder }: { value: number | undefined; onChange: (val: number) => void; placeholder?: string }) {
+  const [isFocused, setIsFocused] = useState(false);
+  const [localText, setLocalText] = useState(value !== undefined && value !== null ? String(value) : '');
+
+  useEffect(() => {
+    if (!isFocused) {
+      setLocalText(value !== undefined && value !== null && value !== 0 ? String(value) : '');
+    }
+  }, [value, isFocused]);
+
+  return (
+    <Input
+      type="text"
+      inputMode="decimal"
+      placeholder={placeholder || "R$ 0,00"}
+      value={isFocused ? localText : (value !== undefined && value !== null && value !== 0 ? formatCurrencyDisplay(value) : '')}
+      onFocus={() => {
+        setIsFocused(true);
+        setLocalText(value !== undefined && value !== null && value !== 0 ? String(value) : '');
+      }}
+      onChange={(e) => {
+        const raw = e.target.value;
+        setLocalText(raw);
+        const parsed = parseSmartCurrency(raw);
+        onChange(parsed);
+      }}
+      onBlur={() => {
+        setIsFocused(false);
+        const parsed = parseSmartCurrency(localText);
+        onChange(parsed);
+      }}
+    />
+  );
+}
 
 interface ProjectUnitsTabProps {
   project: {
@@ -30,6 +76,8 @@ export default function ProjectUnitsTab({ project, units: initialUnits }: Projec
   const [filterTorre, setFilterTorre] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterTipologia, setFilterTipologia] = useState('all');
+  const [unitToDelete, setUnitToDelete] = useState<string | null>(null);
+  const [editingUnitId, setEditingUnitId] = useState<string | null>(null);
 
   // Modal State for Quick Add Unit
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -37,14 +85,45 @@ export default function ProjectUnitsTab({ project, units: initialUnits }: Projec
   
   const [unitName, setUnitName] = useState('');
   const [torre, setTorre] = useState('Torre A');
-  const [andar, setAndar] = useState('1');
+  const [andar, setAndar] = useState('');
   const [tipologia, setTipologia] = useState('Apartamento');
-  const [areaUtil, setAreaUtil] = useState('60');
-  const [quartos, setQuartos] = useState('2');
-  const [suites, setSuites] = useState('1');
-  const [vagas, setVagas] = useState('1');
-  const [preco, setPreco] = useState('450000');
+  const [areaUtil, setAreaUtil] = useState('');
+  const [quartos, setQuartos] = useState('');
+  const [suites, setSuites] = useState('');
+  const [vagas, setVagas] = useState('');
+  const [preco, setPreco] = useState<number | undefined>(undefined);
   const [status, setStatus] = useState('Disponível');
+
+  const handleOpenNew = () => {
+    setEditingUnitId(null);
+    setUnitName('');
+    setTorre('Torre A');
+    setAndar('');
+    setTipologia('Apartamento');
+    setAreaUtil('');
+    setQuartos('');
+    setSuites('');
+    setVagas('');
+    setPreco(undefined);
+    setStatus('Disponível');
+    setIsAddOpen(true);
+  };
+
+  const handleOpenEdit = (u: any) => {
+    setEditingUnitId(u.id);
+    setUnitName(u.informacoesbasicas?.nome || u.nome || '');
+    setTorre(u.torre || u.bloco || 'Torre A');
+    setAndar(u.andar !== undefined && u.andar !== null ? String(u.andar) : '');
+    setTipologia(u.tipologia || u.informacoesbasicas?.tipo || 'Apartamento');
+    setAreaUtil(u.caracteristicas?.areaUtil !== undefined && u.caracteristicas?.areaUtil !== null ? String(u.caracteristicas.areaUtil) : (u.areaUtil !== undefined && u.areaUtil !== null ? String(u.areaUtil) : ''));
+    setQuartos(u.caracteristicas?.quartos !== undefined && u.caracteristicas?.quartos !== null ? String(u.caracteristicas.quartos) : (u.quartos !== undefined && u.quartos !== null ? String(u.quartos) : ''));
+    setSuites(u.caracteristicas?.suites !== undefined && u.caracteristicas?.suites !== null ? String(u.caracteristicas.suites) : (u.suites !== undefined && u.suites !== null ? String(u.suites) : ''));
+    setVagas(u.caracteristicas?.vagas !== undefined && u.caracteristicas?.vagas !== null ? String(u.caracteristicas.vagas) : (u.vagas !== undefined && u.vagas !== null ? String(u.vagas) : ''));
+    const rawPreco = u.preco !== undefined && u.preco !== null ? u.preco : (u.valores?.venda !== undefined && u.valores?.venda !== null ? u.valores.venda : undefined);
+    setPreco(rawPreco !== undefined && rawPreco !== null && rawPreco !== '' ? Number(rawPreco) : undefined);
+    setStatus(u.status || u.disponibilidade || 'Disponível');
+    setIsAddOpen(true);
+  };
 
   // Statistics
   const totalUnits = units.length;
@@ -69,7 +148,7 @@ export default function ProjectUnitsTab({ project, units: initialUnits }: Projec
     return matchesSearch && matchesTorre && matchesStatus && matchesTipologia;
   });
 
-  const handleQuickAdd = async (e: React.FormEvent) => {
+  const handleSaveUnit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) {
       toast({ title: 'Erro', description: 'Usuário não autenticado.', variant: 'destructive' });
@@ -98,44 +177,60 @@ export default function ProjectUnitsTab({ project, units: initialUnits }: Projec
           suites: Number(suites),
           vagas: Number(vagas),
         },
-        preco: Number(preco),
+        preco: preco !== undefined && preco !== null ? Number(preco) : 0,
         valores: {
-          venda: Number(preco),
+          venda: preco !== undefined && preco !== null ? Number(preco) : 0,
         },
         status,
         disponibilidade: status,
       };
 
-      const res = await savePropertyServer('properties', null, payload, user.uid);
-      if (res.success && res.id) {
-        toast({ title: 'Unidade cadastrada!', description: 'A unidade foi adicionada ao estoque do empreendimento.' });
-        setUnits([...units, { id: res.id, ...payload }]);
+      const res = await savePropertyServer('properties', editingUnitId, payload, user.uid);
+      if (res.success) {
+        const savedId = editingUnitId || res.id;
+        toast({ 
+          title: editingUnitId ? 'Unidade atualizada!' : 'Unidade cadastrada!', 
+          description: editingUnitId ? 'As alterações foram salvas com sucesso.' : 'A unidade foi adicionada ao estoque do empreendimento.' 
+        });
+
+        if (editingUnitId) {
+          setUnits(units.map(u => u.id === editingUnitId ? { ...u, ...payload, id: editingUnitId } : u));
+        } else if (savedId) {
+          setUnits([...units, { id: savedId, ...payload }]);
+        }
         setIsAddOpen(false);
-        // Reset form
-        setUnitName('');
-        setPreco('450000');
       } else {
         throw new Error(res.message || 'Erro ao salvar unidade.');
       }
     } catch (e: any) {
-      toast({ title: 'Erro ao cadastrar', description: e.message || 'Tente novamente.', variant: 'destructive' });
+      toast({ title: 'Erro ao salvar', description: e.message || 'Tente novamente.', variant: 'destructive' });
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleDeleteUnit = async (id: string) => {
-    if (!confirm('Tem certeza que deseja remover esta unidade do estoque?')) return;
+    if (!user) {
+      toast({ title: 'Erro', description: 'Usuário não autenticado.', variant: 'destructive' });
+      return;
+    }
+    setUnitToDelete(id);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!unitToDelete || !user) return;
     try {
-      const res = await deletePropertyServer('properties', id);
+      const res = await deletePropertyServer('properties', unitToDelete, user.uid);
       if (res.success) {
-        setUnits(units.filter(u => u.id !== id));
+        setUnits(units.filter(u => u.id !== unitToDelete));
         toast({ title: 'Unidade removida', description: 'O estoque foi atualizado.' });
       } else {
         throw new Error(res.message);
       }
     } catch (e: any) {
       toast({ title: 'Erro ao remover', description: e.message, variant: 'destructive' });
+    } finally {
+      setUnitToDelete(null);
     }
   };
 
@@ -153,7 +248,7 @@ export default function ProjectUnitsTab({ project, units: initialUnits }: Projec
         </div>
         <div className="flex items-center gap-3">
           <Button 
-            onClick={() => setIsAddOpen(true)}
+            onClick={handleOpenNew}
             className="bg-slate-900 hover:bg-slate-800 text-white gap-2"
           >
             <Plus className="w-4 h-4" /> Nova Unidade
@@ -166,11 +261,11 @@ export default function ProjectUnitsTab({ project, units: initialUnits }: Projec
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
           <Card className="w-full max-w-lg bg-white shadow-2xl border">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-lg font-bold">Cadastrar Unidade no Empreendimento</CardTitle>
+              <CardTitle className="text-lg font-bold">{editingUnitId ? 'Editar Unidade' : 'Cadastrar Unidade no Empreendimento'}</CardTitle>
               <Button variant="ghost" size="icon" onClick={() => setIsAddOpen(false)}>×</Button>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleQuickAdd} className="space-y-4">
+              <form onSubmit={handleSaveUnit} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <Label htmlFor="unitName">Nome / Identificação</Label>
@@ -225,13 +320,17 @@ export default function ProjectUnitsTab({ project, units: initialUnits }: Projec
 
                 <div className="space-y-1.5">
                   <Label htmlFor="preco">Preço de Venda (R$)</Label>
-                  <Input id="preco" type="number" value={preco} onChange={e => setPreco(e.target.value)} required />
+                  <CurrencyInput 
+                    value={preco} 
+                    onChange={setPreco} 
+                    placeholder="R$ 0,00"
+                  />
                 </div>
 
                 <div className="flex justify-end gap-2 pt-4 border-t">
                   <Button type="button" variant="outline" onClick={() => setIsAddOpen(false)}>Cancelar</Button>
                   <Button type="submit" disabled={isSubmitting} className="bg-slate-900 text-white">
-                    {isSubmitting ? 'Salvando...' : 'Salvar Unidade'}
+                    {isSubmitting ? 'Salvando...' : (editingUnitId ? 'Salvar Alterações' : 'Salvar Unidade')}
                   </Button>
                 </div>
               </form>
@@ -403,11 +502,15 @@ export default function ProjectUnitsTab({ project, units: initialUnits }: Projec
                           </span>
                         </td>
                         <td className="py-3 px-4 text-right space-x-1">
-                          <Link href={`/dashboard/imoveis/${u.id}/editar`} target="_blank">
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-500 hover:text-slate-900" title="Editar Unidade">
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                          </Link>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 text-slate-500 hover:text-slate-900" 
+                            onClick={() => handleOpenEdit(u)}
+                            title="Editar Unidade"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Button>
                           <Button 
                             variant="ghost" 
                             size="icon" 
@@ -427,6 +530,23 @@ export default function ProjectUnitsTab({ project, units: initialUnits }: Projec
           )}
         </CardContent>
       </Card>
+
+      <AlertDialog open={unitToDelete !== null} onOpenChange={(open) => !open && setUnitToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remover Unidade</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja remover esta unidade do estoque? Esta ação excluirá permanentemente o registro e não poderá ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setUnitToDelete(null)}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-600 hover:bg-red-700 text-white">
+              Sim, Remover
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

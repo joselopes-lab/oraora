@@ -1,5 +1,6 @@
 'use client';
 
+import { formatCurrencyDisplay, parseSmartCurrency } from '@/lib/utils';
 import { useState } from 'react';
 import { useUser } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
@@ -39,9 +40,9 @@ export default function ProjectCommercialTab({ project }: ProjectCommercialTabPr
   // Form states
   const [tituloComercial, setTituloComercial] = useState(project.tituloComercial || '');
   const [subtituloComercial, setSubtituloComercial] = useState(project.subtituloComercial || '');
-  const [precoInicial, setPrecoInicial] = useState(project.precoInicial ? String(project.precoInicial) : '');
-  const [precoMaximo, setPrecoMaximo] = useState(project.precoMaximo ? String(project.precoMaximo) : '');
-  const [valorMetroQuadrado, setValorMetroQuadrado] = useState(project.valorMetroQuadrado ? String(project.valorMetroQuadrado) : '');
+  const [precoInicial, setPrecoInicial] = useState(project.precoInicial ? formatCurrencyDisplay(project.precoInicial) : '');
+  const [precoMaximo, setPrecoMaximo] = useState(project.precoMaximo ? formatCurrencyDisplay(project.precoMaximo) : '');
+  const [valorMetroQuadrado, setValorMetroQuadrado] = useState(project.valorMetroQuadrado ? formatCurrencyDisplay(project.valorMetroQuadrado) : '');
   
   const [tipologias, setTipologias] = useState<string[]>(project.tipologias || ['2 Dormitórios']);
   const [customTipologia, setCustomTipologia] = useState('');
@@ -88,9 +89,9 @@ export default function ProjectCommercialTab({ project }: ProjectCommercialTabPr
       await updateProjectCommercialServer(project.id, {
         tituloComercial,
         subtituloComercial,
-        precoInicial: precoInicial ? Number(precoInicial) : undefined,
-        precoMaximo: precoMaximo ? Number(precoMaximo) : undefined,
-        valorMetroQuadrado: valorMetroQuadrado ? Number(valorMetroQuadrado) : undefined,
+        precoInicial: precoInicial ? parseSmartCurrency(precoInicial) : undefined,
+        precoMaximo: precoMaximo ? parseSmartCurrency(precoMaximo) : undefined,
+        valorMetroQuadrado: valorMetroQuadrado ? parseSmartCurrency(valorMetroQuadrado) : undefined,
         tipologias,
         condicoesComerciais,
         diferenciaisCorretor,
@@ -172,10 +173,15 @@ export default function ProjectCommercialTab({ project }: ProjectCommercialTabPr
             <Label htmlFor="precoInicial">Preço Inicial (A partir de R$)</Label>
             <Input 
               id="precoInicial" 
-              type="number" 
+              type="text"
+              inputMode="decimal"
               value={precoInicial} 
               onChange={(e) => handleFieldChange(setPrecoInicial, e.target.value)} 
-              placeholder="Ex: 350000"
+              onBlur={() => {
+                const num = parseSmartCurrency(precoInicial);
+                setPrecoInicial(num ? formatCurrencyDisplay(num) : '');
+              }}
+              placeholder="Ex: R$ 350.000,00"
             />
           </div>
 
@@ -183,10 +189,15 @@ export default function ProjectCommercialTab({ project }: ProjectCommercialTabPr
             <Label htmlFor="precoMaximo">Preço Máximo (Até R$)</Label>
             <Input 
               id="precoMaximo" 
-              type="number" 
+              type="text"
+              inputMode="decimal"
               value={precoMaximo} 
               onChange={(e) => handleFieldChange(setPrecoMaximo, e.target.value)} 
-              placeholder="Ex: 1200000"
+              onBlur={() => {
+                const num = parseSmartCurrency(precoMaximo);
+                setPrecoMaximo(num ? formatCurrencyDisplay(num) : '');
+              }}
+              placeholder="Ex: R$ 1.200.000,00"
             />
           </div>
 
@@ -194,10 +205,15 @@ export default function ProjectCommercialTab({ project }: ProjectCommercialTabPr
             <Label htmlFor="valorMetroQuadrado">Valor Estimado do m² (R$)</Label>
             <Input 
               id="valorMetroQuadrado" 
-              type="number" 
+              type="text"
+              inputMode="decimal"
               value={valorMetroQuadrado} 
               onChange={(e) => handleFieldChange(setValorMetroQuadrado, e.target.value)} 
-              placeholder="Ex: 8500"
+              onBlur={() => {
+                const num = parseSmartCurrency(valorMetroQuadrado);
+                setValorMetroQuadrado(num ? formatCurrencyDisplay(num) : '');
+              }}
+              placeholder="Ex: R$ 8.500,00"
             />
           </div>
         </CardContent>

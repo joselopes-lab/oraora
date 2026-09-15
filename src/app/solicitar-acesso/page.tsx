@@ -20,7 +20,7 @@ import {
 } from '@/components/ui/form';
 import { useAuth, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, collection, getDocs, query, where, Timestamp } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -104,10 +104,72 @@ export default function RequestAccessPage() {
       });
       router.push('/dashboard');
     } else {
-      const userData = {
-        id: user.uid, userType: 'broker', email: values.email,
-        username: values.name, planId: 'free-plan', isActive: true,
+      let freePlanId = '';
+      let trialDays = 30;
+
+      try {
+        const plansQuery = query(collection(firestore, 'plans'), where('type', '==', 'corretor'));
+        const querySnapshot = await getDocs(plansQuery);
+        
+        const freePlans = querySnapshot.docs.filter(d => {
+          const data = d.data();
+          return Number(data.price) === 0;
+        });
+
+        if (freePlans.length === 0) {
+          toast({
+            variant: 'destructive',
+            title: 'Erro de Configuração',
+            description: 'Nenhum plano Free de corretor está configurado no sistema.',
+          });
+          return;
+        }
+
+        if (freePlans.length > 1) {
+          toast({
+            variant: 'destructive',
+            title: 'Erro de Configuração',
+            description: 'Existe mais de um plano Free de corretor configurado. Contate o suporte.',
+          });
+          return;
+        }
+
+        const freePlanDoc = freePlans[0];
+        freePlanId = freePlanDoc.id;
+        const planData = freePlanDoc.data();
+        if (typeof planData.trialDays === 'number') {
+          trialDays = planData.trialDays;
+        }
+      } catch (e) {
+        console.error('Error fetching free plan:', e);
+        toast({
+          variant: 'destructive',
+          title: 'Erro no Cadastro',
+          description: 'Não foi possível localizar o plano Free. Tente novamente mais tarde.',
+        });
+        return;
+      }
+
+      const now = new Date();
+      const userData: any = {
+        id: user.uid, 
+        userType: 'broker', 
+        email: values.email,
+        username: values.name, 
+        planId: freePlanId, 
+        isActive: true,
+        createdAt: Timestamp.fromDate(now),
       };
+
+      if (trialDays > 0) {
+        const trialEnds = new Date(now.getTime() + trialDays * 24 * 60 * 60 * 1000);
+        userData.planStatus = 'trialing';
+        userData.trialStartedAt = Timestamp.fromDate(now);
+        userData.trialEndsAt = Timestamp.fromDate(trialEnds);
+      } else {
+        userData.planStatus = 'active';
+      }
+
       await setDoc(userDocRef, userData, { merge: true });
 
       const brokerDocRef = doc(firestore, 'brokers', user.uid);
@@ -120,9 +182,9 @@ export default function RequestAccessPage() {
 
       toast({
         title: 'Cadastro realizado com sucesso!',
-        description: 'Você será redirecionado para a escolha de planos.',
+        description: 'Você será redirecionado para o dashboard.',
       });
-      router.push('/planos');
+      router.push('/dashboard');
     }
   }
 

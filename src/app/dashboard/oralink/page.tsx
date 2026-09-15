@@ -83,6 +83,7 @@ type OralinkData = {
   footerTextColor?: string;
   statusTagBgColor?: string;
   statusTagTextColor?: string;
+  propertyPriceColor?: string;
 };
 
 type Property = {
@@ -271,6 +272,7 @@ export default function OralinkManagementPage() {
     footerTextColor: '110 16% 8%',
     statusTagBgColor: '80 99% 49%',
     statusTagTextColor: '110 16% 8%',
+    propertyPriceColor: '120 70% 35%',
   });
 
   // Calculate only IDs that exist in current selection to avoid "ghost" items blocking the limit
@@ -525,6 +527,7 @@ export default function OralinkManagementPage() {
   const previewFooterText = hslToHex(oralink.footerTextColor);
   const previewTagBg = hslToHex(oralink.statusTagBgColor);
   const previewTagText = hslToHex(oralink.statusTagTextColor);
+  const previewPropertyPrice = hslToHex(oralink.propertyPriceColor);
 
   const dynamicStyles = {
     '--primary': oralink.buttonBgColor ? `hsl(${oralink.buttonBgColor})` : 'hsl(111 89% 50%)',
@@ -692,6 +695,11 @@ export default function OralinkManagementPage() {
                 label="Texto da Tag de Status" 
                 value={oralink.statusTagTextColor} 
                 onChange={val => setOralink(prev => ({ ...prev, statusTagTextColor: val }))} 
+            />
+            <ColorPicker 
+                label="Cor do Valor do Imóvel" 
+                value={oralink.propertyPriceColor} 
+                onChange={val => setOralink(prev => ({ ...prev, propertyPriceColor: val }))} 
             />
           </div>
         </section>
@@ -992,7 +1000,7 @@ export default function OralinkManagementPage() {
                           <h5 className="font-bold text-base uppercase truncate mb-1" style={{ color: previewCardText }}>{prop.informacoesbasicas.nome}</h5>
                           <div className="flex justify-between items-center">
                             <p className="text-xs opacity-60" style={{ color: previewCardText }}>{prop.localizacao.bairro}, {prop.localizacao.cidade}</p>
-                            <p className="text-sm font-black" style={{ color: previewBtnBg }}>{(prop.informacoesbasicas.rentPrice || prop.informacoesbasicas.valor) != null ? (prop.informacoesbasicas.rentPrice || prop.informacoesbasicas.valor!).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'Sob Consulta'}</p>
+                            <p className="text-sm font-black" style={{ color: previewPropertyPrice }}>{(prop.informacoesbasicas.rentPrice || prop.informacoesbasicas.valor) != null ? (prop.informacoesbasicas.rentPrice || prop.informacoesbasicas.valor!).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'Sob Consulta'}</p>
                           </div>
                         </div>
                       </div>

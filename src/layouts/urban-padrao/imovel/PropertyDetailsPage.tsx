@@ -18,7 +18,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useUser, useDoc, useFirestore, useMemoFirebase, setDocumentNonBlocking } from '@/firebase';
 import { arrayRemove, arrayUnion, doc } from 'firebase/firestore';
 import { useRouter, usePathname } from 'next/navigation';
-import { cn } from '@/lib/utils';
+import { cn, formatArea } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StreetViewPanoramaView } from '@/components/StreetViewPanorama';
 import { WhatsAppWidget } from '../components/WhatsAppWidget';
@@ -391,7 +391,7 @@ export default function PropertyDetailsPage({ broker, property, similarPropertie
                     <div className="space-y-1">
                         <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Área Útil</span>
                         <p className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                            <span className="material-symbols-outlined text-primary text-xl">square_foot</span> {caracteristicasimovel.tamanho}
+                            <span className="material-symbols-outlined text-primary text-xl">square_foot</span> {formatArea(caracteristicasimovel.tamanho)}
                         </p>
                     </div>
                     <div className="space-y-1">

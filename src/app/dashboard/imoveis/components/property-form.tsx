@@ -32,8 +32,9 @@ import ClientForm, { ClientFormData } from '../../clientes/components/client-for
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { v4 as uuidv4 } from 'uuid';
 import { uploadFile } from '@/lib/storage';
+import { getAllProjectsServer } from '@/app/dashboard/construtoras/empreendimentos/actions.server';
 import { Progress } from "@/components/ui/progress";
-import { cn } from "@/lib/utils";
+import { cn, formatCurrencyDisplay, parseSmartCurrency, formatCepDisplay, normalizeCep } from "@/lib/utils";
 import { ref as storageRef, deleteObject } from "firebase/storage";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Loader2, Trash2, Plus, X, Star, GripVertical } from "lucide-react";
@@ -95,6 +96,41 @@ const MiniRichEditor = forwardRef<
   );
 });
 MiniRichEditor.displayName = 'MiniRichEditor';
+
+function CurrencyInput({ value, onChange, placeholder }: { value: number | undefined; onChange: (val: number) => void; placeholder?: string }) {
+  const [isFocused, setIsFocused] = useState(false);
+  const [localText, setLocalText] = useState(value !== undefined && value !== null ? String(value) : '');
+
+  useEffect(() => {
+    if (!isFocused) {
+      setLocalText(value !== undefined && value !== null && value !== 0 ? String(value) : '');
+    }
+  }, [value, isFocused]);
+
+  return (
+    <Input
+      type="text"
+      inputMode="decimal"
+      placeholder={placeholder || "R$ 0,00"}
+      value={isFocused ? localText : (value !== undefined && value !== null && value !== 0 ? formatCurrencyDisplay(value) : '')}
+      onFocus={() => {
+        setIsFocused(true);
+        setLocalText(value !== undefined && value !== null && value !== 0 ? String(value) : '');
+      }}
+      onChange={(e) => {
+        const raw = e.target.value;
+        setLocalText(raw);
+        const parsed = parseSmartCurrency(raw);
+        onChange(parsed);
+      }}
+      onBlur={() => {
+        setIsFocused(false);
+        const parsed = parseSmartCurrency(localText);
+        onChange(parsed);
+      }}
+    />
+  );
+}
 
 
 const propertyFormSchema = z.object({
@@ -286,14 +322,36 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
     const { data: userProfile } = useDoc<any>(userDocRef);
 
     const builderId = userProfile?.tenantId || userProfile?.id || user?.uid;
-    const projectsQuery = useMemoFirebase(() => {
-        if (!firestore || !user || isAvulso) return null;
-        if (userProfile?.userType === 'admin') {
-            return query(collection(firestore, 'projects'));
+    const [projects, setProjects] = useState<any[]>([]);
+    const [areProjectsLoading, setAreProjectsLoading] = useState(true);
+
+    useEffect(() => {
+        async function loadProjects() {
+            if (isAvulso) {
+                setProjects([]);
+                setAreProjectsLoading(false);
+                return;
+            }
+            try {
+                const res = await getAllProjectsServer();
+                const projectsList = res?.success ? res.projects : (Array.isArray(res) ? res : []);
+                if (userProfile?.userType === 'admin') {
+                    setProjects(projectsList || []);
+                } else {
+                    const bId = userProfile?.tenantId || userProfile?.id || user?.uid;
+                    setProjects((projectsList || []).filter((p: any) => !bId || p.builderId === bId));
+                }
+            } catch (err) {
+                console.error('Erro ao carregar projetos:', err);
+                setProjects([]);
+            } finally {
+                setAreProjectsLoading(false);
+            }
         }
-        return builderId ? query(collection(firestore, 'projects'), where('builderId', '==', builderId)) : null;
-    }, [firestore, user, userProfile, builderId, isAvulso]);
-    const { data: projects, isLoading: areProjectsLoading } = useCollection<any>(projectsQuery);
+        if (userProfile !== undefined) {
+            loadProjects();
+        }
+    }, [userProfile, user, isAvulso]);
 
     const { toast } = useToast();
     const [isGeneratingSeo, setIsGeneratingSeo] = useState(false);
@@ -621,15 +679,7 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
                           </FormItem>
                        )} />
                     </div>
-                    <div className="lg:col-span-3">
-                       <FormField control={form.control} name="informacoesbasicas.valor" render={({ field }) => (
-                          <FormItem>
-                              <FormLabel>Preço de Referência</FormLabel>
-                              <FormControl><Input type="number" {...field} value={field.value ?? 0} /></FormControl>
-                              <FormMessage />
-                          </FormItem>
-                       )} />
-                    </div>
+
                     
                     <div className="lg:col-span-12">
                       <FormField
@@ -679,7 +729,9 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
                             <FormField control={form.control} name="informacoesbasicas.salePrice" render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Preço de Venda (R$)</FormLabel>
-                                    <FormControl><Input type="number" {...field} value={field.value ?? 0} /></FormControl>
+                                    <FormControl>
+                                        <CurrencyInput value={field.value} onChange={field.onChange} />
+                                    </FormControl>
                                 </FormItem>
                             )} />
                         </div>
@@ -689,7 +741,9 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
                             <FormField control={form.control} name="informacoesbasicas.rentPrice" render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Preço de Aluguel (R$)</FormLabel>
-                                    <FormControl><Input type="number" {...field} value={field.value ?? 0} /></FormControl>
+                                    <FormControl>
+                                        <CurrencyInput value={field.value} onChange={field.onChange} />
+                                    </FormControl>
                                 </FormItem>
                             )} />
                         </div>
@@ -699,7 +753,9 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
                         <FormField control={form.control} name="informacoesbasicas.condominio" render={({ field }) => (
                             <FormItem>
                                 <FormLabel>Condomínio (R$)</FormLabel>
-                                <FormControl><Input type="number" {...field} value={field.value ?? 0} /></FormControl>
+                                <FormControl>
+                                    <CurrencyInput value={field.value} onChange={field.onChange} />
+                                </FormControl>
                             </FormItem>
                         )} />
                     </div>
@@ -707,7 +763,9 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
                         <FormField control={form.control} name="informacoesbasicas.iptu" render={({ field }) => (
                             <FormItem>
                                 <FormLabel>IPTU (Anual - R$)</FormLabel>
-                                <FormControl><Input type="number" {...field} value={field.value ?? 0} /></FormControl>
+                                <FormControl>
+                                    <CurrencyInput value={field.value} onChange={field.onChange} />
+                                </FormControl>
                             </FormItem>
                         )} />
                     </div>
@@ -747,7 +805,16 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
                                 <FormLabel>CEP</FormLabel>
                                 <FormControl>
                                     <div className="relative">
-                                        <Input placeholder="00000-000" {...field} value={field.value || ''} onBlur={handleCepBlur} />
+                                        <Input 
+                                            placeholder="00000-000" 
+                                            {...field} 
+                                            value={formatCepDisplay(field.value)} 
+                                            onChange={(e) => {
+                                                const normalized = normalizeCep(e.target.value);
+                                                field.onChange(normalized);
+                                            }}
+                                            onBlur={handleCepBlur} 
+                                        />
                                         {isLoadingCep && <Loader2 className="absolute right-3 top-3 animate-spin h-4 w-4 text-slate-400" />}
                                     </div>
                                 </FormControl>

@@ -89,7 +89,7 @@ export default function PropertyAnalysisPage() {
           const sevenDaysAgo = new Date();
           sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
           
-          const isExpired = cachedAt.toDate() < sevenDaysAgo;
+          const isExpired = (normalizeDate(cachedAt) || new Date()) < sevenDaysAgo;
           const hasPriceChanged = cacheData.lastPropertyPrice !== currentPrice;
           const hasNewMarketData = cacheData.lastMarketReportId !== currentMarketReportId;
           

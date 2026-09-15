@@ -15,6 +15,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { subDays, isAfter } from 'date-fns';
+import { normalizeDate } from '@/lib/utils';
 
 type Lead = {
     id: string;
@@ -67,7 +68,11 @@ export default function LeadsAnalyticsPage() {
     
     const thirtyDaysAgo = subDays(new Date(), 30);
 
-    const leadsLast30Days = allLeads.filter(lead => isAfter(lead.createdAt.toDate(), thirtyDaysAgo));
+    const leadsLast30Days = allLeads.filter(lead => {
+      const createdAt = normalizeDate(lead.createdAt);
+      if (!createdAt) return false;
+      return isAfter(createdAt, thirtyDaysAgo);
+    });
 
     const totalLeadsLast30Days = leadsLast30Days.length;
 

@@ -97,10 +97,10 @@ export async function getAllProjectsServer(idToken?: string) {
   try {
     const ctx = await getAuthenticatedUserContext(idToken);
     const projects = await projectRepository.listAll();
-    return serializeFirestoreData(projects);
-  } catch (e) {
+    return { success: true, projects: serializeFirestoreData(projects) };
+  } catch (e: any) {
     console.error('Erro ao listar todos os projetos no servidor:', e);
-    return [];
+    return { success: false, projects: [], error: e?.message || 'Erro ao carregar projetos.' };
   }
 }
 
@@ -156,11 +156,17 @@ export async function updateProjectFullServer(projectId: string, data: {
   idToken?: string;
 }) {
   const ctx = await getAuthenticatedUserContext(data.idToken);
-  if (ctx.userType !== 'constructor') throw new Error('Acesso negado.');
+  if (ctx.userType !== 'admin' && ctx.userType !== 'constructor') {
+    throw new Error('Acesso negado.');
+  }
 
   const project = await projectRepository.getById(projectId);
-  if (!project || project.builderId !== ctx.tenantId) {
-    throw new Error('Empreendimento não encontrado ou acesso negado.');
+  if (!project) {
+    throw new Error('Empreendimento não encontrado.');
+  }
+
+  if (ctx.userType === 'constructor' && project.builderId !== ctx.tenantId) {
+    throw new Error('Empreendimento não pertence à construtora logada.');
   }
 
   await projectRepository.update(projectId, {
@@ -200,11 +206,17 @@ export async function updateProjectCharacteristicsServer(projectId: string, data
   idToken?: string;
 }) {
   const ctx = await getAuthenticatedUserContext(data.idToken);
-  if (ctx.userType !== 'constructor') throw new Error('Acesso negado.');
+  if (ctx.userType !== 'admin' && ctx.userType !== 'constructor') {
+    throw new Error('Acesso negado.');
+  }
 
   const project = await projectRepository.getById(projectId);
-  if (!project || project.builderId !== ctx.tenantId) {
-    throw new Error('Empreendimento não encontrado ou acesso negado.');
+  if (!project) {
+    throw new Error('Empreendimento não encontrado.');
+  }
+
+  if (ctx.userType === 'constructor' && project.builderId !== ctx.tenantId) {
+    throw new Error('Empreendimento não pertence à construtora logada.');
   }
 
   await projectRepository.update(projectId, {
@@ -236,11 +248,17 @@ export async function updateProjectPersonasServer(projectId: string, data: {
   idToken?: string;
 }) {
   const ctx = await getAuthenticatedUserContext(data.idToken);
-  if (ctx.userType !== 'constructor') throw new Error('Acesso negado.');
+  if (ctx.userType !== 'admin' && ctx.userType !== 'constructor') {
+    throw new Error('Acesso negado.');
+  }
 
   const project = await projectRepository.getById(projectId);
-  if (!project || project.builderId !== ctx.tenantId) {
-    throw new Error('Empreendimento não encontrado ou acesso negado.');
+  if (!project) {
+    throw new Error('Empreendimento não encontrado.');
+  }
+
+  if (ctx.userType === 'constructor' && project.builderId !== ctx.tenantId) {
+    throw new Error('Empreendimento não pertence à construtora logada.');
   }
 
   await projectRepository.update(projectId, {
@@ -257,11 +275,17 @@ export async function updateProjectMediaServer(projectId: string, data: {
   idToken?: string;
 }) {
   const ctx = await getAuthenticatedUserContext(data.idToken);
-  if (ctx.userType !== 'constructor') throw new Error('Acesso negado.');
+  if (ctx.userType !== 'admin' && ctx.userType !== 'constructor') {
+    throw new Error('Acesso negado.');
+  }
 
   const project = await projectRepository.getById(projectId);
-  if (!project || project.builderId !== ctx.tenantId) {
-    throw new Error('Empreendimento não encontrado ou acesso negado.');
+  if (!project) {
+    throw new Error('Empreendimento não encontrado.');
+  }
+
+  if (ctx.userType === 'constructor' && project.builderId !== ctx.tenantId) {
+    throw new Error('Empreendimento não pertence à construtora logada.');
   }
 
   await projectRepository.update(projectId, {
@@ -286,11 +310,17 @@ export async function updateProjectMaterialsServer(projectId: string, data: {
   idToken?: string;
 }) {
   const ctx = await getAuthenticatedUserContext(data.idToken);
-  if (ctx.userType !== 'constructor') throw new Error('Acesso negado.');
+  if (ctx.userType !== 'admin' && ctx.userType !== 'constructor') {
+    throw new Error('Acesso negado.');
+  }
 
   const project = await projectRepository.getById(projectId);
-  if (!project || project.builderId !== ctx.tenantId) {
-    throw new Error('Empreendimento não encontrado ou acesso negado.');
+  if (!project) {
+    throw new Error('Empreendimento não encontrado.');
+  }
+
+  if (ctx.userType === 'constructor' && project.builderId !== ctx.tenantId) {
+    throw new Error('Empreendimento não pertence à construtora logada.');
   }
 
   await projectRepository.update(projectId, {
@@ -307,11 +337,17 @@ export async function updateProjectPublicationServer(projectId: string, data: {
   idToken?: string;
 }) {
   const ctx = await getAuthenticatedUserContext(data.idToken);
-  if (ctx.userType !== 'constructor') throw new Error('Acesso negado.');
+  if (ctx.userType !== 'admin' && ctx.userType !== 'constructor') {
+    throw new Error('Acesso negado.');
+  }
 
   const project = await projectRepository.getById(projectId);
-  if (!project || project.builderId !== ctx.tenantId) {
-    throw new Error('Empreendimento não encontrado ou acesso negado.');
+  if (!project) {
+    throw new Error('Empreendimento não encontrado.');
+  }
+
+  if (ctx.userType === 'constructor' && project.builderId !== ctx.tenantId) {
+    throw new Error('Empreendimento não pertence à construtora logada.');
   }
 
   // If publishing, validate all mandatory requirements on server side
@@ -341,7 +377,9 @@ export async function updateProjectPublicationServer(projectId: string, data: {
 
 export async function getProjectDetailServer(projectId: string, idToken: string) {
   const ctx = await getAuthenticatedUserContext(idToken);
-  if (ctx.userType !== 'constructor') throw new Error('Acesso negado.');
+  if (ctx.userType !== 'admin' && ctx.userType !== 'constructor') {
+    throw new Error('Acesso negado.');
+  }
 
   const projectSnap = await adminDb.collection('projects').doc(projectId).get();
   if (!projectSnap.exists) {
@@ -349,8 +387,8 @@ export async function getProjectDetailServer(projectId: string, idToken: string)
   }
 
   const projectData = projectSnap.data();
-  if (projectData?.builderId !== ctx.tenantId) {
-    throw new Error('Acesso negado a este empreendimento.');
+  if (ctx.userType === 'constructor' && projectData?.builderId !== ctx.tenantId) {
+    throw new Error('Empreendimento não pertence à construtora logada.');
   }
 
   const units = await propertyRepository.listByProjectId(projectId);
@@ -421,11 +459,17 @@ export async function updateProjectCommercialServer(projectId: string, data: {
   idToken?: string;
 }) {
   const ctx = await getAuthenticatedUserContext(data.idToken);
-  if (ctx.userType !== 'constructor') throw new Error('Acesso negado.');
+  if (ctx.userType !== 'admin' && ctx.userType !== 'constructor') {
+    throw new Error('Acesso negado.');
+  }
 
   const project = await projectRepository.getById(projectId);
-  if (!project || project.builderId !== ctx.tenantId) {
-    throw new Error('Empreendimento não encontrado ou acesso negado.');
+  if (!project) {
+    throw new Error('Empreendimento não encontrado.');
+  }
+
+  if (ctx.userType === 'constructor' && project.builderId !== ctx.tenantId) {
+    throw new Error('Empreendimento não pertence à construtora logada.');
   }
 
   await projectRepository.update(projectId, {

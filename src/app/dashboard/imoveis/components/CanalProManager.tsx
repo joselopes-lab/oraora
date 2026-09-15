@@ -71,48 +71,12 @@ export function CanalProManager({ brokerId }: { brokerId: string }) {
   const { data: planData } = useDoc<any>(planDocRef);
   const planLimit = planData?.propertyLimit || 0;
 
-  // Fetch properties from properties collection (owned)
-  const ownedPropsQuery = useMemoFirebase(
-    () => (firestore && brokerId ? query(collection(firestore, 'properties'), where('brokerId', '==', brokerId)) : null),
-    [firestore, brokerId]
-  );
-  const { data: ownedProperties } = useCollection<any>(ownedPropsQuery);
-
-  // Fetch properties from brokerProperties collection (avulso)
+  // Fetch properties from brokerProperties collection (avulso) exclusively for Canal Pro
   const brokerPropsQuery = useMemoFirebase(
     () => (firestore && brokerId ? query(collection(firestore, 'brokerProperties'), where('brokerId', '==', brokerId)) : null),
     [firestore, brokerId]
   );
   const { data: brokerProperties } = useCollection<any>(brokerPropsQuery);
-
-  // Fetch portfolio document
-  const portfolioDocRef = useMemoFirebase(
-    () => (firestore && brokerId ? doc(firestore, 'portfolios', brokerId) : null),
-    [firestore, brokerId]
-  );
-  const { data: portfolioDoc } = useDoc<any>(portfolioDocRef);
-
-  // Fetch portfolio properties
-  useEffect(() => {
-    async function fetchPortfolioProps() {
-      if (!firestore || !portfolioDoc?.propertyIds || portfolioDoc.propertyIds.length === 0) {
-        setPortfolioProperties([]);
-        return;
-      }
-      const ids = portfolioDoc.propertyIds;
-      const fetched: any[] = [];
-      for (let i = 0; i < ids.length; i += 30) {
-        const batch = ids.slice(i, i + 30);
-        const q = query(collection(firestore, 'properties'), where('__name__', 'in', batch));
-        const snap = await getDocs(q);
-        snap.forEach(docSnap => {
-          fetched.push({ id: docSnap.id, ...docSnap.data() });
-        });
-      }
-      setPortfolioProperties(fetched);
-    }
-    fetchPortfolioProps();
-  }, [firestore, portfolioDoc]);
 
   // Fetch token initial state
   useEffect(() => {
@@ -128,18 +92,10 @@ export function CanalProManager({ brokerId }: { brokerId: string }) {
     fetchToken();
   }, [firestore, brokerId]);
 
-  // Merge and deduplicate: properties > brokerProperties > portfolioProperties
+  // Exclusive brokerProperties (avulso) for Canal Pro
   const allProperties = useMemo(() => {
-    const map = new Map();
-    // 1. portfolio properties
-    portfolioProperties.forEach(p => map.set(p.id, p));
-    // 2. brokerProperties (avulso)
-    (brokerProperties || []).forEach(p => map.set(p.id, p));
-    // 3. owned properties
-    (ownedProperties || []).forEach(p => map.set(p.id, p));
-
-    return Array.from(map.values());
-  }, [ownedProperties, brokerProperties, portfolioProperties]);
+    return (brokerProperties || []).map(p => ({ ...p, isConstructor: false }));
+  }, [brokerProperties]);
 
   const publishedCount = useMemo(() => {
     return allProperties.filter(p => p.publishToCanalPro === true).length;
@@ -349,7 +305,11 @@ export function CanalProManager({ brokerId }: { brokerId: string }) {
                     </div>
 
                     <div className="mt-3 flex items-center justify-between gap-2">
-                      {rejectionReason ? (
+                      {prop.isConstructor ? (
+                        <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-md flex items-center gap-1.5">
+                          <Building2 className="size-3.5 text-slate-400" /> Imóvel de construtora
+                        </span>
+                      ) : rejectionReason ? (
                         <span className="text-xs font-semibold text-amber-600 bg-amber-50 px-2 py-1 rounded-md flex items-center gap-1">
                           <AlertCircle className="size-3" /> {rejectionReason}
                         </span>

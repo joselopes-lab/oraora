@@ -2,10 +2,10 @@
 'use client';
 import { useRouter, useParams } from 'next/navigation';
 import ConstructorForm, { ConstructorFormData } from '../../components/constructor-form';
-import { useFirestore, useDoc, useMemoFirebase, setDocumentNonBlocking, useAuth } from '@/firebase';
-import { doc } from 'firebase/firestore';
+import { useFirestore, useDoc, useMemoFirebase, setDocumentNonBlocking, useAuth, useCollection } from '@/firebase';
+import { doc, query, collection, where } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from '@/components/ui/dialog';
@@ -51,6 +51,18 @@ export default function EditConstructorPage() {
       [firestore, id]
     );
     const { data: constructorDoc, isLoading: isConstructorLoading } = useDoc<ConstructorDoc>(constructorDocRef);
+
+    const usersQuery = useMemoFirebase(
+        () => (firestore && id ? query(collection(firestore, 'users'), where('tenantId', '==', id)) : null),
+        [firestore, id]
+    );
+    const { data: constructorUsers } = useCollection<any>(usersQuery);
+
+    const userMap = useMemo(() => {
+        const map = new Map<string, any>();
+        constructorUsers?.forEach(u => map.set(u.id, u));
+        return map;
+    }, [constructorUsers]);
 
     const userDocRef = useMemoFirebase(
       () => (firestore && id ? doc(firestore, 'users', id) : null),
@@ -277,15 +289,33 @@ export default function EditConstructorPage() {
                 </div>
                 <div className="divide-y divide-card-border">
                     {constructorDoc.members && constructorDoc.members.length > 0 ? (
-                        constructorDoc.members.map((m: any, idx: number) => (
-                            <div key={m.uid || idx} className="p-4 flex items-center justify-between">
-                                <div>
-                                    <p className="text-sm font-bold text-text-main">UID: {m.uid}</p>
-                                    <p className="text-xs text-text-secondary uppercase">Cargo: {m.role}</p>
+                        constructorDoc.members.map((m: any, idx: number) => {
+                            const uData = userMap.get(m.uid);
+                            const name = uData?.username || uData?.name || (m.uid === id ? constructorDoc.name : 'Membro da Construtora');
+                            const email = uData?.email || constructorDoc.publicEmail || 'Sem e-mail cadastrado';
+                            const isActive = uData?.isActive !== false;
+                            const roleLabel = m.role === 'admin' ? 'Administrador' : m.role === 'gerente' ? 'Gerente' : m.role === 'marketing' ? 'Marketing' : 'Vendas';
+                            return (
+                                <div key={m.uid || idx} className="p-4 flex items-center justify-between gap-4">
+                                    <div className="flex items-center gap-3 min-w-0">
+                                        <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm shrink-0">
+                                            {name.charAt(0).toUpperCase()}
+                                        </div>
+                                        <div className="min-w-0">
+                                            <p className="text-sm font-bold text-text-main truncate">{name}</p>
+                                            <p className="text-xs text-text-secondary truncate">{email}</p>
+                                            <p className="text-[10px] text-slate-400 font-mono mt-0.5">ID técnico: {m.uid}</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-3 shrink-0">
+                                        <span className="px-2.5 py-1 text-xs font-semibold uppercase border rounded-md bg-white text-text-main">{roleLabel}</span>
+                                        <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${isActive ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'}`}>
+                                            {isActive ? 'Ativo' : 'Inativo'}
+                                        </span>
+                                    </div>
                                 </div>
-                                <span className="px-2 py-1 text-xs font-medium uppercase border rounded-md">{m.role}</span>
-                            </div>
-                        ))
+                            );
+                        })
                     ) : (
                         <div className="p-8 text-center text-text-secondary">
                             <p>Nenhum membro registrado além do proprietário.</p>

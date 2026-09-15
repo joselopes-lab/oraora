@@ -55,7 +55,8 @@ import {
   BookmarkCheck,
   Building,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  ArrowRight
 } from 'lucide-react';
 
 const ITEMS_PER_PAGE = 15;
@@ -155,8 +156,9 @@ export default function ImoveisPage() {
   useEffect(() => {
     async function loadProjects() {
       try {
-        const data = await getAllProjectsServer();
-        setProjects(data || []);
+        const res = await getAllProjectsServer();
+        const projectsList = res?.success ? res.projects : (Array.isArray(res) ? res : []);
+        setProjects(projectsList || []);
       } catch (err) {
         console.error('Erro ao carregar projetos no servidor:', err);
       } finally {
@@ -560,7 +562,7 @@ export default function ImoveisPage() {
               <TableHead className="px-6 py-4 font-bold uppercase text-[10px]">Empreendimento</TableHead>
               <TableHead className="px-6 py-4 font-bold uppercase text-[10px]">Construtora</TableHead>
               <TableHead className="px-6 py-4 font-bold uppercase text-[10px]">Status</TableHead>
-              <TableHead className="px-6 py-4 font-bold uppercase text-[10px]">Canal Pro</TableHead>
+              <TableHead className="px-6 py-4 font-bold uppercase text-[10px]">Tipo</TableHead>
               <TableHead className="px-6 py-4 font-bold uppercase text-[10px] text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
@@ -604,7 +606,9 @@ export default function ImoveisPage() {
                       </span>
                     </TableCell>
                     <TableCell className="px-6 py-4">
-                        <Switch checked={!!p.publishToCanalPro} onCheckedChange={() => handleToggleCanalPro(p)} />
+                      <span className="text-xs font-medium text-slate-500 bg-slate-100 px-2.5 py-1 rounded-md inline-flex items-center gap-1.5">
+                        <Building2 className="size-3 text-slate-400" /> Construtora
+                      </span>
                     </TableCell>
                     <TableCell className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
@@ -631,9 +635,9 @@ export default function ImoveisPage() {
                             )}
                           </Button>
                         )}
-                        <Button asChild variant="ghost" size="icon" className="size-9 text-slate-400 hover:text-primary rounded-xl">
-                          <Link href={`/dashboard/imoveis/${p.id}`} title="Ver Detalhes">
-                            <ExternalLink size={16} />
+                        <Button asChild variant="outline" size="sm" className="border-slate-200 text-slate-700 bg-white hover:bg-slate-50 font-medium rounded-xl h-9 text-xs gap-1.5 shadow-sm">
+                          <Link href={`/dashboard/imoveis/${p.id}`}>
+                            Saiba mais <ArrowRight className="size-3.5 text-slate-400" />
                           </Link>
                         </Button>
                         {isAdminOrConstructor && (

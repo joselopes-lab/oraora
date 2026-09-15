@@ -15,11 +15,13 @@ import { resolveConstructorByBuilderId } from '@/services/constructorResolutionS
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Zap, BarChart3, ArrowLeft, Edit, Images, ImageIcon, Maximize2, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { cn } from '@/lib/utils';
+import { cn, formatArea } from '@/lib/utils';
 import { AlertDialog } from "@/components/ui/alert-dialog";
 import { isAdminUser } from '@/lib/permissions';
 import { calculateIdentityFingerprint } from '@/lib/property-identity';
 import { getPhysicalIdentityDiagnosticAction, getPropertiesBrokerLinkCheckAction } from '@/app/dashboard/imoveis/actions.server';
+import { getPriceTablePdfUrlServer } from '@/app/dashboard/construtoras/tabelas.actions.server';
+import { FileText, Loader2 } from 'lucide-react';
 
 type PropertyDoc = {
     id: string;
@@ -112,6 +114,14 @@ export default function PropertyDetailsPage() {
 
     const propertyDocRef = useMemoFirebase(() => (firestore && id ? doc(firestore, 'properties', id) : null), [firestore, id]);
     const { data: propertyData, isLoading: isPropertyLoading } = useDoc<PropertyDoc>(propertyDocRef);
+
+    const canViewPriceTables = userProfile && (isAdminUser(userProfile.userType) || userProfile.userType === 'constructor' || userProfile.userType === 'construtora');
+
+    const priceTablesQuery = useMemoFirebase(
+      () => (firestore && id && canViewPriceTables ? query(collection(firestore, 'priceTables'), where('propertyId', '==', id)) : null),
+      [firestore, id, canViewPriceTables]
+    );
+    const { data: priceTablesList, isLoading: isPriceTablesLoading } = useCollection<any>(priceTablesQuery);
 
     const [constructorData, setConstructorData] = useState<any | null>(null);
     const [isConstructorLoading, setIsConstructorLoading] = useState(false);
@@ -614,7 +624,7 @@ export default function PropertyDetailsPage() {
                                 </div>
                                 <div>
                                     <p className="text-xs text-text-secondary font-medium uppercase mb-1">Área Privativa</p>
-                                    <p className="text-base font-bold text-text-main">{propertyData.caracteristicasimovel.tamanho}</p>
+                                    <p className="text-base font-bold text-text-main">{formatArea(propertyData.caracteristicasimovel.tamanho)}</p>
                                 </div>
                             </div>
                         </div>
@@ -630,6 +640,53 @@ export default function PropertyDetailsPage() {
                                 dangerouslySetInnerHTML={{ __html: informacoesbasicas.descricao || 'Nenhuma descrição disponível.' }}
                             />
                         </div>
+
+                        {/* Price Tables Section for Admin and Constructor */}
+                        {(isAdminUser(userProfile?.userType) || userProfile?.userType === 'constructor' || userProfile?.userType === 'construtora') && priceTablesList && priceTablesList.length > 0 && (
+                          <div className="bg-white rounded-xl border border-card-border shadow-sm p-6 md:p-8 text-left">
+                            <h2 className="text-xl font-bold text-text-main flex items-center gap-2 mb-6 border-b border-card-border pb-4 text-left">
+                                <span className="material-symbols-outlined text-primary text-2xl">table_chart</span>
+                                Tabela de Preços
+                            </h2>
+                            <div className="space-y-4">
+                              {priceTablesList.map((table: any) => {
+                                const handleViewPdf = async () => {
+                                  if (!user) return;
+                                  try {
+                                    const idToken = await user.getIdToken();
+                                    const res = await getPriceTablePdfUrlServer({ priceTableId: table.id, idToken });
+                                    if (res.success && res.url) {
+                                      window.open(res.url, '_blank', 'noopener,noreferrer');
+                                    } else {
+                                      toast({ title: 'Erro ao abrir PDF', description: res.error, variant: 'destructive' });
+                                    }
+                                  } catch (err: any) {
+                                    toast({ title: 'Erro', description: err.message, variant: 'destructive' });
+                                  }
+                                };
+
+                                const tableDate = table.createdAt?.seconds ? new Date(table.createdAt.seconds * 1000).toLocaleDateString() : (typeof table.createdAt === 'string' ? new Date(table.createdAt).toLocaleDateString() : null);
+
+                                return (
+                                  <div key={table.id} className="border border-slate-200 p-4 rounded-xl flex items-center justify-between gap-4 bg-slate-50">
+                                    <div>
+                                      <h3 className="font-bold text-slate-900 text-base">{table.name}</h3>
+                                      {tableDate && <p className="text-xs text-slate-500 mt-1">Data: {tableDate}</p>}
+                                    </div>
+                                    <Button
+                                      size="sm"
+                                      className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl gap-2"
+                                      onClick={handleViewPdf}
+                                    >
+                                      <FileText className="size-4" />
+                                      Visualizar PDF
+                                    </Button>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
 
                         {videoEmbedUrl && (
                           <div className="bg-white rounded-xl border border-card-border shadow-sm p-6 md:p-8 text-left">

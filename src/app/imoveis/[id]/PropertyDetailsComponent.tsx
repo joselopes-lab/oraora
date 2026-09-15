@@ -3,7 +3,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
-import { cn } from '@/lib/utils';
+import { cn, formatArea } from '@/lib/utils';
 import { useUser, useDoc, useFirestore, useMemoFirebase, setDocumentNonBlocking, useAuthContext, useAuth } from '@/firebase';
 import { arrayRemove, arrayUnion, doc, collection, query, where, getDocs, limit, getDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
@@ -624,7 +624,7 @@ export default function PropertyDetailsComponent({ initialProperty = null, price
                 <div className="flex flex-wrap gap-3 mt-6">
                   <Badge variant="outline" className="px-4 py-2 bg-gray-50 text-slate-900 flex items-center gap-2 font-bold"><span className="material-symbols-outlined text-lg text-primary">bed</span>{formatQuartos(property.caracteristicasimovel.quartos)} Quartos</Badge>
                   <Badge variant="outline" className="px-4 py-2 bg-gray-50 text-slate-900 flex items-center gap-2 font-bold"><span className="material-symbols-outlined text-lg text-primary">directions_car</span>{property.caracteristicasimovel.vagas} Vagas</Badge>
-                  <Badge variant="outline" className="px-4 py-2 bg-gray-50 text-slate-900 flex items-center gap-2 font-bold"><span className="material-symbols-outlined text-lg text-primary">square_foot</span>{property.caracteristicasimovel.tamanho} úteis</Badge>
+                  <Badge variant="outline" className="px-4 py-2 bg-gray-50 text-slate-900 flex items-center gap-2 font-bold"><span className="material-symbols-outlined text-lg text-primary">square_foot</span>{formatArea(property.caracteristicasimovel.tamanho)}</Badge>
                 </div>
               </div>
 

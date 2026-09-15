@@ -3,7 +3,7 @@
 
 import React, { createContext, useContext, useEffect, useState, ReactNode, useMemo } from 'react';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot, Timestamp } from 'firebase/firestore';
 import { useFirebase } from './provider'; 
 
 export interface UserProfile {
@@ -12,6 +12,9 @@ export interface UserProfile {
   email: string;
   userType: 'admin' | 'broker' | 'constructor' | 'construtora' | 'client';
   planId?: string;
+  planStatus?: string;
+  trialStartedAt?: Timestamp;
+  trialEndsAt?: Timestamp;
   personaIds?: string[];
   tenantId?: string;
   moduleAccess?: {

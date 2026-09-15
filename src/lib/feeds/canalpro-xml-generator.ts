@@ -2,7 +2,10 @@
 
 export function generateCanalProXml(properties: any[]): string {
   let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
-  xml += '<VRSync>\n';
+  xml += '<ListingDataFeed\n';
+  xml += '  xmlns="http://www.vivareal.com/schemas/1.0/VRSync"\n';
+  xml += '  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"\n';
+  xml += '  xsi:schemaLocation="http://www.vivareal.com/schemas/1.0/VRSync http://xml.vivareal.com/vrsync.xsd">\n';
   xml += '  <Listings>\n';
 
   for (const prop of properties) {
@@ -37,44 +40,55 @@ export function generateCanalProXml(properties: any[]): string {
     const mediaItems = getPropertyMedia(prop);
 
     xml += '    <Listing>\n';
-    xml += `      <ListingId>${listingId}</ListingId>\n`;
+    xml += `      <ListingID>${listingId}</ListingID>\n`;
     xml += `      <Title>${title}</Title>\n`;
     xml += `      <Description>${description}</Description>\n`;
     xml += `      <TransactionType>${operationType}</TransactionType>\n`;
     xml += `      <ListingType>${listingType}</ListingType>\n`;
-    if (price > 0 && operationType !== 'Aluguel') {
-      xml += `      <Price>${price}</Price>\n`;
-    }
-    if (rentalPrice > 0 && (operationType === 'Aluguel' || operationType === 'Ambos')) {
-      xml += `      <RentalPrice>${rentalPrice}</RentalPrice>\n`;
-    }
-    xml += '      <Address>\n';
+    
+    xml += '      <ContactInfo>\n';
+    xml += `        <Name>${escapeXml(prop.contactName || prop.corretorNome || 'Atendimento')}</Name>\n`;
+    xml += `        <Email>${escapeXml(prop.contactEmail || prop.corretorEmail || 'contato@ollar.com.br')}</Email>\n`;
+    xml += '      </ContactInfo>\n';
+
+    xml += '      <Location>\n';
+    xml += '        <Country>BR</Country>\n';
+    if (state) xml += `        <State>${state}</State>\n`;
+    if (city) xml += `        <City>${city}</City>\n`;
+    if (neighborhood) xml += `        <Neighborhood>${neighborhood}</Neighborhood>\n`;
     if (street) xml += `        <Street>${street}</Street>\n`;
     if (number) xml += `        <StreetNumber>${number}</StreetNumber>\n`;
-    if (neighborhood) xml += `        <Neighborhood>${neighborhood}</Neighborhood>\n`;
-    if (city) xml += `        <City>${city}</City>\n`;
-    if (state) xml += `        <State>${state}</State>\n`;
     if (zipCode) xml += `        <ZipCode>${zipCode}</ZipCode>\n`;
-    xml += '      </Address>\n';
-    
-    xml += '      <Features>\n';
+    xml += '      </Location>\n';
+
+    xml += '      <Details>\n';
+    if (price > 0 && operationType !== 'For Rent') {
+      xml += `        <ListPrice currency="BRL">${price}</ListPrice>\n`;
+    }
+    if (rentalPrice > 0 && (operationType === 'For Rent' || operationType === 'Sale/Rent')) {
+      xml += `        <RentalPrice currency="BRL">${rentalPrice}</RentalPrice>\n`;
+    }
     if (bedrooms >= 0) xml += `        <Bedrooms>${bedrooms}</Bedrooms>\n`;
     if (bathrooms >= 0) xml += `        <Bathrooms>${bathrooms}</Bathrooms>\n`;
     if (garages >= 0) xml += `        <Garages>${garages}</Garages>\n`;
     if (usableArea > 0) xml += `        <UsableArea>${usableArea}</UsableArea>\n`;
     if (totalArea > 0) xml += `        <TotalArea>${totalArea}</TotalArea>\n`;
-    xml += '      </Features>\n';
+    xml += '        <Features>\n';
+    xml += '          <Feature>Imóvel Padrão</Feature>\n';
+    xml += '        </Features>\n';
+    xml += '      </Details>\n';
 
     xml += '      <Media>\n';
-    for (const url of mediaItems) {
-      xml += `        <MediaItem>${escapeXml(url)}</MediaItem>\n`;
-    }
+    mediaItems.forEach((url, idx) => {
+      const isPrimary = idx === 0 ? ' primary="true"' : '';
+      xml += `        <Item medium="image"${isPrimary}>${escapeXml(url)}</Item>\n`;
+    });
     xml += '      </Media>\n';
     xml += '    </Listing>\n';
   }
 
   xml += '  </Listings>\n';
-  xml += '</VRSync>';
+  xml += '</ListingDataFeed>';
   return xml;
 }
 
@@ -133,9 +147,9 @@ function mapToZapOperationType(prop: any): string {
   const isSale = txTypes.includes('sale') || finalidade.includes('venda');
   const isRent = txTypes.includes('rent') || finalidade.includes('aluguel');
 
-  if (isSale && isRent) return 'Ambos';
-  if (isRent) return 'Aluguel';
-  return 'Venda';
+  if (isSale && isRent) return 'Sale/Rent';
+  if (isRent) return 'For Rent';
+  return 'For Sale';
 }
 
 function getPropertyPrice(prop: any, opType: string): number {

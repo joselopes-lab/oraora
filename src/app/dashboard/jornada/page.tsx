@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { cn } from '@/lib/utils';
+import { cn, normalizeDate } from '@/lib/utils';
 import Link from 'next/link';
 import Image from 'next/image';
 import {
@@ -585,7 +585,8 @@ export default function JornadaVendaPage() {
           const isHotStatus = journey.statusTag?.includes('Proposta');
           const isSold = journey.statusTag === 'Venda Concluída';
 
-          const daysInJourney = journey.createdAt ? Math.floor((Date.now() - journey.createdAt.toDate().getTime()) / (1000 * 60 * 60 * 24)) : 0;
+          const jDate = normalizeDate(journey.createdAt);
+          const daysInJourney = jDate ? Math.floor((Date.now() - jDate.getTime()) / (1000 * 60 * 60 * 24)) : 0;
 
           // REGRA PROVISÓRIA: substituída por inteligência de atenção
           const enrichedJ = journey as any;
@@ -650,7 +651,7 @@ export default function JornadaVendaPage() {
                       </span>
                     )}
                     <p className="text-slate-400 dark:text-slate-500 text-[11px] font-medium text-right mt-1">
-                      {journey.createdAt ? `Criada ${formatDistanceToNow(journey.createdAt.toDate(), { addSuffix: true, locale: ptBR })}` : ''}
+                      {(() => { const d = normalizeDate(journey.createdAt); return d ? `Criada ${formatDistanceToNow(d, { addSuffix: true, locale: ptBR })}` : ''; })()}
                       <span className="block text-slate-400 dark:text-slate-500 text-[10px] mt-0.5">
                         {daysInJourney} {daysInJourney === 1 ? 'dia' : 'dias'} de jornada
                       </span>

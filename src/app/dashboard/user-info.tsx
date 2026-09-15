@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { doc, collection, query, where, orderBy, limit, Timestamp } from "firebase/firestore";
+import { normalizeDate } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuthContext } from "@/firebase/auth-provider";
 import {
@@ -223,7 +224,7 @@ export function UserMenu() {
                                                 <div className="flex justify-between items-start gap-2">
                                                     <p className="text-xs font-bold text-text-main truncate uppercase tracking-tighter">{ann.title}</p>
                                                     <span className="text-[9px] font-bold text-text-secondary whitespace-nowrap">
-                                                        {ann.createdAt ? formatDistanceToNow(ann.createdAt.toDate(), { addSuffix: true, locale: ptBR }) : ''}
+                                                        {ann.createdAt ? formatDistanceToNow(normalizeDate(ann.createdAt), { addSuffix: true, locale: ptBR }) : ''}
                                                     </span>
                                                 </div>
                                                 <p className="text-[11px] text-text-secondary mt-0.5 line-clamp-1">{ann.content}</p>
@@ -292,6 +293,12 @@ export function UserMenu() {
                         <span className="material-symbols-outlined mr-2 text-base">settings</span>
                         Configurações
                     </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                        <Link href="/dashboard/faturamento">
+                            <span className="material-symbols-outlined mr-2 text-base">credit_card</span>
+                            Faturamento
+                        </Link>
+                    </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={handleLogout} className="text-red-500 focus:bg-red-50 focus:text-red-600">
                          <span className="material-symbols-outlined mr-2 text-base">logout</span>
@@ -311,7 +318,7 @@ export function UserMenu() {
                             {selectedAnnouncement?.title}
                         </DialogTitle>
                         <DialogDescription className="text-xs text-slate-400">
-                            Enviado em {selectedAnnouncement?.createdAt && format(selectedAnnouncement.createdAt.toDate(), "dd 'de' MMMM 'às' HH:mm", { locale: ptBR })}
+                            Enviado em {selectedAnnouncement?.createdAt && format(normalizeDate(selectedAnnouncement.createdAt), "dd 'de' MMMM 'às' HH:mm", { locale: ptBR })}
                         </DialogDescription>
                     </DialogHeader>
                     <div className="py-6 border-y border-slate-50 my-4">

@@ -64,7 +64,7 @@ type Portfolio = {
 }
 
 function PropertyCard({ property, canEdit }: { property: Property; canEdit: boolean }) {
-    const getStatusVariant = (status: string) : "default" | "secondary" | "destructive" | "outline" | null | undefined => {
+    const getStatusVariant = (status?: string) : "default" | "secondary" | "destructive" | "outline" | null | undefined => {
         switch (status) {
             case 'Lançamento': return 'default';
             case 'Em Construção': return 'secondary';
@@ -74,7 +74,7 @@ function PropertyCard({ property, canEdit }: { property: Property; canEdit: bool
     };
 
     const quartosLabel = () => {
-        if (!property.caracteristicasimovel.quartos || property.caracteristicasimovel.quartos.length === 0) {
+        if (!property?.caracteristicasimovel?.quartos || property.caracteristicasimovel.quartos.length === 0) {
             return null;
         }
         if (property.caracteristicasimovel.quartos.length === 1 && property.caracteristicasimovel.quartos[0] === '1') {
@@ -89,40 +89,47 @@ function PropertyCard({ property, canEdit }: { property: Property; canEdit: bool
         return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
     };
 
+    const nomeImovel = property?.informacoesbasicas?.nome || 'Imóvel sem nome';
+    const statusImovel = property?.informacoesbasicas?.status || 'Disponível';
+    const unidadeOuNumero = property?.localizacao?.unidade || property?.localizacao?.numero;
+    const bairro = property?.localizacao?.bairro;
+    const cidade = property?.localizacao?.cidade;
+    const bairroCidade = [bairro, cidade].filter(Boolean).join(', ');
+
     return (
         <div className="p-4 hover:bg-gray-50 transition-colors flex flex-col sm:flex-row items-start sm:items-center gap-4">
             <div className="w-full sm:w-24 h-32 sm:h-20 rounded-lg bg-gray-200 overflow-hidden shrink-0 border border-card-border">
-                {property.midia?.[0] ? (
-                    <Image alt={property.informacoesbasicas.nome} className="w-full h-full object-cover hover:scale-105 transition-transform duration-500" src={property.midia[0]} width={96} height={80} />
+                {property?.midia?.[0] ? (
+                    <Image alt={nomeImovel} className="w-full h-full object-cover hover:scale-105 transition-transform duration-500" src={property.midia[0]} width={96} height={80} />
                 ) : (
                     <div className="w-full h-full bg-gray-100 flex items-center justify-center"><span className="material-symbols-outlined text-gray-300 text-3xl">image</span></div>
                 )}
             </div>
             <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1 flex-wrap">
-                    <Badge variant={getStatusVariant(property.informacoesbasicas.status)} className="text-[10px] font-bold uppercase tracking-wide">{property.informacoesbasicas.status}</Badge>
-                    <span className="text-xs text-text-secondary">Ref: {property.id.substring(0, 6).toUpperCase()}</span>
-                    {(property.localizacao.unidade || property.localizacao.numero) && (
+                    <Badge variant={getStatusVariant(statusImovel)} className="text-[10px] font-bold uppercase tracking-wide">{statusImovel}</Badge>
+                    <span className="text-xs text-text-secondary">Ref: {property?.id ? property.id.substring(0, 6).toUpperCase() : 'N/A'}</span>
+                    {unidadeOuNumero && (
                         <span className="text-xs font-semibold bg-gray-100 px-2 py-0.5 rounded text-text-main">
-                            Unidade: {property.localizacao.unidade || property.localizacao.numero}
+                            Unidade: {unidadeOuNumero}
                         </span>
                     )}
                 </div>
-                 <Link href={`/dashboard/imoveis/${property.id}`} className="text-base font-bold text-text-main truncate hover:text-primary transition-colors">{property.informacoesbasicas.nome}</Link>
-                <p className="text-sm text-text-secondary truncate">{property.localizacao.bairro}, {property.localizacao.cidade}</p>
-                {property.valores?.venda && (
+                 <Link href={`/dashboard/imoveis/${property?.id}`} className="text-base font-bold text-text-main truncate hover:text-primary transition-colors">{nomeImovel}</Link>
+                {bairroCidade && <p className="text-sm text-text-secondary truncate">{bairroCidade}</p>}
+                {property?.valores?.venda && (
                     <p className="text-sm font-bold text-primary mt-0.5">{formatPrice(property.valores.venda)}</p>
                 )}
                 <div className="flex gap-4 mt-2 text-xs text-text-secondary">
-                    {property.caracteristicasimovel.quartos && <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[14px]">bed</span> {quartosLabel()}</span>}
-                    {property.caracteristicasimovel.tamanho && <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[14px]">straighten</span> {property.caracteristicasimovel.tamanho}</span>}
+                    {property?.caracteristicasimovel?.quartos && <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[14px]">bed</span> {quartosLabel()}</span>}
+                    {property?.caracteristicasimovel?.tamanho && <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[14px]">straighten</span> {property.caracteristicasimovel.tamanho}</span>}
                 </div>
             </div>
             <div className="flex items-center gap-2 w-full sm:w-auto mt-2 sm:mt-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-card-border">
                 <Button asChild variant="outline" size="sm" className="flex-1 sm:flex-none py-2 sm:py-1.5 px-3 rounded-lg text-sm font-medium">
-                    <Link href={`/dashboard/imoveis/${property.id}`}>Detalhes</Link>
+                    <Link href={`/dashboard/imoveis/${property?.id}`}>Detalhes</Link>
                 </Button>
-                {canEdit && (
+                {canEdit && property?.id && (
                     <Button asChild variant="ghost" size="icon" className="p-2 rounded-lg text-text-secondary hover:text-primary hover:bg-primary/10 transition-colors">
                         <Link href={`/dashboard/imoveis/editar/${property.id}`}><span className="material-symbols-outlined">edit</span></Link>
                     </Button>
@@ -151,6 +158,18 @@ export default function ConstructorProfilePage() {
 
     const constructorDocRef = useMemoFirebase(() => (firestore && id ? doc(firestore, 'constructors', id) : null), [firestore, id]);
     const { data: constructorData, isLoading: isConstructorLoading } = useDoc<Constructor>(constructorDocRef);
+
+    const usersQuery = useMemoFirebase(
+        () => (firestore && id ? query(collection(firestore, 'users'), where('tenantId', '==', id)) : null),
+        [firestore, id]
+    );
+    const { data: constructorUsers } = useCollection<any>(usersQuery);
+
+    const userMap = useMemo(() => {
+        const map = new Map<string, any>();
+        constructorUsers?.forEach(u => map.set(u.id, u));
+        return map;
+    }, [constructorUsers]);
 
     const propertiesQueryTenant = useMemoFirebase(() => (firestore && id ? query(collection(firestore, 'properties'), where('tenantId', '==', id)) : null), [firestore, id]);
     const propertiesQueryBuilder = useMemoFirebase(() => (firestore && id ? query(collection(firestore, 'properties'), where('builderId', '==', id)) : null), [firestore, id]);
@@ -294,6 +313,12 @@ export default function ConstructorProfilePage() {
                             {allInPortfolio ? 'Na Carteira' : 'Add à Carteira'}
                         </Button>
                     )}
+                    <Button asChild variant="outline" className="px-4 py-2.5 rounded-lg border border-card-border text-text-main font-bold text-sm bg-white hover:bg-gray-50 transition-colors shadow-sm flex items-center gap-2">
+                        <Link href={`/dashboard/construtoras/${id}/oralink`}>
+                            <span className="material-symbols-outlined text-[18px]">link</span>
+                            Oralink
+                        </Link>
+                    </Button>
                      <Button variant="outline" onClick={() => router.back()} className="px-5 py-2.5 rounded-lg border border-card-border text-text-main font-bold text-sm bg-white hover:bg-gray-50 transition-colors shadow-sm flex items-center gap-2">
                         <span className="material-symbols-outlined text-[18px]">arrow_back</span>
                         Voltar
@@ -491,15 +516,33 @@ export default function ConstructorProfilePage() {
                     </div>
                     <div className="divide-y divide-card-border">
                         {constructorData.members && constructorData.members.length > 0 ? (
-                            constructorData.members.map((m: any, idx: number) => (
-                                <div key={m.uid || idx} className="p-4 flex items-center justify-between">
-                                    <div>
-                                        <p className="text-sm font-bold text-text-main">UID: {m.uid}</p>
-                                        <p className="text-xs text-text-secondary uppercase">Cargo: {m.role}</p>
+                            constructorData.members.map((m: any, idx: number) => {
+                                const uData = userMap.get(m.uid);
+                                const name = uData?.username || uData?.name || (m.uid === id ? constructorData.name : 'Membro da Construtora');
+                                const email = uData?.email || constructorData.publicEmail || 'Sem e-mail cadastrado';
+                                const isActive = uData?.isActive !== false;
+                                const roleLabel = m.role === 'admin' ? 'Administrador' : m.role === 'gerente' ? 'Gerente' : m.role === 'marketing' ? 'Marketing' : 'Vendas';
+                                return (
+                                    <div key={m.uid || idx} className="p-4 flex items-center justify-between gap-4">
+                                        <div className="flex items-center gap-3 min-w-0">
+                                            <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm shrink-0">
+                                                {name.charAt(0).toUpperCase()}
+                                            </div>
+                                            <div className="min-w-0">
+                                                <p className="text-sm font-bold text-text-main truncate">{name}</p>
+                                                <p className="text-xs text-text-secondary truncate">{email}</p>
+                                                <p className="text-[10px] text-slate-400 font-mono mt-0.5">ID técnico: {m.uid}</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-3 shrink-0">
+                                            <Badge variant="outline" className="capitalize text-xs">{roleLabel}</Badge>
+                                            <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${isActive ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'}`}>
+                                                {isActive ? 'Ativo' : 'Inativo'}
+                                            </span>
+                                        </div>
                                     </div>
-                                    <Badge variant="outline" className="capitalize text-xs">{m.role}</Badge>
-                                </div>
-                            ))
+                                );
+                            })
                         ) : (
                             <div className="p-8 text-center text-text-secondary">
                                 <p>Nenhum membro registrado além do proprietário.</p>

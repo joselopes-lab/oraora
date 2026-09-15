@@ -18,6 +18,7 @@ import {
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
+import { normalizeDate } from "@/lib/utils";
 
 const ClientSideDate = ({ date, options }: { date: Date, options?: Intl.DateTimeFormatOptions }) => {
   const [formattedDate, setFormattedDate] = useState<string | null>(null);
@@ -255,7 +256,14 @@ export default function ClientListPage() {
                   </td>
                   <td className="px-6 py-4 text-center">
                     <span className="text-text-secondary font-medium text-xs">
-                      {client.createdAt && <ClientSideDate date={client.createdAt.toDate()} options={{ day: '2-digit', month: 'short' }} />}
+                      {(() => {
+                        const createdAtDate = normalizeDate(client.createdAt);
+                        return createdAtDate ? (
+                          <ClientSideDate date={createdAtDate} options={{ day: '2-digit', month: 'short' }} />
+                        ) : (
+                          '—'
+                        );
+                      })()}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-center">

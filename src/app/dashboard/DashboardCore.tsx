@@ -184,6 +184,18 @@ const NavigationLinks = ({ userProfile, pathname, openMenu, handleMouseEnter, ha
       {(userProfile.userType === 'constructor' || userProfile.userType === 'construtora') && (
         <div className={isMobile ? "flex flex-col gap-1" : "flex items-center gap-6 h-full"}>
           <Link className={isMobile ? "flex items-center gap-2.5 px-3 py-2 text-sm font-semibold text-slate-900 rounded-lg hover:bg-slate-100 transition-colors" : navLinkClasses(`/dashboard/construtoras/${userProfile.tenantId || userProfile.uid}`)} href={`/dashboard/construtoras/${userProfile.tenantId || userProfile.uid}`}>
+            <span className="material-symbols-outlined text-[20px]">grid_view</span>
+            Dashboard
+          </Link>
+          <Link className={isMobile ? "flex items-center gap-2.5 px-3 py-2 text-sm font-semibold text-slate-900 rounded-lg hover:bg-slate-100 transition-colors" : navLinkClasses(`/dashboard/construtoras/${userProfile.tenantId || userProfile.uid}/leads`)} href={`/dashboard/construtoras/${userProfile.tenantId || userProfile.uid}/leads`}>
+            <span className="material-symbols-outlined text-[20px]">group</span>
+            Clientes
+          </Link>
+          <Link className={isMobile ? "flex items-center gap-2.5 px-3 py-2 text-sm font-semibold text-slate-900 rounded-lg hover:bg-slate-100 transition-colors" : navLinkClasses(`/dashboard/construtoras/${userProfile.tenantId || userProfile.uid}/funil`)} href={`/dashboard/construtoras/${userProfile.tenantId || userProfile.uid}/funil`}>
+            <span className="material-symbols-outlined text-[20px]">view_kanban</span>
+            Funil de Vendas
+          </Link>
+          <Link className={isMobile ? "flex items-center gap-2.5 px-3 py-2 text-sm font-semibold text-slate-900 rounded-lg hover:bg-slate-100 transition-colors" : navLinkClasses(`/dashboard/construtoras/${userProfile.tenantId || userProfile.uid}/imoveis`)} href={`/dashboard/construtoras/${userProfile.tenantId || userProfile.uid}/imoveis`}>
             <span className="material-symbols-outlined text-[20px]">inventory</span>
             Imóveis
           </Link>
@@ -195,9 +207,9 @@ const NavigationLinks = ({ userProfile, pathname, openMenu, handleMouseEnter, ha
             <span className="material-symbols-outlined text-[20px]">table_chart</span>
             Tabelas de Preços
           </Link>
-          <Link className={isMobile ? "flex items-center gap-2.5 px-3 py-2 text-sm font-semibold text-slate-900 rounded-lg hover:bg-slate-100 transition-colors" : navLinkClasses(`/dashboard/construtoras/${userProfile.tenantId || userProfile.uid}/leads`)} href={`/dashboard/construtoras/${userProfile.tenantId || userProfile.uid}/leads`}>
-            <span className="material-symbols-outlined text-[20px]">group</span>
-            Clientes
+          <Link className={isMobile ? "flex items-center gap-2.5 px-3 py-2 text-sm font-semibold text-slate-900 rounded-lg hover:bg-slate-100 transition-colors" : navLinkClasses(`/dashboard/construtoras/${userProfile.tenantId || userProfile.uid}/oralink`)} href={`/dashboard/construtoras/${userProfile.tenantId || userProfile.uid}/oralink`}>
+            <span className="material-symbols-outlined text-[20px]">link</span>
+            Oralink
           </Link>
         </div>
       )}
@@ -424,6 +436,18 @@ const NavigationLinks = ({ userProfile, pathname, openMenu, handleMouseEnter, ha
 
         {(userProfile.userType === 'constructor' || userProfile.userType === 'construtora') && (
           <>
+            <Link className={navLinkClasses(`/dashboard/construtoras/${userProfile.tenantId || userProfile.uid}`, true)} href={`/dashboard/construtoras/${userProfile.tenantId || userProfile.uid}`}>
+              <span className="material-symbols-outlined text-[20px]">grid_view</span>
+              Dashboard
+            </Link>
+            <Link className={navLinkClasses(`/dashboard/construtoras/${userProfile.tenantId || userProfile.uid}/leads`, true)} href={`/dashboard/construtoras/${userProfile.tenantId || userProfile.uid}/leads`}>
+              <span className="material-symbols-outlined text-[20px]">group</span>
+              Clientes
+            </Link>
+            <Link className={navLinkClasses(`/dashboard/construtoras/${userProfile.tenantId || userProfile.uid}/funil`, true)} href={`/dashboard/construtoras/${userProfile.tenantId || userProfile.uid}/funil`}>
+              <span className="material-symbols-outlined text-[20px]">view_kanban</span>
+              Funil de Vendas
+            </Link>
             <Link className={navLinkClasses(`/dashboard/construtoras/${userProfile.tenantId || userProfile.uid}/imoveis`, true)} href={`/dashboard/construtoras/${userProfile.tenantId || userProfile.uid}/imoveis`}>
               <span className="material-symbols-outlined text-[20px]">inventory</span>
               Imóveis
@@ -436,9 +460,9 @@ const NavigationLinks = ({ userProfile, pathname, openMenu, handleMouseEnter, ha
               <span className="material-symbols-outlined text-[20px]">table_chart</span>
               Tabelas de Preços
             </Link>
-            <Link className={navLinkClasses(`/dashboard/construtoras/${userProfile.tenantId || userProfile.uid}/leads`, true)} href={`/dashboard/construtoras/${userProfile.tenantId || userProfile.uid}/leads`}>
-              <span className="material-symbols-outlined text-[20px]">group</span>
-              Clientes
+            <Link className={navLinkClasses(`/dashboard/construtoras/${userProfile.tenantId || userProfile.uid}/oralink`, true)} href={`/dashboard/construtoras/${userProfile.tenantId || userProfile.uid}/oralink`}>
+              <span className="material-symbols-outlined text-[20px]">link</span>
+              Oralink
             </Link>
           </>
         )}

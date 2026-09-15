@@ -17,6 +17,7 @@ const planSchema = z.object({
   price: z.coerce.number().min(0, 'O preço deve ser um valor positivo.'),
   promoPrice: z.coerce.number().optional(),
   propertyLimit: z.coerce.number().optional(),
+  trialDays: z.coerce.number().int().min(0, 'O período gratuito deve ser 0 ou um número inteiro positivo.').default(0),
   billingCycle: z.enum(['mensal', 'anual']).default('mensal'),
   offerEndDate: z.string().optional(),
   features: z.array(z.string()).optional().default([]),
@@ -43,6 +44,7 @@ export default function PlanForm({ onSave, isEditing, isSubmitting, planData }: 
       price: 0,
       promoPrice: 0,
       propertyLimit: 0,
+      trialDays: 0,
       billingCycle: 'mensal',
       offerEndDate: '',
       features: [],
@@ -158,6 +160,19 @@ export default function PlanForm({ onSave, isEditing, isSubmitting, planData }: 
                             <Input type="number" className="pl-12" placeholder="Ex: 50" {...field} value={field.value ?? ''} />
                         </div>
                     </FormControl>
+                    <FormMessage />
+                </FormItem>
+            )} />
+            <FormField control={form.control} name="trialDays" render={({ field }) => (
+                <FormItem>
+                    <FormLabel>Período gratuito</FormLabel>
+                    <FormControl>
+                        <div className="relative flex items-center">
+                            <Input type="number" min="0" step="1" className="pr-16" placeholder="14" {...field} value={field.value ?? 0} />
+                            <span className="absolute right-4 text-text-secondary text-sm font-medium">dias</span>
+                        </div>
+                    </FormControl>
+                    <p className="text-xs text-text-secondary mt-1">Período de acesso gratuito após a ativação do plano.</p>
                     <FormMessage />
                 </FormItem>
             )} />
