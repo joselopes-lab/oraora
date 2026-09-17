@@ -162,6 +162,11 @@ export default function ProjectCockpit({ project, units = [] }: ProjectCockpitPr
             </div>
 
             <div className="flex items-center gap-3">
+              <Button asChild variant="outline" className="text-slate-700 hover:bg-slate-50">
+                <Link href={`/dashboard/construtoras/empreendimentos/${project.id}/apresentacao`} target="_blank">
+                  <Sparkles className="w-4 h-4 mr-2 text-amber-500" /> Apresentação Comercial
+                </Link>
+              </Button>
               <Button variant="outline" disabled className="text-slate-600">
                 Prévia do Cliente
               </Button>
@@ -353,7 +358,7 @@ export default function ProjectCockpit({ project, units = [] }: ProjectCockpitPr
 
           {/* TAB: PUBLICACAO */}
           <TabsContent value="publicacao" className="space-y-6">
-            <ProjectPublicationTab project={project} units={units} />
+            <ProjectPublicationTab project={project} units={units} onTabChange={setActiveTab} />
           </TabsContent>
         </Tabs>
       </div>

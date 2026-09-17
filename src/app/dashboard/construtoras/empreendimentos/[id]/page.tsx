@@ -29,7 +29,14 @@ export default function ProjectDetailPageClient() {
     async function loadData() {
       try {
         setLoading(true);
-        const idToken = await user.getIdToken();
+        let idToken = undefined;
+        try {
+          if (user) {
+            idToken = await user.getIdToken();
+          }
+        } catch (e) {
+          // ignore
+        }
         const res = await getProjectDetailServer(id, idToken);
         setProject(res.project);
         setUnits(res.units || []);

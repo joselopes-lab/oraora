@@ -27,7 +27,13 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
   // Prioriza o siteTitle configurado pelo corretor, senão usa o nome da marca
   const title = broker.siteTitle || broker.brandName || 'Oraora';
-  const favicon = broker.faviconUrl || '/favicon.ico';
+  let favicon = broker.faviconUrl || '/favicon.ico';
+  if (broker.faviconUrl && broker.faviconUrl.startsWith('http')) {
+    const versionToken = broker.updatedAt ? (typeof broker.updatedAt.toMillis === 'function' ? broker.updatedAt.toMillis() : new Date(broker.updatedAt).getTime()) : '';
+    if (versionToken && !broker.faviconUrl.includes('?v=')) {
+      favicon = `${broker.faviconUrl}${broker.faviconUrl.includes('?') ? '&' : '?'}v=${versionToken}`;
+    }
+  }
 
   return {
     title: {

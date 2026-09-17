@@ -3,7 +3,7 @@
 
 import { useParams, useRouter } from 'next/navigation';
 import { useDoc, useCollection, useFirestore, useMemoFirebase, useUser, useFirebase, setDocumentNonBlocking } from '@/firebase';
-import { classificarProperty } from '@/lib/utils';
+import { classificarProperty, cn } from '@/lib/utils';
 import { doc, collection, query, where, arrayUnion, arrayRemove } from 'firebase/firestore';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -13,7 +13,29 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { useEffect, useState, useMemo } from 'react';
 import { createConstructorMemberServer } from '../actions.server';
+import { listConstructorLeadsAction, getConstructorDashboardDataAction } from './leads/actions.server';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+
+function SafeImage({ src, alt, width, height, className }: { src?: string; alt: string; width: number; height: number; className?: string }) {
+  const [imgError, setImgError] = useState(false);
+  if (!src || imgError) {
+    return (
+      <div className={cn("flex items-center justify-center bg-gray-100 text-gray-400 rounded-lg", className)} style={{ width, height, minWidth: width, minHeight: height }}>
+        <span className="material-symbols-outlined text-3xl">apartment</span>
+      </div>
+    );
+  }
+  return (
+    <Image 
+      src={src} 
+      alt={alt} 
+      width={width} 
+      height={height} 
+      className={className} 
+      onError={() => setImgError(true)} 
+    />
+  );
+}
 
 type User = {
   userType: 'admin' | 'broker' | 'constructor';
@@ -100,7 +122,7 @@ function PropertyCard({ property, canEdit }: { property: Property; canEdit: bool
         <div className="p-4 hover:bg-gray-50 transition-colors flex flex-col sm:flex-row items-start sm:items-center gap-4">
             <div className="w-full sm:w-24 h-32 sm:h-20 rounded-lg bg-gray-200 overflow-hidden shrink-0 border border-card-border">
                 {property?.midia?.[0] ? (
-                    <Image alt={nomeImovel} className="w-full h-full object-cover hover:scale-105 transition-transform duration-500" src={property.midia[0]} width={96} height={80} />
+                    <SafeImage alt={nomeImovel} className="w-full h-full object-cover hover:scale-105 transition-transform duration-500" src={property.midia[0]} width={96} height={80} />
                 ) : (
                     <div className="w-full h-full bg-gray-100 flex items-center justify-center"><span className="material-symbols-outlined text-gray-300 text-3xl">image</span></div>
                 )}
@@ -156,34 +178,44 @@ export default function ConstructorProfilePage() {
     );
     const { data: userProfile, isLoading: isProfileLoading } = useDoc<User>(userDocRef);
 
-    const constructorDocRef = useMemoFirebase(() => (firestore && id ? doc(firestore, 'constructors', id) : null), [firestore, id]);
-    const { data: constructorData, isLoading: isConstructorLoading } = useDoc<Constructor>(constructorDocRef);
+    const [constructorData, setConstructorData] = useState<Constructor | null>(null);
+    const [constructorUsers, setConstructorUsers] = useState<any[]>([]);
+    const [properties, setProperties] = useState<Property[]>([]);
+    const [projects, setProjects] = useState<any[]>([]);
+    const [priceTables, setPriceTables] = useState<any[]>([]);
+    const [leads, setLeads] = useState<any[]>([]);
+    const [isLoadingData, setIsLoadingData] = useState(true);
 
-    const usersQuery = useMemoFirebase(
-        () => (firestore && id ? query(collection(firestore, 'users'), where('tenantId', '==', id)) : null),
-        [firestore, id]
-    );
-    const { data: constructorUsers } = useCollection<any>(usersQuery);
+    useEffect(() => {
+        let isMounted = true;
+        async function loadData() {
+            if (!id || isAuthLoading) return;
+            try {
+                const idToken = user ? await user.getIdToken() : undefined;
+                const data = await getConstructorDashboardDataAction(id as string, idToken);
+                if (isMounted && data) {
+                    setConstructorData(data.constructorData);
+                    setConstructorUsers(data.constructorUsers || []);
+                    setProperties(data.properties || []);
+                    setProjects(data.projects || []);
+                    setPriceTables(data.priceTables || []);
+                    setLeads(data.leads || []);
+                }
+            } catch (err) {
+                console.error("Erro ao carregar dados do dashboard da construtora:", err);
+            } finally {
+                if (isMounted) setIsLoadingData(false);
+            }
+        }
+        loadData();
+        return () => { isMounted = false; };
+    }, [id, user, isAuthLoading]);
 
     const userMap = useMemo(() => {
         const map = new Map<string, any>();
         constructorUsers?.forEach(u => map.set(u.id, u));
         return map;
     }, [constructorUsers]);
-
-    const propertiesQueryTenant = useMemoFirebase(() => (firestore && id ? query(collection(firestore, 'properties'), where('tenantId', '==', id)) : null), [firestore, id]);
-    const propertiesQueryBuilder = useMemoFirebase(() => (firestore && id ? query(collection(firestore, 'properties'), where('builderId', '==', id)) : null), [firestore, id]);
-    
-    const { data: tenantProperties, isLoading: isTenantLoading } = useCollection<Property>(propertiesQueryTenant);
-    const { data: builderProperties, isLoading: isBuilderLoading } = useCollection<Property>(propertiesQueryBuilder);
-
-    const properties = useMemo(() => {
-      const map = new Map<string, Property>();
-      // Show ALL properties for the constructor
-      tenantProperties?.forEach(p => map.set(p.id, p));
-      builderProperties?.forEach(p => map.set(p.id, p));
-      return Array.from(map.values());
-    }, [tenantProperties, builderProperties]);
     
     const portfolioDocRef = useMemoFirebase(
       () => (firestore && user && userProfile?.userType === 'broker' ? doc(firestore, 'portfolios', user.uid) : null),
@@ -192,7 +224,7 @@ export default function ConstructorProfilePage() {
     const { data: portfolio } = useDoc<Portfolio>(portfolioDocRef);
 
 
-    const isLoading = isConstructorLoading || (isTenantLoading || isBuilderLoading) || isAuthLoading || isProfileLoading;
+    const isLoading = isLoadingData || isAuthLoading || isProfileLoading;
     const canEdit = userProfile?.userType === 'admin' || (userProfile?.userType === 'constructor' && (user?.uid === id || userProfile?.tenantId === id));
     const userRole = userProfile?.userType === 'admin' 
         ? 'admin' 
@@ -304,7 +336,7 @@ export default function ConstructorProfilePage() {
             <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
                 <div>
                     <h1 className="text-3xl font-black tracking-tight text-text-main mb-2">{constructorData.name}</h1>
-                    <p className="text-text-secondary max-w-2xl">Visualize os dados cadastrais e o portfólio de imóveis vinculados a esta empresa.</p>
+                    <p className="text-text-secondary max-w-2xl">Visão geral da sua operação imobiliária.</p>
                 </div>
                 <div className="flex gap-3">
                     {isBroker && (
@@ -326,6 +358,76 @@ export default function ConstructorProfilePage() {
                 </div>
             </div>
 
+            {/* Operational Indicator Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                <div className="bg-white p-6 rounded-xl border border-card-border shadow-sm flex items-center justify-between">
+                    <div>
+                        <p className="text-xs text-text-secondary uppercase font-bold">Empreendimentos</p>
+                        <p className="text-2xl font-black text-text-main mt-1">{projects?.length || 0}</p>
+                    </div>
+                    <div className="size-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+                        <span className="material-symbols-outlined text-2xl">business</span>
+                    </div>
+                </div>
+                <div className="bg-white p-6 rounded-xl border border-card-border shadow-sm flex items-center justify-between">
+                    <div>
+                        <p className="text-xs text-text-secondary uppercase font-bold">Imóveis</p>
+                        <p className="text-2xl font-black text-text-main mt-1">{properties?.length || 0}</p>
+                    </div>
+                    <div className="size-12 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
+                        <span className="material-symbols-outlined text-2xl">inventory</span>
+                    </div>
+                </div>
+                <div className="bg-white p-6 rounded-xl border border-card-border shadow-sm flex items-center justify-between">
+                    <div>
+                        <p className="text-xs text-text-secondary uppercase font-bold">Clientes / Leads</p>
+                        <p className="text-2xl font-black text-text-main mt-1">{leads?.length || 0}</p>
+                    </div>
+                    <div className="size-12 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center">
+                        <span className="material-symbols-outlined text-2xl">group</span>
+                    </div>
+                </div>
+                <div className="bg-white p-6 rounded-xl border border-card-border shadow-sm flex items-center justify-between">
+                    <div>
+                        <p className="text-xs text-text-secondary uppercase font-bold">Tabelas de Preços</p>
+                        <p className="text-2xl font-black text-text-main mt-1">{priceTables?.length || 0}</p>
+                    </div>
+                    <div className="size-12 rounded-xl bg-purple-500/10 text-purple-600 flex items-center justify-center">
+                        <span className="material-symbols-outlined text-2xl">table_chart</span>
+                    </div>
+                </div>
+            </div>
+
+            {/* Quick Actions Bar */}
+            <div className="bg-white p-4 rounded-xl border border-card-border shadow-sm mb-8 flex flex-wrap items-center gap-3">
+                <span className="text-xs font-bold text-text-secondary uppercase mr-2">Ações Rápidas:</span>
+                <Button asChild size="sm" className="bg-primary text-text-main hover:bg-primary-hover font-bold text-xs">
+                    <Link href="/dashboard/construtoras/empreendimentos/nova">
+                        <span className="material-symbols-outlined text-sm mr-1">add</span> Novo Empreendimento
+                    </Link>
+                </Button>
+                <Button asChild size="sm" variant="outline" className="text-xs font-bold">
+                    <Link href="/dashboard/imoveis/nova">
+                        <span className="material-symbols-outlined text-sm mr-1">add</span> Novo Imóvel
+                    </Link>
+                </Button>
+                <Button asChild size="sm" variant="outline" className="text-xs font-bold">
+                    <Link href={`/dashboard/construtoras/${id}/leads`}>
+                        <span className="material-symbols-outlined text-sm mr-1">person_add</span> Novo Cliente
+                    </Link>
+                </Button>
+                <Button asChild size="sm" variant="outline" className="text-xs font-bold">
+                    <Link href={`/dashboard/construtoras/${id}/funil`}>
+                        <span className="material-symbols-outlined text-sm mr-1">view_kanban</span> Funil de Vendas
+                    </Link>
+                </Button>
+                <Button asChild size="sm" variant="outline" className="text-xs font-bold">
+                    <Link href={`/dashboard/construtoras/${id}/oralink`}>
+                        <span className="material-symbols-outlined text-sm mr-1">link</span> Central de Mídias
+                    </Link>
+                </Button>
+            </div>
+
             <div className="space-y-8">
                 <section className="bg-white rounded-xl border border-card-border shadow-sm overflow-hidden relative">
                     {canEdit && (
@@ -341,8 +443,8 @@ export default function ConstructorProfilePage() {
                     <div className="p-8">
                         <div className="flex flex-col md:flex-row gap-8 items-start">
                             <div className="size-32 shrink-0 bg-gray-50 rounded-xl border border-card-border flex items-center justify-center p-4">
-                                {constructorData.logoUrl ? (
-                                    <Image src={constructorData.logoUrl} alt={`Logo de ${constructorData.name}`} width={128} height={128} className="object-contain" />
+                                {constructorData?.logoUrl ? (
+                                    <SafeImage src={constructorData.logoUrl} alt={`Logo de ${constructorData.name}`} width={128} height={128} className="object-contain" />
                                 ): (
                                     <span className="material-symbols-outlined text-6xl text-gray-300">apartment</span>
                                 )}
@@ -408,6 +510,46 @@ export default function ConstructorProfilePage() {
                     </div>
                 </section>
                 <section className="bg-white rounded-xl border border-card-border shadow-sm overflow-hidden">
+                    <div className="px-6 py-4 border-b border-card-border bg-gray-50/50 flex justify-between items-center">
+                        <h3 className="font-bold text-lg flex items-center gap-2">
+                            <span className="material-symbols-outlined text-text-secondary">business</span>
+                            Empreendimentos
+                            <span className="text-sm font-normal text-text-secondary bg-white px-2 py-0.5 rounded-full border border-card-border ml-2">{projects?.length || 0} empreendimentos</span>
+                        </h3>
+                        {canEdit && (
+                            <Button asChild size="sm" className="text-sm font-bold text-primary hover:text-primary-hover flex items-center gap-1 transition-colors">
+                                <Link href="/dashboard/construtoras/empreendimentos/nova">
+                                    <span className="material-symbols-outlined text-lg">add</span>
+                                    Novo Empreendimento
+                                </Link>
+                            </Button>
+                        )}
+                    </div>
+                    <div className="divide-y divide-card-border">
+                        {projects && projects.length > 0 ? (
+                            projects.map(proj => (
+                                <div key={proj.id} className="p-4 flex items-center justify-between gap-4 hover:bg-gray-50 transition-colors">
+                                    <div>
+                                        <p className="text-base font-bold text-text-main">{proj.name || 'Empreendimento sem nome'}</p>
+                                        <p className="text-xs text-text-secondary">{[proj.cidade || proj.localizacao?.cidade, proj.bairro || proj.localizacao?.bairro].filter(Boolean).join(', ') || 'Localização não informada'}</p>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <Badge variant="outline" className="text-xs">{proj.status || 'Ativo'}</Badge>
+                                        <Button asChild variant="outline" size="sm">
+                                            <Link href={`/dashboard/construtoras/empreendimentos/${proj.id}`}>Ver empreendimento</Link>
+                                        </Button>
+                                    </div>
+                                </div>
+                            ))
+                        ) : (
+                            <div className="p-8 text-center text-text-secondary">
+                                <p>Ainda não há empreendimentos cadastrados.</p>
+                            </div>
+                        )}
+                    </div>
+                </section>
+
+                <section className="bg-white rounded-xl border border-card-border shadow-sm overflow-hidden">
                     <Tabs defaultValue="todos" className="w-full">
                         <div className="px-6 py-4 border-b border-card-border bg-gray-50/50 flex justify-between items-center">
                             <h3 className="font-bold text-lg flex items-center gap-2">
@@ -436,7 +578,7 @@ export default function ConstructorProfilePage() {
                                 properties.map(prop => <PropertyCard key={prop.id} property={prop} canEdit={canEditProperty} />)
                             ) : (
                                 <div className="p-8 text-center text-text-secondary">
-                                    <p>Nenhum imóvel cadastrado.</p>
+                                    <p>Ainda não há imóveis cadastrados.</p>
                                 </div>
                             )}
                         </TabsContent>

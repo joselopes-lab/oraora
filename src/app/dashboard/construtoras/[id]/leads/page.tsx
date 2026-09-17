@@ -27,10 +27,12 @@ export default function ConstructorLeadsPage({ params }: { params: Promise<{ id:
 
       try {
         setIsLoading(true);
+        setError(null);
         const idToken = await user.getIdToken();
         const data = await listConstructorLeadsAction(constructorId, idToken);
         setLeads(data);
       } catch (err: any) {
+        console.error('Erro ao carregar leads:', err);
         setError(err.message || 'Erro ao carregar clientes.');
       } finally {
         setIsLoading(false);
@@ -60,4 +62,5 @@ export default function ConstructorLeadsPage({ params }: { params: Promise<{ id:
 
   return <ConstructorClientsClient constructorId={constructorId} initialLeads={leads} />;
 }
+
 

@@ -87,6 +87,42 @@ export default function ProjectMediaTab({ project }: ProjectMediaTabProps) {
     setIsDirty(true);
   };
 
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = (e: React.DragEvent, dropIndex: number) => {
+    e.preventDefault();
+    if (draggedIndex === null || draggedIndex === dropIndex) return;
+
+    const updated = [...mediaList];
+    const [movedItem] = updated.splice(draggedIndex, 1);
+    updated.splice(dropIndex, 0, movedItem);
+
+    setMediaList(updated);
+    setDraggedIndex(null);
+    setIsDirty(true);
+    toast({ title: 'Ordem atualizada', description: 'A posição da mídia foi alterada.' });
+  };
+
+  const handleSetFeatured = (index: number) => {
+    if (index === 0) return;
+    const updated = [...mediaList];
+    const [item] = updated.splice(index, 1);
+    updated.unshift(item);
+    setMediaList(updated);
+    setIsDirty(true);
+    toast({ title: 'Imagem de Destaque Atualizada', description: 'Esta imagem agora é a capa principal do empreendimento.' });
+  };
+
   const handleSave = async () => {
     if (!user) {
       toast({ title: 'Erro', description: 'Usuário não autenticado.', variant: 'destructive' });
@@ -205,32 +241,69 @@ export default function ProjectMediaTab({ project }: ProjectMediaTabProps) {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-              {mediaList.map((url, index) => (
-                <div key={index} className="group relative rounded-xl overflow-hidden border bg-slate-100 aspect-square shadow-xs">
-                  <img 
-                    src={url} 
-                    alt={`Mídia ${index + 1}`} 
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    referrerPolicy="no-referrer"
-                  />
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                    <Button 
-                      type="button" 
-                      variant="destructive" 
-                      size="icon" 
-                      className="h-8 w-8 rounded-full"
-                      onClick={() => handleRemoveMedia(index)}
-                      title="Remover imagem"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {mediaList.map((url, index) => {
+                const isFeatured = index === 0;
+                return (
+                  <div 
+                    key={index} 
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, index)}
+                    onDragOver={(e) => handleDragOver(e, index)}
+                    onDrop={(e) => handleDrop(e, index)}
+                    className={`group relative rounded-xl overflow-hidden border bg-card shadow-sm transition-all cursor-grab active:cursor-grabbing hover:shadow-md ${isFeatured ? 'ring-2 ring-primary border-primary' : 'border-border'} ${draggedIndex === index ? 'opacity-40 border-dashed border-primary' : ''}`}
+                  >
+                    <div className="relative aspect-video sm:aspect-square w-full overflow-hidden bg-secondary">
+                      <img 
+                        src={url} 
+                        alt={`Mídia ${index + 1}`} 
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 pointer-events-none"
+                        referrerPolicy="no-referrer"
+                      />
+                      {isFeatured && (
+                        <div className="absolute top-2 left-2 z-10">
+                          <span className="bg-primary text-primary-foreground font-semibold text-[10px] px-2 py-0.5 rounded-full shadow-sm flex items-center gap-1">
+                            ★ Capa / Destaque
+                          </span>
+                        </div>
+                      )}
+                      <span className="absolute top-2 right-2 z-10 bg-black/70 text-white text-[10px] font-mono px-2 py-0.5 rounded shadow-sm">
+                        ⠿ #{index + 1}
+                      </span>
+                    </div>
+
+                    <div className="p-3 bg-card border-t border-border flex items-center justify-between gap-1">
+                      <div className="text-[11px] text-muted-foreground font-medium truncate">
+                        {isFeatured ? 'Capa principal' : 'Arraste para ordenar'}
+                      </div>
+
+                      <div className="flex items-center gap-1">
+                        {!isFeatured && (
+                          <Button 
+                            type="button" 
+                            variant="secondary" 
+                            size="sm" 
+                            className="h-7 text-[10px] px-2"
+                            onClick={() => handleSetFeatured(index)}
+                          >
+                            Definir Capa
+                          </Button>
+                        )}
+                        <Button 
+                          type="button" 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => handleRemoveMedia(index)}
+                          title="Remover"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </div>
                   </div>
-                  <span className="absolute bottom-2 left-2 bg-black/60 text-white text-[10px] font-mono px-2 py-0.5 rounded">
-                    #{index + 1}
-                  </span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </CardContent>

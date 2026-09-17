@@ -375,7 +375,7 @@ export async function updateProjectPublicationServer(projectId: string, data: {
   return { success: true };
 }
 
-export async function getProjectDetailServer(projectId: string, idToken: string) {
+export async function getProjectDetailServer(projectId: string, idToken?: string) {
   const ctx = await getAuthenticatedUserContext(idToken);
   if (ctx.userType !== 'admin' && ctx.userType !== 'constructor') {
     throw new Error('Acesso negado.');

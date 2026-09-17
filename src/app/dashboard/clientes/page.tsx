@@ -85,8 +85,10 @@ export default function ClientListPage() {
   const clients = useMemo(() => {
     if (!initialClients) return [];
     return [...initialClients].sort((a, b) => {
-        const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
-        const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+        const dateA = normalizeDate(a.createdAt);
+        const dateB = normalizeDate(b.createdAt);
+        const timeA = dateA ? dateA.getTime() : Date.now();
+        const timeB = dateB ? dateB.getTime() : Date.now();
         return timeB - timeA;
     });
   }, [initialClients]);

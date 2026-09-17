@@ -52,23 +52,7 @@ export default function EditConstructorPage() {
     );
     const { data: constructorDoc, isLoading: isConstructorLoading } = useDoc<ConstructorDoc>(constructorDocRef);
 
-    const usersQuery = useMemoFirebase(
-        () => (firestore && id ? query(collection(firestore, 'users'), where('tenantId', '==', id)) : null),
-        [firestore, id]
-    );
-    const { data: constructorUsers } = useCollection<any>(usersQuery);
-
-    const userMap = useMemo(() => {
-        const map = new Map<string, any>();
-        constructorUsers?.forEach(u => map.set(u.id, u));
-        return map;
-    }, [constructorUsers]);
-
-    const userDocRef = useMemoFirebase(
-      () => (firestore && id ? doc(firestore, 'users', id) : null),
-      [firestore, id]
-    );
-    const { data: userDoc, isLoading: isUserLoading } = useDoc<UserDoc>(userDocRef);
+    const userMap = useMemo(() => new Map<string, any>(), []);
 
     const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
     const [memberName, setMemberName] = useState('');
@@ -141,13 +125,6 @@ export default function EditConstructorPage() {
             };
             setDocumentNonBlocking(constructorDocRef!, constructorDataToUpdate, { merge: true });
 
-            // Update user document (The contact/display email in Firestore)
-            const userDataToUpdate = {
-                username: data.name,
-                email: data.accessEmail
-            };
-            setDocumentNonBlocking(userDocRef!, userDataToUpdate, { merge: true });
-
             toast({
                 title: 'Dados Atualizados!',
                 description: `As informações de "${data.name}" foram salvas no banco de dados.`,
@@ -200,7 +177,7 @@ export default function EditConstructorPage() {
         }
     };
     
-    const isLoading = isConstructorLoading || isUserLoading;
+    const isLoading = isConstructorLoading;
 
     if (isLoading) {
         return (
@@ -210,7 +187,7 @@ export default function EditConstructorPage() {
         )
     }
 
-    if (!constructorDoc || !userDoc) {
+    if (!constructorDoc) {
         return (
              <main className="flex-grow flex flex-col py-8 px-4 md:px-10 max-w-[1440px] mx-auto w-full">
                 <p>Construtora não encontrada.</p>
@@ -220,10 +197,9 @@ export default function EditConstructorPage() {
 
     const formData = {
         ...constructorDoc,
-        ...userDoc,
-        website: constructorDoc.websiteUrl,
-        accessEmail: userDoc.email,
-        name: constructorDoc.name,
+        website: constructorDoc.websiteUrl || '',
+        accessEmail: constructorDoc.accessEmail || constructorDoc.publicEmail || '',
+        name: constructorDoc.name || '',
     };
 
     return (
@@ -290,10 +266,9 @@ export default function EditConstructorPage() {
                 <div className="divide-y divide-card-border">
                     {constructorDoc.members && constructorDoc.members.length > 0 ? (
                         constructorDoc.members.map((m: any, idx: number) => {
-                            const uData = userMap.get(m.uid);
-                            const name = uData?.username || uData?.name || (m.uid === id ? constructorDoc.name : 'Membro da Construtora');
-                            const email = uData?.email || constructorDoc.publicEmail || 'Sem e-mail cadastrado';
-                            const isActive = uData?.isActive !== false;
+                            const name = m.name || (m.uid === id ? constructorDoc.name : 'Membro da Construtora');
+                            const email = m.email || constructorDoc.publicEmail || 'Sem e-mail cadastrado';
+                            const isActive = true;
                             const roleLabel = m.role === 'admin' ? 'Administrador' : m.role === 'gerente' ? 'Gerente' : m.role === 'marketing' ? 'Marketing' : 'Vendas';
                             return (
                                 <div key={m.uid || idx} className="p-4 flex items-center justify-between gap-4">

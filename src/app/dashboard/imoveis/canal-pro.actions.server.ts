@@ -54,8 +54,18 @@ export async function updatePropertyCanalProServer(propertyId: string, publish: 
     }
 
     // 4. Validate Elegibility
-    if (publish && (!propData.informacoesbasicas?.valor || !propData.midia || propData.midia.length === 0)) {
-        return { success: false, error: 'Este imóvel não possui os dados necessários para publicação (preço ou imagens).' };
+    const info = propData.informacoesbasicas || {};
+    const priceVal = info.salePrice ?? info.precoVenda ?? info.valor ?? propData.salePrice ?? propData.precoVenda ?? propData.valor ?? propData.price;
+    const numericPrice = typeof priceVal === 'number' ? priceVal : parseFloat(String(priceVal || '').replace(/[R$\s]/g, '').replace(/\.(?=\d{3,})/g, '').replace(',', '.'));
+    const hasValidPrice = !isNaN(numericPrice) && numericPrice > 0;
+
+    const mediaList = propData.midia || propData.media || propData.imagens || propData.images || propData.fotos || propData.galeria || [];
+    const validMedia = Array.isArray(mediaList) 
+      ? mediaList.map((m: any) => (typeof m === 'string' ? m : m?.url)).filter((url: string) => typeof url === 'string' && url.trim().length > 0 && url.startsWith('http'))
+      : [];
+
+    if (publish && (!hasValidPrice || validMedia.length === 0)) {
+        return { success: false, error: 'Este imóvel não possui os dados necessários para publicação (preço ou imagens válidas).' };
     }
 
     // 5. Update

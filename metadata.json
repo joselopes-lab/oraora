@@ -1,6 +1,6 @@
 {
-  "name": "Integração Cartório - App do Corretor",
-  "description": "App do Corretor com integração direta e em tempo real a Cartórios de Registro",
+  "name": "OraOra Construtoras - Apresentação Comercial Imersiva",
+  "description": "Apresentação comercial digital e interativa para empreendimentos de Construtoras do OraOra",
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
   ]

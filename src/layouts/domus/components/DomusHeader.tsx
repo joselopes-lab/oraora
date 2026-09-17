@@ -60,10 +60,10 @@ const DomusHeader = () => {
           </nav>
 
           <div className="flex items-center gap-4">
-            {isReady && (
-              <Link href={user ? "/dashboard" : "/login"} className="hidden md:flex items-center gap-2 bg-primary text-white font-bold py-2 px-4 rounded-lg hover:bg-primary-dark transition-colors">
+            {isReady && user && (
+              <Link href="/dashboard" className="hidden md:flex items-center gap-2 bg-primary text-white font-bold py-2 px-4 rounded-lg hover:bg-primary-dark transition-colors">
                 <span className="material-symbols-outlined text-[20px]">person</span>
-                {user ? 'Painel' : 'Login'}
+                Painel
               </Link>
             )}
             <MobileMenu />

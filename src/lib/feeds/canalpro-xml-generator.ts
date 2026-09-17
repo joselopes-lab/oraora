@@ -24,7 +24,7 @@ export function generateCanalProXml(properties: any[]): string {
     const rentalPrice = getPropertyRentalPrice(prop, operationType);
     
     const loc = prop.localizacao || {};
-    const street = escapeXml(loc.logradouro || loc.street || '');
+    const street = escapeXml(loc.logradouro || loc.street || loc.address || '');
     const number = escapeXml(loc.numero || loc.number || 'S/N');
     const neighborhood = escapeXml(loc.bairro || loc.neighborhood || '');
     const city = escapeXml(loc.cidade || loc.city || '');
@@ -92,16 +92,43 @@ export function generateCanalProXml(properties: any[]): string {
   return xml;
 }
 
+function parsePriceValue(val: any): number {
+  if (val === undefined || val === null || val === '') return 0;
+  if (typeof val === 'number') return isNaN(val) ? 0 : val;
+  const str = String(val).trim();
+  const cleaned = str
+    .replace(/[R$\s]/g, '')
+    .replace(/\.(?=\d{3,})/g, '')
+    .replace(',', '.');
+  const num = parseFloat(cleaned);
+  return isNaN(num) ? 0 : num;
+}
+
+function getPropertySalePrice(prop: any): number {
+  if (!prop) return 0;
+  const info = prop.informacoesbasicas || {};
+  const raw = info.salePrice ?? info.precoVenda ?? info.valor ?? prop.salePrice ?? prop.precoVenda ?? prop.valor ?? prop.price;
+  return parsePriceValue(raw);
+}
+
+function getPropertyRentalPriceValue(prop: any): number {
+  if (!prop) return 0;
+  const info = prop.informacoesbasicas || {};
+  const raw = info.rentPrice ?? info.precoAluguel ?? info.aluguel ?? prop.rentPrice ?? prop.aluguel;
+  return parsePriceValue(raw);
+}
+
 function getRejectionReason(prop: any): string | null {
   if (!prop) return 'Objeto de imóvel inválido';
   if (!prop.id) return 'ID do imóvel ausente';
   
-  const info = prop.informacoesbasicas || {};
-  const price = info.valor || info.salePrice || info.rentPrice || 0;
+  const salePrice = getPropertySalePrice(prop);
+  const rentPrice = getPropertyRentalPriceValue(prop);
+  const price = salePrice > 0 ? salePrice : rentPrice;
   if (!price || price <= 0) return 'Preço ausente ou inválido';
 
   const loc = prop.localizacao || {};
-  if (!loc.logradouro && !loc.street) return 'Logradouro ausente';
+  if (!loc.logradouro && !loc.street && !loc.address) return 'Logradouro ausente';
   if (!loc.cidade && !loc.city) return 'Cidade ausente';
   if (!loc.estado && !loc.state) return 'Estado ausente';
   if (!loc.cep && !loc.zipCode) return 'CEP ausente';
@@ -153,13 +180,11 @@ function mapToZapOperationType(prop: any): string {
 }
 
 function getPropertyPrice(prop: any, opType: string): number {
-  const info = prop.informacoesbasicas || {};
-  return Number(info.salePrice || info.valor || prop.valor || 0);
+  return getPropertySalePrice(prop);
 }
 
 function getPropertyRentalPrice(prop: any, opType: string): number {
-  const info = prop.informacoesbasicas || {};
-  return Number(info.rentPrice || 0);
+  return getPropertyRentalPriceValue(prop);
 }
 
 function parseNumber(val: any): number {

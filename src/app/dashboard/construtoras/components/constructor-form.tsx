@@ -20,6 +20,9 @@ import { useEffect, useState } from "react";
 import locationData from '@/lib/location-data.json';
 import { cn } from "@/lib/utils";
 import { firebaseConfig } from "@/firebase/config";
+import { useFirebase } from "@/firebase";
+import { uploadFile } from "@/lib/storage";
+import { useToast } from "@/hooks/use-toast";
 
 const constructorSchema = z.object({
   name: z.string().min(1, "O nome da construtora é obrigatório."),
@@ -85,6 +88,47 @@ export default function ConstructorForm({ constructorData, onSave, isEditing, is
     const [states] = useState(locationData.states);
     const [cities, setCities] = useState<{ name: string; neighborhoods: string[] }[]>([]);
     
+    const { storage } = useFirebase();
+    const { toast } = useToast();
+    const [isUploading, setIsUploading] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState(0);
+
+    const handleLogoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (file.type !== 'image/jpeg' && file.type !== 'image/png') {
+            toast({ variant: 'destructive', title: 'Arquivo inválido', description: 'Apenas arquivos JPG ou PNG são permitidos.' });
+            return;
+        }
+
+        if (file.size > 2 * 1024 * 1024) {
+            toast({ variant: 'destructive', title: 'Arquivo muito grande', description: 'O arquivo deve ter no máximo 2MB.' });
+            return;
+        }
+
+        if (!storage) {
+            toast({ variant: 'destructive', title: 'Erro', description: 'Armazenamento não inicializado.' });
+            return;
+        }
+
+        setIsUploading(true);
+        setUploadProgress(0);
+
+        try {
+            const downloadUrl = await uploadFile(storage, 'constructor-logos', file, (progress) => {
+                setUploadProgress(Math.round(progress));
+            });
+            form.setValue('logoUrl', downloadUrl, { shouldDirty: true });
+            toast({ title: 'Logo enviada com sucesso!' });
+        } catch (err: any) {
+            console.error("Erro no upload da logo:", err);
+            toast({ variant: 'destructive', title: 'Falha no upload', description: err.message || 'Não foi possível enviar a logo.' });
+        } finally {
+            setIsUploading(false);
+        }
+    };
+    
     const selectedState = form.watch('state');
     const projectId = firebaseConfig.projectId;
 
@@ -141,10 +185,16 @@ export default function ConstructorForm({ constructorData, onSave, isEditing, is
                             <div className="flex flex-col md:flex-row gap-8 items-start mb-8">
                                 <div className="w-full md:w-auto flex flex-col items-center gap-3">
                                     <div className="relative size-32 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300 flex flex-col items-center justify-center overflow-hidden hover:border-primary transition-colors group cursor-pointer">
-                                        {form.watch('logoUrl') && <img alt="Logo Preview" className="absolute inset-0 w-full h-full object-cover opacity-50 group-hover:opacity-30 transition-opacity" src={form.watch('logoUrl')} />}
-                                        <span className="material-symbols-outlined text-gray-400 group-hover:text-primary z-10 text-[32px]">cloud_upload</span>
-                                        <span className="text-xs text-gray-400 font-medium z-10 group-hover:text-text-main mt-1">Alterar Logo</span>
-                                        <input accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" type="file" />
+                                        {form.watch('logoUrl') && <img alt="Logo Preview" className="absolute inset-0 w-full h-full object-cover z-0" src={form.watch('logoUrl')} />}
+                                        <span className="material-symbols-outlined text-gray-400 group-hover:text-primary z-10 text-[32px]">{isUploading ? 'progress_activity' : 'cloud_upload'}</span>
+                                        <span className="text-xs text-gray-400 font-medium z-10 group-hover:text-text-main mt-1">{isUploading ? `${uploadProgress}%` : 'Alterar Logo'}</span>
+                                        <input 
+                                            accept="image/png, image/jpeg" 
+                                            className="absolute inset-0 opacity-0 cursor-pointer disabled:cursor-not-allowed" 
+                                            type="file" 
+                                            disabled={isUploading}
+                                            onChange={handleLogoChange}
+                                        />
                                     </div>
                                     <p className="text-[10px] text-text-secondary text-center max-w-[1280px]">JPG ou PNG até 2MB</p>
                                 </div>

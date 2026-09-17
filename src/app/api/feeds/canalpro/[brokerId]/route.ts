@@ -5,41 +5,75 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export const revalidate = 3600; // Cache for 1 hour
 
-export async function GET(req: NextRequest, { params }: { params: { brokerId: string } }) {
-  const { brokerId } = params;
+export async function GET(req: NextRequest, context: { params: Promise<{ brokerId: string }> | { brokerId: string } }) {
+  const resolvedParams = context.params instanceof Promise ? await context.params : context.params;
+  const { brokerId } = resolvedParams;
   const token = req.nextUrl.searchParams.get('token');
+
+  console.log(`[CanalPro Feed] brokerId recebido: ${brokerId}`);
 
   // 1. Security Check
   if (!token) {
+    console.log(`[CanalPro Feed] Token validado: false (token ausente)`);
     return new NextResponse('Unauthorized', { status: 401 });
   }
 
   const userSnap = await adminDb.collection('users').doc(brokerId).get();
   const userData = userSnap.data();
 
-  if (!userData || userData.canalProToken !== token) {
+  const tokenValidated = Boolean(userData && userData.canalProToken === token);
+  console.log(`[CanalPro Feed] Token validado: ${tokenValidated}`);
+
+  if (!tokenValidated) {
     return new NextResponse('Unauthorized', { status: 401 });
   }
 
-  // 2. Fetch Properties
-  const [propSnap, brokerPropSnap] = await Promise.all([
-    adminDb.collection('properties').where('brokerId', '==', brokerId).where('publishToCanalPro', '==', true).where('isActive', '==', true).get(),
-    adminDb.collection('brokerProperties').where('brokerId', '==', brokerId).where('publishToCanalPro', '==', true).where('isActive', '==', true).get()
-  ]);
+  // 2. Fetch all brokerProperties for this broker (initial query)
+  const brokerPropSnap = await adminDb.collection('brokerProperties')
+    .where('brokerId', '==', brokerId)
+    .get();
 
-  const propertiesMap = new Map();
-  propSnap.docs.forEach(doc => propertiesMap.set(doc.id, { id: doc.id, ...doc.data() }));
-  brokerPropSnap.docs.forEach(doc => {
-    if (!propertiesMap.has(doc.id)) {
-      propertiesMap.set(doc.id, { id: doc.id, ...doc.data() });
-    }
+  const initialDocs = brokerPropSnap.docs;
+  const initialCount = initialDocs.length;
+  console.log(`[CanalPro Feed] Quantidade encontrada na consulta inicial: ${initialCount}`);
+
+  // 3. Count with publishToCanalPro === true
+  const publishedDocs = initialDocs.filter(doc => {
+    const data = doc.data();
+    return data.publishToCanalPro === true;
   });
+  const publishedCount = publishedDocs.length;
+  console.log(`[CanalPro Feed] Quantidade com publishToCanalPro === true: ${publishedCount}`);
 
-  // 3. Filter and Deduplicate (include defense-in-depth for construtora properties)
-  const properties = Array.from(propertiesMap.values()).filter(prop => !isPropertyLinkedToProject(prop));
+  // 4. Count after status filters (not inactive or archived)
+  const statusFilteredDocs = publishedDocs.filter(doc => {
+    const data = doc.data();
+    const isActive = data.isActive !== false && data.status !== 'inactive' && data.status !== 'arquivado';
+    return isActive;
+  });
+  const statusCount = statusFilteredDocs.length;
+  console.log(`[CanalPro Feed] Quantidade após filtros de status: ${statusCount}`);
 
-  // 4. Generate XML
-  const xml = generateCanalProXml(properties);
+  // 5. Count after anti-construtora validation (!isPropertyLinkedToProject)
+  const validProperties: any[] = [];
+  statusFilteredDocs.forEach(doc => {
+    const data = doc.data();
+    const id = doc.id;
+    if (isPropertyLinkedToProject(data)) {
+      console.log(`[CanalPro Feed] Imóvel rejeitado: vinculado a projeto/construtora`);
+      return;
+    }
+    validProperties.push({ id, ...data });
+  });
+  const antiConstrutoraCount = validProperties.length;
+  console.log(`[CanalPro Feed] Quantidade após validação anti-construtora: ${antiConstrutoraCount}`);
+
+  // 6. Final count sent to XML
+  const finalCount = validProperties.length;
+  console.log(`[CanalPro Feed] Quantidade final enviada ao XML: ${finalCount}`);
+
+  // 7. Generate XML
+  const xml = generateCanalProXml(validProperties);
 
   return new NextResponse(xml, {
     headers: {

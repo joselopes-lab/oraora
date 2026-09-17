@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle2, AlertCircle, Rocket, Globe, ArrowRight, ShieldCheck, Lock, Layers } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Rocket, Globe, ArrowRight, ShieldCheck, Lock, Layers, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 
 interface ProjectPublicationTabProps {
@@ -29,12 +29,18 @@ interface ProjectPublicationTabProps {
     localizacao?: {
       cidade?: string;
       estado?: string;
+      bairro?: string;
+      address?: string;
+      cep?: string;
     };
+    status?: string;
+    standard?: string;
   };
   units: any[];
+  onTabChange?: (tab: string) => void;
 }
 
-export default function ProjectPublicationTab({ project, units }: ProjectPublicationTabProps) {
+export default function ProjectPublicationTab({ project, units, onTabChange }: ProjectPublicationTabProps) {
   const { user } = useUser();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -172,10 +178,24 @@ export default function ProjectPublicationTab({ project, units }: ProjectPublica
                   </div>
                 </div>
 
-                {!item.done && (
-                  <span className="text-xs font-medium text-amber-600 bg-amber-50 px-2.5 py-1 rounded-md border border-amber-200">
-                    Pendente
-                  </span>
+                {!item.done ? (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="text-xs text-amber-700 bg-amber-50 hover:bg-amber-100 border-amber-300 gap-1"
+                    onClick={() => onTabChange?.(item.tab)}
+                  >
+                    Preencher <ChevronRight className="w-3.5 h-3.5" />
+                  </Button>
+                ) : (
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="text-xs text-slate-500 hover:text-slate-900 gap-1"
+                    onClick={() => onTabChange?.(item.tab)}
+                  >
+                    Revisar <ChevronRight className="w-3.5 h-3.5" />
+                  </Button>
                 )}
               </div>
             ))}

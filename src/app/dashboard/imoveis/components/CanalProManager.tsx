@@ -21,13 +21,22 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
+function parsePrice(val: any): number {
+  if (val === undefined || val === null || val === '') return 0;
+  if (typeof val === 'number') return isNaN(val) ? 0 : val;
+  const cleaned = String(val).replace(/[R$\s]/g, '').replace(/\.(?=\d{3,})/g, '').replace(',', '.');
+  const num = parseFloat(cleaned);
+  return isNaN(num) ? 0 : num;
+}
+
 function getClientRejectionReason(prop: any, brokerId: string): string | null {
   if (!prop) return 'Imóvel inválido';
   if (prop.builderId && prop.builderId !== brokerId) return 'Imóvel de construtora';
   
   const info = prop.informacoesbasicas || {};
-  const price = info.valor || info.salePrice || info.rentPrice || prop.valor || 0;
-  if (!price || Number(price) <= 0) return 'Preço ausente ou inválido';
+  const rawPrice = info.salePrice ?? info.precoVenda ?? info.valor ?? info.rentPrice ?? prop.salePrice ?? prop.precoVenda ?? prop.valor ?? prop.price;
+  const price = parsePrice(rawPrice);
+  if (!price || price <= 0) return 'Preço ausente ou inválido';
 
   const loc = prop.localizacao || {};
   if (!loc.logradouro && !loc.street && !loc.address) return 'Logradouro ausente';
@@ -35,7 +44,7 @@ function getClientRejectionReason(prop: any, brokerId: string): string | null {
   if (!loc.estado && !loc.state) return 'Estado ausente';
   if (!loc.cep && !loc.zipCode) return 'CEP ausente';
 
-  const mediaList = prop.midia || prop.media || [];
+  const mediaList = prop.midia || prop.media || prop.imagens || prop.images || prop.fotos || prop.galeria || [];
   const validMedia = Array.isArray(mediaList) && mediaList.some((m: any) => {
     const url = typeof m === 'string' ? m : m?.url;
     return typeof url === 'string' && url.trim().length > 0 && url.startsWith('http');
@@ -252,7 +261,7 @@ export function CanalProManager({ brokerId }: { brokerId: string }) {
             </p>
           </div>
           <div className="bg-slate-100 px-4 py-2 rounded-xl text-sm font-bold text-slate-700 flex items-center gap-2">
-            <span>{publishedCount} de {planLimit} imóveis publicados</span>
+            <span>{publishedCount} de {planLimit > 0 ? planLimit : allProperties.length} imóveis publicados</span>
           </div>
         </div>
 
@@ -263,15 +272,17 @@ export function CanalProManager({ brokerId }: { brokerId: string }) {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {allProperties.map(prop => {
-              const photo = (prop.midia || prop.media || [])[0];
+              const mediaArr = prop.midia || prop.media || prop.imagens || prop.images || prop.fotos || prop.galeria || [];
+              const photo = mediaArr[0];
               const photoUrl = typeof photo === 'string' ? photo : photo?.url;
               const title = prop.informacoesbasicas?.nome || prop.titulo || prop.title || 'Imóvel sem título';
               const loc = prop.localizacao || {};
               const locationStr = [loc.bairro || loc.neighborhood, [loc.cidade || loc.city, loc.estado || loc.state].filter(Boolean).join('/')].filter(Boolean).join(' • ') || 'Localização não informada';
               
               const info = prop.informacoesbasicas || {};
-              const price = info.salePrice || info.valor || prop.valor || info.rentPrice || 0;
-              const priceFormatted = Number(price) > 0 ? Number(price).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'Preço sob consulta';
+              const rawPrice = info.salePrice ?? info.precoVenda ?? info.valor ?? info.rentPrice ?? prop.salePrice ?? prop.precoVenda ?? prop.valor ?? prop.price;
+              const price = parsePrice(rawPrice);
+              const priceFormatted = price > 0 ? price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'Preço sob consulta';
               
               const txTypes = info.transactionTypes || [];
               const finalidade = (prop.finalidade || '').toLowerCase();

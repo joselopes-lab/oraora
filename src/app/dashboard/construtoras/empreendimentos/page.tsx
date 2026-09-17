@@ -117,39 +117,52 @@ export default function EmpreendimentosPage() {
                             <Link 
                                 key={p.id} 
                                 href={`/dashboard/construtoras/empreendimentos/${p.id}`}
-                                className="group block bg-card p-5 rounded-xl border border-border/80 shadow-sm hover:border-primary/50 hover:shadow-md transition-all cursor-pointer relative"
+                                className="group block bg-card rounded-xl border border-border/80 shadow-sm hover:border-primary/50 hover:shadow-md transition-all cursor-pointer relative overflow-hidden"
                             >
-                                <div className="flex items-start justify-between gap-3 mb-3">
-                                    <div className="w-10 h-10 rounded-lg bg-secondary text-secondary-foreground flex items-center justify-center shrink-0 group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-                                        <Building2 className="w-5 h-5" />
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <Badge variant={isPublished ? "default" : "secondary"} className="text-xs">
+                                <div className="relative w-full h-44 bg-secondary overflow-hidden">
+                                    {p.midia?.[0] ? (
+                                        <img 
+                                            src={p.midia[0]} 
+                                            alt={p.name} 
+                                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
+                                            referrerPolicy="no-referrer"
+                                        />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center text-muted-foreground bg-secondary">
+                                            <Building2 className="w-10 h-10 opacity-40" />
+                                        </div>
+                                    )}
+                                    <div className="absolute top-3 right-3 z-10">
+                                        <Badge variant={isPublished ? "default" : "secondary"} className="text-xs shadow-md">
                                             {isPublished ? "Publicado" : "Rascunho"}
                                         </Badge>
-                                        <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-transform" />
                                     </div>
                                 </div>
 
-                                <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors mb-1 truncate">
-                                    {p.name || 'Empreendimento sem nome'}
-                                </h3>
-
-                                <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-4">
-                                    <MapPin className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
-                                    <span className="truncate">{locationStr}</span>
-                                </div>
-
-                                <div className="space-y-1.5 pt-3 border-t border-border">
-                                    <div className="flex items-center justify-between text-xs text-muted-foreground">
-                                        <span>Progresso do cadastro</span>
-                                        <span className="font-medium text-foreground">{percent}%</span>
+                                <div className="p-5">
+                                    <div className="flex items-start justify-between gap-2 mb-1">
+                                        <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors truncate text-base">
+                                            {p.name || 'Empreendimento sem nome'}
+                                        </h3>
+                                        <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-transform shrink-0 mt-1" />
                                     </div>
-                                    <div className="w-full bg-secondary h-1.5 rounded-full overflow-hidden">
-                                        <div 
-                                            className="bg-primary h-full rounded-full transition-all duration-300" 
-                                            style={{ width: `${percent}%` }}
-                                        />
+
+                                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-4">
+                                        <MapPin className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
+                                        <span className="truncate">{locationStr}</span>
+                                    </div>
+
+                                    <div className="space-y-1.5 pt-3 border-t border-border">
+                                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                            <span>Progresso do cadastro</span>
+                                            <span className="font-medium text-foreground">{percent}%</span>
+                                        </div>
+                                        <div className="w-full bg-secondary h-1.5 rounded-full overflow-hidden">
+                                            <div 
+                                                className="bg-primary h-full rounded-full transition-all duration-300" 
+                                                style={{ width: `${percent}%` }}
+                                            />
+                                        </div>
                                     </div>
                                 </div>
                             </Link>

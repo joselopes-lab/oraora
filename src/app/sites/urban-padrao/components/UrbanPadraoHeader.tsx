@@ -120,9 +120,6 @@ export function UrbanPadraoHeader({ broker }: { broker: Broker }) {
             <Link className={navLinkClasses(sobreUrl)} href={sobreUrl}>Sobre Mim</Link>
           </nav>
           <div className="flex items-center gap-4">
-            <Link href="/login" className="hidden md:flex items-center justify-center h-10 px-6 rounded-full border border-[#e5e7eb] hover:bg-gray-50 transition-colors text-sm font-semibold">
-              Login
-            </Link>
             <Link href={faleConoscoUrl} 
                 className="hidden lg:flex items-center justify-center h-10 px-6 rounded-full text-sm font-bold shadow-lg transition-all transform hover:scale-105"
                 style={{ 

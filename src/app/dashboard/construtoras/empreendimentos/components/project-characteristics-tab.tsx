@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useUser } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { updateProjectCharacteristicsServer } from '../actions.server';
@@ -74,6 +74,26 @@ export default function ProjectCharacteristicsTab({ project }: ProjectCharacteri
   const [diferenciaisEspecificos, setDiferenciaisEspecificos] = useState(project.diferenciaisEspecificos || '');
   
   const [sustentabilidadeTecnologia, setSustentabilidadeTecnologia] = useState<string[]>(project.sustentabilidadeTecnologia || ['Fechadura digital']);
+
+  useEffect(() => {
+    if (!isDirty) {
+      setNumTorres(project.numTorres !== undefined ? String(project.numTorres) : '');
+      setNumUnidades(project.numUnidades !== undefined ? String(project.numUnidades) : '');
+      setNumPavimentos(project.numPavimentos !== undefined ? String(project.numPavimentos) : '');
+      setNumElevadores(project.numElevadores !== undefined ? String(project.numElevadores) : '');
+      setAreaTerreno(project.areaTerreno !== undefined ? String(project.areaTerreno) : '');
+      setTipologiasResidenciais(project.tipologiasResidenciais || ['Apartamento']);
+      setAreaMinima(project.areaMinima !== undefined ? String(project.areaMinima) : '');
+      setAreaMaxima(project.areaMaxima !== undefined ? String(project.areaMaxima) : '');
+      setNumQuartos(project.numQuartos || '');
+      setSuites(project.suites || '');
+      setVagasGaragem(project.vagasGaragem || '');
+      setTemVaranda(project.temVaranda || false);
+      setLazerItens(project.lazerItens || ['Piscina', 'Academia', 'Salão de festas']);
+      setDiferenciaisEspecificos(project.diferenciaisEspecificos || '');
+      setSustentabilidadeTecnologia(project.sustentabilidadeTecnologia || ['Fechadura digital']);
+    }
+  }, [project]);
 
   const handleFieldChange = (setter: any, value: any) => {
     setter(value);

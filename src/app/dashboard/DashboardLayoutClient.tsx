@@ -66,6 +66,17 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 }
 
 export default function DashboardLayoutClient({ children }: { children: React.ReactNode; }) {
+  const pathname = usePathname();
+  const isPresentation = pathname?.includes('/apresentacao');
+
+  if (isPresentation) {
+    return (
+      <div className="bg-slate-950 text-slate-100 antialiased min-h-screen w-screen overflow-hidden flex flex-col">
+        {children}
+      </div>
+    );
+  }
+
   return (
     <div className="bg-background-light dark:bg-background-dark text-text-main antialiased min-h-screen flex flex-col">
       <AuthGuard>

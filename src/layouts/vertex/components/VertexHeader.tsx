@@ -76,9 +76,6 @@ export function VertexHeader({ broker }: VertexHeaderProps) {
 
         {/* Action Button */}
         <div className="flex items-center gap-3">
-          <Button asChild variant="ghost" className="hidden sm:flex rounded-full h-10 px-6 text-[10px] font-black uppercase tracking-widest hover:bg-slate-100 dark:hover:bg-white/5">
-            <Link href="/login">Login</Link>
-          </Button>
           <Button asChild className="rounded-full h-10 px-6 text-[10px] font-black uppercase tracking-widest shadow-glow">
             <Link href={nav.contact()}>Fale Comigo</Link>
           </Button>

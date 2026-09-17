@@ -203,6 +203,25 @@ export default function DashboardPage() {
   const router = useRouter();
   const { openOnboarding } = useOnboarding();
 
+  useEffect(() => {
+    if (isReady && userProfile) {
+      if (userProfile.userType === 'constructor' || userProfile.userType === 'construtora') {
+        const constructorId = userProfile.tenantId || userProfile.uid;
+        if (constructorId) {
+          router.replace(`/dashboard/construtoras/${constructorId}`);
+        }
+      }
+    }
+  }, [isReady, userProfile, router]);
+
+  if (isReady && userProfile && (userProfile.userType === 'constructor' || userProfile.userType === 'construtora')) {
+    return (
+      <div className="flex-grow flex items-center justify-center p-12">
+        <p className="text-text-secondary">Carregando painel da construtora...</p>
+      </div>
+    );
+  }
+
   const isBroker = userProfile?.userType === 'broker';
 
   // --- QUERIES ---
@@ -329,8 +348,10 @@ export default function DashboardPage() {
   const clients = useMemo(() => {
       if (!initialLeads) return [];
       return [...initialLeads].sort((a, b) => {
-          const timeA = normalizeDate(a.createdAt)?.getTime() || 0;
-          const timeB = normalizeDate(b.createdAt)?.getTime() || 0;
+          const dateA = normalizeDate(a.createdAt);
+          const dateB = normalizeDate(b.createdAt);
+          const timeA = dateA ? dateA.getTime() : Date.now();
+          const timeB = dateB ? dateB.getTime() : Date.now();
           return timeB - timeA;
       });
   }, [initialLeads]);

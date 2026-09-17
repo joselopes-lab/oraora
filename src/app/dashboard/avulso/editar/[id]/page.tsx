@@ -27,39 +27,7 @@ export default function EditAvulsoPropertyPage() {
     const { data: propertyData, isLoading } = useDoc<PropertyDoc>(brokerPropertyDocRef);
 
     const handleSave = async (data: PropertyFormData) => {
-        if (!brokerPropertyDocRef) {
-            toast({
-                variant: "destructive",
-                title: "Erro",
-                description: "Referência do documento não encontrada. Não foi possível salvar.",
-            });
-            return;
-        }
-        setIsSubmitting(true);
-        toast({
-            title: 'Salvando imóvel...',
-            description: 'Aguarde um momento.',
-        });
-        try {
-            // Sanitize data to remove undefined values, which Firestore doesn't support.
-            const sanitizedData = JSON.parse(JSON.stringify(data));
-            
-            await setDoc(brokerPropertyDocRef, sanitizedData, { merge: true });
-            toast({
-                title: 'Imóvel Avulso Atualizado!',
-                description: `Os dados de "${data.informacoesbasicas.nome}" foram salvos com sucesso.`,
-            });
-            router.push('/dashboard/avulso');
-        } catch (error: any) {
-            console.error("Erro ao atualizar imóvel avulso:", error);
-            toast({
-                variant: 'destructive',
-                title: 'Uh oh! Algo deu errado.',
-                description: `Não foi possível salvar as alterações. Erro: ${error.message}`,
-            });
-        } finally {
-            setIsSubmitting(false);
-        }
+        router.push('/dashboard/avulso');
     };
 
     if (isLoading) {

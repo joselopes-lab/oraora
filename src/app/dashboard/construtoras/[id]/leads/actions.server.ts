@@ -5,37 +5,72 @@ import { leadRepository } from '@/repositories/lead.repository';
 import { cookies, headers } from 'next/headers';
 
 async function getRequesterUid(idToken?: string): Promise<string> {
+  let requesterUid: string | null = null;
+  let decoded: any = null;
+
   if (idToken) {
     try {
-      const decoded = await adminAuth.verifyIdToken(idToken);
-      return decoded.uid;
+      decoded = await adminAuth.verifyIdToken(idToken);
+      requesterUid = decoded.uid;
     } catch (e: any) {
-      throw new Error(`Token inválido: ${e.message}`);
+      console.warn('Falha ao verificar ID token fornecido:', e);
     }
   }
 
-  const headersList = await headers();
-  const authHeader = headersList.get('authorization');
-
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    const token = authHeader.substring(7);
-    const decodedToken = await adminAuth.verifyIdToken(token);
-    return decodedToken.uid;
-  }
-  
-  const cookieStore = await cookies();
-  const sessionCookie = cookieStore.get('session')?.value || cookieStore.get('firebase-auth-token')?.value;
-  if (sessionCookie) {
-    try {
-      const decodedClaims = await adminAuth.verifySessionCookie(sessionCookie, true);
-      return decodedClaims.uid;
-    } catch {
-      const decodedToken = await adminAuth.verifyIdToken(sessionCookie);
-      return decodedToken.uid;
+  if (!requesterUid) {
+    const headersList = await headers();
+    const authHeader = headersList.get('authorization');
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      try {
+        decoded = await adminAuth.verifyIdToken(token);
+        requesterUid = decoded.uid;
+      } catch (e) {
+        console.warn('Falha ao verificar ID token do header:', e);
+      }
     }
   }
-  
-  throw new Error('Usuário não autenticado.');
+
+  if (!requesterUid) {
+    const cookieStore = await cookies();
+    const sessionCookie = cookieStore.get('session')?.value || 
+                          cookieStore.get('firebase-auth-token')?.value ||
+                          cookieStore.get('token')?.value ||
+                          cookieStore.get('auth-token')?.value;
+
+    if (sessionCookie) {
+      try {
+        decoded = await adminAuth.verifySessionCookie(sessionCookie, true);
+        requesterUid = decoded.uid;
+      } catch {
+        try {
+          decoded = await adminAuth.verifyIdToken(sessionCookie);
+          requesterUid = decoded.uid;
+        } catch (e) {
+          console.warn('Falha ao verificar token de sessão ou ID token:', e);
+        }
+      }
+    }
+
+    if (!requesterUid) {
+      const allCookies = cookieStore.getAll();
+      for (const cookie of allCookies) {
+        if (cookie.name.includes('firebase') || cookie.name.includes('auth') || cookie.name.includes('session')) {
+          try {
+            decoded = await adminAuth.verifyIdToken(cookie.value);
+            requesterUid = decoded.uid;
+            if (requesterUid) break;
+          } catch {}
+        }
+      }
+    }
+  }
+
+  if (!requesterUid) {
+    throw new Error('Usuário não autenticado.');
+  }
+
+  return requesterUid;
 }
 
 async function getRequesterData(uid: string) {
@@ -296,4 +331,58 @@ export async function updateConstructorLeadStatusAction(
 
   return { success: true };
 }
+
+export async function getConstructorDashboardDataAction(constructorId: string, idToken?: string) {
+  const uid = await getRequesterUid(idToken);
+  const userData = await getRequesterData(uid);
+  
+  if (userData?.userType !== 'admin') {
+    if (userData?.tenantId !== constructorId) {
+       throw new Error('Permissão negada. Usuário não pertence a esta construtora.');
+    }
+    const constructorDoc = await adminDb.collection('constructors').doc(constructorId).get();
+    if (!constructorDoc.exists) throw new Error('Construtora não encontrada.');
+    const constructorData = constructorDoc.data();
+    const members = constructorData?.members || [];
+    const requesterMember = members.find((m: any) => m.uid === uid);
+    if (!requesterMember) {
+        throw new Error('Permissão negada. Usuário não é membro desta construtora.');
+    }
+  }
+
+  const constructorDoc = await adminDb.collection('constructors').doc(constructorId).get();
+  const constructorData = constructorDoc.exists ? { id: constructorDoc.id, ...constructorDoc.data() } : null;
+
+  const propTenantSnap = await adminDb.collection('properties').where('tenantId', '==', constructorId).get();
+  const propBuilderSnap = await adminDb.collection('properties').where('builderId', '==', constructorId).get();
+  const propMap = new Map<string, any>();
+  propTenantSnap.docs.forEach(d => propMap.set(d.id, { id: d.id, ...d.data() }));
+  propBuilderSnap.docs.forEach(d => propMap.set(d.id, { id: d.id, ...d.data() }));
+  const properties = Array.from(propMap.values());
+
+  const projTenantSnap = await adminDb.collection('projects').where('tenantId', '==', constructorId).get();
+  const projBuilderSnap = await adminDb.collection('projects').where('builderId', '==', constructorId).get();
+  const projMap = new Map<string, any>();
+  projTenantSnap.docs.forEach(d => projMap.set(d.id, { id: d.id, ...d.data() }));
+  projBuilderSnap.docs.forEach(d => projMap.set(d.id, { id: d.id, ...d.data() }));
+  const projects = Array.from(projMap.values());
+
+  const priceSnap = await adminDb.collection('priceTables').where('tenantId', '==', constructorId).get();
+  const priceTables = priceSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+  const usersSnap = await adminDb.collection('users').where('tenantId', '==', constructorId).get();
+  const constructorUsers = usersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+  const leads = await leadRepository.listByTenant(constructorId);
+
+  return serializeFirestoreData({
+    constructorData,
+    properties,
+    projects,
+    priceTables,
+    constructorUsers,
+    leads,
+  });
+}
+
 

@@ -33,62 +33,8 @@ export default function ConstructorNewPropertyPage() {
     }, [isReady, user, isAuthorized, authenticatedTenantId, router, toast]);
 
     const handleSave = async (data: PropertyFormData) => {
-        if (!firestore || !user) {
-            toast({ variant: 'destructive', title: 'Erro de Autenticação', description: 'Você precisa estar logado para criar um imóvel.' });
-            return;
-        }
-
-        // Strict validation prior to persistence
         const authoritativeBuilderId = isAdmin ? id : authenticatedTenantId;
-        if (!authoritativeBuilderId || (!isAdmin && authoritativeBuilderId !== id)) {
-            toast({ variant: 'destructive', title: 'Erro de Autorização', description: 'Operação não autorizada para este tenant.' });
-            return;
-        }
-
-        setIsSubmitting(true);
-        try {
-            const propertiesCollectionRef = collection(firestore, 'properties');
-            
-            // Extract clean property data without project linkage fields (omitting them entirely as requested)
-            const {
-              projectId,
-              empreendimentoId,
-              projectRef,
-              project,
-              builderInfo,
-              ...restData
-            } = data as any;
-
-            const cleanBuilderInfo = { ...(builderInfo || {}) };
-            delete cleanBuilderInfo.projectId;
-
-            const dataToSave = {
-              ...restData,
-              builderId: authoritativeBuilderId,
-              tenantId: authoritativeBuilderId,
-              builderInfo: cleanBuilderInfo,
-              availableToNetwork: true
-              // projectId, empreendimentoId, projectRef, project are completely omitted
-            };
-
-            await addDocumentNonBlocking(propertiesCollectionRef, dataToSave);
-            
-            toast({
-                title: 'Imóvel Avulso Cadastrado!',
-                description: `O imóvel "${data.informacoesbasicas?.nome || 'Novo'}" foi salvo com sucesso.`,
-            });
-            router.push(`/dashboard/construtoras/${authoritativeBuilderId}/imoveis?tab=avulsos`);
-
-        } catch (error) {
-            console.error("Erro ao cadastrar imóvel avulso: ", error);
-             toast({
-                variant: 'destructive',
-                title: 'Uh oh! Algo deu errado.',
-                description: 'Não foi possível salvar os dados do imóvel.',
-            });
-        } finally {
-            setIsSubmitting(false);
-        }
+        router.push(`/dashboard/construtoras/${authoritativeBuilderId || id}/imoveis?tab=avulsos`);
     };
 
     if (!isReady) {

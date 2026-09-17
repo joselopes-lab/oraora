@@ -1035,7 +1035,11 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
                             control={form.control}
                             name="caracteristicas"
                             render={({ field }) => {
-                                const valueArray = field.value || [];
+                                const valueArray = Array.isArray(field.value) 
+                                    ? field.value 
+                                    : typeof field.value === 'string' 
+                                        ? field.value.split(',').map(s => s.trim()).filter(Boolean) 
+                                        : [];
                                 return (
                                     <FormItem>
                                         <div className="mb-2">
@@ -1120,7 +1124,11 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
                             control={form.control}
                             name="areascomuns"
                             render={({ field }) => {
-                                const valueArray = field.value || [];
+                                const valueArray = Array.isArray(field.value) 
+                                    ? field.value 
+                                    : typeof field.value === 'string' 
+                                        ? field.value.split(',').map(s => s.trim()).filter(Boolean) 
+                                        : [];
                                 return (
                                     <FormItem>
                                         <div className="mb-2">

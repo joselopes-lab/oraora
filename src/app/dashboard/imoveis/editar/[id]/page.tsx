@@ -29,53 +29,9 @@ export default function EditPropertyPage() {
     const { data: propertyData, isLoading } = useDoc<PropertyDoc>(propertyDocRef);
 
     const handleSave = async (data: PropertyFormData) => {
-        if (!propertyDocRef) {
-            toast({
-                variant: "destructive",
-                title: "Erro",
-                description: "Referência do documento não encontrada. Não foi possível salvar.",
-            });
-            return;
-        }
-        setIsSubmitting(true);
-        toast({
-            title: 'Salvando imóvel...',
-            description: 'Aguarde um momento.',
-        });
-        
-        try {
-            // Sanitize data to remove undefined values, which Firestore doesn't support.
-            const sanitizedData = JSON.parse(JSON.stringify(data));
-
-            if (propertyData?.builderId) {
-                sanitizedData.builderId = propertyData.builderId;
-            }
-            if (propertyData?.tenantId) {
-                sanitizedData.tenantId = propertyData.tenantId;
-            } else {
-                delete sanitizedData.tenantId;
-            }
-
-            await setDoc(propertyDocRef, sanitizedData, { merge: true });
-            
-            toast({
-                title: 'Imóvel Atualizado!',
-                description: `Os dados de "${data.informacoesbasicas.nome}" foram salvos com sucesso.`,
-            });
-            
-            const page = searchParams.get('page');
-            const redirectUrl = page ? `/dashboard/imoveis?page=${page}` : '/dashboard/imoveis';
-            router.push(redirectUrl);
-        } catch (error: any) {
-            console.error("Erro ao atualizar imóvel:", error);
-            toast({
-                variant: 'destructive',
-                title: 'Uh oh! Algo deu errado.',
-                description: `Não foi possível salvar as alterações. Erro: ${error.message}`,
-            });
-        } finally {
-            setIsSubmitting(false);
-        }
+        const page = searchParams.get('page');
+        const redirectUrl = page ? `/dashboard/imoveis?page=${page}` : '/dashboard/imoveis';
+        router.push(redirectUrl);
     };
 
     if (isLoading) {
