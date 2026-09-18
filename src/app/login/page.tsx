@@ -255,9 +255,9 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* <Button asChild variant="outline" className="w-full h-12 px-6 font-semibold text-foreground bg-gray-50 dark:bg-input border-border rounded-lg hover:bg-gray-100 dark:hover:bg-secondary">
+            <Button asChild variant="outline" className="w-full h-12 px-6 font-semibold text-foreground bg-gray-50 dark:bg-input border-border rounded-lg hover:bg-gray-100 dark:hover:bg-secondary">
               <Link href="/solicitar-acesso">Solicitar Acesso de Corretor</Link>
-            </Button> */}
+            </Button>
           </div>
         </main>
         

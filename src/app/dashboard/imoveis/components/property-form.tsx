@@ -40,6 +40,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Loader2, Trash2, Plus, X, Star, GripVertical } from "lucide-react";
 import locationData from '@/lib/location-data.json';
 import { savePropertyServer } from '../actions.server';
+import PrivateNotesSection from '@/app/dashboard/avulso/components/private-notes-section';
 
 // A simple rich text editor component
 const MiniRichEditor = forwardRef<
@@ -553,7 +554,9 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
                 </div>
             </div>
 
-            <section className="bg-white rounded-xl border border-card-border shadow-sm overflow-hidden">
+            <div className={isAvulso ? "grid grid-cols-1 lg:grid-cols-3 gap-6 items-start" : "space-y-6"}>
+                <div className={isAvulso ? "lg:col-span-2 space-y-6" : "space-y-6"}>
+                    <section className="bg-white rounded-xl border border-card-border shadow-sm overflow-hidden">
                 <div className="px-6 py-4 border-b border-card-border bg-gray-50/50 flex justify-between items-center">
                     <h3 className="font-bold text-lg flex items-center gap-2">
                         <span className="material-symbols-outlined text-text-secondary">info</span>
@@ -1341,6 +1344,14 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
                     )} />
                 </div>
             </section>
+
+                </div>
+                {isAvulso && (
+                    <div className="lg:col-span-1 lg:sticky lg:top-6 space-y-6">
+                        <PrivateNotesSection propertyId={propertyData?.id} isAvulso={isAvulso} />
+                    </div>
+                )}
+            </div>
 
             <div className="flex justify-end gap-3 mt-6 pb-20">
                 <Button type="button" variant="outline" asChild><Link href={cancelUrl}>Cancelar</Link></Button>

@@ -2,14 +2,14 @@
 'use client';
 import { useRouter, useParams } from 'next/navigation';
 import ConstructorForm, { ConstructorFormData } from '../../components/constructor-form';
-import { useFirestore, useDoc, useMemoFirebase, setDocumentNonBlocking, useAuth, useCollection } from '@/firebase';
+import { useFirestore, useDoc, useMemoFirebase, setDocumentNonBlocking, useAuth, useCollection, useUser } from '@/firebase';
 import { doc, query, collection, where } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useState, useMemo } from 'react';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from '@/components/ui/dialog';
-import { createConstructorMemberServer } from '../../actions.server';
+import { createConstructorMemberServer, updateConstructorServer } from '../../actions.server';
 
 type ConstructorDoc = {
     id: string;
@@ -45,6 +45,13 @@ export default function EditConstructorPage() {
     const { toast } = useToast();
     const auth = useAuth();
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const { user: authUser } = useUser();
+    const userDocRef = useMemoFirebase(
+      () => (firestore && authUser ? doc(firestore, 'users', authUser.uid) : null),
+      [firestore, authUser]
+    );
+    const { data: userProfile } = useDoc<any>(userDocRef);
 
     const constructorDocRef = useMemoFirebase(
       () => (firestore && id ? doc(firestore, 'constructors', id) : null),
@@ -101,13 +108,13 @@ export default function EditConstructorPage() {
     };
 
     const handleSave = async (data: ConstructorFormData) => {
-        if (!firestore || !id) return;
+        if (!id) return;
         setIsSubmitting(true);
 
         try {
-            // Update constructor document
+            const idToken = auth?.currentUser ? await auth.currentUser.getIdToken() : undefined;
             const constructorDataToUpdate = {
-                websiteUrl: data.website || '',
+                website: data.website || '',
                 name: data.name,
                 cnpj: data.cnpj || '',
                 stateRegistration: data.stateRegistration || '',
@@ -123,20 +130,30 @@ export default function EditConstructorPage() {
                 isVisibleOnSite: data.isVisibleOnSite,
                 accessEmail: data.accessEmail
             };
-            setDocumentNonBlocking(constructorDocRef!, constructorDataToUpdate, { merge: true });
 
-            toast({
-                title: 'Dados Atualizados!',
-                description: `As informações de "${data.name}" foram salvas no banco de dados.`,
-            });
-            router.push('/dashboard/construtoras');
+            const result = await updateConstructorServer(id, constructorDataToUpdate, idToken);
+
+            if (result.success) {
+                toast({
+                    title: 'Dados Atualizados!',
+                    description: `As informações de "${data.name}" foram salvas no banco de dados.`,
+                });
+                const isAdmin = userProfile?.userType === 'admin';
+                if (isAdmin) {
+                    router.push('/dashboard/construtoras');
+                } else {
+                    router.push(`/dashboard/construtoras/${id}`);
+                }
+            } else {
+                throw new Error(result.error || 'Erro ao atualizar');
+            }
 
         } catch (error: any) {
             console.error("Erro ao atualizar construtora: ", error);
             toast({
                 variant: "destructive",
                 title: "Uh oh! Algo deu errado.",
-                description: "Não foi possível atualizar os dados da construtora.",
+                description: error.message || "Não foi possível atualizar os dados da construtora.",
             });
         } finally {
             setIsSubmitting(false);

@@ -29,7 +29,7 @@ export function generateCanalProXml(properties: any[]): string {
     const neighborhood = escapeXml(loc.bairro || loc.neighborhood || '');
     const city = escapeXml(loc.cidade || loc.city || '');
     const state = escapeXml(loc.estado || loc.state || '');
-    const zipCode = escapeXml((loc.cep || loc.zipCode || '').replace(/\D/g, ''));
+    const postalCode = escapeXml(getPropertyPostalCode(prop));
 
     const bedrooms = parseNumber(prop.quartos ?? prop.caracteristicasimovel?.quartos);
     const bathrooms = parseNumber(prop.banheiros ?? prop.caracteristicasimovel?.banheiros ?? prop.caracteristicasimovel?.suites);
@@ -58,7 +58,7 @@ export function generateCanalProXml(properties: any[]): string {
     if (neighborhood) xml += `        <Neighborhood>${neighborhood}</Neighborhood>\n`;
     if (street) xml += `        <Street>${street}</Street>\n`;
     if (number) xml += `        <StreetNumber>${number}</StreetNumber>\n`;
-    if (zipCode) xml += `        <ZipCode>${zipCode}</ZipCode>\n`;
+    if (postalCode) xml += `        <PostalCode>${postalCode}</PostalCode>\n`;
     xml += '      </Location>\n';
 
     xml += '      <Details>\n';
@@ -131,7 +131,8 @@ function getRejectionReason(prop: any): string | null {
   if (!loc.logradouro && !loc.street && !loc.address) return 'Logradouro ausente';
   if (!loc.cidade && !loc.city) return 'Cidade ausente';
   if (!loc.estado && !loc.state) return 'Estado ausente';
-  if (!loc.cep && !loc.zipCode) return 'CEP ausente';
+  const postalCode = getPropertyPostalCode(prop);
+  if (!postalCode) return 'CEP ausente';
 
   const media = getPropertyMedia(prop);
   if (media.length === 0) return 'Nenhuma foto/mídia válida cadastrada';
@@ -225,3 +226,14 @@ function escapeXml(unsafe: string): string {
     return c;
   });
 }
+
+function getPropertyPostalCode(prop: any): string {
+  if (!prop) return '';
+  const loc = prop.localizacao || {};
+  const end = prop.endereco || {};
+  const raw = loc.cep || loc.zipCode || loc.postalCode || end.cep || end.zipCode || end.postalCode || prop.cep || prop.zipCode || prop.postalCode || '';
+  if (raw === undefined || raw === null || raw === '') return '';
+  const cleaned = String(raw).replace(/\D/g, '');
+  return cleaned;
+}
+

@@ -72,7 +72,9 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
   if (isPresentation) {
     return (
       <div className="bg-slate-950 text-slate-100 antialiased min-h-screen w-screen overflow-hidden flex flex-col">
-        {children}
+        <AuthGuard>
+          {children}
+        </AuthGuard>
       </div>
     );
   }

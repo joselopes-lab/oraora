@@ -921,7 +921,24 @@ export default function OralinkManagementPage() {
                 </div>
                 <div className="flex-1 min-w-0 text-left">
                   <h4 className="font-bold text-sm truncate">{prop.informacoesbasicas.nome}</h4>
-                  <p className="text-xs text-text-secondary">{(prop.informacoesbasicas.rentPrice || prop.informacoesbasicas.valor)?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                  <p className="text-xs text-text-secondary">
+                    {(() => {
+                      const rawPrice = prop.informacoesbasicas?.salePrice ?? 
+                                       prop.informacoesbasicas?.valor ?? 
+                                       prop.informacoesbasicas?.precoVenda ?? 
+                                       prop.informacoesbasicas?.valorVenda ?? 
+                                       prop.informacoesbasicas?.aluguel ?? 
+                                       prop.informacoesbasicas?.rentPrice ?? 
+                                       prop.informacoesbasicas?.price ??
+                                       prop.salePrice ?? 
+                                       prop.valor ?? 
+                                       prop.precoVenda ?? 
+                                       prop.valorVenda ?? 
+                                       prop.price;
+                      const num = Number(rawPrice);
+                      return num > 0 ? num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'Sob Consulta';
+                    })()}
+                  </p>
                 </div>
                 <button 
                   onClick={() => handlePropertyToggle(prop.id)}
@@ -1000,7 +1017,24 @@ export default function OralinkManagementPage() {
                           <h5 className="font-bold text-base uppercase truncate mb-1" style={{ color: previewCardText }}>{prop.informacoesbasicas.nome}</h5>
                           <div className="flex justify-between items-center">
                             <p className="text-xs opacity-60" style={{ color: previewCardText }}>{prop.localizacao.bairro}, {prop.localizacao.cidade}</p>
-                            <p className="text-sm font-black" style={{ color: previewPropertyPrice }}>{(prop.informacoesbasicas.rentPrice || prop.informacoesbasicas.valor) != null ? (prop.informacoesbasicas.rentPrice || prop.informacoesbasicas.valor!).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'Sob Consulta'}</p>
+                            <p className="text-sm font-black" style={{ color: previewPropertyPrice }}>
+                              {(() => {
+                                const rawPrice = prop.informacoesbasicas?.salePrice ?? 
+                                                 prop.informacoesbasicas?.valor ?? 
+                                                 prop.informacoesbasicas?.precoVenda ?? 
+                                                 prop.informacoesbasicas?.valorVenda ?? 
+                                                 prop.informacoesbasicas?.aluguel ?? 
+                                                 prop.informacoesbasicas?.rentPrice ?? 
+                                                 prop.informacoesbasicas?.price ??
+                                                 prop.salePrice ?? 
+                                                 prop.valor ?? 
+                                                 prop.precoVenda ?? 
+                                                 prop.valorVenda ?? 
+                                                 prop.price;
+                                const num = Number(rawPrice);
+                                return num > 0 ? num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'Sob Consulta';
+                              })()}
+                            </p>
                           </div>
                         </div>
                       </div>

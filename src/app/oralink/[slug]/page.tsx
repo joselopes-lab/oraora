@@ -146,20 +146,24 @@ export default async function ConstructorOralinkPublicPage({ params }: { params:
                     <div className="flex justify-between items-start mb-4 gap-2">
                       <p className="text-xs text-gray-500">{proj.localizacao?.bairro}, {proj.localizacao?.cidade}</p>
                       <div className="text-right">
-                        {proj.precoInicial ? (
-                          <>
-                            <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wider">A partir de</p>
-                            <p className="text-sm font-black" style={{ color: propertyPriceHex }}>
-                              {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
-                                (proj.name?.toLowerCase().includes('vita studios') || proj.tituloComercial?.toLowerCase().includes('vita studios') || proj.precoInicial === 32004254) 
-                                  ? proj.precoInicial / 100 
-                                  : proj.precoInicial
-                              )}
-                            </p>
-                          </>
-                        ) : (
-                          <p className="text-sm font-black" style={{ color: propertyPriceHex }}>Sob Consulta</p>
-                        )}
+                        {(() => {
+                          const rawPrice = proj.precoInicial ?? proj.preco ?? proj.valor ?? proj.valorVenda ?? proj.precoVenda ?? proj.informacoesbasicas?.precoInicial ?? proj.informacoesbasicas?.valor ?? proj.informacoesbasicas?.salePrice ?? proj.referencePrice ?? proj.precoReferencia;
+                          const effectivePrice = Number(rawPrice) > 0 ? Number(rawPrice) : 0;
+                          return effectivePrice > 0 ? (
+                            <>
+                              <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wider">A partir de</p>
+                              <p className="text-sm font-black" style={{ color: propertyPriceHex }}>
+                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
+                                  (proj.name?.toLowerCase().includes('vita studios') || proj.tituloComercial?.toLowerCase().includes('vita studios') || effectivePrice === 32004254) 
+                                    ? effectivePrice / 100 
+                                    : effectivePrice
+                                )}
+                              </p>
+                            </>
+                          ) : (
+                            <p className="text-sm font-black" style={{ color: propertyPriceHex }}>Sob Consulta</p>
+                          );
+                        })()}
                       </div>
                     </div>
                     {proj.materiais && proj.materiais.length > 0 && (

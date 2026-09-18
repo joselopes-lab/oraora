@@ -226,7 +226,7 @@ export default function ProjectCockpit({ project, units = [] }: ProjectCockpitPr
           </TabsList>
 
           {/* TAB: VISÃO GERAL */}
-          <TabsContent value="visao-geral" className="space-y-6">
+          <div className={activeTab === 'visao-geral' ? 'space-y-6' : 'hidden'}>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Left Column: Checklist & Status */}
               <div className="lg:col-span-2 space-y-6">
@@ -319,47 +319,47 @@ export default function ProjectCockpit({ project, units = [] }: ProjectCockpitPr
                 </Card>
               </div>
             </div>
-          </TabsContent>
+          </div>
 
           {/* TAB: INFORMAÇÕES */}
-          <TabsContent value="informacoes" className="space-y-6">
+          <div className={activeTab === 'informacoes' ? 'space-y-6' : 'hidden'}>
             <ProjectInfoTab project={project} />
-          </TabsContent>
+          </div>
 
           {/* TAB: COMERCIAL */}
-          <TabsContent value="comercial" className="space-y-6">
+          <div className={activeTab === 'comercial' ? 'space-y-6' : 'hidden'}>
             <ProjectCommercialTab project={project} />
-          </TabsContent>
+          </div>
 
           {/* TAB: CARACTERÍSTICAS */}
-          <TabsContent value="caracteristicas" className="space-y-6">
+          <div className={activeTab === 'caracteristicas' ? 'space-y-6' : 'hidden'}>
             <ProjectCharacteristicsTab project={project} />
-          </TabsContent>
+          </div>
 
           {/* TAB: PERSONA */}
-          <TabsContent value="persona" className="space-y-6">
+          <div className={activeTab === 'persona' ? 'space-y-6' : 'hidden'}>
             <ProjectPersonaTab project={project} />
-          </TabsContent>
+          </div>
 
           {/* TAB: MIDIA */}
-          <TabsContent value="midia" className="space-y-6">
+          <div className={activeTab === 'midia' ? 'space-y-6' : 'hidden'}>
             <ProjectMediaTab project={project} />
-          </TabsContent>
+          </div>
 
           {/* TAB: UNIDADES */}
-          <TabsContent value="unidades" className="space-y-6">
+          <div className={activeTab === 'unidades' ? 'space-y-6' : 'hidden'}>
             <ProjectUnitsTab project={project} units={units} />
-          </TabsContent>
+          </div>
 
           {/* TAB: MATERIAIS */}
-          <TabsContent value="materiais" className="space-y-6">
+          <div className={activeTab === 'materiais' ? 'space-y-6' : 'hidden'}>
             <ProjectMaterialsTab project={project} />
-          </TabsContent>
+          </div>
 
           {/* TAB: PUBLICACAO */}
-          <TabsContent value="publicacao" className="space-y-6">
+          <div className={activeTab === 'publicacao' ? 'space-y-6' : 'hidden'}>
             <ProjectPublicationTab project={project} units={units} onTabChange={setActiveTab} />
-          </TabsContent>
+          </div>
         </Tabs>
       </div>
     </div>

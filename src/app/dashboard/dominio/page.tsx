@@ -175,7 +175,7 @@ export default function DominioPage() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500 text-left">
+    <div className="w-full animate-in fade-in slide-in-from-bottom-4 duration-500 text-left">
       <header className="mb-10">
         <div className="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
             <Link href="/dashboard" className="hover:text-primary transition-colors">Dashboard</Link>

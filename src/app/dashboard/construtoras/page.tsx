@@ -32,6 +32,8 @@ import { Switch } from "@/components/ui/switch";
 import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { reconcileConstructorUsersServer, createConstructorMemberServer } from "./actions.server";
+import { useEffect } from "react";
 
 
 type User = {
@@ -94,6 +96,48 @@ export default function ConstructorsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedState, setSelectedState] = useState("all");
 
+  const [selectedConstructorForUser, setSelectedConstructorForUser] = useState<Constructor | null>(null);
+  const [isUserModalOpen, setIsUserModalOpen] = useState(false);
+  const [newUserName, setNewUserName] = useState("");
+  const [newUserEmail, setNewUserEmail] = useState("");
+  const [newUserPassword, setNewUserPassword] = useState("");
+  const [isCreatingUser, setIsCreatingUser] = useState(false);
+
+  const handleCreateUserSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedConstructorForUser) return;
+    if (!newUserName || !newUserEmail || !newUserPassword) {
+      toast({ title: "Preencha todos os campos obrigatórios", variant: "destructive" });
+      return;
+    }
+    setIsCreatingUser(true);
+    try {
+      const idToken = authUser ? await authUser.getIdToken() : undefined;
+      const res = await createConstructorMemberServer({
+        constructorId: selectedConstructorForUser.id,
+        name: newUserName,
+        email: newUserEmail,
+        password: newUserPassword,
+        role: 'admin',
+        idToken,
+      });
+      if (res.success) {
+        toast({ title: "Usuário responsável criado com sucesso!", description: `E-mail: ${newUserEmail}` });
+        setIsUserModalOpen(false);
+        setSelectedConstructorForUser(null);
+        setNewUserName("");
+        setNewUserEmail("");
+        setNewUserPassword("");
+      } else {
+        toast({ title: "Erro ao criar usuário", description: res.error, variant: "destructive" });
+      }
+    } catch (err: any) {
+      toast({ title: "Erro ao criar usuário", description: err.message, variant: "destructive" });
+    } finally {
+      setIsCreatingUser(false);
+    }
+  };
+
 
   const userDocRef = useMemoFirebase(
     () => (firestore && authUser ? doc(firestore, 'users', authUser.uid) : null),
@@ -123,6 +167,18 @@ export default function ConstructorsPage() {
   const isLoading = isAuthUserLoading || isProfileLoading || areConstructorsLoading;
   const isAdmin = userProfile?.userType === 'admin';
   const isBroker = userProfile?.userType === 'broker';
+
+  useEffect(() => {
+    if (isAdmin && authUser) {
+      authUser.getIdToken().then(token => {
+        reconcileConstructorUsersServer(token).then(res => {
+          if (res.success && res.reconciledCount && res.reconciledCount > 0) {
+            console.log(`[Reconciliation] Successfully reconciled ${res.reconciledCount} constructor user profile(s).`);
+          }
+        }).catch(err => console.error('Erro na reconciliação automática:', err));
+      });
+    }
+  }, [isAdmin, authUser]);
 
   const availableStates = useMemo(() => {
     if (!constructors) return [];
@@ -468,6 +524,15 @@ export default function ConstructorsPage() {
                            )}
                            {isAdmin && (
                             <>
+                            <Button variant="ghost" size="icon" className="size-8 text-primary hover:text-primary/80 cursor-pointer" title="Criar Usuário Responsável" onClick={() => {
+                              setSelectedConstructorForUser(constructor);
+                              setNewUserName(constructor.name ? `${constructor.name} Admin` : '');
+                              setNewUserEmail(constructor.publicEmail || '');
+                              setNewUserPassword('OraOra2026!');
+                              setIsUserModalOpen(true);
+                            }}>
+                              <span className="material-symbols-outlined text-[18px]">person_add</span>
+                            </Button>
                             <Button asChild variant="ghost" size="icon" className="size-8 text-text-main hover:text-text-main cursor-pointer" title="Editar">
                               <Link href={`/dashboard/construtoras/editar/${constructor.id}`}>
                                 <span className="material-symbols-outlined text-[18px]">edit</span>
@@ -565,6 +630,42 @@ export default function ConstructorsPage() {
                     Fechar
                 </Button>
             </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={isUserModalOpen} onOpenChange={(isOpen) => { if (!isCreatingUser) setIsUserModalOpen(isOpen); }}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Criar Usuário Responsável</DialogTitle>
+            <DialogDescription>
+              Cadastre o usuário responsável pelo acesso ao painel da construtora <span className="font-bold text-text-main">{selectedConstructorForUser?.name}</span>.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleCreateUserSubmit} className="space-y-4 py-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold uppercase text-text-secondary">Construtora Selecionada</Label>
+              <Input disabled value={selectedConstructorForUser?.name || ''} className="bg-gray-50 text-gray-700 font-medium" />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="userName">Nome Completo</Label>
+              <Input id="userName" required value={newUserName} onChange={e => setNewUserName(e.target.value)} placeholder="Ex: João Silva" />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="userEmail">E-mail de Acesso</Label>
+              <Input id="userEmail" type="email" required value={newUserEmail} onChange={e => setNewUserEmail(e.target.value)} placeholder="contato@construtora.com" />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="userPassword">Senha Inicial</Label>
+              <Input id="userPassword" type="password" required value={newUserPassword} onChange={e => setNewUserPassword(e.target.value)} placeholder="Mínimo 6 caracteres" />
+            </div>
+            <DialogFooter className="pt-4">
+              <Button type="button" variant="outline" onClick={() => setIsUserModalOpen(false)} disabled={isCreatingUser}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={isCreatingUser} className="cursor-pointer">
+                {isCreatingUser ? 'Criando...' : 'Criar Usuário'}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </>

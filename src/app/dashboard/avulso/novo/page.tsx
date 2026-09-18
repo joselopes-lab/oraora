@@ -100,7 +100,7 @@ export default function NewAvulsoPropertyPage() {
 
     if (step === 'select') {
         return (
-            <main className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 py-8 pb-32 text-left">
+            <main className="flex-1 w-full py-2 text-left">
                 <div className="mb-12">
                     <h1 className="text-3xl font-black text-slate-900 tracking-tight mb-2 uppercase">Novo Cadastro Avulso</h1>
                     <p className="text-slate-500">Qual a finalidade deste imóvel?</p>
@@ -154,7 +154,7 @@ export default function NewAvulsoPropertyPage() {
     }
 
     return (
-        <main className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 py-8 pb-32">
+        <main className="flex-1 w-full py-2">
             <PropertyForm 
               onSave={handleSave} 
               isEditing={false} 

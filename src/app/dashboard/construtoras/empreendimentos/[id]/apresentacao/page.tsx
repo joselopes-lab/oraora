@@ -99,7 +99,9 @@ export default function ProjectPresentationClient() {
           if (user) {
             idToken = await user.getIdToken();
           }
-        } catch (e) {}
+        } catch (e) {
+          // ignore
+        }
         const res = await getProjectDetailServer(id, idToken);
         setProject(res.project);
         setUnits(res.units || []);

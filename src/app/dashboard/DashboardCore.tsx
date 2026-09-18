@@ -1761,7 +1761,7 @@ export default function DashboardCore({
           </div>
         </div>
       </div>
-       <main className="flex-1 w-full max-w-[1440px] mx-auto px-4 sm:px-6 py-8 pb-32">
+       <main className="flex-1 w-full max-w-[1440px] mx-auto px-4 md:px-10 py-8 pb-32">
         {isAdminUser(userProfile.userType) && pathname === '/dashboard' ? <AdminDashboardPage /> : children}
       </main>
       <footer className="mt-auto border-t border-[#f2f5f0] bg-white">

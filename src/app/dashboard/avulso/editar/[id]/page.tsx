@@ -32,7 +32,7 @@ export default function EditAvulsoPropertyPage() {
 
     if (isLoading) {
         return (
-             <main className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 py-8 pb-32">
+             <main className="flex-1 w-full py-2">
                 <p>Carregando dados do imóvel...</p>
              </main>
         )
@@ -40,7 +40,7 @@ export default function EditAvulsoPropertyPage() {
 
     if (!propertyData) {
         return (
-             <main className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 py-8 pb-32">
+             <main className="flex-1 w-full py-2">
                 <p>Imóvel não encontrado.</p>
              </main>
         )
@@ -63,7 +63,7 @@ export default function EditAvulsoPropertyPage() {
     }
     
     return (
-        <main className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 py-8 pb-32">
+        <main className="flex-1 w-full py-2">
             <PropertyForm 
               onSave={handleSave} 
               isEditing={true} 

@@ -220,7 +220,24 @@ export default async function OralinkPublicPage({ params }: { params: Promise<{ 
                     <h5 className="font-bold text-base uppercase truncate mb-1" style={{ color: cardTextHex }}>{prop.informacoesbasicas.nome}</h5>
                     <div className="flex justify-between items-center">
                       <p className="text-xs opacity-60" style={{ color: cardTextHex }}>{prop.localizacao.bairro}, {prop.localizacao.cidade}</p>
-                      <p className="text-sm font-black" style={{ color: propertyPriceHex }}>{(prop.informacoesbasicas.rentPrice || prop.informacoesbasicas.valor) != null ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(prop.informacoesbasicas.rentPrice || prop.informacoesbasicas.valor!) : 'Sob Consulta'}</p>
+                      <p className="text-sm font-black" style={{ color: propertyPriceHex }}>
+                        {(() => {
+                          const rawPrice = prop.informacoesbasicas?.salePrice ?? 
+                                           prop.informacoesbasicas?.valor ?? 
+                                           prop.informacoesbasicas?.precoVenda ?? 
+                                           prop.informacoesbasicas?.valorVenda ?? 
+                                           prop.informacoesbasicas?.aluguel ?? 
+                                           prop.informacoesbasicas?.rentPrice ?? 
+                                           prop.informacoesbasicas?.price ??
+                                           prop.salePrice ?? 
+                                           prop.valor ?? 
+                                           prop.precoVenda ?? 
+                                           prop.valorVenda ?? 
+                                           prop.price;
+                          const num = Number(rawPrice);
+                          return num > 0 ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(num) : 'Sob Consulta';
+                        })()}
+                      </p>
                     </div>
                   </div>
                 </Link>

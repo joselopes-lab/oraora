@@ -101,42 +101,81 @@ function serializeFirestoreData(data: any): any {
   return serialized;
 }
 
-export async function listConstructorLeadsAction(constructorId: string, idToken?: string) {
+async function authorizeConstructorAccess(constructorId: string, idToken?: string) {
   const uid = await getRequesterUid(idToken);
   const userData = await getRequesterData(uid);
-  
-  // Authorization check: Is user an admin or a member of this constructor?
-  if (userData?.userType !== 'admin') {
-    if (userData?.tenantId !== constructorId) {
-       throw new Error('Permissão negada. Usuário não pertence a esta construtora.');
-    }
+
+  const userType = userData?.userType;
+  const tenantId = userData?.tenantId;
+
+  console.log(`[AuthCheck Diagnostics] constructorId received: "${constructorId}" | uid: "${uid}" | userType: "${userType}" | tenantId: "${tenantId || 'none'}" | collection: "constructors"`);
+
+  if (userType !== 'admin' && userType !== 'constructor') {
+    console.warn(`[AuthCheck] Access denied for userType: ${userType}`);
+    throw new Error('Permissão negada. Acesso restrito.');
+  }
+
+  // 1. Try fetching doc directly by ID
+  let constructorDoc = await adminDb.collection('constructors').doc(constructorId).get();
+  let lookupQueryType = 'doc(constructorId)';
+
+  // 2. Fallback query if document does not exist by doc ID
+  if (!constructorDoc.exists) {
+    console.log(`[AuthCheck] Document constructors/${constructorId} not found directly. Trying fallback queries by id, tenantId, userId...`);
     
-    // Verify member role in constructor
-    const constructorDoc = await adminDb.collection('constructors').doc(constructorId).get();
-    if (!constructorDoc.exists) throw new Error('Construtora não encontrada.');
-    
-    const constructorData = constructorDoc.data();
-    const members = constructorData?.members || [];
-    const requesterMember = members.find((m: any) => m.uid === uid);
-    
-    if (!requesterMember) {
-        throw new Error('Permissão negada. Usuário não é membro desta construtora.');
+    const qId = await adminDb.collection('constructors').where('id', '==', constructorId).limit(1).get();
+    if (!qId.empty) {
+      constructorDoc = qId.docs[0];
+      lookupQueryType = 'field "id"';
+    } else {
+      const qTenant = await adminDb.collection('constructors').where('tenantId', '==', constructorId).limit(1).get();
+      if (!qTenant.empty) {
+        constructorDoc = qTenant.docs[0];
+        lookupQueryType = 'field "tenantId"';
+      } else {
+        const qUser = await adminDb.collection('constructors').where('userId', '==', constructorId).limit(1).get();
+        if (!qUser.empty) {
+          constructorDoc = qUser.docs[0];
+          lookupQueryType = 'field "userId"';
+        }
+      }
     }
   }
 
+  console.log(`[AuthCheck Diagnostics] Lookup method: ${lookupQueryType} | Document exists: ${constructorDoc.exists} | Document ID: ${constructorDoc.exists ? constructorDoc.id : 'N/A'}`);
+
+  if (!constructorDoc.exists) {
+    console.warn(`[AuthCheck] Construtora "${constructorId}" não encontrada no Firestore após buscas exaustivas.`);
+    throw new Error('Construtora não encontrada.');
+  }
+
+  const constructorData = constructorDoc.data();
+  const actualTenantId = constructorData?.tenantId || constructorDoc.id;
+
+  if (userType === 'constructor') {
+    if (tenantId && tenantId !== constructorId && tenantId !== actualTenantId && constructorData?.ownerId !== uid) {
+      console.warn(`[AuthCheck] Constructor tenantId mismatch: user tenantId (${tenantId}) vs constructorId (${constructorId})`);
+      throw new Error('Permissão negada. Usuário não pertence a esta construtora.');
+    }
+    const members = constructorData?.members || [];
+    const requesterMember = members.find((m: any) => m.uid === uid);
+    if (!requesterMember && constructorData?.ownerId !== uid && tenantId !== actualTenantId) {
+      console.warn(`[AuthCheck] Constructor user ${uid} is not a member or owner of constructor ${constructorId}`);
+      throw new Error('Permissão negada. Usuário não é membro desta construtora.');
+    }
+  }
+
+  return { uid, userData, constructorDoc };
+}
+
+export async function listConstructorLeadsAction(constructorId: string, idToken?: string) {
+  await authorizeConstructorAccess(constructorId, idToken);
   const leads = await leadRepository.listByTenant(constructorId);
   return serializeFirestoreData(leads);
 }
 
 export async function listConstructorPropertiesAction(constructorId: string, idToken?: string) {
-  const uid = await getRequesterUid(idToken);
-  const userData = await getRequesterData(uid);
-  
-  if (userData?.userType !== 'admin') {
-    if (userData?.tenantId !== constructorId) {
-       throw new Error('Permissão negada.');
-    }
-  }
+  await authorizeConstructorAccess(constructorId, idToken);
 
   const snap1 = await adminDb.collection('properties').where('tenantId', '==', constructorId).get();
   const snap2 = await adminDb.collection('properties').where('builderId', '==', constructorId).get();
@@ -149,14 +188,7 @@ export async function listConstructorPropertiesAction(constructorId: string, idT
 }
 
 export async function listConstructorProjectsAction(constructorId: string, idToken?: string) {
-  const uid = await getRequesterUid(idToken);
-  const userData = await getRequesterData(uid);
-  
-  if (userData?.userType !== 'admin') {
-    if (userData?.tenantId !== constructorId) {
-       throw new Error('Permissão negada.');
-    }
-  }
+  await authorizeConstructorAccess(constructorId, idToken);
 
   const snap = await adminDb.collection('projects').where('builderId', '==', constructorId).get();
   const projects = snap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -164,27 +196,7 @@ export async function listConstructorProjectsAction(constructorId: string, idTok
 }
 
 export async function createConstructorLeadAction(constructorId: string, data: any, idToken?: string) {
-  const uid = await getRequesterUid(idToken);
-  const userData = await getRequesterData(uid);
-  
-  // Authorization check
-  if (userData?.userType !== 'admin') {
-    if (userData?.tenantId !== constructorId) {
-       throw new Error('Permissão negada.');
-    }
-    
-    // Verify member role
-    const constructorDoc = await adminDb.collection('constructors').doc(constructorId).get();
-    if (!constructorDoc.exists) throw new Error('Construtora não encontrada.');
-    
-    const constructorData = constructorDoc.data();
-    const members = constructorData?.members || [];
-    const requesterMember = members.find((m: any) => m.uid === uid);
-    
-    if (!requesterMember) {
-        throw new Error('Permissão negada.');
-    }
-  }
+  await authorizeConstructorAccess(constructorId, idToken);
 
   // Authorize data
   const leadData = {
@@ -197,26 +209,7 @@ export async function createConstructorLeadAction(constructorId: string, data: a
 }
 
 export async function getConstructorLeadDetailAction(constructorId: string, leadId: string, idToken?: string) {
-  const uid = await getRequesterUid(idToken);
-  const userData = await getRequesterData(uid);
-  
-  // Authorization check: Is user an admin or a member of this constructor?
-  if (userData?.userType !== 'admin') {
-    if (userData?.tenantId !== constructorId) {
-       throw new Error('Permissão negada. Usuário não pertence a esta construtora.');
-    }
-    
-    const constructorDoc = await adminDb.collection('constructors').doc(constructorId).get();
-    if (!constructorDoc.exists) throw new Error('Construtora não encontrada.');
-    
-    const constructorData = constructorDoc.data();
-    const members = constructorData?.members || [];
-    const requesterMember = members.find((m: any) => m.uid === uid);
-    
-    if (!requesterMember) {
-        throw new Error('Permissão negada. Usuário não é membro desta construtora.');
-    }
-  }
+  await authorizeConstructorAccess(constructorId, idToken);
 
   const lead = await leadRepository.getById(leadId);
   if (!lead) {
@@ -276,26 +269,7 @@ export async function updateConstructorLeadStatusAction(
   newStatus: string,
   idToken?: string
 ) {
-  const uid = await getRequesterUid(idToken);
-  const userData = await getRequesterData(uid);
-
-  // Authorization check: Is user an admin or a member of this constructor?
-  if (userData?.userType !== 'admin') {
-    if (userData?.tenantId !== constructorId) {
-      throw new Error('Permissão negada. Usuário não pertence a esta construtora.');
-    }
-
-    const constructorDoc = await adminDb.collection('constructors').doc(constructorId).get();
-    if (!constructorDoc.exists) throw new Error('Construtora não encontrada.');
-
-    const constructorData = constructorDoc.data();
-    const members = constructorData?.members || [];
-    const requesterMember = members.find((m: any) => m.uid === uid);
-
-    if (!requesterMember) {
-      throw new Error('Permissão negada. Usuário não é membro desta construtora.');
-    }
-  }
+  const { uid } = await authorizeConstructorAccess(constructorId, idToken);
 
   const lead = await leadRepository.getById(leadId);
   if (!lead) {
@@ -333,24 +307,8 @@ export async function updateConstructorLeadStatusAction(
 }
 
 export async function getConstructorDashboardDataAction(constructorId: string, idToken?: string) {
-  const uid = await getRequesterUid(idToken);
-  const userData = await getRequesterData(uid);
-  
-  if (userData?.userType !== 'admin') {
-    if (userData?.tenantId !== constructorId) {
-       throw new Error('Permissão negada. Usuário não pertence a esta construtora.');
-    }
-    const constructorDoc = await adminDb.collection('constructors').doc(constructorId).get();
-    if (!constructorDoc.exists) throw new Error('Construtora não encontrada.');
-    const constructorData = constructorDoc.data();
-    const members = constructorData?.members || [];
-    const requesterMember = members.find((m: any) => m.uid === uid);
-    if (!requesterMember) {
-        throw new Error('Permissão negada. Usuário não é membro desta construtora.');
-    }
-  }
+  const { constructorDoc } = await authorizeConstructorAccess(constructorId, idToken);
 
-  const constructorDoc = await adminDb.collection('constructors').doc(constructorId).get();
   const constructorData = constructorDoc.exists ? { id: constructorDoc.id, ...constructorDoc.data() } : null;
 
   const propTenantSnap = await adminDb.collection('properties').where('tenantId', '==', constructorId).get();

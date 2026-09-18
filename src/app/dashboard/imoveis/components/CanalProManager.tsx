@@ -199,60 +199,9 @@ export function CanalProManager({ brokerId }: { brokerId: string }) {
   const feedUrl = hasToken ? `${window.location.origin}/api/feeds/canalpro/${brokerId}?token=${token}` : '';
 
   return (
-    <div className="space-y-8">
-      {/* Connection Card */}
-      <div className="bg-white rounded-2xl p-6 shadow-soft border border-slate-100 space-y-6">
-          <div>
-              <h3 className="text-lg font-extrabold text-slate-900">Conexão Canal Pro</h3>
-              <p className="text-sm text-slate-500">
-                  {hasToken ? "Conectado e pronto para sincronização." : "Publique seus imóveis selecionados nos canais parceiros."}
-              </p>
-          </div>
-
-          {!hasToken ? (
-              <Button onClick={() => handleGenerate()} className="font-bold rounded-xl shadow-sm">
-                  Conectar Canal Pro
-              </Button>
-          ) : (
-              <div className="space-y-4">
-                  <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 break-all text-xs text-slate-700 font-mono">
-                      {feedUrl}
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                      <Button onClick={copyUrl} variant="outline" className="rounded-xl flex gap-2">
-                          <Clipboard className="size-4" /> Copiar URL
-                      </Button>
-                      <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                              <Button variant="outline" className="rounded-xl flex gap-2 border-amber-200 text-amber-700 hover:bg-amber-50">
-                                  <RefreshCw className="size-4" /> Gerar nova conexão
-                              </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                              <AlertDialogHeader>
-                                  <AlertDialogTitle>Gerar nova conexão?</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                      Gerar uma nova conexão invalidará a URL atual do Canal Pro. Deseja continuar?
-                                  </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                  <AlertDialogAction onClick={() => handleGenerate(true)} className="bg-amber-600 hover:bg-amber-700">
-                                      Sim, gerar nova
-                                  </AlertDialogAction>
-                              </AlertDialogFooter>
-                          </AlertDialogContent>
-                      </AlertDialog>
-                  </div>
-                  <p className="text-xs text-slate-400">
-                      Copie a URL do feed e informe ao Canal Pro para conectar seus imóveis.
-                  </p>
-              </div>
-          )}
-      </div>
-
-      {/* Properties Distribution Section */}
-      <div className="bg-white rounded-2xl p-6 shadow-soft border border-slate-100 space-y-6">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      {/* Properties Distribution Section (Left Column ~65%) */}
+      <div className="lg:col-span-8 bg-white rounded-2xl p-6 shadow-soft border border-slate-100 space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
           <div>
             <h3 className="text-lg font-extrabold text-slate-900">Selecione os Imóveis para Distribuição</h3>
@@ -270,7 +219,7 @@ export function CanalProManager({ brokerId }: { brokerId: string }) {
             Nenhum imóvel encontrado em sua carteira.
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
             {allProperties.map(prop => {
               const mediaArr = prop.midia || prop.media || prop.imagens || prop.images || prop.fotos || prop.galeria || [];
               const photo = mediaArr[0];
@@ -353,6 +302,57 @@ export function CanalProManager({ brokerId }: { brokerId: string }) {
             })}
           </div>
         )}
+      </div>
+
+      {/* Connection Card (Right Column ~35%) */}
+      <div className="lg:col-span-4 bg-white rounded-2xl p-6 shadow-soft border border-slate-100 space-y-6">
+          <div>
+              <h3 className="text-lg font-extrabold text-slate-900">Conexão Canal Pro</h3>
+              <p className="text-sm text-slate-500">
+                  {hasToken ? "Conectado e pronto para sincronização." : "Publique seus imóveis selecionados nos canais parceiros."}
+              </p>
+          </div>
+
+          {!hasToken ? (
+              <Button onClick={() => handleGenerate()} className="font-bold rounded-xl shadow-sm w-full">
+                  Conectar Canal Pro
+              </Button>
+          ) : (
+              <div className="space-y-4">
+                  <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 break-all text-xs text-slate-700 font-mono">
+                      {feedUrl}
+                  </div>
+                  <div className="flex flex-col gap-2">
+                      <Button onClick={copyUrl} variant="outline" className="rounded-xl flex items-center justify-center gap-2 w-full">
+                          <Clipboard className="size-4" /> Copiar URL
+                      </Button>
+                      <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                              <Button variant="outline" className="rounded-xl flex items-center justify-center gap-2 border-amber-200 text-amber-700 hover:bg-amber-50 w-full">
+                                  <RefreshCw className="size-4" /> Gerar nova conexão
+                              </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                              <AlertDialogHeader>
+                                  <AlertDialogTitle>Gerar nova conexão?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                      Gerar uma nova conexão invalidará a URL atual do Canal Pro. Deseja continuar?
+                                  </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => handleGenerate(true)} className="bg-amber-600 hover:bg-amber-700">
+                                      Sim, gerar nova
+                                  </AlertDialogAction>
+                              </AlertDialogFooter>
+                          </AlertDialogContent>
+                      </AlertDialog>
+                  </div>
+                  <p className="text-xs text-slate-400">
+                      Copie a URL do feed e informe ao Canal Pro para conectar seus imóveis.
+                  </p>
+              </div>
+          )}
       </div>
 
       {/* Confirmation Dialog for Removal */}

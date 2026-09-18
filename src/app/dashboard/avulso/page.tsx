@@ -37,7 +37,19 @@ type BrokerProperty = {
     status: string;
     valor?: number;
     aluguel?: number;
+    salePrice?: number;
+    precoVenda?: number;
+    valorVenda?: number;
+    rentPrice?: number;
+    price?: number;
+    precoReferencia?: number;
+    referencePrice?: number;
   };
+  salePrice?: number;
+  valor?: number;
+  precoVenda?: number;
+  valorVenda?: number;
+  price?: number;
   localizacao: {
     cidade: string;
     estado: string;
@@ -292,7 +304,26 @@ export default function AvulsoPage() {
                                                 <div className="mt-1 flex items-center gap-2 text-xs text-text-secondary">
                                                     <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium ${property.informacoesbasicas?.status === 'Lançamento' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}`}>{property.informacoesbasicas?.status}</span>
                                                     <span>•</span>
-                                                    <span>{(property.informacoesbasicas?.aluguel || property.informacoesbasicas?.valor) ? (property.informacoesbasicas?.aluguel || property.informacoesbasicas.valor!).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'Valor não informado'}</span>
+                                                    <span>
+                                                        {(() => {
+                                                            const rawPrice = property.informacoesbasicas?.salePrice ?? 
+                                                                             property.informacoesbasicas?.valor ?? 
+                                                                             property.informacoesbasicas?.precoVenda ?? 
+                                                                             property.informacoesbasicas?.valorVenda ?? 
+                                                                             property.informacoesbasicas?.aluguel ?? 
+                                                                             property.informacoesbasicas?.rentPrice ?? 
+                                                                             property.informacoesbasicas?.price ??
+                                                                             property.salePrice ?? 
+                                                                             property.valor ?? 
+                                                                             property.precoVenda ?? 
+                                                                             property.valorVenda ?? 
+                                                                             property.price ?? 
+                                                                             property.informacoesbasicas?.precoReferencia ?? 
+                                                                             property.informacoesbasicas?.referencePrice;
+                                                            const num = Number(rawPrice);
+                                                            return (num > 0) ? num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'Valor não informado';
+                                                        })()}
+                                                    </span>
                                                     <span>•</span>
                                                     <span>
                                                          {(() => {

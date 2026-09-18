@@ -92,6 +92,9 @@ export default function ConstructorForm({ constructorData, onSave, isEditing, is
     const { toast } = useToast();
     const [isUploading, setIsUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
+    const [isInitialized, setIsInitialized] = useState(false);
+
+    const logoUrl = form.watch('logoUrl');
 
     const handleLogoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -119,7 +122,7 @@ export default function ConstructorForm({ constructorData, onSave, isEditing, is
             const downloadUrl = await uploadFile(storage, 'constructor-logos', file, (progress) => {
                 setUploadProgress(Math.round(progress));
             });
-            form.setValue('logoUrl', downloadUrl, { shouldDirty: true });
+            form.setValue('logoUrl', downloadUrl, { shouldDirty: true, shouldTouch: true, shouldValidate: true });
             toast({ title: 'Logo enviada com sucesso!' });
         } catch (err: any) {
             console.error("Erro no upload da logo:", err);
@@ -147,12 +150,13 @@ export default function ConstructorForm({ constructorData, onSave, isEditing, is
     }, [selectedState, constructorData?.state, states]);
     
     useEffect(() => {
-      if (isEditing && constructorData) {
+      if (isEditing && constructorData && !isInitialized) {
         form.reset({
           ...constructorData
         });
+        setIsInitialized(true);
       }
-    }, [isEditing, constructorData, form]);
+    }, [isEditing, constructorData, form, isInitialized]);
 
     return (
         <Form {...form}>
@@ -185,7 +189,7 @@ export default function ConstructorForm({ constructorData, onSave, isEditing, is
                             <div className="flex flex-col md:flex-row gap-8 items-start mb-8">
                                 <div className="w-full md:w-auto flex flex-col items-center gap-3">
                                     <div className="relative size-32 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300 flex flex-col items-center justify-center overflow-hidden hover:border-primary transition-colors group cursor-pointer">
-                                        {form.watch('logoUrl') && <img alt="Logo Preview" className="absolute inset-0 w-full h-full object-cover z-0" src={form.watch('logoUrl')} />}
+                                        {logoUrl && <img alt="Logo Preview" className="absolute inset-0 w-full h-full object-cover z-0" src={logoUrl} />}
                                         <span className="material-symbols-outlined text-gray-400 group-hover:text-primary z-10 text-[32px]">{isUploading ? 'progress_activity' : 'cloud_upload'}</span>
                                         <span className="text-xs text-gray-400 font-medium z-10 group-hover:text-text-main mt-1">{isUploading ? `${uploadProgress}%` : 'Alterar Logo'}</span>
                                         <input 

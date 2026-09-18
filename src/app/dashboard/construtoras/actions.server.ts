@@ -517,5 +517,276 @@ export async function saveConstructorOralinkServer(constructorId: string, oralin
   }
 }
 
+const createConstructorSchema = z.object({
+  name: z.string().min(1, 'Nome obrigatório'),
+  accessEmail: z.string().email('Email inválido'),
+  newPassword: z.string().min(6, 'Senha deve ter pelo menos 6 caracteres'),
+  cnpj: z.string().optional(),
+  stateRegistration: z.string().optional(),
+  address: z.string().optional(),
+  state: z.string().min(1, 'Estado obrigatório'),
+  city: z.string().min(1, 'Cidade obrigatória'),
+  zip: z.string().optional(),
+  phone: z.string().optional(),
+  whatsapp: z.string().optional(),
+  instagram: z.string().optional(),
+  publicEmail: z.string().optional(),
+  website: z.string().optional(),
+  logoUrl: z.string().optional(),
+  isVisibleOnSite: z.boolean().default(true),
+});
+
+export async function createConstructorServer(formData: any, idToken?: string) {
+  try {
+    const validationResult = createConstructorSchema.safeParse(formData);
+    if (!validationResult.success) {
+      const errorMessage = validationResult.error.errors.map(e => e.message).join(', ');
+      throw new Error(`Dados inválidos: ${errorMessage}`);
+    }
+
+    const data = validationResult.data;
+
+    let requesterUid: string | null = null;
+    if (idToken) {
+      try {
+        const decodedToken = await adminAuth.verifyIdToken(idToken);
+        requesterUid = decodedToken.uid;
+      } catch (e) {
+        console.warn('Falha ao verificar ID token:', e);
+      }
+    }
+
+    if (!requesterUid) {
+      const cookieStore = await cookies();
+      const sessionCookie = cookieStore.get('session')?.value || cookieStore.get('firebase-auth-token')?.value;
+      if (sessionCookie) {
+        try {
+          const decodedClaims = await adminAuth.verifySessionCookie(sessionCookie, true);
+          requesterUid = decodedClaims.uid;
+        } catch {
+          try {
+            const decodedToken = await adminAuth.verifyIdToken(sessionCookie);
+            requesterUid = decodedToken.uid;
+          } catch {}
+        }
+      }
+    }
+
+    if (!requesterUid) {
+      throw new Error('Usuário não autenticado no servidor.');
+    }
+
+    const requesterDoc = await adminDb.collection('users').doc(requesterUid).get();
+    if (!requesterDoc.exists || requesterDoc.data()?.userType !== 'admin') {
+      throw new Error('Permissão negada. Apenas administradores podem cadastrar construtoras.');
+    }
+
+    // 1. Create user in Firebase Auth
+    const userRecord = await adminAuth.createUser({
+      email: data.accessEmail,
+      password: data.newPassword,
+      displayName: data.name,
+    });
+    const newUid = userRecord.uid;
+
+    // 2. Generate independent ID (tenantId)
+    const constructorDocRef = adminDb.collection('constructors').doc();
+    const tenantId = constructorDocRef.id;
+
+    // 3. Create constructor document
+    const constructorData = {
+      id: tenantId,
+      tenantId: tenantId,
+      ownerId: newUid,
+      members: [{ uid: newUid, role: 'admin' }],
+      userId: newUid,
+      websiteUrl: data.website || '',
+      name: data.name,
+      cnpj: data.cnpj || '',
+      stateRegistration: data.stateRegistration || '',
+      address: data.address || '',
+      state: data.state,
+      city: data.city,
+      zip: data.zip || '',
+      phone: data.phone || '',
+      whatsapp: data.whatsapp || '',
+      instagram: data.instagram || '',
+      publicEmail: data.publicEmail || '',
+      logoUrl: data.logoUrl || '',
+      isVisibleOnSite: data.isVisibleOnSite,
+      accessEmail: data.accessEmail,
+      createdAt: FieldValue.serverTimestamp(),
+    };
+    await constructorDocRef.set(constructorData);
+
+    // 4. Create user document in 'users' collection
+    const userDocRef = adminDb.collection('users').doc(newUid);
+    await userDocRef.set({
+      id: newUid,
+      username: data.name,
+      email: data.accessEmail,
+      userType: 'constructor',
+      tenantId: tenantId,
+      isActive: true,
+      planId: 'constructor-default',
+      createdAt: FieldValue.serverTimestamp(),
+    });
+
+    revalidatePath('/dashboard/construtoras');
+    return { success: true, tenantId };
+  } catch (error: any) {
+    console.error('Erro ao criar construtora no servidor:', error);
+    return { success: false, error: error.message || 'Erro ao criar construtora.' };
+  }
+}
+
+export async function reconcileConstructorUsersServer(idToken?: string) {
+  try {
+    let requesterUid: string | null = null;
+    if (idToken) {
+      try {
+        const decodedToken = await adminAuth.verifyIdToken(idToken);
+        requesterUid = decodedToken.uid;
+      } catch (e) {
+        console.warn('Falha ao verificar ID token:', e);
+      }
+    }
+
+    if (!requesterUid) {
+      const cookieStore = await cookies();
+      const sessionCookie = cookieStore.get('session')?.value || cookieStore.get('firebase-auth-token')?.value;
+      if (sessionCookie) {
+        try {
+          const decodedClaims = await adminAuth.verifySessionCookie(sessionCookie, true);
+          requesterUid = decodedClaims.uid;
+        } catch {
+          try {
+            const decodedToken = await adminAuth.verifyIdToken(sessionCookie);
+            requesterUid = decodedToken.uid;
+          } catch {}
+        }
+      }
+    }
+
+    if (!requesterUid) {
+      throw new Error('Usuário não autenticado no servidor.');
+    }
+
+    const requesterDoc = await adminDb.collection('users').doc(requesterUid).get();
+    if (!requesterDoc.exists || requesterDoc.data()?.userType !== 'admin') {
+      throw new Error('Permissão negada. Apenas administradores podem executar reconciliação.');
+    }
+
+    const listUsersResult = await adminAuth.listUsers(1000);
+    const constructorsSnap = await adminDb.collection('constructors').get();
+    const constructors = constructorsSnap.docs.map(d => ({ id: d.id, ...d.data() } as any));
+
+    let reconciledCount = 0;
+
+    for (const userRecord of listUsersResult.users) {
+      const uid = userRecord.uid;
+      const userDocRef = adminDb.collection('users').doc(uid);
+      const userDoc = await userDocRef.get();
+
+      let needsProfile = false;
+      let targetConstructor: any = null;
+
+      if (!userDoc.exists) {
+        needsProfile = true;
+      } else {
+        const userData = userDoc.data();
+        if (!userData?.userType || !userData?.tenantId) {
+          needsProfile = true;
+        }
+      }
+
+      if (needsProfile) {
+        targetConstructor = constructors.find((c: any) => 
+          c.ownerId === uid || 
+          c.userId === uid || 
+          (c.members && c.members.some((m: any) => m.uid === uid)) ||
+          (userRecord.email && (c.accessEmail === userRecord.email || c.publicEmail === userRecord.email))
+        );
+
+        if (targetConstructor) {
+          const tenantId = targetConstructor.tenantId || targetConstructor.id;
+          await userDocRef.set({
+            id: uid,
+            username: userRecord.displayName || targetConstructor.name || 'Construtora',
+            email: userRecord.email || targetConstructor.accessEmail || '',
+            userType: 'constructor',
+            tenantId: tenantId,
+            isActive: true,
+            createdAt: FieldValue.serverTimestamp(),
+          }, { merge: true });
+
+          const constructorRef = adminDb.collection('constructors').doc(targetConstructor.id);
+          const members = targetConstructor.members || [];
+          if (!members.some((m: any) => m.uid === uid)) {
+            await constructorRef.update({
+              members: FieldValue.arrayUnion({ uid, role: 'admin' })
+            });
+          }
+
+          reconciledCount++;
+          console.log(`[Reconciliation] Successfully provisioned users/${uid} for constructor ${targetConstructor.id}`);
+        }
+      }
+    }
+
+    revalidatePath('/dashboard/construtoras');
+    return { success: true, reconciledCount };
+  } catch (error: any) {
+    console.error('Erro na reconciliação de usuários de construtoras:', error);
+    return { success: false, error: error.message || 'Erro na reconciliação.' };
+  }
+}
+
+export async function updateConstructorServer(constructorId: string, formData: any, idToken?: string) {
+  try {
+    await verifyConstructorAccess(constructorId, idToken);
+
+    const constructorRef = adminDb.collection('constructors').doc(constructorId);
+    const docSnap = await constructorRef.get();
+    if (!docSnap.exists) {
+      return { success: false, error: 'Construtora não encontrada.' };
+    }
+
+    const updatePayload: any = {
+      name: formData.name,
+      websiteUrl: formData.website || '',
+      cnpj: formData.cnpj || '',
+      stateRegistration: formData.stateRegistration || '',
+      address: formData.address || '',
+      state: formData.state,
+      city: formData.city,
+      zip: formData.zip || '',
+      phone: formData.phone || '',
+      whatsapp: formData.whatsapp || '',
+      instagram: formData.instagram || '',
+      publicEmail: formData.publicEmail || '',
+      logoUrl: formData.logoUrl || '',
+      isVisibleOnSite: Boolean(formData.isVisibleOnSite),
+      updatedAt: FieldValue.serverTimestamp(),
+    };
+
+    if (formData.accessEmail) {
+      updatePayload.accessEmail = formData.accessEmail;
+    }
+
+    await constructorRef.set(updatePayload, { merge: true });
+
+    revalidatePath('/dashboard/construtoras');
+    revalidatePath(`/dashboard/construtoras/editar/${constructorId}`);
+    revalidatePath(`/dashboard/construtoras/${constructorId}`);
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('Erro ao atualizar construtora:', error);
+    return { success: false, error: error.message || 'Erro ao atualizar construtora.' };
+  }
+}
+
+
 
 
