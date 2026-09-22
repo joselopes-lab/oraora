@@ -257,8 +257,8 @@ export default function LoginPage() {
 
             <Button asChild variant="outline" className="w-full h-12 px-6 font-semibold text-foreground bg-gray-50 dark:bg-input border-border rounded-lg hover:bg-gray-100 dark:hover:bg-secondary">
               <Link href="/solicitar-acesso">Solicitar Acesso de Corretor</Link>
-            </Button>
-          </div> */}
+            </Button> */}
+          </div>
         </main>
         
         <footer className="px-8 py-6 md:px-12 lg:px-16 text-center md:text-left">
