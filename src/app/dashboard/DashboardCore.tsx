@@ -79,7 +79,7 @@ const NavigationLinks = ({ userProfile, pathname, openMenu, handleMouseEnter, ha
                   Clientes
                 </div>
                 <div className="flex flex-col gap-1 pl-9">
-                  <Link href="/dashboard/leads" className="text-sm text-slate-600 hover:text-slate-900 py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">Funil de Vendas</Link>
+                  <Link href="/dashboard/leads" className="text-sm text-slate-600 hover:text-slate-900 py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">Leads</Link>
                   <Link href="/dashboard/clientes" className="text-sm text-slate-600 hover:text-slate-900 py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">Base de Clientes</Link>
                   <Link href="/dashboard/personas" className="text-sm text-slate-600 hover:text-slate-900 py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">Personas</Link>
                 </div>
@@ -99,7 +99,7 @@ const NavigationLinks = ({ userProfile, pathname, openMenu, handleMouseEnter, ha
                       <Link href="/dashboard/avulso" className="text-sm text-slate-600 hover:text-slate-900 py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">Imóveis Avulsos</Link>
                       <Link href="/dashboard/imoveis-avulsos" className="text-sm text-slate-600 hover:text-slate-900 py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">Avulsos (Rede)</Link>
                       <Link href="/dashboard/imoveis" className="text-sm text-slate-600 hover:text-slate-900 py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">Construtoras</Link>
-                      <Link href="/dashboard/tabelas" className="text-sm text-slate-600 hover:text-slate-900 py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">Tabelas de Preços</Link>
+                      <Link href="/dashboard/tabelas" className="text-sm text-slate-600 hover:text-slate-900 py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">Tabelas</Link>
                     </>
                   )}
                   {canAccess('canalPro') && (
@@ -193,11 +193,11 @@ const NavigationLinks = ({ userProfile, pathname, openMenu, handleMouseEnter, ha
           </Link>
           <Link className={isMobile ? "flex items-center gap-2.5 px-3 py-2 text-sm font-semibold text-slate-900 rounded-lg hover:bg-slate-100 transition-colors" : navLinkClasses(`/dashboard/construtoras/${userProfile.tenantId || userProfile.uid}/funil`)} href={`/dashboard/construtoras/${userProfile.tenantId || userProfile.uid}/funil`}>
             <span className="material-symbols-outlined text-[20px]">view_kanban</span>
-            Funil de Vendas
+            Leads
           </Link>
           <Link className={isMobile ? "flex items-center gap-2.5 px-3 py-2 text-sm font-semibold text-slate-900 rounded-lg hover:bg-slate-100 transition-colors" : navLinkClasses(`/dashboard/construtoras/${userProfile.tenantId || userProfile.uid}/imoveis`)} href={`/dashboard/construtoras/${userProfile.tenantId || userProfile.uid}/imoveis`}>
             <span className="material-symbols-outlined text-[20px]">inventory</span>
-            Imóveis
+            Avulso
           </Link>
           <Link className={isMobile ? "flex items-center gap-2.5 px-3 py-2 text-sm font-semibold text-slate-900 rounded-lg hover:bg-slate-100 transition-colors" : navLinkClasses(`/dashboard/construtoras/empreendimentos`)} href={`/dashboard/construtoras/empreendimentos`}>
             <span className="material-symbols-outlined text-[20px]">business</span>
@@ -205,7 +205,7 @@ const NavigationLinks = ({ userProfile, pathname, openMenu, handleMouseEnter, ha
           </Link>
           <Link className={isMobile ? "flex items-center gap-2.5 px-3 py-2 text-sm font-semibold text-slate-900 rounded-lg hover:bg-slate-100 transition-colors" : navLinkClasses(`/dashboard/construtoras/tabelas`)} href={`/dashboard/construtoras/tabelas`}>
             <span className="material-symbols-outlined text-[20px]">table_chart</span>
-            Tabelas de Preços
+            Tabelas
           </Link>
           <Link className={isMobile ? "flex items-center gap-2.5 px-3 py-2 text-sm font-semibold text-slate-900 rounded-lg hover:bg-slate-100 transition-colors" : navLinkClasses(`/dashboard/construtoras/${userProfile.tenantId || userProfile.uid}/oralink`)} href={`/dashboard/construtoras/${userProfile.tenantId || userProfile.uid}/oralink`}>
             <span className="material-symbols-outlined text-[20px]">link</span>
@@ -307,7 +307,7 @@ const NavigationLinks = ({ userProfile, pathname, openMenu, handleMouseEnter, ha
                   <span className="material-symbols-outlined text-[16px] ml-0.5">expand_more</span>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" className="w-56" onMouseEnter={() => handleMouseEnter('clientes')} onMouseLeave={handleMouseLeave}>
-                  <DropdownMenuItem asChild><Link href="/dashboard/leads">Funil de Vendas</Link></DropdownMenuItem>
+                  <DropdownMenuItem asChild><Link href="/dashboard/leads">Leads</Link></DropdownMenuItem>
                   <DropdownMenuItem asChild><Link href="/dashboard/clientes">Base de Clientes</Link></DropdownMenuItem>
                   <DropdownMenuItem asChild><Link href="/dashboard/personas">Personas</Link></DropdownMenuItem>
                 </DropdownMenuContent>
@@ -330,7 +330,7 @@ const NavigationLinks = ({ userProfile, pathname, openMenu, handleMouseEnter, ha
                       <DropdownMenuItem asChild><Link href="/dashboard/avulso">Imóveis Avulsos</Link></DropdownMenuItem>
                       <DropdownMenuItem asChild><Link href="/dashboard/imoveis-avulsos">Avulsos (Rede)</Link></DropdownMenuItem>
                       <DropdownMenuItem asChild><Link href="/dashboard/imoveis">Construtoras</Link></DropdownMenuItem>
-                      <DropdownMenuItem asChild><Link href="/dashboard/tabelas">Tabelas de Preços</Link></DropdownMenuItem>
+                      <DropdownMenuItem asChild><Link href="/dashboard/tabelas">Tabelas</Link></DropdownMenuItem>
                     </>
                   )}
                   {canAccess('canalPro') && (
@@ -450,7 +450,7 @@ const NavigationLinks = ({ userProfile, pathname, openMenu, handleMouseEnter, ha
             </Link>
             <Link className={navLinkClasses(`/dashboard/construtoras/${userProfile.tenantId || userProfile.uid}/imoveis`, true)} href={`/dashboard/construtoras/${userProfile.tenantId || userProfile.uid}/imoveis`}>
               <span className="material-symbols-outlined text-[20px]">inventory</span>
-              Imóveis
+              Avulso
             </Link>
             <Link className={navLinkClasses(`/dashboard/construtoras/empreendimentos`, true)} href={`/dashboard/construtoras/empreendimentos`}>
               <span className="material-symbols-outlined text-[20px]">business</span>
@@ -458,7 +458,7 @@ const NavigationLinks = ({ userProfile, pathname, openMenu, handleMouseEnter, ha
             </Link>
             <Link className={navLinkClasses(`/dashboard/construtoras/tabelas`, true)} href={`/dashboard/construtoras/tabelas`}>
               <span className="material-symbols-outlined text-[20px]">table_chart</span>
-              Tabelas de Preços
+              Tabelas
             </Link>
             <Link className={navLinkClasses(`/dashboard/construtoras/${userProfile.tenantId || userProfile.uid}/oralink`, true)} href={`/dashboard/construtoras/${userProfile.tenantId || userProfile.uid}/oralink`}>
               <span className="material-symbols-outlined text-[20px]">link</span>

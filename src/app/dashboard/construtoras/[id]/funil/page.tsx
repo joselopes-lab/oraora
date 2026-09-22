@@ -183,7 +183,7 @@ export default function ConstructorFunnelPage({ params }: { params: Promise<{ id
               CRM Comercial
             </Badge>
           </div>
-          <h1 className="text-3xl font-extrabold text-text-main tracking-tight">Funil de Vendas</h1>
+          <h1 className="text-3xl font-extrabold text-text-main tracking-tight">Leads</h1>
           <p className="text-sm text-text-secondary">Arraste os cards entre as colunas para atualizar o estágio do pipeline comercial.</p>
         </div>
 

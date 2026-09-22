@@ -418,7 +418,7 @@ export default function ConstructorProfilePage() {
                 </Button>
                 <Button asChild size="sm" variant="outline" className="text-xs font-bold">
                     <Link href={`/dashboard/construtoras/${id}/funil`}>
-                        <span className="material-symbols-outlined text-sm mr-1">view_kanban</span> Funil de Vendas
+                        <span className="material-symbols-outlined text-sm mr-1">view_kanban</span> Leads
                     </Link>
                 </Button>
                 <Button asChild size="sm" variant="outline" className="text-xs font-bold">
@@ -561,7 +561,7 @@ export default function ConstructorProfilePage() {
                                 <TabsList>
                                     <TabsTrigger value="todos">Todos</TabsTrigger>
                                     <TabsTrigger value="empreendimentos">Empreendimentos</TabsTrigger>
-                                    <TabsTrigger value="avulsos">Avulsos</TabsTrigger>
+                                    <TabsTrigger value="avulsos">Avulso</TabsTrigger>
                                 </TabsList>
                                 {canEditProperty && (
                                     <Button asChild size="sm" className="text-sm font-bold text-primary hover:text-primary-hover flex items-center gap-1 transition-colors">

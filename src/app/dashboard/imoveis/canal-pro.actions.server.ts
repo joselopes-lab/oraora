@@ -4,6 +4,8 @@ import { adminAuth, adminDb } from '@/firebase/index.server';
 import { cookies } from 'next/headers';
 import { FieldValue } from 'firebase-admin/firestore';
 
+import { getCanalProValidationErrors } from '@/lib/feeds/canalpro-xml-generator';
+
 export async function updatePropertyCanalProServer(propertyId: string, publish: boolean, idToken?: string) {
   try {
     // 1. Validate Auth
@@ -53,19 +55,12 @@ export async function updatePropertyCanalProServer(propertyId: string, publish: 
         return { success: false, error: 'Permissão negada. Este imóvel não pertence à sua carteira.' };
     }
 
-    // 4. Validate Elegibility
-    const info = propData.informacoesbasicas || {};
-    const priceVal = info.salePrice ?? info.precoVenda ?? info.valor ?? propData.salePrice ?? propData.precoVenda ?? propData.valor ?? propData.price;
-    const numericPrice = typeof priceVal === 'number' ? priceVal : parseFloat(String(priceVal || '').replace(/[R$\s]/g, '').replace(/\.(?=\d{3,})/g, '').replace(',', '.'));
-    const hasValidPrice = !isNaN(numericPrice) && numericPrice > 0;
-
-    const mediaList = propData.midia || propData.media || propData.imagens || propData.images || propData.fotos || propData.galeria || [];
-    const validMedia = Array.isArray(mediaList) 
-      ? mediaList.map((m: any) => (typeof m === 'string' ? m : m?.url)).filter((url: string) => typeof url === 'string' && url.trim().length > 0 && url.startsWith('http'))
-      : [];
-
-    if (publish && (!hasValidPrice || validMedia.length === 0)) {
-        return { success: false, error: 'Este imóvel não possui os dados necessários para publicação (preço ou imagens válidas).' };
+    // 4. Validate Elegibility using unified Single Source of Truth
+    if (publish) {
+      const validationErrors = getCanalProValidationErrors({ id: propertyId, ...propData });
+      if (validationErrors.length > 0) {
+        return { success: false, error: `Imóvel inelegível para o Canal Pro: ${validationErrors[0].message}` };
+      }
     }
 
     // 5. Update

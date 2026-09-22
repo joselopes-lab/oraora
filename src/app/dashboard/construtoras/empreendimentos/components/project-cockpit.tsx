@@ -19,7 +19,8 @@ import {
   FolderDown,
   ChevronRight,
   ShieldCheck,
-  Clock
+  Clock,
+  ExternalLink
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -161,17 +162,25 @@ export default function ProjectCockpit({ project, units = [] }: ProjectCockpitPr
               )}
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap justify-end">
+              {project.isPublished ? (
+                <Button asChild variant="default" className="bg-slate-900 hover:bg-slate-800 text-white shadow-sm gap-2">
+                  <Link href={`/empreendimento/${project.id}`} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="w-4 h-4 text-amber-400" /> Visualizar hotsite ↗
+                  </Link>
+                </Button>
+              ) : (
+                <div className="flex flex-col items-end">
+                  <Button variant="outline" disabled className="text-slate-400 gap-2 cursor-not-allowed" title="Publique o empreendimento para visualizar o hotsite.">
+                    <ExternalLink className="w-4 h-4 text-slate-300" /> Visualizar hotsite
+                  </Button>
+                  <span className="text-[11px] text-amber-600 mt-1">Publique o empreendimento para visualizar o hotsite.</span>
+                </div>
+              )}
               <Button asChild variant="outline" className="text-slate-700 hover:bg-slate-50">
                 <Link href={`/dashboard/construtoras/empreendimentos/${project.id}/apresentacao`} target="_blank">
                   <Sparkles className="w-4 h-4 mr-2 text-amber-500" /> Apresentação Comercial
                 </Link>
-              </Button>
-              <Button variant="outline" disabled className="text-slate-600">
-                Prévia do Cliente
-              </Button>
-              <Button disabled className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm">
-                Publicar empreendimento
               </Button>
             </div>
           </div>

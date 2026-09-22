@@ -229,7 +229,7 @@ export default function ConstrutoraImoveisCentralPage() {
             <TabsList>
               <TabsTrigger value="todos">Todos ({properties.length})</TabsTrigger>
               <TabsTrigger value="empreendimentos">Empreendimentos ({empreendimentosList.length})</TabsTrigger>
-              <TabsTrigger value="avulsos">Avulsos ({avulsosList.length})</TabsTrigger>
+              <TabsTrigger value="avulsos">Avulso ({avulsosList.length})</TabsTrigger>
             </TabsList>
           </div>
 

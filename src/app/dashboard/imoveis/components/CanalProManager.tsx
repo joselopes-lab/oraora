@@ -21,35 +21,16 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
-function parsePrice(val: any): number {
-  if (val === undefined || val === null || val === '') return 0;
-  if (typeof val === 'number') return isNaN(val) ? 0 : val;
-  const cleaned = String(val).replace(/[R$\s]/g, '').replace(/\.(?=\d{3,})/g, '').replace(',', '.');
-  const num = parseFloat(cleaned);
-  return isNaN(num) ? 0 : num;
-}
+import { getCanalProValidationErrors } from '@/lib/feeds/canalpro-xml-generator';
 
 function getClientRejectionReason(prop: any, brokerId: string): string | null {
   if (!prop) return 'Imóvel inválido';
   if (prop.builderId && prop.builderId !== brokerId) return 'Imóvel de construtora';
   
-  const info = prop.informacoesbasicas || {};
-  const rawPrice = info.salePrice ?? info.precoVenda ?? info.valor ?? info.rentPrice ?? prop.salePrice ?? prop.precoVenda ?? prop.valor ?? prop.price;
-  const price = parsePrice(rawPrice);
-  if (!price || price <= 0) return 'Preço ausente ou inválido';
-
-  const loc = prop.localizacao || {};
-  if (!loc.logradouro && !loc.street && !loc.address) return 'Logradouro ausente';
-  if (!loc.cidade && !loc.city) return 'Cidade ausente';
-  if (!loc.estado && !loc.state) return 'Estado ausente';
-  if (!loc.cep && !loc.zipCode) return 'CEP ausente';
-
-  const mediaList = prop.midia || prop.media || prop.imagens || prop.images || prop.fotos || prop.galeria || [];
-  const validMedia = Array.isArray(mediaList) && mediaList.some((m: any) => {
-    const url = typeof m === 'string' ? m : m?.url;
-    return typeof url === 'string' && url.trim().length > 0 && url.startsWith('http');
-  });
-  if (!validMedia) return 'Sem fotos válidas';
+  const errors = getCanalProValidationErrors(prop);
+  if (errors.length > 0) {
+    return errors[0].message;
+  }
 
   return null;
 }
