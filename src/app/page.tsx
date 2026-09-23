@@ -292,7 +292,11 @@ export default function BrokerHomePage() {
                     ) : (
                       <>
                         <Button asChild variant="outline" className="w-full h-12 text-base"><Link href="/radar"><span className="material-symbols-outlined text-base mr-2">radar</span> Meu Radar</Link></Button>
-                        <Button asChild className="w-full h-12 text-base"><Link href="/login">Sou Corretor</Link></Button>
+                        <Button asChild className="w-full h-12 text-base">
+                          <Link href="/login" className="flex items-center justify-center gap-2">
+                            <span className="material-symbols-outlined text-base">login</span> Login
+                          </Link>
+                        </Button>
                       </>
                     )}
                   </div>
@@ -318,8 +322,16 @@ export default function BrokerHomePage() {
                 <Button asChild><Link href={dashboardUrl}>Painel</Link></Button>
               ) : (
                 <div className="flex gap-3">
-                  <Button asChild variant="ghost" className="rounded-full px-6"><Link href="/login">Corretor</Link></Button>
-                  <Button asChild className="rounded-full px-6 shadow-glow"><Link href="/radar">Meu Radar</Link></Button>
+                  <Button asChild variant="ghost" className="rounded-full px-6">
+                     <Link href="/login" className="flex items-center gap-2">
+                       <span className="material-symbols-outlined text-base">login</span> Login
+                     </Link>
+                   </Button>
+                  <Button asChild className="rounded-full px-6 shadow-glow">
+                     <Link href="/radar" className="flex items-center gap-2">
+                       <span className="material-symbols-outlined text-base">radar</span> Meu Radar
+                     </Link>
+                   </Button>
                 </div>
               )}
             </div>
@@ -513,8 +525,8 @@ export default function BrokerHomePage() {
                 <div className="flex items-center gap-4 text-left">
                      <Button asChild variant="ghost" className="text-sm font-medium text-gray-400 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 h-9 rounded-full px-4">
                         <Link href="/login" className="flex items-center gap-2">
-                           <span className="material-symbols-outlined text-base">manage_accounts</span>
-                           Área do corretor
+                           <span className="material-symbols-outlined text-base">login</span>
+                           Login
                         </Link>
                     </Button>
                     <Link href="/corretor" className="text-xs text-gray-400 hover:text-primary transition-colors">Desenvolvido por <strong>Oraora</strong></Link>

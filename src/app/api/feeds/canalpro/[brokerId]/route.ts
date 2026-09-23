@@ -3,7 +3,7 @@ import { generateCanalProXml } from '@/lib/feeds/canalpro-xml-generator';
 import { isPropertyLinkedToProject } from '@/lib/utils';
 import { NextRequest, NextResponse } from 'next/server';
 
-export const revalidate = 3600; // Cache for 1 hour
+export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest, context: { params: Promise<{ brokerId: string }> | { brokerId: string } }) {
   const resolvedParams = context.params instanceof Promise ? await context.params : context.params;
@@ -78,6 +78,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ brokerI
   return new NextResponse(xml, {
     headers: {
       'Content-Type': 'application/xml',
+      'Cache-Control': 'no-store, max-age=0',
     },
   });
 }

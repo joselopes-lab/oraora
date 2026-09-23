@@ -1,6 +1,7 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { adminDb } from '@/firebase/index.server';
 import { FieldValue } from 'firebase-admin/firestore';
+import { notifyNewLead } from '@/services/notifications/lead-notifier.service';
 
 /**
  * Endpoint de Webhook para recepção de leads do Canal Pro / Grupo ZAP.
@@ -215,6 +216,17 @@ export async function POST(request: NextRequest) {
       });
     } catch (notifErr) {
       console.warn('[Webhook CanalPro] Falha ao registrar notificação interna:', notifErr);
+    }
+
+    // 11. Notificação por E-mail Transacional via Resend (Não bloqueante)
+    try {
+      await notifyNewLead({
+        leadId: leadRef.id,
+        brokerId: brokerId,
+        propertyId: propertyId,
+      });
+    } catch (emailErr) {
+      console.warn('[Webhook CanalPro] Falha ao disparar notificação por e-mail:', emailErr);
     }
 
     return NextResponse.json({ 

@@ -78,6 +78,26 @@ export default async function EmpreendimentoPublicPage({ params }: PageProps) {
   const serializedProperties = JSON.parse(JSON.stringify(properties || []));
   const serializedPriceTables = JSON.parse(JSON.stringify(priceTables || []));
 
+  const defaultBranding = {
+    primaryColor: '#f59e0b',
+    secondaryColor: '#10b981',
+    backgroundColor: '#030712',
+    textColor: '#f8fafc',
+    buttonColor: '#f59e0b',
+    buttonTextColor: '#030712',
+  };
+
+  const cBranding = constructorData?.branding || {};
+  const pBranding = project?.branding || {};
+  const resolvedBranding = {
+    primaryColor: pBranding.primaryColor || cBranding.primaryColor || constructorData?.primaryColor || defaultBranding.primaryColor,
+    secondaryColor: pBranding.secondaryColor || cBranding.secondaryColor || constructorData?.secondaryColor || defaultBranding.secondaryColor,
+    backgroundColor: pBranding.backgroundColor || cBranding.backgroundColor || defaultBranding.backgroundColor,
+    textColor: pBranding.textColor || cBranding.textColor || defaultBranding.textColor,
+    buttonColor: pBranding.buttonColor || cBranding.buttonColor || constructorData?.buttonColor || defaultBranding.buttonColor,
+    buttonTextColor: pBranding.buttonTextColor || cBranding.buttonTextColor || constructorData?.buttonTextColor || defaultBranding.buttonTextColor,
+  };
+
   // JSON-LD Structured Data
   const jsonLdData = {
     '@context': 'https://schema.org',
@@ -109,6 +129,7 @@ export default async function EmpreendimentoPublicPage({ params }: PageProps) {
         constructorData={serializedConstructor}
         properties={serializedProperties}
         priceTables={serializedPriceTables}
+        resolvedBranding={resolvedBranding}
       />
     </>
   );

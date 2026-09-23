@@ -131,7 +131,7 @@ export default function RadarSignUpPage() {
             </Link>
             <div className='flex items-center gap-4'>
                 <Button asChild variant="outline" className="hidden lg:flex h-10 rounded-full px-6 text-sm font-bold transition">
-                    <Link href="/login">Sou Corretor</Link>
+                    <Link href="/login">Login</Link>
                 </Button>
                 <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
                     <SheetTrigger asChild>
@@ -160,7 +160,7 @@ export default function RadarSignUpPage() {
                             </Button>
                             <Button asChild className="w-full h-12 text-base">
                                 <Link href="/login">
-                                   Sou Corretor
+                                   Login
                                 </Link>
                             </Button>
                         </div>

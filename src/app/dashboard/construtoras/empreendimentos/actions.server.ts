@@ -490,4 +490,56 @@ export async function updateProjectCommercialServer(projectId: string, data: {
   return { success: true };
 }
 
+export async function updateProjectBrandingServer(
+  projectId: string,
+  branding: {
+    primaryColor?: string;
+    secondaryColor?: string;
+    backgroundColor?: string;
+    textColor?: string;
+    buttonColor?: string;
+    buttonTextColor?: string;
+  } | null,
+  idToken?: string
+) {
+  const ctx = await getAuthenticatedUserContext(idToken);
+  if (ctx.userType !== 'constructor' && ctx.userType !== 'admin') {
+    throw new Error('Acesso negado.');
+  }
+
+  const project = await projectRepository.getById(projectId);
+  if (!project) {
+    throw new Error('Empreendimento não encontrado.');
+  }
+
+  if (ctx.userType === 'constructor' && project.builderId !== ctx.tenantId) {
+    throw new Error('Você não tem permissão para editar este empreendimento.');
+  }
+
+  const hexRegex = /^#[0-9A-Fa-f]{6}$/;
+  const cleanBranding: any = {};
+
+  if (branding === null) {
+    await projectRepository.update(projectId, { branding: undefined as any });
+  } else {
+    for (const [key, value] of Object.entries(branding)) {
+      if (value !== undefined && value !== null && value !== '') {
+        const trimmed = String(value).trim();
+        if (!hexRegex.test(trimmed)) {
+          throw new Error(`Cor inválida para ${key}. Use o formato #RRGGBB.`);
+        }
+        cleanBranding[key] = trimmed;
+      }
+    }
+
+    await projectRepository.update(projectId, {
+      branding: Object.keys(cleanBranding).length > 0 ? cleanBranding : undefined,
+    });
+  }
+
+  revalidatePath(`/empreendimento/${projectId}`);
+  revalidatePath(`/dashboard/construtoras/empreendimentos/${projectId}/hotsite/aparencia`);
+  return { success: true };
+}
+
 

@@ -20,7 +20,8 @@ import {
   ChevronRight,
   ShieldCheck,
   Clock,
-  ExternalLink
+  ExternalLink,
+  Palette
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -177,6 +178,11 @@ export default function ProjectCockpit({ project, units = [] }: ProjectCockpitPr
                   <span className="text-[11px] text-amber-600 mt-1">Publique o empreendimento para visualizar o hotsite.</span>
                 </div>
               )}
+              <Button asChild variant="outline" className="text-slate-700 hover:bg-slate-50">
+                <Link href={`/dashboard/construtoras/empreendimentos/${project.id}/hotsite/aparencia`}>
+                  <Palette className="w-4 h-4 mr-2 text-amber-500" /> Aparência do Hotsite
+                </Link>
+              </Button>
               <Button asChild variant="outline" className="text-slate-700 hover:bg-slate-50">
                 <Link href={`/dashboard/construtoras/empreendimentos/${project.id}/apresentacao`} target="_blank">
                   <Sparkles className="w-4 h-4 mr-2 text-amber-500" /> Apresentação Comercial

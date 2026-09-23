@@ -158,7 +158,7 @@ export default function SobrePageClient() {
                           </Button>
                           <Button asChild className="w-full h-12 text-base">
                             <Link href="/login">
-                              Sou Corretor
+                              Login
                             </Link>
                           </Button>
                         </>
@@ -210,8 +210,8 @@ export default function SobrePageClient() {
                 <div className="flex items-center gap-4">
                   <Button asChild variant="ghost" className="text-sm font-medium text-gray-600 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 h-10 rounded-full px-6 transition">
                     <Link href="/login" className="flex items-center gap-2">
-                      <span className="material-symbols-outlined text-base">manage_accounts</span>
-                      Corretor
+                      <span className="material-symbols-outlined text-base">login</span>
+                      Login
                     </Link>
                   </Button>
                   <Button asChild className="h-10 rounded-full px-6 text-sm font-bold transition">

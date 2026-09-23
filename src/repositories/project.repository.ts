@@ -1,5 +1,14 @@
 import { adminDb } from '@/firebase/index.server';
 
+export interface ProjectBranding {
+  primaryColor?: string;
+  secondaryColor?: string;
+  backgroundColor?: string;
+  textColor?: string;
+  buttonColor?: string;
+  buttonTextColor?: string;
+}
+
 export interface Project {
   id: string;
   builderId: string;
@@ -58,6 +67,7 @@ export interface Project {
     cep?: string;
   };
   isPublished?: boolean;
+  branding?: ProjectBranding;
   createdAt: any;
   updatedAt: any;
 }

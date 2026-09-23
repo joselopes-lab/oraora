@@ -83,7 +83,7 @@ export function getPropertyType(prop: any): string {
 }
 
 /**
- * Mapeamento oficial VRSync / Canal Pro para Tipo de Imóvel
+ * Mapeamento oficial VRSync / Canal Pro para PropertyType oficial
  */
 export function mapToVrsyncListingType(tipo: string): { listingType: string; isSupported: boolean } {
   if (!tipo) return { listingType: 'Residential / Apartment', isSupported: false };
@@ -98,23 +98,25 @@ export function mapToVrsyncListingType(tipo: string): { listingType: string; isS
   if (t.includes('apartamento') || t.includes('apto')) return { listingType: 'Residential / Apartment', isSupported: true };
   if (t.includes('sobrado')) return { listingType: 'Residential / Sobrado', isSupported: true };
   if (t.includes('condomínio') || t.includes('condominio')) return { listingType: 'Residential / Condo', isSupported: true };
-  if (t.includes('vila')) return { listingType: 'Residential / Vila', isSupported: true };
-  if (t.includes('casa')) return { listingType: 'Residential / House', isSupported: true };
+  if (t.includes('vila')) return { listingType: 'Residential / Village House', isSupported: true };
+  if (t.includes('chácara') || t.includes('chacara')) return { listingType: 'Residential / Farm Ranch', isSupported: true };
+  if (t.includes('fazenda') || t.includes('sítio') || t.includes('sitio')) return { listingType: 'Residential / Agricultural', isSupported: true };
+  if (t.includes('casa')) return { listingType: 'Residential / Home', isSupported: true };
 
-  // Terrenos / Rurais
-  if (t.includes('loteamento') || t.includes('lote')) return { listingType: 'Land / Lot', isSupported: true };
-  if (t.includes('terreno')) return { listingType: 'Land / Land', isSupported: true };
-  if (t.includes('sítio') || t.includes('sitio')) return { listingType: 'Agricultural / Farm', isSupported: true };
-  if (t.includes('chácara') || t.includes('chacara')) return { listingType: 'Agricultural / Farmhouse', isSupported: true };
-  if (t.includes('fazenda')) return { listingType: 'Agricultural / Ranch', isSupported: true };
-  if (t.includes('haras')) return { listingType: 'Agricultural / Ranch', isSupported: true };
+  // Terrenos / Lotes / Rurais
+  if (t.includes('terreno comercial') || t.includes('lote comercial')) return { listingType: 'Commercial / Land Lot', isSupported: true };
+  if (t.includes('terreno') || t.includes('lote') || t.includes('loteamento')) return { listingType: 'Residential / Land Lot', isSupported: true };
 
   // Comercial
-  if (t.includes('sala')) return { listingType: 'Commercial / Office', isSupported: true };
-  if (t.includes('loja')) return { listingType: 'Commercial / Store', isSupported: true };
-  if (t.includes('galpão') || t.includes('depósito') || t.includes('armazém')) return { listingType: 'Commercial / Industrial', isSupported: true };
-  if (t.includes('prédio') || t.includes('conjunto')) return { listingType: 'Commercial / Building', isSupported: true };
-  if (t.includes('hotel') || t.includes('pousada')) return { listingType: 'Commercial / Hotel', isSupported: true };
+  if (t.includes('consultório') || t.includes('consultorio')) return { listingType: 'Commercial / Consultorio', isSupported: true };
+  if (t.includes('galpão') || t.includes('depósito') || t.includes('armazém') || t.includes('galpao') || t.includes('deposito')) return { listingType: 'Commercial / Industrial', isSupported: true };
+  if (t.includes('garagem') || t.includes('vaga')) return { listingType: 'Commercial / Garage', isSupported: true };
+  if (t.includes('hotel') || t.includes('pousada') || t.includes('motel')) return { listingType: 'Commercial / Hotel', isSupported: true };
+  if (t.includes('andar') || t.includes('laje') || t.includes('laje corporativa')) return { listingType: 'Commercial / Corporate Floor', isSupported: true };
+  if (t.includes('loja') || t.includes('salão') || t.includes('ponto') || t.includes('salao') || t.includes('ponto comercial')) return { listingType: 'Commercial / Business', isSupported: true };
+  if (t.includes('prédio inteiro') || t.includes('predio inteiro')) return { listingType: 'Commercial / Edificio Comercial', isSupported: true };
+  if (t.includes('sala') || t.includes('conjunto')) return { listingType: 'Commercial / Office', isSupported: true };
+  if (t.includes('comercial')) return { listingType: 'Commercial / Building', isSupported: true };
 
   return { listingType: tipo, isSupported: false };
 }
@@ -136,6 +138,16 @@ export function parseArea(val: any): number {
   return isNaN(parsed) ? 0 : parsed;
 }
 
+export function resolveLivingArea(prop: any): number {
+  const raw = prop.areaUtil ?? prop.caracteristicasimovel?.tamanho ?? prop.usableArea ?? prop.area ?? 0;
+  return parseArea(raw);
+}
+
+export function resolveLotArea(prop: any): number {
+  const raw = prop.areaTotal ?? prop.caracteristicasimovel?.tamanhoTotal ?? prop.terreno ?? prop.areaTerreno ?? prop.lotArea ?? prop.totalArea ?? 0;
+  return parseArea(raw);
+}
+
 /**
  * ÚNICA FONTE DE VERDADE DE VALIDAÇÃO (Single Source of Truth) para o padrão VRSync do Canal Pro
  */
@@ -151,7 +163,7 @@ export function getCanalProValidationErrors(prop: any): CanalProValidationError[
     errors.push({ field: 'id', code: 'MISSING_ID', message: 'ID do imóvel ausente.' });
   }
 
-  // Tipo / ListingType
+  // Tipo / PropertyType
   const rawType = getPropertyType(prop);
   const mappedType = mapToVrsyncListingType(rawType);
   if (!mappedType.isSupported) {
@@ -209,17 +221,19 @@ export function getCanalProValidationErrors(prop: any): CanalProValidationError[
   }
 
   // Regra de Área por Categoria VRSync
-  const usableArea = parseArea(prop.areaUtil ?? prop.caracteristicasimovel?.tamanho);
-  const totalArea = parseArea(prop.areaTotal ?? prop.caracteristicasimovel?.tamanhoTotal);
-  const requiresTotalArea = ['Land / Lot', 'Land / Land', 'Commercial / Industrial'].includes(mappedType.listingType);
+  const propertyType = mappedType.listingType;
+  const isLandOrLot = propertyType.includes('Land Lot') || propertyType.includes('Agricultural') || propertyType.includes('Industrial');
+  
+  const livingArea = resolveLivingArea(prop);
+  const lotArea = resolveLotArea(prop);
 
-  if (requiresTotalArea) {
-    if (totalArea <= 0) {
-      errors.push({ field: 'TotalArea', code: 'MISSING_TOTAL_AREA', message: 'Área total obrigatória e deve ser maior que zero para este tipo de imóvel.' });
+  if (isLandOrLot) {
+    if (lotArea <= 0) {
+      errors.push({ field: 'LotArea', code: 'MISSING_LOT_AREA', message: 'Área do terreno (LotArea) obrigatória e maior que zero para este tipo de imóvel.' });
     }
   } else {
-    if (usableArea <= 0) {
-      errors.push({ field: 'UsableArea', code: 'MISSING_USABLE_AREA', message: 'Área útil obrigatória e deve ser maior que zero para este tipo de imóvel.' });
+    if (livingArea <= 0) {
+      errors.push({ field: 'LivingArea', code: 'MISSING_LIVING_AREA', message: 'Área útil (LivingArea) obrigatória e maior que zero para este tipo de imóvel.' });
     }
   }
 
@@ -248,8 +262,10 @@ export function generateCanalProXml(properties: any[]): string {
     const title = escapeXml(prop.informacoesbasicas?.nome || prop.titulo || prop.title || 'Imóvel');
     const rawDesc = prop.informacoesbasicas?.descricao || prop.descricao || prop.description || '';
     const description = escapeXml(rawDesc.replace(/<[^>]*>?/gm, '').trim());
+    
     const mappedTypeObj = mapToVrsyncListingType(getPropertyType(prop));
-    const listingType = escapeXml(mappedTypeObj.listingType);
+    const propertyType = escapeXml(mappedTypeObj.listingType);
+    const isLandOrLot = propertyType.includes('Land Lot') || propertyType.includes('Agricultural') || propertyType.includes('Industrial');
 
     const info = prop.informacoesbasicas || {};
     const txTypes = info.transactionTypes || [];
@@ -272,15 +288,11 @@ export function generateCanalProXml(properties: any[]): string {
     const state = escapeXml(loc.estado || loc.state || '');
     const postalCode = escapeXml(getPropertyPostalCode(prop));
 
-    // Isenções oficiais VRSync: Lote, Terreno, Galpão, Depósito, Armazém não levam quartos/banheiros
-    const isExemptFromRooms = ['Land / Lot', 'Land / Land', 'Commercial / Industrial'].includes(listingType);
-    const requiresTotalArea = isExemptFromRooms;
-
-    const bedrooms = isExemptFromRooms ? 0 : parseNumber(prop.quartos ?? prop.caracteristicasimovel?.quartos);
-    const bathrooms = isExemptFromRooms ? 0 : parseNumber(prop.banheiros ?? prop.caracteristicasimovel?.banheiros ?? prop.caracteristicasimovel?.suites);
-    const garages = parseNumber(prop.vagas ?? prop.caracteristicasimovel?.vagas);
-    const usableArea = parseArea(prop.areaUtil ?? prop.caracteristicasimovel?.tamanho);
-    const totalArea = parseArea(prop.areaTotal ?? prop.caracteristicasimovel?.tamanhoTotal);
+    const bedrooms = isLandOrLot ? 0 : parseNumber(prop.quartos ?? prop.caracteristicasimovel?.quartos);
+    const bathrooms = isLandOrLot ? 0 : parseNumber(prop.banheiros ?? prop.caracteristicasimovel?.banheiros ?? prop.caracteristicasimovel?.suites);
+    const garage = parseNumber(prop.vagas ?? prop.caracteristicasimovel?.vagas);
+    const livingArea = Math.round(resolveLivingArea(prop));
+    const lotArea = Math.round(resolveLotArea(prop));
 
     const media = getPropertyMedia(prop);
     const videoUrl = prop.videoUrl || prop.youtubeUrl || prop.videos?.[0] || '';
@@ -289,7 +301,6 @@ export function generateCanalProXml(properties: any[]): string {
     xml += `      <ListingID>${listingId}</ListingID>\n`;
     xml += `      <Title>${title}</Title>\n`;
     xml += `      <TransactionType>${transactionType}</TransactionType>\n`;
-    xml += `      <ListingType>${listingType}</ListingType>\n`;
     
     if (description) {
       xml += `      <Description><![CDATA[${rawDesc.trim()}]]></Description>\n`;
@@ -297,27 +308,28 @@ export function generateCanalProXml(properties: any[]): string {
 
     // Details / Preços e Características
     xml += '      <Details>\n';
+    xml += `        <PropertyType>${propertyType}</PropertyType>\n`;
     if (listPrice > 0) xml += `        <ListPrice currency="BRL">${listPrice}</ListPrice>\n`;
     if (rentalPrice > 0) xml += `        <RentalPrice currency="BRL">${rentalPrice}</RentalPrice>\n`;
     if (seasonalPrice > 0) xml += `        <SeasonalPrice currency="BRL">${seasonalPrice}</SeasonalPrice>\n`;
-    if (condominiumFee > 0) xml += `        <CondominiumFee currency="BRL">${condominiumFee}</CondominiumFee>\n`;
-    if (tax > 0) xml += `        <Tax currency="BRL">${tax}</Tax>\n`;
+    if (condominiumFee > 0) xml += `        <PropertyAdministrationFee currency="BRL">${condominiumFee}</PropertyAdministrationFee>\n`;
+    if (tax > 0) xml += `        <YearlyTax currency="BRL">${tax}</YearlyTax>\n`;
 
-    if (!requiresTotalArea && usableArea > 0) {
-      xml += `        <UsableArea unit="square metres">${usableArea}</UsableArea>\n`;
+    if (!isLandOrLot && livingArea > 0) {
+      xml += `        <LivingArea unit="square metres">${livingArea}</LivingArea>\n`;
     }
-    if (totalArea > 0) {
-      xml += `        <TotalArea unit="square metres">${totalArea}</TotalArea>\n`;
+    if (lotArea > 0) {
+      xml += `        <LotArea unit="square metres">${lotArea}</LotArea>\n`;
     }
 
-    if (!isExemptFromRooms && bedrooms > 0) {
+    if (!isLandOrLot && bedrooms > 0) {
       xml += `        <Bedrooms>${bedrooms}</Bedrooms>\n`;
     }
-    if (!isExemptFromRooms && bathrooms > 0) {
+    if (!isLandOrLot && bathrooms > 0) {
       xml += `        <Bathrooms>${bathrooms}</Bathrooms>\n`;
     }
-    if (garages > 0) {
-      xml += `        <Garages>${garages}</Garages>\n`;
+    if (garage > 0) {
+      xml += `        <Garage type="Parking Space">${garage}</Garage>\n`;
     }
     xml += '      </Details>\n';
 

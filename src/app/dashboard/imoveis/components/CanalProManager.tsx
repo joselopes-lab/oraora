@@ -21,7 +21,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
-import { getCanalProValidationErrors } from '@/lib/feeds/canalpro-xml-generator';
+import { getCanalProValidationErrors, parsePriceValue } from '@/lib/feeds/canalpro-xml-generator';
 
 function getClientRejectionReason(prop: any, brokerId: string): string | null {
   if (!prop) return 'Imóvel inválido';
@@ -211,7 +211,7 @@ export function CanalProManager({ brokerId }: { brokerId: string }) {
               
               const info = prop.informacoesbasicas || {};
               const rawPrice = info.salePrice ?? info.precoVenda ?? info.valor ?? info.rentPrice ?? prop.salePrice ?? prop.precoVenda ?? prop.valor ?? prop.price;
-              const price = parsePrice(rawPrice);
+              const price = parsePriceValue(rawPrice);
               const priceFormatted = price > 0 ? price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'Preço sob consulta';
               
               const txTypes = info.transactionTypes || [];

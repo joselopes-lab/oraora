@@ -1,26 +1,17 @@
 'use client';
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { 
   Building2, 
   MapPin, 
+  CheckCircle2, 
+  Sparkles, 
+  MessageSquare, 
   Maximize2, 
   FileDown, 
-  Phone, 
-  MessageSquare, 
-  CheckCircle2, 
-  Calendar, 
-  Layers, 
-  Compass, 
-  Home, 
-  DollarSign, 
   Download, 
-  ChevronRight, 
-  X, 
-  Sparkles,
-  Users,
-  ShieldCheck,
-  Award
+  X,
+  ChevronRight
 } from 'lucide-react';
 import { createLead } from '@/app/sites/actions';
 
@@ -29,13 +20,33 @@ interface EmpreendimentoLandingClientProps {
   constructorData: any;
   properties: any[];
   priceTables: any[];
+  resolvedBranding?: {
+    primaryColor?: string;
+    secondaryColor?: string;
+    backgroundColor?: string;
+    textColor?: string;
+    buttonColor?: string;
+    buttonTextColor?: string;
+  };
+  brandingOverride?: {
+    primaryColor?: string;
+    secondaryColor?: string;
+    backgroundColor?: string;
+    textColor?: string;
+    buttonColor?: string;
+    buttonTextColor?: string;
+  };
+  previewMode?: boolean;
 }
 
 export default function EmpreendimentoLandingClient({
   project,
   constructorData,
   properties,
-  priceTables
+  priceTables,
+  resolvedBranding,
+  brandingOverride,
+  previewMode = false
 }: EmpreendimentoLandingClientProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalInterest, setModalInterest] = useState('');
@@ -43,14 +54,27 @@ export default function EmpreendimentoLandingClient({
   const [submitting, setSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState('all');
 
-  const primaryColor = constructorData?.branding?.primaryColor || '#0f172a';
   const logoUrl = constructorData?.branding?.logoUrl || constructorData?.logoUrl;
   const builderName = constructorData?.name || 'Incorporadora';
 
   const mediaList = project.midia || [];
   const heroImage = mediaList[0] || 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1920&q=80';
+
+  const defaultBranding = {
+    primaryColor: '#f59e0b',
+    secondaryColor: '#10b981',
+    backgroundColor: '#030712',
+    textColor: '#f8fafc',
+    buttonColor: '#f59e0b',
+    buttonTextColor: '#030712',
+  };
+
+  const currentBranding = {
+    ...defaultBranding,
+    ...(resolvedBranding || {}),
+    ...(brandingOverride || {}),
+  };
 
   const handleOpenModal = (interest = 'Geral') => {
     setModalInterest(interest);
@@ -62,6 +86,14 @@ export default function EmpreendimentoLandingClient({
     e.preventDefault();
     if (!formData.name || !formData.email || !formData.phone) {
       alert('Por favor, preencha nome, e-mail e WhatsApp.');
+      return;
+    }
+
+    if (previewMode) {
+      setSubmitting(false);
+      setSuccessMessage('[Modo Pré-visualização] Solicitação simulada com sucesso!');
+      setFormData({ name: '', email: '', phone: '', message: '' });
+      setTimeout(() => setIsModalOpen(false), 2000);
       return;
     }
 
@@ -99,7 +131,19 @@ export default function EmpreendimentoLandingClient({
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-amber-500 selection:text-white">
+    <div 
+      className="min-h-screen font-sans selection:bg-[var(--project-primary)] selection:text-[var(--project-button-text)]"
+      style={{
+        '--project-primary': currentBranding.primaryColor,
+        '--project-secondary': currentBranding.secondaryColor,
+        '--project-background': currentBranding.backgroundColor,
+        '--project-text': currentBranding.textColor,
+        '--project-button': currentBranding.buttonColor,
+        '--project-button-text': currentBranding.buttonTextColor,
+        backgroundColor: 'var(--project-background)',
+        color: 'var(--project-text)',
+      } as React.CSSProperties}
+    >
       {/* Top Header */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-slate-950/80 backdrop-blur-md border-b border-slate-800/60 transition-all duration-300">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
@@ -123,7 +167,11 @@ export default function EmpreendimentoLandingClient({
             </button>
             <button
               onClick={() => handleOpenModal('Contato Geral')}
-              className="px-5 py-2.5 rounded-full bg-amber-500 text-slate-950 font-semibold hover:bg-amber-400 text-sm transition shadow-lg shadow-amber-500/10"
+              style={{
+                backgroundColor: 'var(--project-button)',
+                color: 'var(--project-button-text)',
+              }}
+              className="px-5 py-2.5 rounded-full font-semibold hover:opacity-90 text-sm transition shadow-lg"
             >
               Fale com um Consultor
             </button>
@@ -134,14 +182,21 @@ export default function EmpreendimentoLandingClient({
       {/* Hero Section */}
       <section className="relative min-h-[90vh] flex items-center justify-center pt-20 overflow-hidden">
         <div className="absolute inset-0 z-0">
-          <img src={heroImage} alt={project.name} className="w-full h-full object-cover object-center scale-105 animate-pulse duration-1000" referrerPolicy="no-referrer" />
-          <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/60 to-slate-950/30" />
+          <img src={heroImage} alt={project.name} className="w-full h-full object-cover object-center scale-105" referrerPolicy="no-referrer" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[var(--project-background)] via-[var(--project-background)]/60 to-[var(--project-background)]/30" />
         </div>
 
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 text-center sm:text-left w-full">
           <div className="max-w-3xl">
             {project.status && (
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-semibold uppercase tracking-wider mb-6">
+              <div 
+                style={{
+                  backgroundColor: 'color-mix(in srgb, var(--project-primary) 15%, transparent)',
+                  borderColor: 'color-mix(in srgb, var(--project-primary) 30%, transparent)',
+                  color: 'var(--project-primary)',
+                }}
+                className="inline-flex items-center gap-2 px-3 py-1 rounded-full border text-xs font-semibold uppercase tracking-wider mb-6"
+              >
                 <Sparkles className="w-3.5 h-3.5" />
                 {project.status.replace('_', ' ')}
               </div>
@@ -155,7 +210,7 @@ export default function EmpreendimentoLandingClient({
 
             {project.localizacao && (
               <div className="flex items-center justify-center sm:justify-start gap-2 text-slate-300 text-sm mb-8">
-                <MapPin className="w-4 h-4 text-amber-500" />
+                <MapPin className="w-4 h-4" style={{ color: 'var(--project-primary)' }} />
                 <span>{project.localizacao.bairro}, {project.localizacao.cidade} - {project.localizacao.estado}</span>
               </div>
             )}
@@ -163,7 +218,11 @@ export default function EmpreendimentoLandingClient({
             <div className="flex flex-col sm:flex-row items-center gap-4 justify-center sm:justify-start">
               <button
                 onClick={() => handleOpenModal('Quero Conhecer')}
-                className="w-full sm:w-auto px-8 py-4 rounded-xl bg-amber-500 text-slate-950 font-bold hover:bg-amber-400 transition shadow-xl shadow-amber-500/20 text-base"
+                style={{
+                  backgroundColor: 'var(--project-button)',
+                  color: 'var(--project-button-text)',
+                }}
+                className="w-full sm:w-auto px-8 py-4 rounded-xl font-bold hover:opacity-90 transition shadow-xl text-base"
               >
                 Quero Conhecer
               </button>
@@ -197,7 +256,7 @@ export default function EmpreendimentoLandingClient({
           </div>
           <div className="p-4">
             <span className="block text-xs uppercase tracking-widest text-slate-400 mb-1">Preço Inicial</span>
-            <span className="text-xl font-semibold text-amber-400">
+            <span className="text-xl font-semibold" style={{ color: 'var(--project-primary)' }}>
               {project.precoInicial ? `R$ ${project.precoInicial.toLocaleString('pt-BR')}` : 'Sob Consulta'}
             </span>
           </div>
@@ -207,12 +266,18 @@ export default function EmpreendimentoLandingClient({
       {/* Conceito / Descrição */}
       {(project.descricaoCompleta || project.argumentosVenda) && (
         <section className="py-24 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <span className="text-amber-500 uppercase tracking-widest text-xs font-bold block mb-3">O Projeto</span>
+          <span className="uppercase tracking-widest text-xs font-bold block mb-3" style={{ color: 'var(--project-primary)' }}>O Projeto</span>
           <h2 className="text-3xl sm:text-5xl font-serif font-bold text-white mb-8">Arquitetura e Sofisticação</h2>
           <div className="prose prose-invert max-w-none text-slate-300 text-lg leading-relaxed font-light space-y-6">
             <p>{project.descricaoCompleta || project.descricaoCurta}</p>
             {project.argumentosVenda && (
-              <div className="p-6 rounded-2xl bg-amber-500/5 border border-amber-500/20 text-amber-200 text-base mt-6">
+              <div 
+                style={{
+                  backgroundColor: 'color-mix(in srgb, var(--project-primary) 5%, transparent)',
+                  borderColor: 'color-mix(in srgb, var(--project-primary) 20%, transparent)',
+                }}
+                className="p-6 rounded-2xl border text-slate-200 text-base mt-6"
+              >
                 <strong>Destaque Comercial:</strong> {project.argumentosVenda}
               </div>
             )}
@@ -225,7 +290,7 @@ export default function EmpreendimentoLandingClient({
         <section className="py-24 bg-slate-900/30">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center max-w-3xl mx-auto mb-16">
-              <span className="text-amber-500 uppercase tracking-widest text-xs font-bold block mb-3">Galeria</span>
+              <span className="uppercase tracking-widest text-xs font-bold block mb-3" style={{ color: 'var(--project-primary)' }}>Galeria</span>
               <h2 className="text-3xl sm:text-5xl font-serif font-bold text-white mb-4">Perspectivas e Ambientes</h2>
               <p className="text-slate-400">Clique em qualquer imagem para ampliar.</p>
             </div>
@@ -240,7 +305,7 @@ export default function EmpreendimentoLandingClient({
                   <img src={url} alt={`Foto ${index + 1}`} className="w-full h-full object-cover group-hover:scale-105 transition duration-500" referrerPolicy="no-referrer" />
                   <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent opacity-0 group-hover:opacity-100 transition duration-300 flex items-end p-6">
                     <span className="text-sm font-medium text-white flex items-center gap-2">
-                      <Maximize2 className="w-4 h-4 text-amber-400" /> Ampliar Imagem
+                      <Maximize2 className="w-4 h-4" style={{ color: 'var(--project-primary)' }} /> Ampliar Imagem
                     </span>
                   </div>
                 </div>
@@ -254,15 +319,24 @@ export default function EmpreendimentoLandingClient({
       {project.lazerItens && project.lazerItens.length > 0 && (
         <section className="py-24 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto mb-16">
-            <span className="text-amber-500 uppercase tracking-widest text-xs font-bold block mb-3">Exclusividade</span>
+            <span className="uppercase tracking-widest text-xs font-bold block mb-3" style={{ color: 'var(--project-primary)' }}>Exclusividade</span>
             <h2 className="text-3xl sm:text-5xl font-serif font-bold text-white mb-4">Área de Lazer Completa</h2>
             <p className="text-slate-400">Espaços planejados para o seu bem-estar e entretenimento.</p>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
             {project.lazerItens.map((item: string, idx: number) => (
-              <div key={idx} className="p-6 rounded-2xl bg-slate-900/60 border border-slate-800 flex items-center gap-4 hover:border-amber-500/50 transition">
-                <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center shrink-0">
+              <div 
+                key={idx} 
+                className="p-6 rounded-2xl bg-slate-900/60 border border-slate-800 flex items-center gap-4 transition hover:border-[var(--project-primary)]"
+              >
+                <div 
+                  style={{
+                    backgroundColor: 'color-mix(in srgb, var(--project-primary) 10%, transparent)',
+                    color: 'var(--project-primary)',
+                  }}
+                  className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                >
                   <CheckCircle2 className="w-5 h-5" />
                 </div>
                 <span className="font-medium text-slate-200 text-sm sm:text-base">{item}</span>
@@ -277,7 +351,7 @@ export default function EmpreendimentoLandingClient({
         <section className="py-24 bg-slate-900/30 border-y border-slate-800/80">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center max-w-3xl mx-auto mb-16">
-              <span className="text-amber-500 uppercase tracking-widest text-xs font-bold block mb-3">Plantas</span>
+              <span className="uppercase tracking-widest text-xs font-bold block mb-3" style={{ color: 'var(--project-primary)' }}>Plantas</span>
               <h2 className="text-3xl sm:text-5xl font-serif font-bold text-white mb-4">Tipologias e Unidades Disponíveis</h2>
               <p className="text-slate-400">Escolha a planta ideal para o seu momento de vida.</p>
             </div>
@@ -294,7 +368,10 @@ export default function EmpreendimentoLandingClient({
                           <Building2 className="w-12 h-12" />
                         </div>
                       )}
-                      <span className="absolute top-4 right-4 px-3 py-1 rounded-full bg-slate-950/80 text-amber-400 border border-amber-500/30 text-xs font-semibold backdrop-blur-md">
+                      <span 
+                        style={{ color: 'var(--project-primary)' }}
+                        className="absolute top-4 right-4 px-3 py-1 rounded-full bg-slate-950/80 border border-slate-700 text-xs font-semibold backdrop-blur-md"
+                      >
                         {prop.informacoesbasicas?.status || 'Disponível'}
                       </span>
                     </div>
@@ -320,13 +397,17 @@ export default function EmpreendimentoLandingClient({
                       <div className="pt-6 flex items-center justify-between">
                         <div>
                           <span className="text-xs text-slate-400 block">Valor</span>
-                          <span className="text-lg font-bold text-amber-400">
+                          <span className="text-lg font-bold" style={{ color: 'var(--project-primary)' }}>
                             {prop.informacoesbasicas?.valor ? `R$ ${prop.informacoesbasicas.valor.toLocaleString('pt-BR')}` : 'Sob Consulta'}
                           </span>
                         </div>
                         <button
                           onClick={() => handleOpenModal(`Unidade ${prop.informacoesbasicas?.nome}`)}
-                          className="px-4 py-2 rounded-xl bg-amber-500 text-slate-950 font-semibold hover:bg-amber-400 text-xs transition"
+                          style={{
+                            backgroundColor: 'var(--project-button)',
+                            color: 'var(--project-button-text)',
+                          }}
+                          className="px-4 py-2 rounded-xl font-semibold hover:opacity-90 text-xs transition"
                         >
                           Tenho Interesse
                         </button>
@@ -348,7 +429,7 @@ export default function EmpreendimentoLandingClient({
       {project.materiais && project.materiais.length > 0 && (
         <section className="py-24 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto mb-16">
-            <span className="text-amber-500 uppercase tracking-widest text-xs font-bold block mb-3">Downloads</span>
+            <span className="uppercase tracking-widest text-xs font-bold block mb-3" style={{ color: 'var(--project-primary)' }}>Downloads</span>
             <h2 className="text-3xl sm:text-5xl font-serif font-bold text-white mb-4">Materiais do Empreendimento</h2>
             <p className="text-slate-400">Baixe o folder oficial, apresentação ou plantas em PDF.</p>
           </div>
@@ -360,18 +441,24 @@ export default function EmpreendimentoLandingClient({
                 href={mat.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="p-6 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-between hover:border-amber-500/50 transition group"
+                className="p-6 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-between hover:border-[var(--project-primary)] transition group"
               >
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center">
+                  <div 
+                    style={{
+                      backgroundColor: 'color-mix(in srgb, var(--project-primary) 10%, transparent)',
+                      color: 'var(--project-primary)',
+                    }}
+                    className="w-12 h-12 rounded-xl flex items-center justify-center"
+                  >
                     <FileDown className="w-6 h-6" />
                   </div>
                   <div>
-                    <h4 className="font-semibold text-white group-hover:text-amber-400 transition">{mat.name}</h4>
+                    <h4 className="font-semibold text-white group-hover:text-[var(--project-primary)] transition">{mat.name}</h4>
                     <span className="text-xs text-slate-400 uppercase">{mat.category || 'Documento'}</span>
                   </div>
                 </div>
-                <Download className="w-5 h-5 text-slate-500 group-hover:text-amber-400 transition" />
+                <Download className="w-5 h-5 text-slate-500 group-hover:text-[var(--project-primary)] transition" />
               </a>
             ))}
           </div>
@@ -382,14 +469,18 @@ export default function EmpreendimentoLandingClient({
       {project.localizacao && (
         <section className="py-24 bg-slate-900/30 border-t border-slate-800/80">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center max-w-3xl">
-            <span className="text-amber-500 uppercase tracking-widest text-xs font-bold block mb-3">Localização Privilegiada</span>
+            <span className="uppercase tracking-widest text-xs font-bold block mb-3" style={{ color: 'var(--project-primary)' }}>Localização Privilegiada</span>
             <h2 className="text-3xl sm:text-5xl font-serif font-bold text-white mb-6">Endereço</h2>
             <p className="text-xl text-slate-300 font-light mb-8">
               {project.localizacao.address ? `${project.localizacao.address}, ` : ''}{project.localizacao.bairro} — {project.localizacao.cidade} / {project.localizacao.estado}
             </p>
             <button
               onClick={() => handleOpenModal('Visita ao Local')}
-              className="px-8 py-4 rounded-xl bg-amber-500 text-slate-950 font-bold hover:bg-amber-400 transition shadow-lg shadow-amber-500/10"
+              style={{
+                backgroundColor: 'var(--project-button)',
+                color: 'var(--project-button-text)',
+              }}
+              className="px-8 py-4 rounded-xl font-bold hover:opacity-90 transition shadow-lg"
             >
               Agendar Visita ao Local
             </button>
@@ -430,7 +521,7 @@ export default function EmpreendimentoLandingClient({
               <X className="w-5 h-5" />
             </button>
 
-            <span className="text-amber-500 uppercase tracking-widest text-xs font-bold block mb-2">{project.name}</span>
+            <span className="uppercase tracking-widest text-xs font-bold block mb-2" style={{ color: 'var(--project-primary)' }}>{project.name}</span>
             <h3 className="text-2xl font-serif font-bold text-white mb-2">Fale com um Especialista</h3>
             <p className="text-slate-400 text-sm mb-6">Interesse: <strong className="text-white">{modalInterest}</strong></p>
 
@@ -447,7 +538,7 @@ export default function EmpreendimentoLandingClient({
                     required
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-amber-500"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-[var(--project-primary)]"
                     placeholder="Seu nome"
                   />
                 </div>
@@ -458,7 +549,7 @@ export default function EmpreendimentoLandingClient({
                     required
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-amber-500"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-[var(--project-primary)]"
                     placeholder="seu@email.com"
                   />
                 </div>
@@ -469,7 +560,7 @@ export default function EmpreendimentoLandingClient({
                     required
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-amber-500"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-[var(--project-primary)]"
                     placeholder="(11) 99999-9999"
                   />
                 </div>
@@ -479,7 +570,7 @@ export default function EmpreendimentoLandingClient({
                     rows={3}
                     value={formData.message}
                     onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-amber-500 resize-none"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-[var(--project-primary)] resize-none"
                     placeholder="Gostaria de saber mais sobre..."
                   />
                 </div>
@@ -487,7 +578,11 @@ export default function EmpreendimentoLandingClient({
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="w-full py-4 rounded-xl bg-amber-500 text-slate-950 font-bold hover:bg-amber-400 transition shadow-lg shadow-amber-500/20 text-base flex items-center justify-center gap-2"
+                  style={{
+                    backgroundColor: 'var(--project-button)',
+                    color: 'var(--project-button-text)',
+                  }}
+                  className="w-full py-4 rounded-xl font-bold hover:opacity-90 transition shadow-lg text-base flex items-center justify-center gap-2"
                 >
                   {submitting ? 'Enviando...' : 'Enviar Solicitação'}
                 </button>
