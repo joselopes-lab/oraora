@@ -246,6 +246,130 @@ export function getCanalProValidationErrors(prop: any): CanalProValidationError[
   return errors;
 }
 
+export const ORAORA_TO_VRSYNC_FEATURE_MAP: Record<string, string> = {
+  // Características privativas / imóvel
+  'mobiliado': 'Furnished',
+  'varanda': 'Balcony',
+  'sacada': 'Balcony',
+  'varanda gourmet': 'Gourmet Balcony',
+  'closet': 'Closet',
+  'lavabo': 'Lavabo',
+  'escritório': 'Home Office',
+  'home office': 'Home Office',
+  'cozinha americana': 'American Kitchen',
+  'cozinha planejada': 'Kitchen Cabinets',
+  'armário na cozinha': 'Kitchen Cabinets',
+  'armários na cozinha': 'Kitchen Cabinets',
+  'armário no banheiro': 'Bathroom Cabinets',
+  'armários no banheiro': 'Bathroom Cabinets',
+  'armário embutido': 'Builtin Wardrobe',
+  'armários embutidos': 'Builtin Wardrobe',
+  'móvel planejado': 'Planned Furniture',
+  'móveis planejados': 'Planned Furniture',
+  'ar condicionado': 'Cooling',
+  'ar-condicionado': 'Cooling',
+  'vista mar': 'Ocean View',
+  'vista para o mar': 'Ocean View',
+  'área de serviço': 'Laundry',
+  'lavanderia': 'Laundry',
+  'depósito privativo': 'Storage',
+  'fechadura digital': 'Digital Locker',
+  'hidromassagem': 'Whirlpool',
+  'lareira': 'Fireplace',
+  'box blindex': 'Blindex Box',
+  'janela grande': 'Large Window',
+  'aceita animais': 'Pets Allowed',
+  'ventilação natural': 'Natural Ventilation',
+  'sala de jantar': 'Dinner Room',
+
+  // Áreas comuns / Lazer / Edifício
+  'piscina': 'Pool',
+  'piscina aquecida': 'Heated Pool',
+  'piscina infantil': 'Childrens Pool',
+  'academia': 'Gym',
+  'churrasqueira': 'BBQ',
+  'espaço gourmet': 'Gourmet Area',
+  'salão de festas': 'Party Room',
+  'salão de jogos': 'Game room',
+  'playground': 'Playground',
+  'brinquedoteca': 'Toys Place',
+  'sauna': 'Sauna',
+  'quadra poliesportiva': 'Sports Court',
+  'quadra de tênis': 'Tennis court',
+  'pet place': 'Pet Space',
+  'espaço pet': 'Pet Space',
+  'bicicletário': 'Bicycles Place',
+  'elevador': 'Elevator',
+  'portaria 24h': 'Concierge 24h',
+  'gerador': 'Generator',
+  'jardim': 'Garden Area',
+  'área de lazer': 'Recreation Area',
+  'spa': 'Spa',
+  'cinema': 'Media Room',
+  'coworking': 'Coworking',
+};
+
+export const ORAORA_TO_VRSYNC_PROXIMITY_MAP: Record<string, string> = {
+  'próximo a escolas': 'Close to schools',
+  'escola': 'Close to schools',
+  'próximo a hospitais': 'Close to hospitals',
+  'hospital': 'Close to hospitals',
+  'próximo a shopping': 'Close to shopping',
+  'shopping': 'Close to shopping',
+  'supermercado': 'Close to supermarket',
+};
+
+export function cleanDescriptionForVrsync(raw: string): string {
+  if (!raw) return '';
+  let text = String(raw);
+  text = text.replace(/<br\s*[\/]?>/gi, '\n');
+  text = text.replace(/<\/div>/gi, '\n');
+  text = text.replace(/<\/p>/gi, '\n');
+  text = text.replace(/<\/li>/gi, '\n');
+  text = text.replace(/&nbsp;/gi, ' ');
+  text = text.replace(/<[^>]*>?/gm, '');
+  text = text.split('\n')
+    .map(line => line.trim())
+    .filter((line, idx, arr) => line !== '' || (idx > 0 && arr[idx - 1] !== ''))
+    .join('\n')
+    .trim();
+  if (text.length > 3000) {
+    text = text.slice(0, 3000).trim();
+  }
+  text = text.replace(/\]\]>/g, ']]]]><![CDATA[>');
+  return text;
+}
+
+export function getPropertyFeatures(prop: any): string[] {
+  const rawFeatures: string[] = [];
+  if (Array.isArray(prop.caracteristicas)) rawFeatures.push(...prop.caracteristicas);
+  if (Array.isArray(prop.areascomuns)) rawFeatures.push(...prop.areascomuns);
+  if (Array.isArray(prop.lazerItens)) rawFeatures.push(...prop.lazerItens);
+  
+  const mapped = new Set<string>();
+  for (const feat of rawFeatures) {
+    if (typeof feat !== 'string') continue;
+    const key = feat.toLowerCase().trim();
+    const vrsyncFeat = ORAORA_TO_VRSYNC_FEATURE_MAP[key];
+    if (vrsyncFeat) {
+      mapped.add(vrsyncFeat);
+    }
+  }
+
+  if (Array.isArray(prop.proximidades)) {
+    for (const prox of prop.proximidades) {
+      if (typeof prox !== 'string') continue;
+      const key = prox.toLowerCase().trim();
+      const vrsyncProx = ORAORA_TO_VRSYNC_PROXIMITY_MAP[key];
+      if (vrsyncProx) {
+        mapped.add(vrsyncProx);
+      }
+    }
+  }
+
+  return Array.from(mapped);
+}
+
 export function generateCanalProXml(properties: any[]): string {
   let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
   xml += '<ListingDataFeed xmlns="http://www.vivareal.com/schemas/1.0/VRSync" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.vivareal.com/schemas/1.0/VRSync http://xml.vivareal.com/vrsync.xsd">\n';
@@ -261,7 +385,6 @@ export function generateCanalProXml(properties: any[]): string {
     const listingId = escapeXml(normalizeListingId(prop.id));
     const title = escapeXml(prop.informacoesbasicas?.nome || prop.titulo || prop.title || 'Imóvel');
     const rawDesc = prop.informacoesbasicas?.descricao || prop.descricao || prop.description || '';
-    const description = escapeXml(rawDesc.replace(/<[^>]*>?/gm, '').trim());
     
     const mappedTypeObj = mapToVrsyncListingType(getPropertyType(prop));
     const propertyType = escapeXml(mappedTypeObj.listingType);
@@ -289,10 +412,12 @@ export function generateCanalProXml(properties: any[]): string {
     const postalCode = escapeXml(getPropertyPostalCode(prop));
 
     const bedrooms = isLandOrLot ? 0 : parseNumber(prop.quartos ?? prop.caracteristicasimovel?.quartos);
-    const bathrooms = isLandOrLot ? 0 : parseNumber(prop.banheiros ?? prop.caracteristicasimovel?.banheiros ?? prop.caracteristicasimovel?.suites);
+    const suites = isLandOrLot ? 0 : parseNumber(prop.caracteristicasimovel?.suites ?? prop.suites);
+    const bathrooms = isLandOrLot ? 0 : parseNumber(prop.banheiros ?? prop.caracteristicasimovel?.banheiros);
     const garage = parseNumber(prop.vagas ?? prop.caracteristicasimovel?.vagas);
     const livingArea = Math.round(resolveLivingArea(prop));
     const lotArea = Math.round(resolveLotArea(prop));
+    const features = getPropertyFeatures(prop);
 
     const media = getPropertyMedia(prop);
     const videoUrl = prop.videoUrl || prop.youtubeUrl || prop.videos?.[0] || '';
@@ -301,19 +426,21 @@ export function generateCanalProXml(properties: any[]): string {
     xml += `      <ListingID>${listingId}</ListingID>\n`;
     xml += `      <Title>${title}</Title>\n`;
     xml += `      <TransactionType>${transactionType}</TransactionType>\n`;
-    
-    if (description) {
-      xml += `      <Description><![CDATA[${rawDesc.trim()}]]></Description>\n`;
-    }
 
-    // Details / Preços e Características
+    // Details / Preços e Características (Description e Features agora ficam DENTRO de Details conforme VRSync spec)
     xml += '      <Details>\n';
     xml += `        <PropertyType>${propertyType}</PropertyType>\n`;
+    
+    const cleanDesc = cleanDescriptionForVrsync(rawDesc);
+    if (cleanDesc) {
+      xml += `        <Description><![CDATA[${cleanDesc}]]></Description>\n`;
+    }
+
     if (listPrice > 0) xml += `        <ListPrice currency="BRL">${listPrice}</ListPrice>\n`;
     if (rentalPrice > 0) xml += `        <RentalPrice currency="BRL">${rentalPrice}</RentalPrice>\n`;
     if (seasonalPrice > 0) xml += `        <SeasonalPrice currency="BRL">${seasonalPrice}</SeasonalPrice>\n`;
     if (condominiumFee > 0) xml += `        <PropertyAdministrationFee currency="BRL">${condominiumFee}</PropertyAdministrationFee>\n`;
-    if (tax > 0) xml += `        <YearlyTax currency="BRL">${tax}</YearlyTax>\n`;
+    if (tax > 0) xml += `        <Iptu currency="BRL" period="Yearly">${tax}</Iptu>\n`;
 
     if (!isLandOrLot && livingArea > 0) {
       xml += `        <LivingArea unit="square metres">${livingArea}</LivingArea>\n`;
@@ -325,12 +452,24 @@ export function generateCanalProXml(properties: any[]): string {
     if (!isLandOrLot && bedrooms > 0) {
       xml += `        <Bedrooms>${bedrooms}</Bedrooms>\n`;
     }
+    if (!isLandOrLot && suites > 0) {
+      xml += `        <Suites>${suites}</Suites>\n`;
+    }
     if (!isLandOrLot && bathrooms > 0) {
       xml += `        <Bathrooms>${bathrooms}</Bathrooms>\n`;
     }
     if (garage > 0) {
       xml += `        <Garage type="Parking Space">${garage}</Garage>\n`;
     }
+
+    if (features.length > 0) {
+      xml += '        <Features>\n';
+      features.forEach(f => {
+        xml += `          <Feature>${escapeXml(f)}</Feature>\n`;
+      });
+      xml += '        </Features>\n';
+    }
+
     xml += '      </Details>\n';
 
     // Location

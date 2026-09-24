@@ -161,6 +161,7 @@ const propertyFormSchema = z.object({
     tipo: z.string().default('Apartamento'),
     quartos: z.array(z.string()).optional(),
     suites: z.array(z.string()).optional(),
+    banheiros: z.string().optional(),
     tamanho: z.string().optional(),
     vagas: z.string().optional(),
   }),
@@ -372,7 +373,7 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
         personaIds: [],
         link: '',
         informacoesbasicas: { nome: '', status: 'Em Construção', valor: 0, salePrice: 0, rentPrice: 0, transactionTypes: ['sale'], slug: '', slogan: '', descricao: '', previsaoentrega: '', condominio: 0, iptu: 0, nomeCondominio: '', exclusivo: false },
-        caracteristicasimovel: { tipo: 'Apartamento', quartos: [], suites: [], tamanho: '', vagas: '' },
+        caracteristicasimovel: { tipo: 'Apartamento', quartos: [], suites: [], banheiros: '', tamanho: '', vagas: '' },
         localizacao: { cep: '', estado: '', cidade: '', bairro: '', address: '', googleMapsLink: '', googleStreetViewLink: '', exibirLocalizacao: true },
         midia: [],
         youtubeVideoUrl: '',
@@ -958,6 +959,14 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
                         <FormField control={form.control} name="caracteristicasimovel.vagas" render={({ field }) => (
                             <FormItem>
                                 <FormLabel>Vagas de Garagem</FormLabel>
+                                <FormControl><Input placeholder="Ex: 2" {...field} value={field.value || ''} /></FormControl>
+                            </FormItem>
+                        )} />
+                    </div>
+                    <div className="lg:col-span-4">
+                        <FormField control={form.control} name="caracteristicasimovel.banheiros" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Banheiros</FormLabel>
                                 <FormControl><Input placeholder="Ex: 2" {...field} value={field.value || ''} /></FormControl>
                             </FormItem>
                         )} />
