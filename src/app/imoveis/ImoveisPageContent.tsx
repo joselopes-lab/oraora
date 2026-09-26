@@ -76,13 +76,13 @@ export default function ImoveisPageContent() {
       }
       
       // 3. Filter by State
-      if (stateUf && property.localizacao.estado !== stateUf) {
+      if (stateUf && property.localizacao?.estado !== stateUf) {
         return false;
       }
 
       // 4. Filter by Cities
       const searchCities = citiesParam ? citiesParam.split(',') : [];
-      if (searchCities.length > 0 && !searchCities.includes(property.localizacao.cidade)) {
+      if (searchCities.length > 0 && !searchCities.includes(property.localizacao?.cidade)) {
         return false;
       }
       
@@ -122,8 +122,8 @@ export default function ImoveisPageContent() {
       if (qParam) {
           const q = qParam.toLowerCase();
           const matchesSearch = property.informacoesbasicas.nome.toLowerCase().includes(q) || 
-                                property.localizacao.bairro.toLowerCase().includes(q) ||
-                                property.localizacao.cidade.toLowerCase().includes(q);
+                                (property.localizacao?.bairro || '').toLowerCase().includes(q) ||
+                                (property.localizacao?.cidade || '').toLowerCase().includes(q);
           if (!matchesSearch) return false;
       }
 

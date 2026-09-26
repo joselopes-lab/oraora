@@ -36,10 +36,10 @@ type Property = {
     descricao?: string;
     slug?: string;
   };
-  localizacao: {
-    bairro: string;
-    cidade: string;
-    estado: string;
+  localizacao?: {
+    bairro?: string;
+    cidade?: string;
+    estado?: string;
     address?: string;
     latitude?: number;
     longitude?: number;
@@ -86,7 +86,7 @@ export default function SearchResultsComponent({ properties }: SearchResultsComp
     const savedPropertyIds = radarList?.propertyIds || [];
 
     const availableStates = useMemo(() => {
-        return Array.from(new Set(properties.map(p => p.localizacao.estado))).filter(Boolean);
+        return Array.from(new Set(properties.map(p => p.localizacao?.estado))).filter(Boolean);
     }, [properties]);
 
     const createQueryString = useCallback(

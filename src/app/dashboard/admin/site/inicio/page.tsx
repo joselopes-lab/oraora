@@ -10,13 +10,17 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
+import { Progress } from '@/components/ui/progress';
+import { uploadFile } from '@/lib/storage';
 
 const siteContentSchema = z.object({
   heroTagline: z.string().optional(),
   heroTitle: z.string().optional(),
   heroSubtitle: z.string().optional(),
+  heroImage: z.string().optional(),
   featuredTagline: z.string().optional(),
   featuredTitle: z.string().optional(),
   featuredSubtitle: z.string().optional(),
@@ -53,8 +57,40 @@ type SiteContentData = {
 }
 
 export default function EditMainSiteHomepage() {
-  const { firestore } = useFirebase();
+  const { firestore, user, storage } = useFirebase();
   const { toast } = useToast();
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !user || !storage) return;
+
+    setIsUploading(true);
+    setUploadProgress(0);
+    setUploadError(null);
+
+    try {
+      const path = `site-assets/hero`;
+      const onProgress = (progress: number) => {
+        setUploadProgress(progress);
+      };
+
+      const downloadURL = await uploadFile(storage, path, file, onProgress);
+      
+      form.setValue('heroImage', downloadURL, { shouldDirty: true });
+      setIsUploading(false);
+      setUploadProgress(100);
+      toast({ title: 'Upload Concluído!', description: 'A imagem de capa foi enviada. Salve as alterações para publicar.' });
+
+    } catch (error) {
+      console.error('Upload error:', error);
+      setIsUploading(false);
+      setUploadError('Falha no upload.');
+      toast({ variant: "destructive", title: "Erro no Upload", description: "Não foi possível enviar a imagem." });
+    }
+  };
 
   const siteContentDocRef = useMemoFirebase(
     () => (firestore ? doc(firestore, 'brokers', 'oraora-main-site') : null),
@@ -138,6 +174,47 @@ export default function EditMainSiteHomepage() {
               <FormItem>
                 <FormLabel>Subtítulo</FormLabel>
                 <FormControl><Textarea placeholder="Descrição curta abaixo do título" rows={3} {...field} value={field.value ?? ''}/></FormControl>
+                <FormMessage />
+              </FormItem>
+            )}/>
+          </div>
+          <div className="md:col-span-2">
+            <FormField control={form.control} name="heroImage" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Imagem Principal (Hero Banner)</FormLabel>
+                <FormDescription>Faça upload de uma nova imagem para a direita do topo do portal ou informe a URL diretamente.</FormDescription>
+                <div className="flex flex-col md:flex-row items-center gap-4 mt-2">
+                  <div className="relative w-full md:w-64 h-36 bg-gray-100 rounded-xl border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden p-2">
+                    {field.value ? (
+                      <Image src={field.value} alt="Hero Preview" fill className="object-cover" referrerPolicy="no-referrer" />
+                    ) : (
+                      <span className="material-symbols-outlined text-gray-400 text-3xl">image</span>
+                    )}
+                  </div>
+                  <div className="flex-1 space-y-3 w-full">
+                    <label htmlFor="hero-img-upload" className="w-full inline-block">
+                      <div className="w-full px-4 h-10 flex items-center justify-center gap-2 rounded-lg bg-primary/10 border border-primary/20 text-xs font-bold text-primary cursor-pointer hover:bg-primary/20 transition-colors">
+                        <span className="material-symbols-outlined text-base">upload</span>
+                        Carregar Nova Imagem
+                      </div>
+                      <Input
+                        id="hero-img-upload"
+                        type="file"
+                        accept="image/*"
+                        className="sr-only"
+                        onChange={handleFileChange}
+                        disabled={isUploading}
+                      />
+                    </label>
+                    <Input
+                      placeholder="Ou cole a URL da imagem aqui"
+                      {...field}
+                      value={field.value ?? ''}
+                    />
+                  </div>
+                </div>
+                {isUploading && <Progress value={uploadProgress} className="h-2 mt-2" />}
+                {uploadError && <p className="text-xs text-red-500 mt-1">{uploadError}</p>}
                 <FormMessage />
               </FormItem>
             )}/>

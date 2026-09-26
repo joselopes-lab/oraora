@@ -47,7 +47,7 @@ export default function ImoveisClientPage() {
 
   const availableStates = useMemo(() => {
     if (!properties) return [];
-    return Array.from(new Set(properties.map(p => p.localizacao.estado))).filter(Boolean);
+    return Array.from(new Set(properties.map(p => p.localizacao?.estado))).filter(Boolean);
   }, [properties]);
 
   const handleLogout = () => {

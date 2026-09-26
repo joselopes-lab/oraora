@@ -142,6 +142,7 @@ const propertyFormSchema = z.object({
   personaIds: z.array(z.string()).optional().default([]),
   link: z.string().optional(),
   informacoesbasicas: z.object({
+    tipo: z.string().optional(),
     nome: z.string().min(1, "O nome do imóvel é obrigatório."),
     status: z.string().default('Em Construção'),
     slug: z.string().optional(),
@@ -158,7 +159,7 @@ const propertyFormSchema = z.object({
     exclusivo: z.boolean().default(false),
   }),
   caracteristicasimovel: z.object({
-    tipo: z.string().default('Apartamento'),
+    tipo: z.string().optional(),
     quartos: z.array(z.string()).optional(),
     suites: z.array(z.string()).optional(),
     banheiros: z.string().optional(),
@@ -912,11 +913,12 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
                 </div>
                 <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-6">
                     <div className="lg:col-span-4">
-                        <FormField control={form.control} name="caracteristicasimovel.tipo" render={({ field }) => (
+                        <FormField control={form.control} name="informacoesbasicas.tipo" render={({ field }) => (
                             <FormItem>
                                 <FormLabel>Tipo de Imóvel</FormLabel>
                                 <FormControl>
-                                    <select {...field} className="w-full rounded-lg border-card-border bg-[#f7f8f5] focus:border-primary focus:ring-primary h-11 px-3">
+                                    <select {...field} value={field.value || ''} className="w-full rounded-lg border-card-border bg-[#f7f8f5] focus:border-primary focus:ring-primary h-11 px-3">
+                                        <option value="">Selecione o tipo...</option>
                                         <option value="Apartamento">Apartamento</option>
                                         <option value="Apart Hotel">Apart Hotel</option>
                                         <option value="Bangalô">Bangalô</option>
@@ -944,6 +946,7 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
                                         <option value="Triplex">Triplex</option>
                                     </select>
                                 </FormControl>
+                                <FormMessage />
                             </FormItem>
                         )} />
                     </div>

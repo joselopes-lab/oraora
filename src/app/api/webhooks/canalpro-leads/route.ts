@@ -15,33 +15,33 @@ export async function POST(request: NextRequest) {
     
     const configuredSecret = process.env.CANALPRO_WEBHOOK_SECRET || process.env.WEBHOOK_SECRET;
 
+    if (!configuredSecret) {
+      console.error('[Webhook CanalPro] Webhook desativado: nenhum secret configurado no servidor.');
+      return NextResponse.json({ error: 'Webhook temporarily unavailable' }, { status: 503 });
+    }
+
     let isAuthenticated = false;
 
-    if (configuredSecret) {
-      if (secretHeader && secretHeader === configuredSecret) {
-        isAuthenticated = true;
-      } else if (authHeader) {
-        if (authHeader.startsWith('Bearer ')) {
-          const token = authHeader.substring(7);
-          if (token === configuredSecret) {
+    if (secretHeader && secretHeader === configuredSecret) {
+      isAuthenticated = true;
+    } else if (authHeader) {
+      if (authHeader.startsWith('Bearer ')) {
+        const token = authHeader.substring(7);
+        if (token === configuredSecret) {
+          isAuthenticated = true;
+        }
+      } else if (authHeader.startsWith('Basic ')) {
+        try {
+          const base64Credentials = authHeader.substring(6);
+          const credentials = Buffer.from(base64Credentials, 'base64').toString('ascii');
+          const [username, password] = credentials.split(':');
+          if (password === configuredSecret) {
             isAuthenticated = true;
           }
-        } else if (authHeader.startsWith('Basic ')) {
-          try {
-            const base64Credentials = authHeader.substring(6);
-            const credentials = Buffer.from(base64Credentials, 'base64').toString('ascii');
-            const [username, password] = credentials.split(':');
-            if (password === configuredSecret || username === configuredSecret) {
-              isAuthenticated = true;
-            }
-          } catch {
-            // Invalid base64
-          }
+        } catch {
+          // Invalid base64
         }
       }
-    } else {
-      // Se nenhum secret estiver configurado no servidor, aceitamos com aviso em log mas sem expor segredos
-      isAuthenticated = true;
     }
 
     if (!isAuthenticated) {
@@ -53,7 +53,8 @@ export async function POST(request: NextRequest) {
     
     // 2. Extração e Mapeamento de Campos
     const originLeadId = payload.originLeadId || payload.id || payload.externalId || null;
-    const originListingId = payload.originListingId || payload.clientListingId || payload.listingId || payload.id || null;
+    const originListingId = payload.originListingId || payload.listingId || payload.id || null;
+    const clientListingId = payload.clientListingId || payload.originListingId || payload.listingId || payload.id || null;
     const name = payload.name || payload.leadName || 'Cliente Canal Pro';
     const email = payload.email || payload.leadEmail || '';
     const ddd = payload.ddd || '';
@@ -65,8 +66,15 @@ export async function POST(request: NextRequest) {
     const timestamp = payload.timestamp || new Date().toISOString();
     const extraData = payload.extraData || {};
 
-    if (!originListingId) {
-      console.warn('[Webhook CanalPro] Payload inválido: listingId / originListingId ausente.');
+    const isMcmv = leadOrigin === 'MCMV_OLX';
+
+    if (!isMcmv && !clientListingId) {
+      console.warn('[Webhook CanalPro] Payload inválido: clientListingId ausente para lead do Grupo OLX.');
+      return NextResponse.json({ error: 'clientListingId obrigatório' }, { status: 400 });
+    }
+
+    if (isMcmv && !originListingId && !clientListingId) {
+      console.warn('[Webhook CanalPro] Payload inválido para MCMV: listingId / originListingId ausente.');
       return NextResponse.json({ error: 'listingId não fornecido' }, { status: 400 });
     }
 
@@ -83,31 +91,64 @@ export async function POST(request: NextRequest) {
     }
 
     // 4. Identificação do Imóvel (Fonte da verdade: brokerProperties para imóveis avulsos)
-    let propertySnap = await adminDb.collection('brokerProperties').doc(originListingId).get();
-    let propertyData = propertySnap.data();
+    let propertySnap: any = null;
+    let propertyData: any = null;
 
-    // Fallback de busca caso o ID enviado seja diferente
-    if (!propertySnap.exists) {
-      const querySnap = await adminDb.collection('brokerProperties')
-        .where('clientListingId', '==', originListingId)
-        .limit(1)
-        .get();
-      if (!querySnap.empty) {
-        propertySnap = querySnap.docs[0];
+    if (!isMcmv) {
+      // 1. Tentar buscar diretamente por ID do documento brokerProperties usando clientListingId
+      propertySnap = await adminDb.collection('brokerProperties').doc(clientListingId).get();
+      if (propertySnap.exists) {
         propertyData = propertySnap.data();
+      } else {
+        // 2. Fallback de busca por campo clientListingId
+        const querySnap = await adminDb.collection('brokerProperties')
+          .where('clientListingId', '==', clientListingId)
+          .limit(1)
+          .get();
+        if (!querySnap.empty) {
+          propertySnap = querySnap.docs[0];
+          propertyData = propertySnap.data();
+        }
+      }
+      // 3. Fallback legado com originListingId se necessário
+      if (!propertySnap?.exists && originListingId) {
+        const origSnap = await adminDb.collection('brokerProperties').doc(originListingId).get();
+        if (origSnap.exists) {
+          propertySnap = origSnap;
+          propertyData = origSnap.data();
+        }
+      }
+    } else {
+      // Comportamento preservado para MCMV_OLX
+      const targetId = originListingId || clientListingId;
+      if (targetId) {
+        propertySnap = await adminDb.collection('brokerProperties').doc(targetId).get();
+        if (propertySnap.exists) {
+          propertyData = propertySnap.data();
+        } else {
+          const querySnap = await adminDb.collection('brokerProperties')
+            .where('clientListingId', '==', targetId)
+            .limit(1)
+            .get();
+          if (!querySnap.empty) {
+            propertySnap = querySnap.docs[0];
+            propertyData = querySnap.docs[0].data();
+          }
+        }
       }
     }
 
     // Fallback secundário na coleção properties (caso seja imóvel geral)
-    if (!propertySnap.exists) {
-      const propGeneralSnap = await adminDb.collection('properties').doc(originListingId).get();
+    if (!propertySnap?.exists && (clientListingId || originListingId)) {
+      const generalId = clientListingId || originListingId;
+      const propGeneralSnap = await adminDb.collection('properties').doc(generalId).get();
       if (propGeneralSnap.exists) {
         propertySnap = propGeneralSnap;
         propertyData = propGeneralSnap.data();
       }
     }
 
-    if (!propertySnap.exists || !propertyData) {
+    if (!propertySnap?.exists || !propertyData) {
       console.error(`[Webhook CanalPro] Imóvel não encontrado para ID externo/interno.`);
       return NextResponse.json({ error: 'Imóvel não encontrado' }, { status: 404 });
     }

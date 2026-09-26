@@ -213,9 +213,9 @@ export default function BrokerHomePage() {
   };
 
   const defaultContent = {
-    heroTagline: 'Encontre seu novo lar',
-    heroTitle: 'Descubra o imóvel perfeito para <br /> <span class="text-transparent bg-clip-text bg-gradient-to-r from-primary to-[#5fab14]">viver seus sonhos.</span>',
-    heroSubtitle: 'Navegue por milhares de anúncios, encontre o que mais combina com você e agende uma visita online. Simples, rápido e seguro.',
+    heroTagline: 'IMÓVEIS EM TODO O BRASIL',
+    heroTitle: 'O próximo capítulo da sua vida pode estar aqui.',
+    heroSubtitle: 'Encontre imóveis com informações completas, conecte-se com corretores de confiança e descubra oportunidades reais, tudo em um só lugar.',
     featuredTagline: 'Exclusividade',
     featuredTitle: 'Imóveis em Destaque',
     featuredSubtitle: 'Curadoria exclusiva para você.',
@@ -340,18 +340,46 @@ export default function BrokerHomePage() {
       </header>
 
       <main>
-        <section className="relative pt-12 pb-20 lg:pt-24 lg:pb-32 overflow-hidden">
-          <div className="absolute inset-0 bg-grid -z-10 h-full w-full"></div>
+        <section className="relative pt-6 pb-32 lg:pt-10 lg:pb-44 overflow-hidden bg-white">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex flex-col items-center text-center mb-10">
-              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-green-50 border border-green-100 text-green-800 text-xs font-bold uppercase tracking-wider mb-6">
-                <span className="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
-                {finalContent.heroTagline}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center mb-12 lg:mb-20">
+              <div className="lg:col-span-6 text-left space-y-6 flex flex-col justify-center -mt-[15px]">
+                <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-slate-900 leading-[1.1]" dangerouslySetInnerHTML={{ __html: finalContent.heroTitle }} />
+                <p className="text-lg text-slate-600 leading-relaxed">{finalContent.heroSubtitle}</p>
+                
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4 border-t border-slate-100">
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-primary text-xl">home</span>
+                    <span className="text-xs font-bold text-slate-700">Imóveis verificados</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-primary text-xl">verified</span>
+                    <span className="text-xs font-bold text-slate-700">Informação confiável</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-primary text-xl">support_agent</span>
+                    <span className="text-xs font-bold text-slate-700">Corretores especialistas</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-primary text-xl">trending_up</span>
+                    <span className="text-xs font-bold text-slate-700">Mais oportunidades</span>
+                  </div>
+                </div>
               </div>
-              <h1 className="font-display text-4xl lg:text-6xl font-bold leading-[1.1] tracking-tight text-dark-text max-w-4xl" dangerouslySetInnerHTML={{ __html: finalContent.heroTitle }} />
-              <div className="text-xl text-gray-600 leading-relaxed max-w-2xl mx-auto mt-6">{finalContent.heroSubtitle}</div>
+              
+              <div className="lg:col-span-6 relative h-[450px] lg:h-[550px] w-full rounded-[2.5rem] overflow-hidden shadow-2xl">
+                <Image
+                  src={finalContent.heroImage || "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&q=80&w=1200"}
+                  alt="Imóvel de luxo Oraora"
+                  fill
+                  className="object-cover"
+                  referrerPolicy="no-referrer"
+                  priority
+                />
+              </div>
             </div>
-            <div className="max-w-5xl mx-auto relative z-10">
+
+            <div className="max-w-5xl mx-auto relative z-20 -mt-[calc(5rem+15px)] lg:-mt-[calc(8rem+15px)] shadow-2xl rounded-3xl bg-white">
               <Suspense fallback={<Skeleton className="h-24 w-full rounded-2xl" />}>
                 <SearchFilters variant="urban" onSearch={handleSearch} availableStates={availableStates} />
               </Suspense>

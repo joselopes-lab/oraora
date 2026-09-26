@@ -1,4 +1,3 @@
-
 import type { Metadata } from 'next';
 import Script from 'next/script';
 import { cookies } from 'next/headers';
@@ -13,6 +12,7 @@ import { generateOrganizationJsonLd } from '@/lib/seo';
 import { CookieConsentBanner } from '@/components/privacy/CookieConsentBanner';
 import { AnalyticsLoader } from '@/components/privacy/AnalyticsLoader';
 import { CONSENT_COOKIE_NAME, ConsentState } from '@/lib/privacy/types';
+import OraPublicChatWidget from '@/app/components/OraPublicChatWidget';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,6 +20,7 @@ type BrokerData = {
   faviconUrl?: string;
   googleAnalyticsId?: string;
   facebookPixelId?: string;
+  oraPublicAssistantEnabled?: boolean;
 };
 
 async function getSiteData(): Promise<BrokerData | null> {
@@ -67,6 +68,7 @@ export default async function RootLayout({
   const siteData = await getSiteData();
   const gaId = siteData?.googleAnalyticsId;
   const fbPixelId = siteData?.facebookPixelId;
+  const oraEnabled = siteData?.oraPublicAssistantEnabled !== false;
 
   // Check server-side analytics consent
   let analyticsAllowed = false;
@@ -107,6 +109,7 @@ export default async function RootLayout({
               <ActivityTracker />
             </Suspense>
             {children}
+            {oraEnabled && <OraPublicChatWidget />}
             <CookieConsentBanner />
             <AnalyticsLoader gaId={gaId} />
             <Toaster />

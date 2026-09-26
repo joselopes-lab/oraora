@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useDoc, useFirebase, useMemoFirebase, setDocumentNonBlocking } from '@/firebase';
@@ -9,6 +8,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Switch } from '@/components/ui/switch';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -23,17 +24,18 @@ const siteSettingsSchema = z.object({
   faviconUrl: z.string().url("URL do favicon inválida").optional().or(z.literal('')),
   googleAnalyticsId: z.string().optional(),
   facebookPixelId: z.string().optional(),
+  oraPublicAssistantEnabled: z.boolean().default(true),
 });
 
 type SiteSettingsFormData = z.infer<typeof siteSettingsSchema>;
 
-// Type matching the structure in Firestore
 type BrokerData = {
     logoUrl?: string;
     logoUrlWhite?: string;
     faviconUrl?: string;
     googleAnalyticsId?: string;
     facebookPixelId?: string;
+    oraPublicAssistantEnabled?: boolean;
 };
 
 type UploadState = {
@@ -45,6 +47,7 @@ type UploadState = {
 export default function EditPortalSettingsPage() {
   const { firestore, user, storage } = useFirebase();
   const { toast } = useToast();
+  const [pendingDisable, setPendingDisable] = useState(false);
   const [uploads, setUploads] = useState<Record<string, UploadState>>({
     mainLogo: { progress: 0, isUploading: false, error: null },
     whiteLogo: { progress: 0, isUploading: false, error: null },
@@ -64,6 +67,7 @@ export default function EditPortalSettingsPage() {
     faviconUrl: '',
     googleAnalyticsId: '',
     facebookPixelId: '',
+    oraPublicAssistantEnabled: true,
   };
   
   const form = useForm<SiteSettingsFormData>({
@@ -73,7 +77,11 @@ export default function EditPortalSettingsPage() {
 
   useEffect(() => {
     if (siteData) {
-      form.reset({ ...defaultValues, ...siteData });
+      form.reset({ 
+        ...defaultValues, 
+        ...siteData,
+        oraPublicAssistantEnabled: siteData.oraPublicAssistantEnabled !== false
+      });
     }
   }, [siteData, form]);
   
@@ -91,7 +99,7 @@ export default function EditPortalSettingsPage() {
 
       const downloadURL = await uploadFile(storage, path, file, onProgress);
       
-      form.setValue(fieldName, downloadURL, { shouldDirty: true });
+      form.setValue(fieldName, downloadURL as any, { shouldDirty: true });
       setUploads(prev => ({ ...prev, [uploadKey]: { progress: 100, isUploading: false, error: null } }));
       toast({ title: 'Upload Concluído!', description: 'A imagem foi enviada. Salve as alterações para publicar.' });
 
@@ -111,12 +119,12 @@ export default function EditPortalSettingsPage() {
 
     toast({
       title: 'Configurações Salvas!',
-      description: 'As logos e códigos de rastreamento do site foram atualizados.',
+      description: 'As configurações do portal foram atualizadas com sucesso.',
     });
   };
 
   if (isLoading) {
-    return <p>Carregando...</p>;
+    return <p className="p-10 text-center text-muted-foreground">Carregando configurações...</p>;
   }
   
   return (
@@ -130,7 +138,7 @@ export default function EditPortalSettingsPage() {
                 Voltar para o Dashboard
               </Link>
               <h1 className="text-3xl font-black text-gray-900 tracking-tight">Configurações do Site</h1>
-              <p className="text-text-muted mt-2 text-sm md:text-base">Gerencie as logos e outras configurações globais do portal Oraora.</p>
+              <p className="text-text-muted mt-2 text-sm md:text-base">Gerencie as logos, assistente ORA e outras configurações globais do portal Oraora.</p>
             </div>
             <div className="flex gap-3 w-full md:w-auto">
               <Button type="submit" disabled={form.formState.isSubmitting} className="w-full">
@@ -139,6 +147,43 @@ export default function EditPortalSettingsPage() {
             </div>
           </div>
           
+          {/* Assistente ORA Control Section */}
+          <section className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+              <h2 className="text-lg font-bold flex items-center gap-2 text-gray-800">
+                <span className="material-symbols-outlined text-primary-hover">smart_toy</span>
+                Assistente ORA (Atendimento Público)
+              </h2>
+            </div>
+            <div className="p-6">
+                <FormField
+                    key="oraPublicAssistantEnabled"
+                    control={form.control}
+                    name="oraPublicAssistantEnabled"
+                    render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-xl border p-4 bg-gray-50/50">
+                            <div className="space-y-0.5">
+                                <FormLabel className="text-base font-bold">ORA no Portal Público</FormLabel>
+                                <p className="text-xs text-muted-foreground">Controla a exibição da assistente ORA no oraora.com.br.</p>
+                            </div>
+                            <FormControl>
+                                <Switch
+                                    checked={field.value ?? true}
+                                    onCheckedChange={(checked) => {
+                                        if (!checked) {
+                                            setPendingDisable(true);
+                                        } else {
+                                            field.onChange(true);
+                                        }
+                                    }}
+                                />
+                            </FormControl>
+                        </FormItem>
+                    )}
+                />
+            </div>
+          </section>
+
           <section className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
             <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
               <h2 className="text-lg font-bold flex items-center gap-2 text-gray-800">
@@ -250,57 +295,6 @@ export default function EditPortalSettingsPage() {
                         </FormItem>
                     )}
                 />
-                 <FormField
-                    key="faviconUrl"
-                    control={form.control}
-                    name="faviconUrl"
-                    render={({ field }) => (
-                        <FormItem className="md:col-span-2">
-                            <FormLabel>Favicon do Portal</FormLabel>
-                            <p className="text-xs text-muted-foreground mb-2">Ícone que aparece na aba do navegador (use .ico, .png, .svg).</p>
-                            <div className="flex items-center gap-4 mt-2">
-                                 <div className="relative w-16 h-16 bg-gray-100 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden p-2">
-                                    {field.value ? (
-                                        <Image src={field.value} alt="Favicon Preview" layout="fill" className="object-contain"/>
-                                    ) : (
-                                        <span className="material-symbols-outlined text-gray-400">favorite</span>
-                                    )}
-                                </div>
-                                <div className="flex-1 space-y-2">
-                                    <label htmlFor="favicon-upload" className="w-full">
-                                        <div className="w-full px-3 h-9 flex items-center justify-center gap-1 rounded-md bg-gray-100 border border-gray-200 text-xs font-medium text-gray-700 cursor-pointer hover:bg-gray-200 transition-colors">
-                                            <span className="material-symbols-outlined text-sm">upload</span>
-                                            Carregar
-                                        </div>
-                                        <Input
-                                            id="favicon-upload"
-                                            type="file"
-                                            accept="image/png, image/jpeg, image/svg+xml, image/x-icon"
-                                            className="sr-only"
-                                            onChange={(e) => handleFileChange(e, "faviconUrl", "favicon")}
-                                            disabled={uploads.favicon?.isUploading}
-                                        />
-                                    </label>
-                                    <Input
-                                        className="w-full h-9 text-xs"
-                                        placeholder="Ou cole a URL"
-                                        {...field}
-                                        value={field.value ?? ""}
-                                    />
-                                </div>
-                            </div>
-                            {uploads.favicon?.isUploading && (
-                                <div className="space-y-1 mt-2">
-                                    <Progress value={uploads.favicon.progress} className="h-1.5" />
-                                </div>
-                            )}
-                            {uploads.favicon?.error && (
-                                <p className="text-xs text-red-500 mt-1">{uploads.favicon.error}</p>
-                            )}
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
             </div>
           </section>
           
@@ -346,8 +340,26 @@ export default function EditPortalSettingsPage() {
           </section>
         </form>
       </FormProvider>
+
+      <AlertDialog open={pendingDisable} onOpenChange={setPendingDisable}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Desativar a ORA no portal?</AlertDialogTitle>
+            <AlertDialogDescription>
+              A assistente deixará de aparecer para os visitantes do oraora.com.br. Você poderá ativá-la novamente a qualquer momento.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setPendingDisable(false)}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => {
+              form.setValue('oraPublicAssistantEnabled', false, { shouldDirty: true });
+              setPendingDisable(false);
+            }}>
+              Desativar ORA
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
-
-    

@@ -6,6 +6,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { revalidatePath, revalidateTag } from 'next/cache';
 import { resolvePhysicalIdentityServer } from '@/lib/property-identity.server';
 import { cookies, headers } from 'next/headers';
+import { syncPublicInventoryDocument, removePublicInventoryDocument } from '@/lib/ora/inventory-persistence.server';
 
 /**
  * @fileOverview Ações de servidor para persistência de imóveis com revalidação de cache.
@@ -120,6 +121,28 @@ export async function savePropertyServer(
       }
     }
 
+    // Validate property type for public properties
+    const isVisibleOnSite = data.isVisibleOnSite === true;
+    if (isVisibleOnSite) {
+      const VALID_PROPERTY_TYPES = [
+        'Apartamento', 'Apart Hotel', 'Bangalô', 'Casa', 'Casa de Campo', 'Casa de Praia', 'Casa de Vila', 'Casa Geminada', 'Chácara', 'Cobertura', 'Cobertura Duplex', 'Cobertura Triplex', 'Comercial', 'Duplex', 'Flat', 'Kitnet', 'Loft', 'Lote', 'Lote em Condomínio', 'Sítio', 'Sobrado', 'Studio', 'Terreno', 'Terreno Residencial', 'Triplex'
+      ];
+      
+      const isTypeProvidedInPayload = data.informacoesbasicas && 'tipo' in data.informacoesbasicas;
+      let tipo = data.informacoesbasicas?.tipo;
+
+      if (!isTypeProvidedInPayload && !tipo && !isNew) {
+        const existingDoc = await docRef.get();
+        if (existingDoc.exists) {
+          tipo = existingDoc.data()?.informacoesbasicas?.tipo;
+        }
+      }
+
+      if (!tipo || typeof tipo !== 'string' || !VALID_PROPERTY_TYPES.includes(tipo.trim())) {
+        throw new Error('Selecione um tipo de imóvel válido antes de publicá-lo.');
+      }
+    }
+
     const now = FieldValue.serverTimestamp();
     
     const seoData = {
@@ -158,6 +181,15 @@ export async function savePropertyServer(
     const sanitizedData = sanitize(finalData);
 
     await docRef.set(sanitizedData, { merge: true });
+
+    try {
+      const updatedDoc = await docRef.get();
+      if (updatedDoc.exists) {
+        await syncPublicInventoryDocument(collectionName, finalId, updatedDoc.data());
+      }
+    } catch (syncErr: any) {
+      console.error('[ORA Inventory Sync Error]', { collection: collectionName, id: finalId, error: syncErr?.message });
+    }
 
     // Invalidação de Cache Inteligente
     // Revalida o sitemap e as páginas de listagem e detalhes
@@ -249,6 +281,12 @@ export async function deletePropertyServer(
         const projectId = propData?.projectId;
 
         await docRef.delete();
+
+        try {
+            await removePublicInventoryDocument(collectionName, propertyId);
+        } catch (syncErr: any) {
+            console.error('[ORA Inventory Remove Error]', { collection: collectionName, id: propertyId, error: syncErr?.message });
+        }
         
         revalidatePath('/sitemap.xml');
         revalidatePath('/imoveis');
