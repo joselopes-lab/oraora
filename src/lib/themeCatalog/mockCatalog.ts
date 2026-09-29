@@ -97,5 +97,24 @@ export const MOCK_THEME_CATALOG: Record<string, ThemeCatalog> = {
     displayOrder: -1, // No topo da lista
     releaseDate: '2025-01-26',
     lastUpdated: '2025-01-26'
+  },
+  'studio': {
+    themeId: 'studio',
+    displayName: 'Studio',
+    description: 'Fotografia de estúdio em destaque, marca pessoal marcante, estética cinematográfica e editorial para corretores de alta autoridade.',
+    category: 'Editorial',
+    status: 'active',
+    featured: true,
+    premium: true,
+    price: 347,
+    promotionalPrice: 297,
+    includedInPlans: ['enterprise'],
+    tags: ['Editorial', 'Marca Pessoal', 'Cinematográfico'],
+    thumbnail: 'https://picsum.photos/seed/studio-thumb/400/300',
+    banner: 'https://picsum.photos/seed/studio-banner/1200/600',
+    previewImages: [],
+    displayOrder: -2,
+    releaseDate: '2026-03-26',
+    lastUpdated: '2026-03-26'
   }
 };

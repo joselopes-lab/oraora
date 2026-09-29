@@ -1,165 +1,169 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getSecret } from '@/lib/secrets';
+import { getAdminDb, getAdminAuth } from '@/firebase/index.server';
 
 export const dynamic = 'force-dynamic';
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const token = process.env.ABACATE_PAY_TOKEN || await getSecret('ABACATE_PAY_TOKEN');
+    const authHeader = req.headers.get('authorization') || '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.split('Bearer ')[1] : null;
 
-    // Extract fields whether wrapped in `data` or direct
-    const rawData = body?.data || body || {};
-    const amount = Number(rawData.amount || 2990);
-    const description = rawData.description || 'Assinatura OraOra';
-    const expiresIn = Number(rawData.expiresIn || 3600);
-    const customer = rawData.customer || rawData;
-
-    // Strict sanitization
-    const sanitizedEmail = (customer?.email || '').trim().toLowerCase();
-    const sanitizedTaxId = (customer?.taxId || '').replace(/\D/g, '');
-    const sanitizedName = (customer?.name || '').trim();
-    const sanitizedCellphone = (customer?.cellphone || '').replace(/\D/g, '');
-
-    // If no token is configured, use demo mode fallback
     if (!token) {
-      console.warn('[AbacatePay Transparent] ABACATE_PAY_TOKEN não configurado. Utilizando modo demonstração.');
+      return NextResponse.json({ success: false, error: 'Não autorizado. Faça login para continuar.' }, { status: 401 });
+    }
+
+    const adminAuth = getAdminAuth();
+    let decodedToken;
+    try {
+      decodedToken = await adminAuth.verifyIdToken(token);
+    } catch (e) {
+      return NextResponse.json({ success: false, error: 'Sessão inválida ou expirada.' }, { status: 401 });
+    }
+
+    const userId = decodedToken.uid;
+    const userEmail = decodedToken.email || '';
+    const userName = decodedToken.name || '';
+
+    const body = await req.json();
+    const planId = body?.planId;
+
+    if (!planId || typeof planId !== 'string') {
+      return NextResponse.json({ success: false, error: 'Plano inválido ou não especificado.' }, { status: 400 });
+    }
+
+    const db = getAdminDb();
+    const planRef = db.collection('plans').doc(planId);
+    const planSnap = await planRef.get();
+
+    if (!planSnap.exists) {
+      return NextResponse.json({ success: false, error: 'Plano não encontrado.' }, { status: 404 });
+    }
+
+    const planData = planSnap.data() as any;
+    if (planData.isActive === false) {
+      return NextResponse.json({ success: false, error: 'Este plano não está ativo no momento.' }, { status: 400 });
+    }
+
+    // Authoritative pricing in cents
+    const priceToUse = planData.promoPrice && planData.promoPrice > 0 ? planData.promoPrice : planData.price;
+    const amountCents = Math.round(Number(priceToUse) * 100);
+    const durationDays = Number(planData.durationDays || 30);
+    const planName = planData.name || 'Plano OraOra';
+
+    if (!Number.isInteger(amountCents) || amountCents <= 0) {
+      return NextResponse.json({ success: false, error: 'Preço do plano inválido.' }, { status: 400 });
+    }
+
+    const abacateToken = process.env.ABACATE_PAY_TOKEN || await getSecret('ABACATE_PAY_TOKEN');
+
+    if (!abacateToken) {
+      console.warn('[AbacatePay Pix Create] ABACATE_PAY_TOKEN não configurado. Modo demonstração.');
+      const mockCheckoutId = `pix_mock_${Date.now()}`;
+      const now = Date.now();
+
+      await db.collection('payments').add({
+        provider: 'abacatepay',
+        providerCheckoutId: mockCheckoutId,
+        externalId: mockCheckoutId,
+        userId,
+        userEmail,
+        planId,
+        planNameSnapshot: planName,
+        amount: amountCents,
+        durationDaysSnapshot: durationDays,
+        status: 'pending',
+        createdAt: now,
+        updatedAt: now,
+      });
+
       return NextResponse.json({
         success: true,
         data: {
-          id: `pix_char_mock_${Date.now()}`,
-          amount: amount,
+          id: mockCheckoutId,
+          amount: amountCents,
           status: 'PENDING',
           brCode: '00020101021226950014br.gov.bcb.pix.0135www.abacatepay.com.br/qr/v2/mock1234567890',
           brCodeBase64: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
-          expiresAt: new Date(Date.now() + expiresIn * 1000).toISOString()
+          expiresAt: new Date(Date.now() + 3600 * 1000).toISOString()
         },
-        error: null,
         isFallback: true
       });
     }
 
-    // Step 1: Mandatory Customer Registration in AbacatePay API v2
-    // Conforme docs/abacate-llms.txt:
-    // POST /customers/create: Cria (ou retorna existente) um cliente. Campo obrigatório: email.
-    // Clientes são únicos por CPF/CNPJ.
-    if (!sanitizedEmail) {
-      return NextResponse.json({
-        success: false,
-        error: 'O e-mail do cliente é obrigatório para realizar o cadastro na AbacatePay.',
-        data: null
-      }, { status: 400 });
-    }
-
-    const custPayload: Record<string, any> = {
-      email: sanitizedEmail
-    };
-    if (sanitizedName) custPayload.name = sanitizedName;
-    if (sanitizedTaxId) custPayload.taxId = sanitizedTaxId;
-    if (sanitizedCellphone) custPayload.cellphone = sanitizedCellphone;
-
-    console.log('[AbacatePay] Realizando cadastro de cliente:', JSON.stringify(custPayload, null, 2));
-
+    // Step 1: Create customer in AbacatePay
     const custResp = await fetch('https://api.abacatepay.com/v2/customers/create', {
       method: 'POST',
       headers: {
         'Accept': 'application/json',
-        'Authorization': `Bearer ${token}`,
+        'Authorization': `Bearer ${abacateToken}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(custPayload),
+      body: JSON.stringify({ email: userEmail, name: userName }),
     });
 
-    const custData = await custResp.json().catch(async () => ({ error: await custResp.text() }));
+    const custData = await custResp.json().catch(() => ({}));
+    const customerId = custData?.data?.id;
 
-    if (!custResp.ok || !custData?.success || !custData?.data?.id) {
-      const customerError = custData?.error || `Falha (${custResp.status}) ao cadastrar cliente na AbacatePay.`;
-      console.error('[AbacatePay] Erro no cadastro do cliente:', customerError);
-      return NextResponse.json({
-        success: false,
-        error: customerError,
-        data: null
-      }, { status: custResp.status >= 400 && custResp.status < 500 ? custResp.status : 400 });
-    }
-
-    const createdCustomerId = custData.data.id;
-    console.log('[AbacatePay] Cliente cadastrado/localizado com sucesso:', createdCustomerId);
-
-    // Step 2: Gerar Checkout Transparente (PIX) vinculado exclusivamente ao cliente cadastrado
-    // Conforme docs/abacate-llms.txt:
-    // POST /transparents/create: Cria um PIX. Campo obrigatório: data.amount (em centavos).
+    // Step 2: Create Transparent PIX
     const transparentPayload = {
       method: 'PIX',
       data: {
-        amount,
-        expiresIn,
-        description,
-        customerId: createdCustomerId,
+        amount: amountCents,
+        expiresIn: 3600,
+        description: `Assinatura ${planName} - OraOra`,
+        customerId: customerId || undefined,
         customer: {
-          name: sanitizedName,
-          email: sanitizedEmail,
-          taxId: sanitizedTaxId,
-          cellphone: sanitizedCellphone,
+          name: userName || 'Cliente OraOra',
+          email: userEmail,
         },
       },
     };
 
-    console.log('[AbacatePay Transparent] Criando PIX Transparente para o cliente:', JSON.stringify(transparentPayload, null, 2));
-
     const response = await fetch('https://api.abacatepay.com/v2/transparents/create', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${token}`,
+        'Authorization': `Bearer ${abacateToken}`,
         'Content-Type': 'application/json',
         'Accept': 'application/json',
       },
       body: JSON.stringify(transparentPayload),
     });
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(async () => ({ error: await response.text() }));
-      console.error(`[AbacatePay Transparent] Erro na API (${response.status}):`, errorData);
+    const data = await response.json().catch(() => ({}));
 
+    if (!response.ok || !data?.success) {
       return NextResponse.json({
         success: false,
-        error: errorData?.error || `Erro ${response.status} ao gerar cobrança transparente na AbacatePay.`,
-        data: null
-      }, { status: response.status >= 400 && response.status < 500 ? response.status : 400 });
+        error: data?.error || 'Erro ao gerar cobrança Pix na AbacatePay.'
+      }, { status: 400 });
     }
 
-    const result = await response.json();
-    
-    // Normalize AbacatePay v2 response format
-    const pixObj = result?.data || result;
-    const brCode = pixObj?.brCode || pixObj?.pix?.brCode || '';
-    let brCodeBase64 = pixObj?.brCodeBase64 || pixObj?.qrCodeBase64 || pixObj?.pix?.brCodeBase64 || pixObj?.qrCode || '';
+    const providerCheckoutId = data?.data?.id || `pix_${Date.now()}`;
+    const now = Date.now();
 
-    if (brCodeBase64 && !brCodeBase64.startsWith('data:')) {
-      brCodeBase64 = `data:image/png;base64,${brCodeBase64}`;
-    }
-
-    const normalizedData = {
-      id: pixObj?.id || pixObj?.pixId || `pix_${Date.now()}`,
-      amount: pixObj?.amount || amount,
-      status: pixObj?.status || 'PENDING',
-      brCode: brCode,
-      brCodeBase64: brCodeBase64,
-      expiresAt: pixObj?.expiresAt || new Date(Date.now() + expiresIn * 1000).toISOString()
-    };
+    // Persist Payment Pending
+    await db.collection('payments').add({
+      provider: 'abacatepay',
+      providerCheckoutId,
+      externalId: providerCheckoutId,
+      userId,
+      userEmail,
+      planId,
+      planNameSnapshot: planName,
+      amount: amountCents,
+      durationDaysSnapshot: durationDays,
+      status: 'pending',
+      createdAt: now,
+      updatedAt: now,
+    });
 
     return NextResponse.json({
       success: true,
-      data: normalizedData,
-      error: null
+      data: data.data
     });
-
-  } catch (err: unknown) {
-    const error = err as Error;
-    console.error('[AbacatePay Transparent] Exceção geral:', error?.message || error);
-    return NextResponse.json({
-      success: false,
-      error: error?.message || 'Falha interna ao gerar PIX',
-      data: null
-    }, { status: 500 });
+  } catch (error: any) {
+    console.error('[API Pix Create Error]:', error);
+    return NextResponse.json({ success: false, error: error.message || 'Erro interno ao criar pagamento.' }, { status: 500 });
   }
 }

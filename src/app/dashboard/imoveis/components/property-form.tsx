@@ -14,6 +14,7 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -24,9 +25,11 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Checkbox } from "@/components/ui/checkbox";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { generateSeoForProperty } from "@/ai/seo-generator";
+import { generatePropertyDescription } from "@/ai/property-description-generator";
+import { generatePropertySeo } from "@/ai/property-seo-generator";
 import type { GenerateSeoInput } from "@/ai/genkit";
 import ClientForm, { ClientFormData } from '../../clientes/components/client-form';
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
@@ -37,7 +40,7 @@ import { Progress } from "@/components/ui/progress";
 import { cn, formatCurrencyDisplay, parseSmartCurrency, formatCepDisplay, normalizeCep } from "@/lib/utils";
 import { ref as storageRef, deleteObject } from "firebase/storage";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Loader2, Trash2, Plus, X, Star, GripVertical } from "lucide-react";
+import { Loader2, Trash2, Plus, X, Star, GripVertical, AlertCircle } from "lucide-react";
 import locationData from '@/lib/location-data.json';
 import { savePropertyServer } from '../actions.server';
 import PrivateNotesSection from '@/app/dashboard/avulso/components/private-notes-section';
@@ -358,6 +361,7 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
 
     const { toast } = useToast();
     const [isGeneratingSeo, setIsGeneratingSeo] = useState(false);
+    const [isGeneratingDescription, setIsGeneratingDescription] = useState(false);
     const [isClientModalOpen, setIsClientModalOpen] = useState(false);
     const [localSubmitting, setLocalSubmitting] = useState(false);
     
@@ -404,12 +408,13 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
         }
     });
 
-    const watchState = form.watch('localizacao.estado');
-    const watchCity = form.watch('localizacao.cidade');
-    const watchTransactionTypes = form.watch('informacoesbasicas.transactionTypes') || [];
+    const { isDirty } = form.formState;
+    const router = useRouter();
+    const [isExitDialogOpen, setIsExitDialogOpen] = useState(false);
+    const [pendingNavHref, setPendingNavHref] = useState<string | null>(null);
 
-    const handleInternalSave = async (data: PropertyFormData) => {
-        if (!user) return;
+    const handleInternalSave = async (data: PropertyFormData): Promise<boolean> => {
+        if (!user) return false;
         setLocalSubmitting(true);
         const colName = collectionName ?? (isAvulso ? 'brokerProperties' : 'properties');
         
@@ -417,16 +422,86 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
             const res = await savePropertyServer(colName, (propertyData as any)?.id || null, data, user.uid);
             if (res.success) {
                 toast({ title: isEditing ? 'Imóvel atualizado!' : 'Imóvel criado!', description: 'Cache de sitemap e portal revalidados.' });
+                form.reset(data);
                 onSave(data);
+                return true;
             } else {
                 toast({ variant: 'destructive', title: 'Erro ao salvar', description: res.message });
+                return false;
             }
         } catch (e: any) {
             toast({ variant: 'destructive', title: 'Erro de conexão' });
+            return false;
         } finally {
             setLocalSubmitting(false);
         }
     };
+
+    const saveAndNavigate = async (targetHref: string) => {
+        let savedSuccessfully = false;
+        await form.handleSubmit(async (data) => {
+            const success = await handleInternalSave(data);
+            if (success) {
+                savedSuccessfully = true;
+            }
+        })();
+
+        if (savedSuccessfully) {
+            setIsExitDialogOpen(false);
+            setPendingNavHref(null);
+            router.push(targetHref);
+        }
+    };
+
+    useEffect(() => {
+        if (!isAvulso || !isDirty) return;
+
+        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+            e.preventDefault();
+            e.returnValue = '';
+        };
+
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        return () => {
+            window.removeEventListener('beforeunload', handleBeforeUnload);
+        };
+    }, [isAvulso, isDirty]);
+
+    useEffect(() => {
+        if (!isAvulso || !isDirty) return;
+
+        const handleAnchorClick = (e: MouseEvent) => {
+            if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) {
+                return;
+            }
+
+            const target = (e.target as HTMLElement).closest('a');
+            if (!target) return;
+
+            const href = target.getAttribute('href');
+            if (!href || href.startsWith('#') || href.startsWith('javascript:') || target.target === '_blank') {
+                return;
+            }
+
+            const currentPath = window.location.pathname;
+            if (href === currentPath) return;
+
+            e.preventDefault();
+            e.stopPropagation();
+
+            setPendingNavHref(href);
+            setIsExitDialogOpen(true);
+        };
+
+        document.addEventListener('click', handleAnchorClick, true);
+        return () => {
+            document.removeEventListener('click', handleAnchorClick, true);
+        };
+    }, [isAvulso, isDirty]);
+
+    const watchState = form.watch('localizacao.estado');
+    const watchCity = form.watch('localizacao.cidade');
+    const watchTransactionTypes = form.watch('informacoesbasicas.transactionTypes') || [];
 
     const availableCities = useMemo(() => {
         if (!watchState) return [];
@@ -439,6 +514,196 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
         const cityData = availableCities.find(c => c.name === watchCity);
         return cityData?.neighborhoods || [];
     }, [watchCity, availableCities]);
+
+    const handleGenerateSeo = async () => {
+        if (!user) {
+            toast({
+                variant: 'destructive',
+                title: 'Não autenticado',
+                description: 'Você precisa estar logado para gerar o SEO com IA.',
+            });
+            return;
+        }
+
+        const values = form.getValues();
+        const tipo = values.informacoesbasicas?.tipo?.trim();
+        if (!tipo) {
+            toast({
+                variant: 'destructive',
+                title: 'Tipo Obrigatório',
+                description: 'O tipo do imóvel é obrigatório para gerar o SEO.',
+            });
+            return;
+        }
+
+        const relevantFieldsCount = [
+            values.localizacao?.cidade?.trim(),
+            values.localizacao?.bairro?.trim(),
+            values.caracteristicasimovel?.tamanho?.trim(),
+            values.caracteristicasimovel?.banheiros?.trim(),
+            values.caracteristicasimovel?.vagas?.trim(),
+            values.informacoesbasicas?.nome?.trim(),
+            (values.caracteristicasimovel?.quartos && values.caracteristicasimovel.quartos.length > 0) ? true : undefined,
+            (values.caracteristicasimovel?.suites && values.caracteristicasimovel.suites.length > 0) ? true : undefined,
+            (values.caracteristicas && values.caracteristicas.length > 0) ? true : undefined,
+            (values.areascomuns && values.areascomuns.length > 0) ? true : undefined,
+            (values.informacoesbasicas?.salePrice !== undefined && values.informacoesbasicas?.salePrice !== null && values.informacoesbasicas.salePrice > 0) ? true : undefined,
+            (values.informacoesbasicas?.rentPrice !== undefined && values.informacoesbasicas?.rentPrice !== null && values.informacoesbasicas.rentPrice > 0) ? true : undefined,
+        ].filter(Boolean).length;
+
+        if (relevantFieldsCount < 2) {
+            toast({
+                variant: 'destructive',
+                title: 'Dados Insuficientes',
+                description: 'Informações insuficientes para SEO. Preencha pelo menos o tipo e mais 2 características ou dados de localização do imóvel.',
+            });
+            return;
+        }
+
+        setIsGeneratingSeo(true);
+        try {
+            const idToken = await user.getIdToken();
+            const result = await generatePropertySeo({
+                tipo: values.informacoesbasicas?.tipo,
+                finalidade: values.informacoesbasicas?.salePrice ? 'Venda' : values.informacoesbasicas?.rentPrice ? 'Aluguel' : 'Venda',
+                status: values.informacoesbasicas?.status,
+                nome: values.informacoesbasicas?.nome,
+                salePrice: values.informacoesbasicas?.salePrice,
+                rentPrice: values.informacoesbasicas?.rentPrice,
+                cidade: values.localizacao?.cidade,
+                bairro: values.localizacao?.bairro,
+                estado: values.localizacao?.estado,
+                tamanho: values.caracteristicasimovel?.tamanho,
+                vagas: values.caracteristicasimovel?.vagas,
+                banheiros: values.caracteristicasimovel?.banheiros,
+                quartos: values.caracteristicasimovel?.quartos,
+                suites: values.caracteristicasimovel?.suites,
+                caracteristicas: Array.isArray(values.caracteristicas) ? values.caracteristicas : [],
+                areascomuns: Array.isArray(values.areascomuns) ? values.areascomuns : [],
+                existingDescription: values.informacoesbasicas?.descricao || '',
+            }, idToken);
+
+            if (result) {
+                if (result.seoTitle) form.setValue('seoTitle', result.seoTitle, { shouldDirty: true });
+                if (result.seoDescription) form.setValue('seoDescription', result.seoDescription, { shouldDirty: true });
+                if (result.seoKeywords) form.setValue('seoKeywords', result.seoKeywords, { shouldDirty: true });
+                toast({
+                    title: 'SEO gerado com IA!',
+                    description: 'Os campos de SEO foram preenchidos com sucesso.',
+                });
+            }
+        } catch (error: any) {
+            console.error('Erro ao gerar SEO com IA:', error);
+            toast({
+                variant: 'destructive',
+                title: 'Não foi possível criar o SEO',
+                description: error?.message || 'Não foi possível gerar o SEO agora. Tente novamente.',
+            });
+        } finally {
+            setIsGeneratingSeo(false);
+        }
+    };
+
+    const textToPlainTextHtml = (text: string) => {
+        if (!text) return '';
+        if (text.includes('<p>') || text.includes('<br>')) return text;
+        const cleaned = text.replace(/[*#`_\\-]/g, '').trim();
+        const paragraphs = cleaned.split(/\n\s*\n/).filter(Boolean);
+        if (paragraphs.length <= 1) {
+            const lines = cleaned.split('\n').filter(Boolean);
+            if (lines.length > 1) {
+                return lines.map(line => `<p>${line.trim()}</p>`).join('');
+            }
+            return `<p>${cleaned}</p>`;
+        }
+        return paragraphs.map(p => `<p>${p.trim().replace(/\n/g, ' ')}</p>`).join('');
+    };
+
+    const handleGenerateDescription = async () => {
+        if (!user) {
+            toast({
+                variant: 'destructive',
+                title: 'Não autenticado',
+                description: 'Você precisa estar logado para gerar a descrição com IA.',
+            });
+            return;
+        }
+
+        const values = form.getValues();
+        const tipo = values.informacoesbasicas?.tipo?.trim();
+        if (!tipo) {
+            toast({
+                variant: 'destructive',
+                title: 'Tipo Obrigatório',
+                description: 'O tipo do imóvel é obrigatório para gerar a descrição.',
+            });
+            return;
+        }
+
+        const relevantFieldsCount = [
+            values.localizacao?.cidade?.trim(),
+            values.localizacao?.bairro?.trim(),
+            values.caracteristicasimovel?.tamanho?.trim(),
+            values.caracteristicasimovel?.banheiros?.trim(),
+            values.caracteristicasimovel?.vagas?.trim(),
+            values.informacoesbasicas?.nome?.trim(),
+            (values.caracteristicasimovel?.quartos && values.caracteristicasimovel.quartos.length > 0) ? true : undefined,
+            (values.caracteristicasimovel?.suites && values.caracteristicasimovel.suites.length > 0) ? true : undefined,
+            (values.caracteristicas && values.caracteristicas.length > 0) ? true : undefined,
+            (values.areascomuns && values.areascomuns.length > 0) ? true : undefined,
+            (values.informacoesbasicas?.salePrice !== undefined && values.informacoesbasicas?.salePrice !== null && values.informacoesbasicas.salePrice > 0) ? true : undefined,
+            (values.informacoesbasicas?.rentPrice !== undefined && values.informacoesbasicas?.rentPrice !== null && values.informacoesbasicas.rentPrice > 0) ? true : undefined,
+        ].filter(Boolean).length;
+
+        if (relevantFieldsCount < 2) {
+            toast({
+                variant: 'destructive',
+                title: 'Dados Insuficientes',
+                description: 'Informações insuficientes. Preencha pelo menos o tipo e mais 2 características ou dados de localização do imóvel.',
+            });
+            return;
+        }
+
+        setIsGeneratingDescription(true);
+        try {
+            const idToken = await user.getIdToken();
+            const result = await generatePropertyDescription({
+                tipo: values.informacoesbasicas?.tipo,
+                nome: values.informacoesbasicas?.nome,
+                status: values.informacoesbasicas?.status,
+                salePrice: values.informacoesbasicas?.salePrice,
+                rentPrice: values.informacoesbasicas?.rentPrice,
+                cidade: values.localizacao?.cidade,
+                bairro: values.localizacao?.bairro,
+                estado: values.localizacao?.estado,
+                tamanho: values.caracteristicasimovel?.tamanho,
+                vagas: values.caracteristicasimovel?.vagas,
+                banheiros: values.caracteristicasimovel?.banheiros,
+                quartos: values.caracteristicasimovel?.quartos,
+                suites: values.caracteristicasimovel?.suites,
+                caracteristicas: Array.isArray(values.caracteristicas) ? values.caracteristicas : [],
+                areascomuns: Array.isArray(values.areascomuns) ? values.areascomuns : [],
+                existingDescription: values.informacoesbasicas?.descricao || '',
+            }, idToken);
+
+            if (result?.description) {
+                form.setValue('informacoesbasicas.descricao', result.description, { shouldDirty: true });
+                toast({
+                    title: 'Descrição gerada com IA!',
+                    description: 'A descrição foi atualizada com sucesso.',
+                });
+            }
+        } catch (error: any) {
+            console.error('Erro ao gerar descrição com IA:', error);
+            toast({
+                variant: 'destructive',
+                title: 'Não foi possível criar a descrição',
+                description: error?.message || 'Não foi possível criar a descrição agora. Tente novamente.',
+            });
+        } finally {
+            setIsGeneratingDescription(false);
+        }
+    };
 
     const handleCepBlur = async (e: React.FocusEvent<HTMLInputElement>) => {
         const cep = e.target.value.replace(/\D/g, '');
@@ -1226,7 +1491,30 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
                     <div className="lg:col-span-12">
                         <FormField control={form.control} name="informacoesbasicas.descricao" render={({ field }) => (
                             <FormItem>
-                                <FormLabel>Descrição do Imóvel</FormLabel>
+                                <div className="flex items-center justify-between mb-2">
+                                    <FormLabel>Descrição do Imóvel</FormLabel>
+                                    {isAvulso && (
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            disabled={isGeneratingDescription}
+                                            onClick={handleGenerateDescription}
+                                            className="text-xs font-bold text-emerald-800 bg-emerald-50 border border-emerald-300 hover:bg-emerald-100 gap-1.5 cursor-pointer transition-colors"
+                                        >
+                                            {isGeneratingDescription ? (
+                                                <>
+                                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                    Criando descrição...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    ✨ {field.value && field.value.trim().length > 0 ? 'Melhorar com IA' : 'Criar com IA'}
+                                                </>
+                                            )}
+                                        </Button>
+                                    )}
+                                </div>
                                 <FormControl>
                                     <MiniRichEditor 
                                         value={field.value} 
@@ -1327,11 +1615,32 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
             </section>
 
             <section className="bg-white rounded-xl border border-card-border shadow-sm overflow-hidden">
-                <div className="px-6 py-4 border-b border-card-border bg-gray-50/50">
+                <div className="px-6 py-4 border-b border-card-border bg-gray-50/50 flex items-center justify-between">
                     <h3 className="font-bold text-lg flex items-center gap-2">
                         <span className="material-symbols-outlined text-text-secondary">search</span>
                         Configurações de SEO & Sitemap
                     </h3>
+                    {isAvulso && (
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            disabled={isGeneratingSeo}
+                            onClick={handleGenerateSeo}
+                            className="text-xs font-bold text-emerald-800 bg-emerald-50 border border-emerald-300 hover:bg-emerald-100 gap-1.5 cursor-pointer transition-colors"
+                        >
+                            {isGeneratingSeo ? (
+                                <>
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                    Gerando SEO...
+                                </>
+                            ) : (
+                                <>
+                                    ✨ {(form.watch('seoTitle') || form.watch('seoDescription')) ? 'Melhorar SEO com IA' : 'Gerar SEO com IA'}
+                                </>
+                            )}
+                        </Button>
+                    )}
                 </div>
                 <div className="p-6 space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1371,6 +1680,98 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
                     {localSubmitting ? 'Salvando...' : 'Salvar Imóvel'}
                 </Button>
             </div>
+
+            {/* Floating Save Bar for Imóvel Avulso when dirty */}
+            {isAvulso && isDirty && (
+                <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[92%] max-w-xl bg-slate-900 text-white px-5 py-3.5 rounded-full shadow-2xl border border-slate-800 flex items-center justify-between gap-4 transition-all duration-300 animate-in fade-in slide-in-from-bottom-5">
+                    <div className="flex items-center gap-2.5 text-sm font-semibold truncate">
+                        <span className="relative flex h-2.5 w-2.5 shrink-0">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-400"></span>
+                        </span>
+                        <span className="truncate">Alterações não salvas</span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                        <Button
+                            type="button"
+                            disabled={localSubmitting || parentSubmitting}
+                            onClick={() => form.handleSubmit(async (data) => { await handleInternalSave(data); })()}
+                            className="bg-primary text-black font-bold hover:bg-primary-hover h-9 rounded-full px-5 text-xs shadow-md border-none cursor-pointer"
+                        >
+                            {localSubmitting ? (
+                                <>
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                                    Salvando...
+                                </>
+                            ) : (
+                                'Salvar alterações'
+                            )}
+                        </Button>
+                    </div>
+                </div>
+            )}
+
+            {/* Exit Confirmation Dialog */}
+            <Dialog open={isExitDialogOpen} onOpenChange={setIsExitDialogOpen}>
+                <DialogContent className="sm:max-w-[460px] p-6 gap-0 rounded-2xl border border-gray-100 shadow-2xl bg-white">
+                    <DialogHeader className="space-y-2 text-left pr-6">
+                        <div className="flex items-center gap-2.5">
+                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-50 text-amber-600 border border-amber-200/50 shadow-2xs">
+                                <AlertCircle className="h-4.5 w-4.5" />
+                            </div>
+                            <DialogTitle className="text-base font-bold text-gray-900 tracking-tight">
+                                Alterações não salvas
+                            </DialogTitle>
+                        </div>
+                        <DialogDescription className="text-sm text-gray-600 leading-relaxed pt-1">
+                            Você tem alterações neste imóvel que ainda não foram salvas. O que deseja fazer antes de sair?
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2 mt-6 border-0 pt-0 pr-1">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setIsExitDialogOpen(false)}
+                            className="order-2 sm:order-1 h-10 border-gray-200 text-gray-700 hover:bg-gray-50 hover:text-gray-900 font-medium px-4 rounded-lg cursor-pointer text-xs sm:text-sm transition-colors"
+                        >
+                            Continuar editando
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            onClick={() => {
+                                setIsExitDialogOpen(false);
+                                if (pendingNavHref) {
+                                    router.push(pendingNavHref);
+                                    setPendingNavHref(null);
+                                }
+                            }}
+                            className="order-3 sm:order-2 h-10 text-gray-600 hover:text-red-600 hover:bg-red-50/80 font-medium px-3 rounded-lg cursor-pointer text-xs sm:text-sm transition-colors"
+                        >
+                            Sair sem salvar
+                        </Button>
+                        <Button
+                            type="button"
+                            disabled={localSubmitting || parentSubmitting}
+                            onClick={() => {
+                                if (pendingNavHref) {
+                                    saveAndNavigate(pendingNavHref);
+                                }
+                            }}
+                            className="order-1 sm:order-3 h-10 bg-gray-900 text-white hover:bg-gray-800 font-semibold px-4 rounded-lg shadow-sm cursor-pointer text-xs sm:text-sm transition-colors"
+                        >
+                            {localSubmitting ? (
+                                <>
+                                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                    Salvando...
+                                </>
+                            ) : (
+                                'Salvar e sair'
+                            )}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </form>
       </FormProvider>
     );

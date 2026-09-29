@@ -11,6 +11,9 @@ import { manifest as auraManifest } from '../aura/manifest';
 import { config as auraConfig } from '../aura/config';
 import { manifest as vertexManifest } from '../vertex/manifest';
 import { config as vertexConfig } from '../vertex/config';
+import { manifest as studioManifest } from '../studio/manifest';
+import { config as studioConfig } from '../studio/config';
+import StudioLayout from '../studio/Layout';
 
 export type PageLoader = () => Promise<{ default: React.ComponentType<any> }>;
 
@@ -45,6 +48,9 @@ export const THEME_PAGE_LOADERS: Record<string, Partial<Record<PageKey, PageLoad
   },
   'vertex': {
     home: () => import('@/layouts/vertex/Layout')
+  },
+  'studio': {
+    home: () => import('@/layouts/studio/Layout')
   }
 };
 
@@ -129,6 +135,16 @@ export const THEME_REGISTRY: Record<string, ThemeDefinition> = {
     manifest: vertexManifest,
     config: vertexConfig as any,
     pages: {}
+  },
+  'studio': {
+    id: 'studio',
+    component: StudioLayout,
+    isLegacy: false,
+    manifest: studioManifest,
+    config: studioConfig as any,
+    pages: {
+      home: StudioLayout
+    }
   }
 };
 

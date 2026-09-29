@@ -261,6 +261,18 @@ const NavigationLinks = ({ userProfile, pathname, openMenu, handleMouseEnter, ha
 
             <div className="flex flex-col gap-1">
               <div className="flex items-center gap-2.5 px-3 py-2 text-sm font-bold text-slate-900">
+                <span className="material-symbols-outlined text-[20px]">payments</span>
+                Financeiro
+              </div>
+              <div className="flex flex-col gap-1 pl-9">
+                <Link href="/dashboard/admin/financeiro" className="text-sm text-slate-600 hover:text-slate-900 py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">Visão Geral</Link>
+                <Link href="/dashboard/admin/financeiro/pagamentos" className="text-sm text-slate-600 hover:text-slate-900 py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">Pagamentos</Link>
+                <Link href="/dashboard/admin/financeiro/clientes" className="text-sm text-slate-600 hover:text-slate-900 py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">Clientes e Planos</Link>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-2.5 px-3 py-2 text-sm font-bold text-slate-900">
                 <span className="material-symbols-outlined text-[20px]">support_agent</span>
                 Atendimento
               </div>
@@ -516,6 +528,20 @@ const NavigationLinks = ({ userProfile, pathname, openMenu, handleMouseEnter, ha
               <DropdownMenuContent align="start" className="w-56" onMouseEnter={() => handleMouseEnter('loja-admin')} onMouseLeave={handleMouseLeave}>
                 <DropdownMenuItem asChild><Link href="/dashboard/admin/loja/themes">Theme Center</Link></DropdownMenuItem>
                 <DropdownMenuItem asChild><Link href="/dashboard/admin/planos">Gestão de Planos</Link></DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+
+          <div onMouseEnter={() => handleMouseEnter('financeiro-admin')} onMouseLeave={handleMouseLeave} className="h-full">
+            <DropdownMenu open={openMenu === 'financeiro-admin'} onOpenChange={(open) => setOpenMenu(open ? 'financeiro-admin' : null)}>
+              <DropdownMenuTrigger className={dropdownTriggerClasses(["/dashboard/admin/financeiro", "/dashboard/admin/financeiro/pagamentos", "/dashboard/admin/financeiro/clientes"])}>
+                <span className="material-symbols-outlined text-[20px]">payments</span>
+                Financeiro
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-56" onMouseEnter={() => handleMouseEnter('financeiro-admin')} onMouseLeave={handleMouseLeave}>
+                <DropdownMenuItem asChild><Link href="/dashboard/admin/financeiro">Visão Geral</Link></DropdownMenuItem>
+                <DropdownMenuItem asChild><Link href="/dashboard/admin/financeiro/pagamentos">Pagamentos</Link></DropdownMenuItem>
+                <DropdownMenuItem asChild><Link href="/dashboard/admin/financeiro/clientes">Clientes e Planos</Link></DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
