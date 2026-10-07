@@ -305,7 +305,10 @@ type UploadState = {
   id: string;
   file: File;
   progress: number;
+  status: 'pending' | 'uploading' | 'success' | 'error';
+  url?: string;
   error?: string;
+  order: number;
 };
 
 
@@ -366,6 +369,7 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
     const [localSubmitting, setLocalSubmitting] = useState(false);
     
     const [imageUploads, setImageUploads] = useState<UploadState[]>([]);
+    const hasPendingUploads = imageUploads.some(u => u.status === 'pending' || u.status === 'uploading' || u.status === 'error');
     const [isSlugManuallyEdited, setIsSlugManuallyEdited] = useState(isEditing);
 
     const states = locationData.states;
@@ -415,6 +419,10 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
 
     const handleInternalSave = async (data: PropertyFormData): Promise<boolean> => {
         if (!user) return false;
+        if (imageUploads.some(u => u.status === 'pending' || u.status === 'uploading' || u.status === 'error')) {
+            toast({ variant: 'destructive', title: 'Aguarde o término dos uploads', description: 'Existem imagens pendentes, em envio ou com erro.' });
+            return false;
+        }
         setLocalSubmitting(true);
         const colName = collectionName ?? (isAvulso ? 'brokerProperties' : 'properties');
         
@@ -725,34 +733,86 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
         }
     };
 
+    useEffect(() => {
+        if (!user || !storage) return;
+
+        const uploadingCount = imageUploads.filter(u => u.status === 'uploading').length;
+        if (uploadingCount >= 3) return;
+
+        const pendingItems = imageUploads.filter(u => u.status === 'pending');
+        if (pendingItems.length === 0) return;
+
+        const slotsAvailable = 3 - uploadingCount;
+        const itemsToStart = pendingItems.slice(0, slotsAvailable);
+
+        itemsToStart.forEach(item => {
+            runUpload(item);
+        });
+    }, [imageUploads, user, storage]);
+
     const handleImageUploads = (event: React.ChangeEvent<HTMLInputElement>) => {
         const files = event.target.files;
         if (!files || !user || !storage) return;
 
-        const newUploads: UploadState[] = Array.from(files).map(file => ({
-        id: uuidv4(),
-        file,
-        progress: 0,
+        const currentMaxOrder = imageUploads.length > 0 
+            ? Math.max(...imageUploads.map(u => u.order || 0))
+            : 0;
+
+        const newUploads: UploadState[] = Array.from(files).map((file, idx) => ({
+            id: uuidv4(),
+            file,
+            progress: 0,
+            status: 'pending',
+            order: currentMaxOrder + idx + 1,
         }));
 
         setImageUploads(prev => [...prev, ...newUploads]);
+        event.target.value = '';
+    };
 
-        newUploads.forEach(upload => {
+    const runUpload = (upload: UploadState) => {
+        if (!user || !storage) return;
         const path = `properties/${user.uid}`;
+
+        setImageUploads(prev => prev.map(u => u.id === upload.id ? { ...u, status: 'uploading', error: undefined } : u));
+
         uploadFile(storage, path, upload.file, (progress) => {
-            setImageUploads(prev => prev.map(u => (u.id === upload.id ? { ...u, progress } : u)));
+            setImageUploads(prev => prev.map(u => u.id === upload.id ? { ...u, progress } : u));
         })
-            .then(downloadURL => {
-            form.setValue('midia', [...(form.getValues('midia') || []), downloadURL], { shouldDirty: true });
-            setTimeout(() => setImageUploads(prev => prev.filter(u => u.id !== upload.id)), 1000);
-            })
-            .catch(() => toast({ variant: "destructive", title: "Erro no Upload" }));
+        .then(downloadURL => {
+            setImageUploads(prev => {
+                const updated = prev.map(u => u.id === upload.id ? { ...u, status: 'success' as const, progress: 100, url: downloadURL } : u);
+                
+                const successfulUrls = updated
+                    .filter(u => u.status === 'success' && u.url)
+                    .sort((a, b) => a.order - b.order)
+                    .map(u => u.url!);
+
+                const existingMidia = form.getValues('midia') || [];
+                const combined = Array.from(new Set([...existingMidia, ...successfulUrls]));
+                form.setValue('midia', combined, { shouldDirty: true });
+
+                return updated.filter(u => u.id !== upload.id);
+            });
+        })
+        .catch(err => {
+            setImageUploads(prev => prev.map(u => u.id === upload.id ? { ...u, status: 'error' as const, error: err?.message || 'Erro no upload' } : u));
+            toast({ variant: "destructive", title: "Erro no Upload", description: err?.message || 'Falha ao enviar imagem.' });
         });
+    };
+
+    const retryUpload = (upload: UploadState) => {
+        setImageUploads(prev => prev.map(u => u.id === upload.id ? { ...u, status: 'pending', error: undefined, progress: 0 } : u));
+    };
+
+    const removeUpload = (id: string) => {
+        setImageUploads(prev => prev.filter(u => u.id !== id));
     };
 
     const removeImage = (urlToRemove: string) => {
         const currentMidia = form.getValues('midia') || [];
         form.setValue('midia', currentMidia.filter(url => url !== urlToRemove), { shouldDirty: true });
+        setImageUploads(prev => prev.filter(u => u.url !== urlToRemove));
     };
 
     const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
@@ -797,6 +857,32 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
         form.setValue('midia', currentMidia, { shouldDirty: true });
     };
 
+    const watchedNome = form.watch('informacoesbasicas.nome');
+    const watchedCep = form.watch('localizacao.cep');
+    const watchedBairro = form.watch('localizacao.bairro');
+    const watchedTipo = form.watch('informacoesbasicas.tipo');
+    const watchedMidia = form.watch('midia');
+    const watchedSlug = form.watch('informacoesbasicas.slug');
+
+    const formSections = useMemo(() => [
+        { id: 'secao-informacoes-basicas', label: 'Informações Básicas', icon: 'info', isDone: Boolean(watchedNome && watchedNome.trim().length > 0) },
+        { id: 'secao-localizacao', label: 'Localização', icon: 'location_on', isDone: Boolean(watchedCep || watchedBairro) },
+        { id: 'secao-caracteristicas', label: 'Características & Detalhes', icon: 'home_work', isDone: Boolean(watchedTipo) },
+        { id: 'secao-fotos', label: 'Galeria de Fotos', icon: 'imagesmode', isDone: Boolean(watchedMidia && watchedMidia.length > 0) },
+        { id: 'secao-seo', label: 'SEO & Sitemap', icon: 'search', isDone: Boolean(watchedSlug) },
+    ], [watchedNome, watchedCep, watchedBairro, watchedTipo, watchedMidia, watchedSlug]);
+
+    const completedSectionsCount = useMemo(() => {
+        return formSections.filter(s => s.isDone).length;
+    }, [formSections]);
+
+    const scrollToSection = (id: string) => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    };
+
     return (
       <FormProvider {...form}>
         <form onSubmit={form.handleSubmit(handleInternalSave)} className="space-y-6 text-left">
@@ -814,16 +900,16 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
                     <p className="text-text-secondary max-w-2xl">O sitemap e o portal serão atualizados automaticamente após salvar.</p>
                 </div>
                 <div className="flex gap-3">
-                    <Button type="submit" disabled={localSubmitting || parentSubmitting} className="px-5 py-2.5 rounded-lg bg-primary text-black font-bold text-sm hover:bg-primary-hover transition-colors shadow-sm flex items-center gap-2 border-none cursor-pointer">
+                    <Button type="submit" disabled={localSubmitting || parentSubmitting || hasPendingUploads} className="px-5 py-2.5 rounded-lg bg-primary text-black font-bold text-sm hover:bg-primary-hover transition-colors shadow-sm flex items-center gap-2 border-none cursor-pointer">
                         <span className="material-symbols-outlined text-[18px]">save</span>
                          {localSubmitting ? 'Salvando...' : 'Salvar Imóvel'}
                     </Button>
                 </div>
             </div>
 
-            <div className={isAvulso ? "grid grid-cols-1 lg:grid-cols-3 gap-6 items-start" : "space-y-6"}>
-                <div className={isAvulso ? "lg:col-span-2 space-y-6" : "space-y-6"}>
-                    <section className="bg-white rounded-xl border border-card-border shadow-sm overflow-hidden">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+                <div className="lg:col-span-2 space-y-6">
+                    <section id="secao-informacoes-basicas" className="bg-white rounded-xl border border-card-border shadow-sm overflow-hidden scroll-mt-24">
                 <div className="px-6 py-4 border-b border-card-border bg-gray-50/50 flex justify-between items-center">
                     <h3 className="font-bold text-lg flex items-center gap-2">
                         <span className="material-symbols-outlined text-text-secondary">info</span>
@@ -1061,7 +1147,7 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
                 </div>
             </section>
 
-            <section className="bg-white rounded-xl border border-card-border shadow-sm overflow-hidden">
+            <section id="secao-localizacao" className="bg-white rounded-xl border border-card-border shadow-sm overflow-hidden scroll-mt-24">
                 <div className="px-6 py-4 border-b border-card-border bg-gray-50/50">
                     <h3 className="font-bold text-lg flex items-center gap-2">
                         <span className="material-symbols-outlined text-text-secondary">location_on</span>
@@ -1169,7 +1255,7 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
                 </div>
             </section>
 
-            <section className="bg-white rounded-xl border border-card-border shadow-sm overflow-hidden">
+            <section id="secao-caracteristicas" className="bg-white rounded-xl border border-card-border shadow-sm overflow-hidden scroll-mt-24">
                 <div className="px-6 py-4 border-b border-card-border bg-gray-50/50">
                     <h3 className="font-bold text-lg flex items-center gap-2">
                         <span className="material-symbols-outlined text-text-secondary">home_work</span>
@@ -1528,7 +1614,7 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
                 </div>
             </section>
 
-            <section className="bg-white rounded-xl border border-card-border shadow-sm overflow-hidden">
+            <section id="secao-fotos" className="bg-white rounded-xl border border-card-border shadow-sm overflow-hidden scroll-mt-24">
                 <div className="px-6 py-4 border-b border-card-border bg-gray-50/50">
                     <h3 className="font-bold text-lg flex items-center gap-2">
                         <span className="material-symbols-outlined text-text-secondary">imagesmode</span>
@@ -1586,9 +1672,38 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
                         ))}
                         
                         {imageUploads.map(upload => (
-                            <div key={upload.id} className="relative aspect-square flex flex-col items-center justify-center border border-dashed border-card-border rounded-lg bg-gray-50">
-                                <Loader2 className="size-6 animate-spin text-primary mb-2" />
-                                <span className="text-[10px] font-bold">{Math.round(upload.progress)}%</span>
+                            <div key={upload.id} className={cn(
+                                "relative aspect-square flex flex-col items-center justify-center border rounded-lg p-2 text-center",
+                                upload.status === 'error' ? "border-red-300 bg-red-50/50" : "border-dashed border-card-border bg-gray-50"
+                            )}>
+                                {upload.status === 'error' ? (
+                                    <>
+                                        <AlertCircle className="size-5 text-red-500 mb-1" />
+                                        <span className="text-[9px] text-red-600 font-bold line-clamp-1 px-1">{upload.error || 'Erro'}</span>
+                                        <div className="flex gap-1 mt-1.5">
+                                            <button
+                                                type="button"
+                                                onClick={() => retryUpload(upload)}
+                                                className="px-1.5 py-0.5 bg-primary text-black font-bold text-[9px] rounded hover:bg-primary-hover transition-colors cursor-pointer"
+                                            >
+                                                Tentar
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => removeUpload(upload.id)}
+                                                className="px-1.5 py-0.5 bg-red-100 text-red-600 font-bold text-[9px] rounded hover:bg-red-200 transition-colors cursor-pointer"
+                                            >
+                                                Remover
+                                            </button>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Loader2 className="size-6 animate-spin text-primary mb-2" />
+                                        <span className="text-[10px] font-bold">{Math.round(upload.progress)}%</span>
+                                        <span className="text-[9px] text-text-secondary mt-0.5">Enviando...</span>
+                                    </>
+                                )}
                             </div>
                         ))}
 
@@ -1614,7 +1729,7 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
                 </div>
             </section>
 
-            <section className="bg-white rounded-xl border border-card-border shadow-sm overflow-hidden">
+            <section id="secao-seo" className="bg-white rounded-xl border border-card-border shadow-sm overflow-hidden scroll-mt-24">
                 <div className="px-6 py-4 border-b border-card-border bg-gray-50/50 flex items-center justify-between">
                     <h3 className="font-bold text-lg flex items-center gap-2">
                         <span className="material-symbols-outlined text-text-secondary">search</span>
@@ -1667,16 +1782,55 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
             </section>
 
                 </div>
-                {isAvulso && (
-                    <div className="lg:col-span-1 lg:sticky lg:top-6 space-y-6">
-                        <PrivateNotesSection propertyId={propertyData?.id} isAvulso={isAvulso} />
+                <div className="lg:col-span-1 lg:sticky lg:top-6 space-y-6">
+                    {/* Guia Lateral de Cadastro */}
+                    <div className="bg-white rounded-xl border border-card-border shadow-sm p-5 space-y-4">
+                        <div className="flex items-center justify-between border-b border-card-border pb-3">
+                            <div>
+                                <h3 className="font-bold text-sm text-text-main flex items-center gap-2">
+                                    <span className="material-symbols-outlined text-primary text-[18px]">list_alt</span>
+                                    Guia do Imóvel
+                                </h3>
+                                <p className="text-[11px] text-text-secondary mt-0.5">Navegação pelas seções</p>
+                            </div>
+                            <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
+                                {completedSectionsCount}/{formSections.length}
+                            </span>
+                        </div>
+                        <nav className="space-y-1">
+                            {formSections.map((sec, idx) => (
+                                <button
+                                    key={sec.id}
+                                    type="button"
+                                    onClick={() => scrollToSection(sec.id)}
+                                    className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold text-slate-700 hover:text-slate-900 hover:bg-slate-50 transition-colors text-left group cursor-pointer border-none bg-transparent"
+                                >
+                                    <div className="flex items-center gap-2.5 min-w-0">
+                                        <span className={cn(
+                                            "size-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 transition-colors",
+                                            sec.isDone ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500 group-hover:bg-slate-200"
+                                        )}>
+                                            {sec.isDone ? "✓" : idx + 1}
+                                        </span>
+                                        <span className="truncate">{sec.label}</span>
+                                    </div>
+                                    <span className="material-symbols-outlined text-[16px] text-slate-300 group-hover:text-slate-500 transition-colors shrink-0">
+                                        chevron_right
+                                    </span>
+                                </button>
+                            ))}
+                        </nav>
                     </div>
-                )}
+
+                    {isAvulso && (
+                        <PrivateNotesSection propertyId={propertyData?.id} isAvulso={isAvulso} />
+                    )}
+                </div>
             </div>
 
             <div className="flex justify-end gap-3 mt-6 pb-20">
                 <Button type="button" variant="outline" asChild><Link href={cancelUrl}>Cancelar</Link></Button>
-                <Button type="submit" disabled={localSubmitting || parentSubmitting} className="font-bold">
+                <Button type="submit" disabled={localSubmitting || parentSubmitting || hasPendingUploads} className="font-bold">
                     {localSubmitting ? 'Salvando...' : 'Salvar Imóvel'}
                 </Button>
             </div>
@@ -1694,7 +1848,7 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
                     <div className="flex items-center gap-2 shrink-0">
                         <Button
                             type="button"
-                            disabled={localSubmitting || parentSubmitting}
+                            disabled={localSubmitting || parentSubmitting || hasPendingUploads}
                             onClick={() => form.handleSubmit(async (data) => { await handleInternalSave(data); })()}
                             className="bg-primary text-black font-bold hover:bg-primary-hover h-9 rounded-full px-5 text-xs shadow-md border-none cursor-pointer"
                         >
@@ -1752,7 +1906,7 @@ export default function PropertyForm({ propertyData, onSave, isEditing, isSubmit
                         </Button>
                         <Button
                             type="button"
-                            disabled={localSubmitting || parentSubmitting}
+                            disabled={localSubmitting || parentSubmitting || hasPendingUploads}
                             onClick={() => {
                                 if (pendingNavHref) {
                                     saveAndNavigate(pendingNavHref);

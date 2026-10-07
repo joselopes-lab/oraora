@@ -6,6 +6,8 @@ export interface MockPayment {
   id: string;
   clientName: string;
   clientEmail: string;
+  clientTaxId?: string;
+  clientCellphone?: string;
   planName: string;
   amount: number; // in cents
   method: 'PIX' | 'Cartão de Crédito' | 'Boleto';
@@ -48,172 +50,108 @@ export const adminFinanceMockData = {
     { month: 'Mai', value: 104000 },
     { month: 'Jun', value: 112000 },
     { month: 'Jul', value: 118000 },
-    { month: 'Ago', value: 122000 },
+    { month: 'Ago', value: 124000 },
     { month: 'Set', value: 128450 }
   ],
-  revenueByPlan: [
-    { plan: 'Studio Pro Annual', share: '55%', value: 'R$ 70.640' },
-    { plan: 'Broker Elite Monthly', share: '30%', value: 'R$ 38.535' },
-    { plan: 'Standard Starter', share: '15%', value: 'R$ 19.275' }
-  ],
-  paymentStatusSummary: {
-    pagos: 310,
-    pendentes: 18,
-    reembolsados: 6,
-    emDisputa: 4,
-    perdidos: 4
-  },
   payments: [
     {
-      id: 'PAY-9821',
-      clientName: 'Carlos Eduardo Mendes',
-      clientEmail: 'carlos.mendes@corretor.com.br',
-      planName: 'Studio Pro Annual',
-      amount: 347000,
-      method: 'PIX',
-      date: '25/09/2026',
-      dateTime: '25/09/2026 às 14:32',
-      status: 'Pago',
+      id: 'PAY-8921',
+      clientName: 'Carlos Alberto Imóveis',
+      clientEmail: 'carlos@imoveiscarlos.com.br',
+      clientTaxId: '123.456.789-00',
+      clientCellphone: '(11) 98765-4321',
+      planName: 'Plano Pro Anual',
+      amount: 149000, // R$ 1.490,00
+      method: 'PIX' as const,
+      date: '28/09/2026',
+      dateTime: '28/09/2026 às 14:32',
+      status: 'Pago' as const,
       provider: 'AbacatePay',
-      checkoutId: 'chk_abct_892341',
+      checkoutId: 'chk_trans_01',
       timeline: [
-        { time: '25/09/2026 14:30', event: 'Pagamento criado no checkout' },
-        { time: '25/09/2026 14:32', event: 'Confirmação PIX recebida via webhook' }
+        { time: '28/09/2026 14:30', event: 'Cobrança gerada' },
+        { time: '28/09/2026 14:32', event: 'Pagamento PIX confirmado' }
       ]
     },
     {
-      id: 'PAY-9820',
-      clientName: 'Mariana Souza Lima',
-      clientEmail: 'mariana.lima@imoveis.com',
-      planName: 'Broker Elite Monthly',
-      amount: 19700,
-      method: 'Cartão de Crédito',
-      date: '25/09/2026',
-      dateTime: '25/09/2026 às 11:15',
-      status: 'Pago',
+      id: 'PAY-8920',
+      clientName: 'Ana Paula Corretora',
+      clientEmail: 'ana@anapaulacorretora.com',
+      clientTaxId: '987.654.321-11',
+      clientCellphone: '(21) 99123-4567',
+      planName: 'Plano Enterprise Mensal',
+      amount: 49900, // R$ 499,00
+      method: 'Cartão de Crédito' as const,
+      date: '28/09/2026',
+      dateTime: '28/09/2026 às 11:15',
+      status: 'Pago' as const,
       provider: 'AbacatePay',
-      checkoutId: 'chk_abct_892210',
+      checkoutId: 'chk_trans_02',
       timeline: [
-        { time: '25/09/2026 11:14', event: 'Autorização de cartão iniciada' },
-        { time: '25/09/2026 11:15', event: 'Pagamento confirmado' }
+        { time: '28/09/2026 11:15', event: 'Cobrança gerada' },
+        { time: '28/09/2026 11:15', event: 'Cartão aprovado' }
       ]
     },
     {
-      id: 'PAY-9819',
-      clientName: 'Roberto Alcantara',
-      clientEmail: 'roberto@alcantaraimoveis.com',
-      planName: 'Standard Starter',
-      amount: 9900,
-      method: 'Boleto',
-      date: '24/09/2026',
-      dateTime: '24/09/2026 às 16:00',
-      status: 'Pendente',
+      id: 'PAY-8919',
+      clientName: 'Marcos Vinicius',
+      clientEmail: 'marcos@viniimoveis.com.br',
+      clientTaxId: '456.123.789-22',
+      clientCellphone: '(31) 98888-7777',
+      planName: 'Plano Pro Mensal',
+      amount: 19900, // R$ 199,00
+      method: 'PIX' as const,
+      date: '27/09/2026',
+      dateTime: '27/09/2026 às 18:40',
+      status: 'Pendente' as const,
       provider: 'AbacatePay',
-      checkoutId: 'chk_abct_891905',
+      checkoutId: 'chk_trans_03',
       timeline: [
-        { time: '24/09/2026 16:00', event: 'Boleto gerado e enviado por e-mail' }
-      ]
-    },
-    {
-      id: 'PAY-9818',
-      clientName: 'Fernanda Vasconcelos',
-      clientEmail: 'fernanda@fvimoveis.com',
-      planName: 'Studio Pro Annual',
-      amount: 347000,
-      method: 'PIX',
-      date: '23/09/2026',
-      dateTime: '23/09/2026 às 09:40',
-      status: 'Reembolsado',
-      provider: 'AbacatePay',
-      checkoutId: 'chk_abct_890123',
-      timeline: [
-        { time: '23/09/2026 09:40', event: 'Pagamento confirmado' },
-        { time: '23/09/2026 15:20', event: 'Solicitação de reembolso pelo cliente atendida' }
-      ]
-    },
-    {
-      id: 'PAY-9817',
-      clientName: 'Lucas Silveira',
-      clientEmail: 'lucas@silveiraimoveis.com',
-      planName: 'Broker Elite Monthly',
-      amount: 19700,
-      method: 'Cartão de Crédito',
-      date: '22/09/2026',
-      dateTime: '22/09/2026 às 18:10',
-      status: 'Em disputa',
-      provider: 'AbacatePay',
-      checkoutId: 'chk_abct_889982',
-      timeline: [
-        { time: '22/09/2026 18:10', event: 'Pagamento aprovado' },
-        { time: '23/09/2026 10:00', event: 'Chargeback / Disputa aberta pelo portador do cartão' }
+        { time: '27/09/2026 18:40', event: 'Cobrança gerada - aguardando PIX' }
       ]
     }
   ] as MockPayment[],
-
-  clientsSummary: {
-    pagantes: 342,
-    acessosAtivos: 330,
-    proximosVencimento: 12,
-    suspensos: 8
-  },
-
-  clientsAndPlans: [
+  clientPlans: [
     {
-      id: 'CLI-001',
-      clientName: 'Carlos Eduardo Mendes',
-      clientEmail: 'carlos.mendes@corretor.com.br',
-      planName: 'Studio Pro Annual',
-      lastPaymentAmount: 347000,
-      lastPaymentDate: '25/09/2026',
-      accessStart: '25/09/2026',
-      accessEnd: '25/09/2027',
-      accessStatus: 'Ativo',
+      id: 'CLI-01',
+      clientName: 'Carlos Alberto Imóveis',
+      clientEmail: 'carlos@imoveiscarlos.com.br',
+      planName: 'Plano Pro Anual',
+      lastPaymentAmount: 149000,
+      lastPaymentDate: '28/09/2026',
+      accessStart: '28/09/2026',
+      accessEnd: '28/09/2027',
+      accessStatus: 'Ativo' as const,
       paymentHistory: [
-        { date: '25/09/2026', plan: 'Studio Pro Annual', amount: 347000, method: 'PIX', status: 'Pago' }
+        { date: '28/09/2026', plan: 'Plano Pro Anual', amount: 149000, method: 'PIX', status: 'Pago' as const }
       ]
     },
     {
-      id: 'CLI-002',
-      clientName: 'Mariana Souza Lima',
-      clientEmail: 'mariana.lima@imoveis.com',
-      planName: 'Broker Elite Monthly',
-      lastPaymentAmount: 19700,
-      lastPaymentDate: '25/09/2026',
-      accessStart: '25/09/2026',
-      accessEnd: '25/10/2026',
-      accessStatus: 'Ativo',
+      id: 'CLI-02',
+      clientName: 'Ana Paula Corretora',
+      clientEmail: 'ana@anapaulacorretora.com',
+      planName: 'Plano Enterprise Mensal',
+      lastPaymentAmount: 49900,
+      lastPaymentDate: '28/09/2026',
+      accessStart: '28/09/2026',
+      accessEnd: '28/10/2026',
+      accessStatus: 'Ativo' as const,
       paymentHistory: [
-        { date: '25/09/2026', plan: 'Broker Elite Monthly', amount: 19700, method: 'Cartão de Crédito', status: 'Pago' },
-        { date: '25/08/2026', plan: 'Broker Elite Monthly', amount: 19700, method: 'Cartão de Crédito', status: 'Pago' }
+        { date: '28/09/2026', plan: 'Plano Enterprise Mensal', amount: 49900, method: 'Cartão de Crédito', status: 'Pago' as const }
       ]
     },
     {
-      id: 'CLI-003',
-      clientName: 'Roberto Alcantara',
-      clientEmail: 'roberto@alcantaraimoveis.com',
-      planName: 'Standard Starter',
-      lastPaymentAmount: 9900,
-      lastPaymentDate: '24/09/2026',
-      accessStart: '24/08/2026',
-      accessEnd: '24/09/2026',
-      accessStatus: 'Próximo do vencimento',
+      id: 'CLI-03',
+      clientName: 'Marcos Vinicius',
+      clientEmail: 'marcos@viniimoveis.com.br',
+      planName: 'Plano Pro Mensal',
+      lastPaymentAmount: 19900,
+      lastPaymentDate: '27/09/2026',
+      accessStart: '27/09/2026',
+      accessEnd: '27/10/2026',
+      accessStatus: 'Próximo do vencimento' as const,
       paymentHistory: [
-        { date: '24/09/2026', plan: 'Standard Starter', amount: 9900, method: 'Boleto', status: 'Pendente' },
-        { date: '24/08/2026', plan: 'Standard Starter', amount: 9900, method: 'Boleto', status: 'Pago' }
-      ]
-    },
-    {
-      id: 'CLI-004',
-      clientName: 'Marcos Vinicius Prado',
-      clientEmail: 'marcos@pradoimoveis.com',
-      planName: 'Broker Elite Monthly',
-      lastPaymentAmount: 19700,
-      lastPaymentDate: '10/08/2026',
-      accessStart: '10/07/2026',
-      accessEnd: '10/09/2026',
-      accessStatus: 'Expirado',
-      paymentHistory: [
-        { date: '10/08/2026', plan: 'Broker Elite Monthly', amount: 19700, method: 'Cartão de Crédito', status: 'Pago' }
+        { date: '27/09/2026', plan: 'Plano Pro Mensal', amount: 19900, method: 'PIX', status: 'Pendente' as const }
       ]
     }
   ] as MockClientPlan[]

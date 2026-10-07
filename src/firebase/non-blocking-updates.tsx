@@ -23,6 +23,13 @@ export function setDocumentNonBlocking(docRef: DocumentReference, data: any, opt
     return;
   }
   setDoc(docRef, data, options).catch(async (error) => {
+    console.error('[FIRESTORE DENIED]', {
+      source: 'setDocumentNonBlocking',
+      path: docRef.path,
+      operation: 'setDoc',
+      code: error.code,
+      message: error.message
+    });
     const permissionError = new FirestorePermissionError({
         path: docRef.path,
         operation: options && 'merge' in options ? 'update' : 'create',
@@ -45,6 +52,13 @@ export function addDocumentNonBlocking(colRef: CollectionReference, data: any) {
   }
   const promise = addDoc(colRef, data)
     .catch(async (error) => {
+      console.error('[FIRESTORE DENIED]', {
+        source: 'addDocumentNonBlocking',
+        path: colRef.path,
+        operation: 'addDoc',
+        code: error.code,
+        message: error.message
+      });
       const permissionError = new FirestorePermissionError({
           path: colRef.path,
           operation: 'create',
@@ -67,6 +81,13 @@ export function updateDocumentNonBlocking(docRef: DocumentReference, data: any) 
   }
   updateDoc(docRef, data)
     .catch(async (error) => {
+      console.error('[FIRESTORE DENIED]', {
+        source: 'updateDocumentNonBlocking',
+        path: docRef.path,
+        operation: 'updateDoc',
+        code: error.code,
+        message: error.message
+      });
       const permissionError = new FirestorePermissionError({
           path: docRef.path,
           operation: 'update',
@@ -88,6 +109,13 @@ export function deleteDocumentNonBlocking(docRef: DocumentReference) {
   }
   deleteDoc(docRef)
     .catch(async (error) => {
+      console.error('[FIRESTORE DENIED]', {
+        source: 'deleteDocumentNonBlocking',
+        path: docRef.path,
+        operation: 'deleteDoc',
+        code: error.code,
+        message: error.message
+      });
       const permissionError = new FirestorePermissionError({
           path: docRef.path,
           operation: 'delete',

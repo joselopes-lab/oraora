@@ -21,8 +21,10 @@ type Plan = {
   trialDays?: number;
 };
 
-export default function PagamentoPage() {
-  const { userProfile, isReady } = useAuthContext();
+import { Suspense } from "react";
+
+function PagamentoContent() {
+  const { user, userProfile, isReady } = useAuthContext();
   const firestore = useFirestore();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -179,6 +181,9 @@ export default function PagamentoPage() {
   const handleProceedPayment = async () => {
     if (!plan) return;
 
+    const token = user ? await user.getIdToken() : '';
+    const amountInCents = Math.round(plan.price < 500 ? plan.price * 100 : plan.price);
+
     if (paymentMethod === 'pix') {
       const cleanTaxId = payerTaxId.replace(/\D/g, '');
       const cleanPhone = payerPhone.replace(/\D/g, '');
@@ -212,11 +217,15 @@ export default function PagamentoPage() {
 
       setIsGeneratingPix(true);
       try {
-        const amountInCents = Math.round(plan.price < 500 ? plan.price * 100 : plan.price);
         const res = await fetch('/api/pix/create', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
           body: JSON.stringify({
+            planId: plan.id,
+            planName: plan.name,
             amount: amountInCents,
             expiresIn: 3600,
             description: `Assinatura ${plan.name} - OraOra`,
@@ -251,7 +260,40 @@ export default function PagamentoPage() {
         setIsGeneratingPix(false);
       }
     } else {
-      setIsModalOpen(true);
+      setIsGeneratingPix(true);
+      try {
+        const res = await fetch('/api/payments/create', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            planId: plan.id,
+            provider: 'credit_card',
+            amount: amountInCents
+          })
+        });
+        const json = await res.json();
+        if (json.success) {
+          setIsModalOpen(true);
+        } else {
+          toast({
+            title: 'Erro ao processar pagamento',
+            description: json.error || 'Não foi possível registrar o pagamento.',
+            variant: 'destructive'
+          });
+        }
+      } catch (err) {
+        console.error('Erro ao registrar pagamento com cartão:', err);
+        toast({
+          title: 'Erro de conexão',
+          description: 'Falha ao se comunicar com o servidor.',
+          variant: 'destructive'
+        });
+      } finally {
+        setIsGeneratingPix(false);
+      }
     }
   };
 
@@ -603,5 +645,17 @@ export default function PagamentoPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function PagamentoPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <Loader2 className="size-8 animate-spin text-primary" />
+      </div>
+    }>
+      <PagamentoContent />
+    </Suspense>
   );
 }

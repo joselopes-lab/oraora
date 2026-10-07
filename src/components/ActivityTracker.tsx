@@ -33,6 +33,7 @@ export function ActivityTracker() {
       try {
         // Verifica se o documento do usuário realmente existe antes de tentar gravar logs
         const userRef = doc(firestore, 'users', user.uid);
+        console.info('[FIRESTORE TRACE]', { source: 'ActivityTracker', collection: 'users', operation: 'getDoc', uid: user.uid });
         const docSnap = await getDoc(userRef);
 
         if (docSnap.exists()) {
@@ -45,7 +46,14 @@ export function ActivityTracker() {
         } else {
           console.log("ActivityTracker aguardando inicialização: Documento do usuário não encontrado.");
         }
-      } catch (e) {
+      } catch (e: any) {
+        console.error('[FIRESTORE DENIED]', {
+          source: 'ActivityTracker',
+          collection: 'users',
+          operation: 'getDoc',
+          code: e.code,
+          message: e.message
+        });
         console.warn("ActivityTracker aguardando inicialização: Sem permissão de leitura para verificação.");
       }
     }

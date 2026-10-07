@@ -1,4 +1,3 @@
-
 'use client';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -17,7 +16,17 @@ import {
   Globe,
   PlusCircle,
   BarChart3,
-  Radar
+  Radar,
+  Building2,
+  FileText,
+  Calendar as CalendarIcon,
+  Plus,
+  ArrowRight,
+  ExternalLink,
+  Check,
+  Loader2,
+  X,
+  AlertCircle
 } from "lucide-react";
 import {
   Table,
@@ -32,19 +41,22 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useDoc, useFirebase, useMemoFirebase } from "@/firebase";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { doc, collection, query, where, orderBy, limit, Timestamp } from "firebase/firestore";
-import { useEffect, useState, useMemo, useContext } from "react";
+import { doc, collection, query, where, orderBy, limit, Timestamp, arrayUnion, runTransaction, getDoc, getDocs } from "firebase/firestore";
+import { useEffect, useState, useMemo } from "react";
 import { format, startOfMonth, endOfMonth, parseISO, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import EventForm, { EventFormData } from './agenda/components/event-form';
 import { cn, normalizeDate } from "@/lib/utils";
-import { useCollection, addDocumentNonBlocking } from "@/firebase";
+import { useCollection, setDocumentNonBlocking } from "@/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from '@/components/ui/sheet';
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { useOnboarding } from './DashboardCore';
 import { useAuthContext } from "@/firebase/auth-provider";
 import { Skeleton } from "@/components/ui/skeleton";
+import { CartorioService } from "@/services/cartorioService";
+import { ensureAgencyServer, AgencyClientDTO, AgencyMemberClientDTO } from "./imobiliaria/actions.server";
 import {
   Carousel,
   CarouselContent,
@@ -73,6 +85,11 @@ type Lead = {
   email: string;
   phone: string;
   personaIds?: string[];
+  brokerId?: string;
+  network?: {
+    published: boolean;
+    status: string;
+  };
 };
 
 type Event = {
@@ -92,18 +109,32 @@ type Event = {
 type Property = {
   id: string;
   brokerId?: string;
-  informacoesbasicas: {
-    nome: string;
-    status: string;
+  constructorId?: string;
+  builderId?: string;
+  createdByRole?: string;
+  createdAt?: any;
+  publishedAt?: any;
+  isVisibleOnSite?: boolean;
+  informacoesbasicas?: {
+    nome?: string;
+    status?: string;
     valor?: number;
     slug?: string;
+    descricao?: string;
+    quartos?: string | string[];
+    tamanho?: string;
   };
-  localizacao: {
-    bairro: string;
-    cidade: string;
+  localizacao?: {
+    bairro?: string;
+    cidade?: string;
+    estado?: string;
   };
-  midia: string[];
+  midia?: string[];
   personaIds?: string[];
+};
+
+type Portfolio = {
+  propertyIds: string[];
 };
 
 const eventTypeDetails: { [key: string]: { label: string, color: string, icon: string } } = {
@@ -114,57 +145,11 @@ const eventTypeDetails: { [key: string]: { label: string, color: string, icon: s
   outro: { label: 'Outro', color: 'bg-gray-500', icon: 'more_horiz' },
 };
 
-type BrokerMetrics = {
-    totalLeads?: number;
-    totalClosed?: number;
-    conversionRate?: number;
-    avgClosingTimeDays?: number;
-};
-
 type LeadFunnelColumn = {
   id: string;
   title: string;
   color: string;
   order: number;
-};
-
-const normalizeDate = (value: unknown): Date | undefined => {
-  if (!value) return undefined;
-
-  if (
-    typeof value === 'object' &&
-    value !== null &&
-    'toDate' in value &&
-    typeof (value as { toDate?: unknown }).toDate === 'function'
-  ) {
-    try {
-      const date = (value as { toDate: () => Date }).toDate();
-      return date instanceof Date && !Number.isNaN(date.getTime()) ? date : undefined;
-    } catch {
-      return undefined;
-    }
-  }
-
-  if (value instanceof Date) {
-    return !Number.isNaN(value.getTime()) ? value : undefined;
-  }
-
-  if (
-    typeof value === 'object' &&
-    value !== null &&
-    'seconds' in value &&
-    typeof (value as { seconds?: unknown }).seconds === 'number'
-  ) {
-    const date = new Date((value as { seconds: number }).seconds * 1000);
-    return !Number.isNaN(date.getTime()) ? date : undefined;
-  }
-
-  if (typeof value === 'string' || typeof value === 'number') {
-    const date = new Date(value);
-    return !Number.isNaN(date.getTime()) ? date : undefined;
-  }
-
-  return undefined;
 };
 
 const ClientSideDate = ({ date, options }: { date: Date | null | undefined, options?: Intl.DateTimeFormatOptions }) => {
@@ -192,7 +177,7 @@ const getStatusBadgeClass = (status: string) => {
 }
 
 export default function DashboardPage() {
-  const { user, userProfile, isReady } = useAuthContext();
+  const { user, userProfile, isReady, authLoading } = useAuthContext();
   const [currentDateDisplay, setCurrentDateDisplay] = useState('');
   const [greeting, setGreeting] = useState('Bom dia');
   const [showAlert, setShowAlert] = useState(true);
@@ -202,6 +187,13 @@ export default function DashboardPage() {
   const { toast } = useToast();
   const router = useRouter();
   const { openOnboarding } = useOnboarding();
+
+  const [selectedProperty, setSelectedProperty] = useState<any | null>(null);
+  const [isAddingToPortfolio, setIsAddingToPortfolio] = useState(false);
+
+  const [cartorioProcesses, setCartorioProcesses] = useState<any[]>([]);
+  const [isCartorioLoading, setIsCartorioLoading] = useState(true);
+  const [cartorioError, setCartorioError] = useState<string | null>(null);
 
   useEffect(() => {
     if (isReady && userProfile) {
@@ -214,10 +206,108 @@ export default function DashboardPage() {
     }
   }, [isReady, userProfile, router]);
 
-  if (isReady && userProfile && (userProfile.userType === 'constructor' || userProfile.userType === 'construtora')) {
+  const [agencyData, setAgencyData] = useState<AgencyClientDTO | null>(null);
+  const [agencyMembers, setAgencyMembers] = useState<AgencyMemberClientDTO[]>([]);
+  const [isAgencyLoading, setIsAgencyLoading] = useState(true);
+
+  useEffect(() => {
+    if (!isReady || authLoading || !user || !userProfile || userProfile?.userType !== 'imobiliaria') return;
+
+    async function initializeAgency() {
+      try {
+        setIsAgencyLoading(true);
+        const idToken = await user.getIdToken();
+
+        console.info('[AGENCY AUTH TRACE]', {
+          hasUser: !!user,
+          hasToken: !!idToken,
+          userType: userProfile?.userType
+        });
+
+        // Chamada única com ID Token explícito para inicializar/garantir a imobiliária server-side
+        const result = await ensureAgencyServer(idToken);
+        if (result.success) {
+          setAgencyData(result.agency);
+          setAgencyMembers(result.members);
+        }
+      } catch (err: any) {
+        console.error('[IMOBILIARIA INIT ERROR]', err);
+      } finally {
+        setIsAgencyLoading(false);
+      }
+    }
+
+    initializeAgency();
+  }, [isReady, authLoading, user, userProfile]);
+
+  if (isReady && userProfile && userProfile.userType === 'imobiliaria') {
+    if (isAgencyLoading) {
+      return (
+        <div className="flex-grow flex items-center justify-center p-12">
+          <Loader2 className="size-8 animate-spin text-slate-400" />
+        </div>
+      );
+    }
+
     return (
-      <div className="flex-grow flex items-center justify-center p-12">
-        <p className="text-text-secondary">Carregando painel da construtora...</p>
+      <div className="max-w-5xl mx-auto py-10 px-6 space-y-8 font-sans">
+        <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="flex items-center gap-4">
+            <div className="size-16 rounded-2xl bg-slate-900 text-white flex items-center justify-center shadow-md">
+              <Building2 className="size-8" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full">Imobiliária</span>
+                <span className="text-xs font-semibold text-slate-400">Status: {agencyData?.status === 'active' ? 'Ativa' : 'Pendente'}</span>
+              </div>
+              <h1 className="text-3xl font-black text-slate-900 tracking-tight mt-1">{agencyData?.name || 'Imobiliária'}</h1>
+              <p className="text-xs text-slate-500 mt-0.5">Fundação Organizacional • ID: {agencyData?.id}</p>
+            </div>
+          </div>
+          <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col text-xs space-y-1">
+            <span className="text-slate-400 font-medium">Usuário Conectado</span>
+            <span className="font-bold text-slate-900">{userProfile.username || user?.email}</span>
+            <span className="text-emerald-600 font-bold uppercase tracking-wider text-[10px]">Papel: Proprietário (Owner)</span>
+          </div>
+        </div>
+
+        <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-black text-slate-900">Equipe da Imobiliária</h2>
+              <p className="text-xs text-slate-500">Membros vinculados à organização (Owner, Gestores e Corretores).</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-bold bg-slate-100 text-slate-700 px-3 py-1.5 rounded-xl">{agencyMembers.length} membro(s)</span>
+              <Button asChild size="sm" className="rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold">
+                <Link href="/dashboard/imobiliaria/equipe">
+                  Gerenciar Equipe
+                  <ArrowRight className="size-3.5 ml-1.5" />
+                </Link>
+              </Button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {agencyMembers.map((member) => (
+              <div key={member.id} className="p-4 rounded-2xl border border-slate-100 bg-slate-50/50 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="size-10 rounded-xl bg-slate-200 text-slate-700 flex items-center justify-center font-bold text-sm">
+                    {(userProfile.username || user?.email || 'U').charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <div className="font-bold text-slate-900 text-sm">{userProfile.username || user?.email}</div>
+                    <div className="text-xs text-slate-400 font-mono">UID: {member.userId}</div>
+                  </div>
+                </div>
+                <Badge className="bg-slate-900 text-white font-bold text-[10px] uppercase tracking-wider">
+                  {member.role}
+                </Badge>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
@@ -238,6 +328,41 @@ export default function DashboardPage() {
   );
   const { data: planData } = useDoc<{ name?: string; price?: number; trialDays?: number; type?: string }>(planDocRef);
 
+  const portfolioDocRef = useMemoFirebase(
+      () => (firestore && user?.uid && isBroker ? doc(firestore, 'portfolios', user.uid) : null),
+      [firestore, user?.uid, isBroker]
+  );
+  const { data: portfolioDoc } = useDoc<Portfolio>(portfolioDocRef);
+
+  const isAlreadyInPortfolio = useMemo(() => {
+      if (!selectedProperty || !portfolioDoc?.propertyIds) return false;
+      return portfolioDoc.propertyIds.includes(selectedProperty.id);
+  }, [selectedProperty, portfolioDoc]);
+
+  const handleAddToPortfolio = async () => {
+      if (!firestore || !user?.uid || !selectedProperty) return;
+      try {
+          setIsAddingToPortfolio(true);
+          await setDocumentNonBlocking(
+              doc(firestore, 'portfolios', user.uid),
+              { propertyIds: arrayUnion(selectedProperty.id) },
+              { merge: true }
+          );
+          toast({
+              title: "Empreendimento adicionado à sua carteira.",
+              description: "O imóvel já está disponível em sua vitrine."
+          });
+      } catch (error) {
+          toast({
+              variant: 'destructive',
+              title: "Erro ao adicionar",
+              description: "Não foi possível atualizar sua carteira."
+          });
+      } finally {
+          setIsAddingToPortfolio(false);
+      }
+  };
+
   const trialInfo = useMemo(() => {
     if (!userProfile || !isBroker) return null;
     const { planStatus, trialEndsAt } = userProfile;
@@ -249,40 +374,24 @@ export default function DashboardPage() {
     }
     const end = typeof trialEndsAt.toDate === 'function' ? trialEndsAt.toDate() : new Date(trialEndsAt);
     const now = new Date();
-    
-    // Definitive expiration condition based on real date/time comparison
     const isExpired = end.getTime() <= now.getTime();
     const diffTime = end.getTime() - now.getTime();
-    
-    // Less than 24 hours remaining but not expired yet
     const isExpiringToday = !isExpired && diffTime < 24 * 60 * 60 * 1000;
-    
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     const formattedDate = format(end, "dd/MM/yyyy", { locale: ptBR });
     const daysRemaining = diffDays > 0 ? diffDays : 0;
 
     let alertLevel = 'normal';
-    if (isExpired) {
-      alertLevel = 'expired';
-    } else if (isExpiringToday || daysRemaining <= 2) {
-      alertLevel = 'urgent';
-    } else if (daysRemaining <= 7) {
-      alertLevel = 'warning';
-    }
+    if (isExpired) alertLevel = 'expired';
+    else if (isExpiringToday || daysRemaining <= 2) alertLevel = 'urgent';
+    else if (daysRemaining <= 7) alertLevel = 'warning';
 
-    return {
-      type: 'trial',
-      daysRemaining,
-      formattedDate,
-      isExpired,
-      isExpiringToday,
-      alertLevel
-    };
+    return { type: 'trial', daysRemaining, formattedDate, isExpired, isExpiringToday, alertLevel };
   }, [userProfile, isBroker]);
 
   const transactionsQuery = useMemoFirebase(
-    () => (isReady && user?.uid && firestore ? query(collection(firestore, 'transactions'), where('brokerId', '==', user.uid)) : null),
-    [isReady, user?.uid, firestore]
+    () => (isReady && user?.uid && firestore && isBroker ? query(collection(firestore, 'transactions'), where('brokerId', '==', user.uid)) : null),
+    [isReady, user?.uid, firestore, isBroker]
   );
   const { data: allTransactions, isLoading: areTransactionsLoading } = useCollection(transactionsQuery);
 
@@ -298,8 +407,8 @@ export default function DashboardPage() {
   const { data: initialLeads, isLoading: areClientsLoading } = useCollection<Lead>(clientsQuery);
 
   const funnelColumnsQuery = useMemoFirebase(
-    () => (isReady && firestore && user?.uid ? query(collection(firestore, 'brokers', user.uid, 'leadFunnels', 'default', 'columns')) : null),
-    [isReady, firestore, user?.uid]
+    () => (isReady && firestore && user?.uid && isBroker ? query(collection(firestore, 'brokers', user.uid, 'leadFunnels', 'default', 'columns')) : null),
+    [isReady, firestore, user?.uid, isBroker]
   );
   const { data: rawColumns, isLoading: areColumnsLoading } = useCollection<LeadFunnelColumn>(funnelColumnsQuery);
 
@@ -309,18 +418,41 @@ export default function DashboardPage() {
   );
   const { data: initialEvents, isLoading: areEventsLoading } = useCollection<Event>(eventsQuery);
 
-  // --- RADAR ENGINE (Supply Side) ---
-  const globalPropertiesQuery = useMemoFirebase(
-    () => (isReady && firestore ? query(collection(firestore, 'properties'), where('isVisibleOnSite', '==', true)) : null),
-    [isReady, firestore]
+  // Network Requests query (Solicitações da Rede)
+  const networkQuery = useMemoFirebase(
+    () => (isReady && firestore && user?.uid && isBroker ? query(collection(firestore, 'leads'), where('network.published', '==', true), where('network.status', '==', 'open')) : null),
+    [isReady, user?.uid, firestore, isBroker]
   );
-  const { data: globalProperties, isLoading: areGlobalPropertiesLoading } = useCollection<Property>(globalPropertiesQuery);
+  const { data: networkLeads } = useCollection<Lead>(networkQuery);
 
-  const partnerPropertiesQuery = useMemoFirebase(
-    () => (isReady && firestore ? query(collection(firestore, 'brokerProperties'), where('isVisibleOnSite', '==', true)) : null),
+  // Fetch cartorio processes securely via CartorioService API
+  useEffect(() => {
+    async function fetchCartorio() {
+      if (!user?.uid) return;
+      try {
+        setIsCartorioLoading(true);
+        setCartorioError(null);
+        const cartorioService = CartorioService.getInstance();
+        const list = await cartorioService.listBrokerProcesses(user.uid);
+        setCartorioProcesses(list || []);
+      } catch (err) {
+        setCartorioError('Não foi possível carregar os processos.');
+        setCartorioProcesses([]);
+      } finally {
+        setIsCartorioLoading(false);
+      }
+    }
+    if (isReady && user?.uid) {
+      fetchCartorio();
+    }
+  }, [isReady, user?.uid]);
+
+  // --- STRICT CONSTRUCTOR INVENTORY SUPPLY (Novos Imóveis para Vender) ---
+  const globalPropertiesQuery = useMemoFirebase(
+    () => (isReady && firestore ? query(collection(firestore, 'properties'), where('isVisibleOnSite', '==', true), limit(50)) : null),
     [isReady, firestore]
   );
-  const { data: partnerProperties, isLoading: arePartnerPropertiesLoading } = useCollection<Property>(partnerPropertiesQuery);
+  const { data: globalProperties } = useCollection<Property>(globalPropertiesQuery);
 
   // --- MEMOIZED DATA ---
 
@@ -365,51 +497,78 @@ export default function DashboardPage() {
         .slice(0, 4);
   }, [initialEvents]);
 
-  const { totalRevenue, revenuePercentageChange } = useMemo(() => {
-    if (!allTransactions || allTransactions.length === 0) return { totalRevenue: 0, revenuePercentageChange: 0 };
-    const dateNow = new Date();
-    const currentMonthStart = startOfMonth(dateNow);
-    const currentMonthEnd = endOfMonth(dateNow);
-    const prevMonthDate = subMonths(dateNow, 1);
-    const prevMonthStart = startOfMonth(prevMonthDate);
-    const prevMonthEnd = endOfMonth(prevMonthDate);
+  // Attention counters
+  const newLeadsCount = useMemo(() => {
+    if (!initialLeads) return 0;
+    return initialLeads.filter(l => l.status === 'new').length;
+  }, [initialLeads]);
 
-    const currentMonthRevenue = allTransactions
-      .filter((t: any) => t.type === 'receita' && t.date && parseISO(t.date) >= currentMonthStart && parseISO(t.date) <= currentMonthEnd)
-      .reduce((acc: number, curr: any) => acc + (curr.value || 0), 0);
+  const networkRequestsCount = useMemo(() => {
+    if (!networkLeads) return 0;
+    return networkLeads.filter(l => l.brokerId !== user?.uid).length;
+  }, [networkLeads, user?.uid]);
 
-    const prevMonthRevenue = allTransactions
-      .filter((t: any) => t.type === 'receita' && t.date && parseISO(t.date) >= prevMonthStart && parseISO(t.date) <= prevMonthEnd)
-      .reduce((acc: number, curr: any) => acc + (curr.value || 0), 0);
+  // Active processes = total retrieved from API
+  const activeProcessesCount = useMemo(() => cartorioProcesses.length, [cartorioProcesses]);
 
-    const change = prevMonthRevenue > 0 ? ((currentMonthRevenue - prevMonthRevenue) / prevMonthRevenue) * 100 : (currentMonthRevenue > 0 ? 100 : 0);
-    return { totalRevenue: currentMonthRevenue, revenuePercentageChange: change };
-  }, [allTransactions]);
+  // Attention processes = subset of active processes needing action
+  const attentionProcessesCount = useMemo(() => {
+    return cartorioProcesses.filter(p => p.status === 'pending' || p.status === 'documento_rejeitado' || p.status === 'aguardando_acao' || p.status === 'rascunho').length;
+  }, [cartorioProcesses]);
 
-  // --- RADAR MATCH ENGINE ---
-  const radarMatches = useMemo(() => {
-    if (!initialLeads || (!globalProperties && !partnerProperties)) return [];
-    
-    // Get all unique persona IDs the broker is working with
-    const activePersonaIds = new Set<string>();
-    initialLeads.forEach(l => l.personaIds?.forEach(id => activePersonaIds.add(id)));
-    
-    if (activePersonaIds.size === 0) return [];
+  const upcomingAgendaCount = useMemo(() => upcomingEvents.length, [upcomingEvents]);
 
-    const supply = [...(globalProperties || []), ...(partnerProperties || [])];
-    const uniqueSupply = new Map();
-    supply.forEach(p => {
-        if (p.brokerId !== user?.uid) uniqueSupply.set(p.id, p);
+  // STRICTLY CONSTRUCTOR INVENTORY WITH FAIL-SAFE NORMALIZATION
+  const newPropertiesForSale = useMemo(() => {
+    if (!globalProperties) return [];
+    const supply = globalProperties.filter(p => {
+        const hasConstructorLink = Boolean(p.builderId || p.constructorId);
+        const isNotBrokerAvulso = !p.brokerId;
+        const isPublished = p.isVisibleOnSite === true;
+        return hasConstructorLink && isNotBrokerAvulso && isPublished;
     });
 
+    const uniqueSupply = new Map();
+    supply.forEach(p => uniqueSupply.set(p.id, p));
+
     return Array.from(uniqueSupply.values())
-        .filter(p => p.personaIds?.some((pid: string) => activePersonaIds.has(pid)))
-        .slice(0, 8);
-  }, [initialLeads, globalProperties, partnerProperties, user?.uid]);
+        .sort((a, b) => {
+            const timeA = normalizeDate(a.publishedAt || a.createdAt)?.getTime() || 0;
+            const timeB = normalizeDate(b.publishedAt || b.createdAt)?.getTime() || 0;
+            return timeB - timeA;
+        })
+        .slice(0, 6)
+        .map(prop => {
+            const name = prop.informacoesbasicas?.nome || (prop as any).name || (prop as any).title || 'Empreendimento';
+            const bairro = prop.localizacao?.bairro || (prop as any).endereco?.bairro || (prop as any).bairro || '';
+            const cidade = prop.localizacao?.cidade || (prop as any).endereco?.cidade || (prop as any).cidade || '';
+            
+            let locationStr = '';
+            if (bairro && cidade) locationStr = `${bairro}, ${cidade}`;
+            else if (cidade) locationStr = cidade;
+            else if (bairro) locationStr = bairro;
+
+            const rawVal = prop.informacoesbasicas?.valor ?? (prop as any).valor ?? (prop as any).price ?? 0;
+            const numericVal = Number(rawVal);
+            const priceStr = !isNaN(numericVal) && numericVal > 0 
+                ? numericVal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2 }) 
+                : 'Consulte valores';
+
+            const image = prop.midia?.[0] || (prop as any).images?.[0] || (prop as any).image || 'https://picsum.photos/seed/prop/400/300';
+            const slug = prop.informacoesbasicas?.slug || (prop as any).slug || prop.id;
+
+            return {
+                ...prop,
+                normalizedName: name,
+                normalizedLocation: locationStr,
+                normalizedPrice: priceStr,
+                normalizedImage: image,
+                normalizedUrl: `/imoveis/${slug}`
+            };
+        });
+  }, [globalProperties]);
 
   const clientNameMap = useMemo(() => new Map(clients?.map(c => [c.id, c.name]) || []), [clients]);
-
-  // --- ACTIONS ---
 
   const handleSaveEvent = (data: EventFormData) => {
     if (!user || !firestore) return;
@@ -431,25 +590,32 @@ export default function DashboardPage() {
   if (isPageLoading) return <div className="w-full max-w-7xl mx-auto p-10 space-y-8"><Skeleton className="h-10 w-48" /><div className="grid grid-cols-1 md:grid-cols-4 gap-6"><Skeleton className="h-32 rounded-xl" /><Skeleton className="h-32 rounded-xl" /><Skeleton className="h-32 rounded-xl" /><Skeleton className="h-32 rounded-xl" /></div><Skeleton className="h-64 rounded-xl" /></div>;
 
   return (
-    <div className="w-full max-w-7xl mx-auto space-y-6 md:space-y-10 animate-in fade-in duration-500 text-left pb-20 px-4 md:px-10">
+    <div className="w-full max-w-7xl mx-auto space-y-8 md:space-y-10 animate-in fade-in duration-500 text-left pb-20 px-4 md:px-10">
         
-        {/* Personalized Welcome Header */}
+        {/* Top: Welcome Header & Quick Actions */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
-            <div className="text-left">
-                <h2 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tight">{greeting}, {user?.displayName?.split(' ')[0] || 'usuário'}.</h2>
-                <p className="text-slate-500 mt-1 md:mt-2 text-sm md:text-lg font-medium">Sua imobiliária digital está <span className="text-green-600 font-bold uppercase tracking-widest text-[10px] md:text-xs bg-green-50 px-2 py-0.5 rounded ml-1">Online</span></p>
+            <div className="text-left space-y-1">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">{currentDateDisplay}</span>
+                <h2 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tight">{greeting}, {user?.displayName?.split(' ')[0] || 'corretor'}.</h2>
+                <p className="text-slate-500 text-sm font-medium">Sua central operacional está <span className="text-emerald-600 font-bold uppercase tracking-wider text-[11px] bg-emerald-50 px-2 py-0.5 rounded ml-1">Online</span></p>
             </div>
-            <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-start">
-                 <p className="hidden md:block text-right">
-                    <span className="block text-xs font-bold text-slate-400 uppercase tracking-widest">Data de hoje</span>
-                    <span className="block text-sm font-black text-slate-900">{currentDateDisplay}</span>
-                </p>
-                <div className="h-8 w-px bg-slate-200 mx-2 hidden md:block"></div>
+
+            {/* Quick Actions Bar */}
+            <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
+                <Button asChild className="h-11 px-5 rounded-xl font-bold bg-slate-900 text-white hover:bg-black shadow-sm transition-all text-xs flex items-center gap-2">
+                    <Link href="/dashboard/clientes/nova">
+                        <Plus className="size-4" /> Cadastrar cliente
+                    </Link>
+                </Button>
+                <Button asChild className="h-11 px-5 rounded-xl font-bold bg-white border border-slate-200 text-slate-800 hover:bg-slate-50 shadow-sm transition-all text-xs flex items-center gap-2">
+                    <Link href="/dashboard/avulso/novo">
+                        <Building2 className="size-4 text-slate-600" /> Cadastrar imóvel
+                    </Link>
+                </Button>
                 <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
                     <DialogTrigger asChild>
-                        <Button className="h-11 md:h-12 px-6 rounded-xl font-bold bg-slate-900 text-white hover:bg-black shadow-lg shadow-black/10 transition-all flex items-center gap-2 w-full md:w-auto justify-center">
-                            <PlusCircle className="size-5" />
-                            Agendar Tarefa
+                        <Button className="h-11 px-5 rounded-xl font-bold bg-white border border-slate-200 text-slate-800 hover:bg-slate-50 shadow-sm transition-all text-xs flex items-center gap-2">
+                            <CalendarIcon className="size-4 text-slate-600" /> Agendar tarefa
                         </Button>
                     </DialogTrigger>
                     <DialogContent className="max-w-3xl p-0 max-h-[90vh] overflow-y-auto">
@@ -460,60 +626,20 @@ export default function DashboardPage() {
             </div>
         </div>
 
-        {/* Broker Plan Trial Highlight Banner */}
-        {isBroker && trialInfo && (
+        {/* Compact Plan / Trial Alert */}
+        {isBroker && trialInfo && trialInfo.alertLevel !== 'normal' && (
             <div className={cn(
-                "p-6 rounded-2xl shadow-soft border flex flex-col md:flex-row items-start md:items-center justify-between gap-6 transition-all",
-                trialInfo.alertLevel === 'expired' ? "bg-red-50 border-red-200" :
-                trialInfo.alertLevel === 'urgent' ? "bg-amber-50 border-amber-200" :
-                trialInfo.alertLevel === 'warning' ? "bg-blue-50 border-blue-200" :
-                "bg-white border-slate-200"
+                "p-4 rounded-xl border flex items-center justify-between gap-4 text-xs font-medium",
+                trialInfo.alertLevel === 'expired' ? "bg-red-50 border-red-200 text-red-900" :
+                trialInfo.alertLevel === 'urgent' ? "bg-amber-50 border-amber-200 text-amber-900" :
+                "bg-blue-50 border-blue-200 text-blue-900"
             )}>
-                <div className="flex items-start gap-4">
-                    <div className={cn(
-                        "p-3 rounded-xl flex items-center justify-center shrink-0",
-                        trialInfo.alertLevel === 'expired' ? "bg-red-500 text-white" :
-                        trialInfo.alertLevel === 'urgent' ? "bg-amber-500 text-white" :
-                        trialInfo.alertLevel === 'warning' ? "bg-blue-500 text-white" :
-                        "bg-primary/10 text-primary"
-                    )}>
-                        <Zap className="size-6" />
-                    </div>
-                    <div className="space-y-1 text-left">
-                        <div className="flex items-center gap-2">
-                            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Plano Atual</span>
-                            <span className="text-xs font-bold bg-slate-100 text-slate-800 px-2 py-0.5 rounded-full">
-                                {planData?.name || 'Plano Free'}
-                            </span>
-                        </div>
-                        <h4 className="text-xl font-black text-slate-900 tracking-tight">
-                            {trialInfo.type === 'unconfigured' ? 'Período de acesso não configurado.' :
-                             trialInfo.type === 'active' ? 'Seu plano está ativo' :
-                             trialInfo.isExpired ? 'Seu período gratuito terminou.' :
-                             trialInfo.isExpiringToday ? 'Seu período gratuito termina hoje' :
-                             trialInfo.alertLevel === 'urgent' ? 'Seu período gratuito termina em breve' :
-                             trialInfo.alertLevel === 'warning' ? 'Seu período gratuito está chegando ao fim' :
-                             'Seu acesso está ativo'}
-                        </h4>
-                        <p className="text-sm font-medium text-slate-600">
-                            {trialInfo.type === 'unconfigured' ? 'Sua conta possui um plano associado, mas as informações de período gratuito não estão configuradas.' :
-                             trialInfo.type === 'active' ? 'Assinatura ativa sem limite de período gratuito.' :
-                             trialInfo.isExpired ? '0 dias restantes • Seu período gratuito acabou.' :
-                             trialInfo.isExpiringToday ? '0 dias restantes • Seu período gratuito termina hoje.' :
-                             `${trialInfo.daysRemaining} ${trialInfo.daysRemaining === 1 ? 'dia restante' : 'dias restantes'} • Seu período gratuito termina em ${trialInfo.formattedDate}.`}
-                        </p>
-                    </div>
+                <div className="flex items-center gap-2.5">
+                    <Zap className="size-4 shrink-0" />
+                    <span><strong>Aviso de Plano:</strong> {trialInfo.isExpired ? 'Seu período gratuito terminou.' : `${trialInfo.daysRemaining} dias restantes no seu plano ${planData?.name || 'Trial'}.`}</span>
                 </div>
-                <Button 
-                    onClick={() => {
-                        router.push('/dashboard/planos');
-                    }}
-                    className={cn(
-                        "font-bold px-6 h-11 rounded-xl shadow-md transition-all shrink-0 w-full md:w-auto",
-                        trialInfo.alertLevel === 'expired' ? "bg-red-600 hover:bg-red-700 text-white" : "bg-slate-900 text-white hover:bg-black"
-                    )}
-                >
-                    Fazer upgrade
+                <Button onClick={() => router.push('/dashboard/planos')} size="sm" className="h-8 font-bold text-xs bg-slate-900 text-white hover:bg-black">
+                    Gerenciar Plano
                 </Button>
             </div>
         )}
@@ -527,117 +653,137 @@ export default function DashboardPage() {
                         <h3 className="text-xl font-black text-slate-950 uppercase tracking-tight">Ative seu Site com Inteligência Artificial</h3>
                         <p className="text-slate-900/80 font-medium">Finalize seu perfil para que nossa IA escreva os textos do seu site e gere autoridade imediata.</p>
                     </div>
-                    <Button 
-                        onClick={() => openOnboarding()}
-                        className="bg-slate-950 text-white hover:bg-black px-10 h-12 rounded-xl font-bold border-none"
-                    >
+                    <Button onClick={() => openOnboarding()} className="bg-slate-950 text-white hover:bg-black px-10 h-12 rounded-xl font-bold border-none">
                         Iniciar Agora
                     </Button>
                 </div>
             </div>
         )}
 
-        {/* Action Center - Shortcuts to Best Features */}
-        <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Link href="/dashboard/mercado" className="group bg-white p-5 rounded-2xl border border-slate-100 shadow-soft hover:border-primary transition-all flex items-center gap-4">
-                <div className="size-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-slate-900 transition-colors">
-                    <BarChart3 className="size-6" />
-                </div>
-                <div>
-                    <h4 className="font-bold text-slate-900 group-hover:text-primary-hover transition-colors">Insights de Mercado</h4>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Análise via IA</p>
-                </div>
-            </Link>
-            <Link href="/dashboard/oralink" className="group bg-white p-5 rounded-2xl border border-slate-100 shadow-soft hover:border-primary transition-all flex items-center gap-4">
-                <div className="size-12 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors">
-                    <Smartphone className="size-6" />
-                </div>
-                <div>
-                    <h4 className="font-bold text-slate-900 group-hover:text-blue-600 transition-colors">Cartão Oralink</h4>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Bio & Contatos</p>
-                </div>
-            </Link>
-            <Link href="/dashboard/meu-site" className="group bg-white p-5 rounded-2xl border border-slate-100 shadow-soft hover:border-primary transition-all flex items-center gap-4">
-                <div className="size-12 rounded-xl bg-purple-50 flex items-center justify-center text-purple-600 group-hover:bg-purple-600 group-hover:text-white transition-colors">
-                    <Globe className="size-6" />
-                </div>
-                <div>
-                    <h4 className="font-bold text-slate-900 group-hover:text-purple-600 transition-colors">Gestão do Site</h4>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Layout & Cores</p>
-                </div>
-            </Link>
-            <Link href="/dashboard/radar-oportunidades" className="group bg-slate-900 p-5 rounded-2xl border border-slate-800 shadow-xl hover:border-primary transition-all flex items-center gap-4">
-                <div className="size-12 rounded-xl bg-primary/20 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
-                    <Radar className="size-6" />
-                </div>
-                <div>
-                    <h4 className="font-bold text-white group-hover:text-primary transition-colors">Radar de Rede</h4>
-                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Fazer Parcerias</p>
-                </div>
-            </Link>
+        {/* ================= PRECISA DA SUA ATENÇÃO ================= */}
+        <section className="space-y-4">
+            <div className="flex items-center justify-between px-1">
+                <h3 className="text-xs font-black uppercase tracking-widest text-slate-900 flex items-center gap-2">
+                    <span className="size-2 rounded-full bg-amber-500 animate-pulse"></span> Precisa da sua atenção
+                </h3>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* Leads Recebidos */}
+                <Card className="border-slate-100 shadow-soft hover:border-slate-300 transition-all bg-white">
+                    <CardContent className="p-5 flex flex-col justify-between h-full space-y-3">
+                        <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-black uppercase tracking-wider text-slate-400">Leads Recebidos</span>
+                            <div className="size-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
+                                <Users className="size-4" />
+                            </div>
+                        </div>
+                        <div>
+                            <div className="text-3xl font-black text-slate-900">{newLeadsCount}</div>
+                            <p className="text-[11px] text-slate-500 font-medium mt-0.5">{newLeadsCount === 1 ? 'Novo lead aguardando contato' : `${newLeadsCount} novos leads no funil`}</p>
+                        </div>
+                        <Link href="/dashboard/leads" className="text-xs font-bold text-slate-900 hover:text-primary flex items-center gap-1 pt-2 border-t border-slate-50">
+                            Ver leads <ArrowRight className="size-3" />
+                        </Link>
+                    </CardContent>
+                </Card>
+
+                {/* Solicitações da Rede */}
+                <Card className="border-slate-100 shadow-soft hover:border-slate-300 transition-all bg-white">
+                    <CardContent className="p-5 flex flex-col justify-between h-full space-y-3">
+                        <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-black uppercase tracking-wider text-slate-400">Solicitações da Rede</span>
+                            <div className="size-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center font-bold">
+                                <Radar className="size-4" />
+                            </div>
+                        </div>
+                        <div>
+                            <div className="text-3xl font-black text-slate-900">{networkRequestsCount}</div>
+                            <p className="text-[11px] text-slate-500 font-medium mt-0.5">{networkRequestsCount === 1 ? 'Demanda aberta na rede' : `${networkRequestsCount} demandas abertas`}</p>
+                        </div>
+                        <Link href="/dashboard/solicitacoes-rede" className="text-xs font-bold text-slate-900 hover:text-primary flex items-center gap-1 pt-2 border-t border-slate-50">
+                            Ver solicitações <ArrowRight className="size-3" />
+                        </Link>
+                    </CardContent>
+                </Card>
+
+                {/* Processos Cartoriais */}
+                <Card className="border-slate-100 shadow-soft hover:border-slate-300 transition-all bg-white">
+                    <CardContent className="p-5 flex flex-col justify-between h-full space-y-3">
+                        <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-black uppercase tracking-wider text-slate-400">Processos Cartoriais</span>
+                            <div className="size-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
+                                <FileText className="size-4" />
+                            </div>
+                        </div>
+                        <div>
+                            {cartorioError ? (
+                                <div className="text-xs font-bold text-red-600 pt-1">{cartorioError}</div>
+                            ) : (
+                                <>
+                                    <div className="text-3xl font-black text-slate-900">{isCartorioLoading ? '...' : activeProcessesCount}</div>
+                                    <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+                                        {isCartorioLoading ? 'Carregando...' : attentionProcessesCount > 0 
+                                            ? `${attentionProcessesCount} precisam da sua atenção` 
+                                            : 'Nenhuma pendência no momento'}
+                                    </p>
+                                </>
+                            )}
+                        </div>
+                        <Link href="/dashboard/cartorio?tab=processos" className="text-xs font-bold text-slate-900 hover:text-primary flex items-center gap-1 pt-2 border-t border-slate-50">
+                            Ver processos <ArrowRight className="size-3" />
+                        </Link>
+                    </CardContent>
+                </Card>
+
+                {/* Próximos Compromissos */}
+                <Card className="border-slate-100 shadow-soft hover:border-slate-300 transition-all bg-white">
+                    <CardContent className="p-5 flex flex-col justify-between h-full space-y-3">
+                        <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-black uppercase tracking-wider text-slate-400">Próximos Passos</span>
+                            <div className="size-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+                                <CalendarIcon className="size-4" />
+                            </div>
+                        </div>
+                        <div>
+                            <div className="text-3xl font-black text-slate-900">{upcomingAgendaCount}</div>
+                            <p className="text-[11px] text-slate-500 font-medium mt-0.5">{upcomingAgendaCount === 0 ? 'Sem compromissos próximos' : 'Compromissos agendados'}</p>
+                        </div>
+                        <Link href="/dashboard/agenda" className="text-xs font-bold text-slate-900 hover:text-primary flex items-center gap-1 pt-2 border-t border-slate-50">
+                            Ver agenda <ArrowRight className="size-3" />
+                        </Link>
+                    </CardContent>
+                </Card>
+            </div>
         </section>
 
-        {/* Main Performance Metrics */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 text-left">
-            <Card className="shadow-soft hover:border-primary/50 transition-all cursor-default border-slate-100">
-                <CardHeader className="pb-2"><p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em]">Total de Leads</p></CardHeader>
-                <CardContent><h3 className="text-3xl font-black text-slate-900 tracking-tight">{initialLeads?.length || 0}</h3></CardContent>
-            </Card>
-            <Card className="shadow-soft hover:border-primary/50 transition-all cursor-default border-slate-100">
-                <CardHeader className="pb-2"><p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em]">Taxa de Conversão</p></CardHeader>
-                <CardContent>
-                    <h3 className="text-3xl font-black text-slate-900 tracking-tight">14.8%</h3>
-                    <p className="text-[10px] font-bold text-green-600 mt-1 flex items-center gap-1"><TrendingUp className="size-3" /> +2% este mês</p>
-                </CardContent>
-            </Card>
-            <Card className="shadow-soft hover:border-primary/50 transition-all cursor-default border-slate-100">
-                <CardHeader className="pb-2"><p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em]">Faturamento Mensal</p></CardHeader>
-                <CardContent>
-                    <h3 className="text-3xl font-black text-slate-900 tracking-tight">{totalRevenue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</h3>
-                    <p className={cn("text-[10px] font-bold mt-1 flex items-center gap-1", revenuePercentageChange >= 0 ? "text-green-600" : "text-red-600")}>
-                        {revenuePercentageChange >= 0 ? <TrendingUp className="size-3" /> : <TrendingDown className="size-3" />}
-                        {Math.abs(revenuePercentageChange).toFixed(1)}% vs mês ant.
-                    </p>
-                </CardContent>
-            </Card>
-             <Card className="shadow-soft hover:border-primary/50 transition-all cursor-default border-slate-100 relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-4 opacity-5"><Zap className="size-16 text-primary fill-current" /></div>
-                <CardHeader className="pb-2"><p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em]">Novas Oportunidades</p></CardHeader>
-                <CardContent>
-                    <h3 className="text-3xl font-black text-slate-900 tracking-tight">{radarMatches.length}</h3>
-                    <p className="text-[10px] font-bold text-primary-hover mt-1">Matches detectados pela IA</p>
-                </CardContent>
-            </Card>
-        </div>
-
-        {/* Sales Pipeline */}
+        {/* ================= PIPELINE DE VENDAS ================= */}
         <section className="space-y-4">
           <div className="flex items-center justify-between px-1">
-            <h3 className="text-sm font-black uppercase tracking-widest text-slate-900 flex items-center gap-2">
-              <span className="size-2 rounded-full bg-primary animate-pulse"></span> Pipeline de Vendas
+            <h3 className="text-xs font-black uppercase tracking-widest text-slate-900 flex items-center gap-2">
+              <span className="size-2 rounded-full bg-primary"></span> Pipeline de Vendas
             </h3>
-            <Button asChild variant="link" className="text-[10px] font-black uppercase text-primary-hover hover:underline p-0 h-auto">
-              <Link href="/dashboard/leads">Gerenciar Funil</Link>
+            <Button asChild variant="link" className="text-xs font-bold text-slate-600 hover:text-slate-900 p-0 h-auto">
+              <Link href="/dashboard/leads">Gerenciar Funil completo</Link>
             </Button>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
             {funnelStats.map((stage) => (
               <Link key={stage.id} href={`/dashboard/leads`} className="group">
-                <Card className="shadow-soft border-slate-100 hover:border-primary transition-all overflow-hidden h-full">
-                  <CardContent className="p-5 flex flex-col gap-3">
+                <Card className="shadow-soft border-slate-100 hover:border-slate-300 transition-all overflow-hidden h-full bg-white">
+                  <CardContent className="p-4 flex flex-col gap-2.5">
                     <div className="flex justify-between items-start">
-                      <div className={cn("size-8 rounded-lg flex items-center justify-center text-white shadow-sm", stage.color)}>
-                        {stage.id === 'new' && <Users className="size-4" />}
-                        {stage.id === 'contacted' && <MessageSquare className="size-4" />}
-                        {stage.id === 'qualified' && <Target className="size-4" />}
-                        {stage.id === 'proposal' && <Rocket className="size-4" />}
-                        {stage.id === 'converted' && <Handshake className="size-4" />}
+                      <div className={cn("size-7 rounded-lg flex items-center justify-center text-white shadow-sm", stage.color)}>
+                        {stage.id === 'new' && <Users className="size-3.5" />}
+                        {stage.id === 'contacted' && <MessageSquare className="size-3.5" />}
+                        {stage.id === 'qualified' && <Target className="size-3.5" />}
+                        {stage.id === 'proposal' && <Rocket className="size-3.5" />}
+                        {stage.id === 'converted' && <Handshake className="size-3.5" />}
                       </div>
                       <span className="text-2xl font-black text-slate-900">{stage.count}</span>
                     </div>
-                    <div className="space-y-0.5">
+                    <div>
                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">{stage.title}</p>
-                      <div className="h-1 w-full bg-slate-50 rounded-full overflow-hidden mt-2">
+                      <div className="h-1 w-full bg-slate-50 rounded-full overflow-hidden mt-1.5">
                         <div className={cn("h-full transition-all duration-500", stage.color)} style={{ width: stage.count > 0 ? '100%' : '0%' }}></div>
                       </div>
                     </div>
@@ -648,39 +794,48 @@ export default function DashboardPage() {
           </div>
         </section>
 
-        {/* Radar Matches Slider */}
-        {radarMatches.length > 0 && (
-            <section className="space-y-6">
-                <div className="flex items-center justify-between px-1">
-                    <div className="flex flex-col gap-1">
-                        <h3 className="text-sm font-black uppercase tracking-widest text-slate-900 flex items-center gap-2">
-                            <Zap className="size-4 text-primary fill-current" /> Oportunidades do Radar
-                        </h3>
-                        <p className="text-xs text-slate-400 font-medium">Imóveis da rede que combinam com as personas dos seus leads ativos.</p>
-                    </div>
-                    <Button asChild variant="link" className="text-[10px] font-black uppercase text-primary-hover hover:underline p-0 h-auto">
-                        <Link href="/dashboard/radar-oportunidades">Ir para o Radar</Link>
-                    </Button>
+        {/* ================= NOVOS IMÓVEIS PARA VENDER ================= */}
+        <section className="space-y-4">
+            <div className="flex items-center justify-between px-1">
+                <div className="flex flex-col gap-0.5">
+                    <h3 className="text-xs font-black uppercase tracking-widest text-slate-900 flex items-center gap-2">
+                        <span className="size-2 rounded-full bg-emerald-500"></span> Novos imóveis para vender
+                    </h3>
+                    <p className="text-xs text-slate-400 font-medium">Últimos imóveis e empreendimentos disponibilizados pelas construtoras.</p>
                 </div>
-                
+                <Button asChild variant="link" className="text-xs font-bold text-slate-600 hover:text-slate-900 p-0 h-auto">
+                    <Link href="/dashboard/minha-carteira">Ver todos</Link>
+                </Button>
+            </div>
+            
+            {newPropertiesForSale.length > 0 ? (
                 <Carousel opts={{ align: "start", loop: true }} className="w-full">
                     <CarouselContent className="-ml-4">
-                        {radarMatches.map((prop) => (
+                        {newPropertiesForSale.map((prop) => (
                             <CarouselItem key={prop.id} className="pl-4 basis-full sm:basis-1/2 lg:basis-1/3 xl:basis-1/4">
-                                <Link href={`/imoveis/${prop.informacoesbasicas.slug || prop.id}`} target="_blank" className="group block bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-soft hover:border-primary/50 transition-all">
-                                    <div className="relative aspect-video overflow-hidden">
-                                        <Image src={prop.midia?.[0] || 'https://picsum.photos/seed/prop/400/300'} alt={prop.informacoesbasicas.nome} fill className="object-cover group-hover:scale-110 transition-transform duration-700" />
-                                        <div className="absolute top-3 left-3 bg-primary text-slate-900 text-[8px] font-black px-2 py-1 rounded uppercase tracking-widest shadow-lg">98% Match</div>
+                                <div 
+                                    onClick={() => setSelectedProperty(prop)}
+                                    className="group block bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-soft hover:border-slate-300 transition-all cursor-pointer h-full flex flex-col"
+                                >
+                                    <div className="relative aspect-video overflow-hidden bg-slate-100 shrink-0">
+                                        <Image src={prop.normalizedImage} alt={prop.normalizedName} fill className="object-cover group-hover:scale-105 transition-transform duration-500" referrerPolicy="no-referrer" />
+                                        <div className="absolute top-2.5 left-2.5 bg-emerald-600 text-white text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-widest shadow-sm">Novo</div>
                                     </div>
-                                    <div className="p-4">
-                                        <h4 className="font-bold text-sm text-slate-900 truncate uppercase tracking-tight">{prop.informacoesbasicas.nome}</h4>
-                                        <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">{prop.localizacao.bairro}, {prop.localizacao.cidade}</p>
-                                        <div className="mt-3 flex items-center justify-between">
-                                            <span className="text-sm font-black text-slate-900">{prop.informacoesbasicas.valor?.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })}</span>
-                                            <span className="material-symbols-outlined text-slate-200 group-hover:text-primary transition-colors">arrow_forward</span>
+                                    <div className="p-4 space-y-1 flex-1 flex flex-col justify-between">
+                                        <div>
+                                            <h4 className="font-bold text-xs text-slate-900 truncate uppercase tracking-tight">{prop.normalizedName}</h4>
+                                            {prop.normalizedLocation ? (
+                                                <p className="text-[10px] text-slate-400 font-bold uppercase">{prop.normalizedLocation}</p>
+                                            ) : (
+                                                <p className="text-[10px] text-slate-400 font-bold uppercase">—</p>
+                                            )}
+                                        </div>
+                                        <div className="pt-2 flex items-center justify-between border-t border-slate-50 mt-2">
+                                            <span className="text-xs font-black text-slate-900">{prop.normalizedPrice}</span>
+                                            <span className="text-[11px] font-bold text-primary group-hover:underline flex items-center gap-1">Ver Quick View</span>
                                         </div>
                                     </div>
-                                </Link>
+                                </div>
                             </CarouselItem>
                         ))}
                     </CarouselContent>
@@ -689,121 +844,162 @@ export default function DashboardPage() {
                         <CarouselNext className="-right-12 bg-white border-slate-100 shadow-soft" />
                     </div>
                 </Carousel>
-            </section>
-        )}
-
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            {/* Leads Table */}
-            <div className="lg:col-span-8 space-y-4 text-left">
-                <div className="flex items-center justify-between px-1">
-                    <h3 className="text-sm font-black uppercase tracking-widest text-slate-900 flex items-center gap-2">
-                        <span className="size-2 rounded-full bg-slate-300"></span> Atividade Recente
-                    </h3>
-                    <Link className="text-[10px] font-black uppercase text-primary-hover hover:underline" href="/dashboard/clientes">Ver Carteira</Link>
-                </div>
-                <Card className="shadow-soft overflow-hidden border-slate-100">
-                    <CardContent className="p-0">
-                        <Table>
-                            <TableHeader>
-                                <TableRow className="bg-slate-50/50 border-b border-slate-100">
-                                    <TableHead className="text-[10px] font-black uppercase tracking-widest pl-6">Cliente</TableHead>
-                                    <TableHead className="text-[10px] font-black uppercase tracking-widest">Interesse</TableHead>
-                                    <TableHead className="text-[10px] font-black uppercase tracking-widest text-center">Status</TableHead>
-                                    <TableHead className="text-right text-[10px] font-black uppercase tracking-widest pr-6">Ação</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {clients?.slice(0, 5).map(lead => {
-                                    const createdAtDate = normalizeDate(lead.createdAt);
-                                    return (
-                                        <TableRow key={lead.id} className="hover:bg-slate-50/50 transition-colors">
-                                            <TableCell className="pl-6 py-4">
-                                                <div className="flex items-center gap-3">
-                                                    <Avatar className="size-9 border-2 border-white shadow-sm"><AvatarFallback className="bg-primary/10 text-green-700 font-bold text-xs">{lead.name.charAt(0)}</AvatarFallback></Avatar>
-                                                    <div>
-                                                        <p className="text-sm font-bold text-slate-900 leading-none mb-1">{lead.name}</p>
-                                                        <p className="text-[10px] text-slate-400 font-bold uppercase">
-                                                            {createdAtDate ? (
-                                                                <ClientSideDate date={createdAtDate} options={{ day: '2-digit', month: 'short' }} />
-                                                            ) : (
-                                                                '—'
-                                                            )}
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                            </TableCell>
-                                            <TableCell className="text-xs text-slate-500 font-medium max-w-[200px] truncate">
-                                                <div>{lead.propertyInterest || 'N/A'}</div>
-                                                {lead.propertyName && (
-                                                    <div className="mt-1 flex items-center gap-1 text-[9px] font-bold text-primary uppercase">
-                                                        <span className="material-symbols-outlined text-[12px]">apartment</span>
-                                                        {lead.propertyName}
-                                                    </div>
-                                                )}
-                                            </TableCell>
-                                            <TableCell className="text-center"><Badge variant="outline" className={cn("font-bold text-[9px] uppercase tracking-tighter", getStatusBadgeClass(lead.status))}>{lead.status}</Badge></TableCell>
-                                            <TableCell className="text-right pr-6">
-                                                <Button asChild variant="ghost" size="icon" className="size-8 rounded-lg text-slate-300 hover:text-primary transition-colors"><Link href={`/dashboard/clientes/${lead.id}`}><span className="material-symbols-outlined">more_horiz</span></Link></Button>
-                                            </TableCell>
-                                        </TableRow>
-                                    );
-                                })}
-                                {(!clients || clients.length === 0) && (
-                                    <TableRow><TableCell colSpan={4} className="text-center p-20 text-slate-400 italic">Nenhum lead registrado.</TableCell></TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
-                    </CardContent>
+            ) : (
+                <Card className="border-slate-100 shadow-soft bg-white p-8 text-center text-slate-400 text-xs">
+                    Nenhum novo imóvel de construtora disponível no momento.
                 </Card>
-            </div>
+            )}
+        </section>
 
-            {/* Upcoming Agenda */}
-            <div className="lg:col-span-4 space-y-4 text-left">
-                <div className="flex items-center justify-between px-1">
-                    <h3 className="text-sm font-black uppercase tracking-widest text-slate-900 flex items-center gap-2">
-                        <span className="size-2 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]"></span> Próximos Passos
-                    </h3>
-                    <Link className="text-[10px] font-black uppercase text-primary-hover hover:underline" href="/dashboard/agenda">Ver Agenda</Link>
-                </div>
-                <Card className="shadow-soft border-slate-100 bg-white">
-                    <CardContent className="p-6 space-y-5">
-                        {upcomingEvents.length > 0 ? (
-                            upcomingEvents.map(event => {
-                                const clientName = event.clientId ? clientNameMap.get(event.clientId) : null;
-                                const style = eventTypeDetails[event.type]?.color || 'bg-slate-400';
-                                return (
-                                    <Link key={event.id} href={`/dashboard/agenda/${event.id}`} className="flex gap-4 group transition-all">
-                                        <div className="flex flex-col items-center justify-center bg-slate-50 border border-slate-100 rounded-xl size-14 shrink-0 group-hover:bg-primary/20 group-hover:border-primary/30 transition-colors">
-                                            <span className="text-[10px] font-black text-slate-400 uppercase leading-none mb-1">{format(parseISO(event.date), 'MMM', { locale: ptBR })}</span>
-                                            <span className="text-xl font-black text-slate-900 leading-none">{format(parseISO(event.date), 'dd')}</span>
-                                        </div>
-                                        <div className="flex-1 min-w-0 flex flex-col justify-center">
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <div className={cn("size-2 rounded-full shrink-0", style)}></div>
-                                                <p className="text-sm font-black text-slate-900 truncate uppercase tracking-tight">{event.title}</p>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-[10px] font-black text-primary-hover uppercase tracking-widest">{event.time}</span>
-                                                {clientName && <span className="text-[10px] text-slate-400 truncate uppercase font-bold">• {clientName}</span>}
-                                            </div>
-                                        </div>
-                                    </Link>
-                                );
-                            })
-                        ) : (
-                            <div className="py-12 text-center space-y-3">
-                                <div className="size-12 rounded-xl bg-slate-50 flex items-center justify-center text-slate-300 mx-auto"><Mail className="size-6" /></div>
-                                <p className="text-xs text-slate-400 font-medium">Sem compromissos agendados para os próximos dias.</p>
+        {/* ================= QUICK VIEW SHEET / DRAWER ================= */}
+        <Sheet open={!!selectedProperty} onOpenChange={(open) => !open && setSelectedProperty(null)}>
+            <SheetContent side="right" className="w-full sm:max-w-xl overflow-y-auto p-0 bg-white flex flex-col justify-between">
+                {selectedProperty && (
+                    <>
+                        <div className="space-y-6 pb-28">
+                            {/* Image Header with Close button */}
+                            <div className="relative aspect-video w-full bg-slate-100">
+                                <Image src={selectedProperty.normalizedImage} alt={selectedProperty.normalizedName} fill className="object-cover" referrerPolicy="no-referrer" />
+                                <div className="absolute top-4 left-4 bg-emerald-600 text-white text-[10px] font-black px-2.5 py-1 rounded uppercase tracking-widest shadow-md">Novo</div>
                             </div>
-                        )}
-                        <Button asChild variant="outline" className="w-full h-11 rounded-xl font-bold border-slate-200 text-slate-600 hover:bg-slate-50 transition-all mt-4">
-                            <Link href="/dashboard/agenda">Gerenciar Minha Agenda</Link>
-                        </Button>
-                    </CardContent>
-                </Card>
+
+                            <div className="px-6 space-y-6">
+                                <SheetHeader className="space-y-1 text-left p-0">
+                                    <SheetTitle className="text-2xl font-black text-slate-900 tracking-tight uppercase">{selectedProperty.normalizedName}</SheetTitle>
+                                    {selectedProperty.normalizedLocation && (
+                                        <SheetDescription className="text-xs font-bold uppercase text-slate-500">
+                                            {selectedProperty.normalizedLocation}
+                                        </SheetDescription>
+                                    )}
+                                </SheetHeader>
+
+                                {/* Price Box */}
+                                <div className="p-4 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-between">
+                                    <div>
+                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Valor</span>
+                                        <span className="text-xl font-black text-slate-900">{selectedProperty.normalizedPrice}</span>
+                                    </div>
+                                    <Button asChild variant="outline" size="sm" className="h-9 text-xs font-bold gap-1">
+                                        <Link href={selectedProperty.normalizedUrl} target="_blank">
+                                            Ver completo <ExternalLink className="size-3.5" />
+                                        </Link>
+                                    </Button>
+                                </div>
+                                
+                                {/* Commercial Info Range (New Request) */}
+                                {(selectedProperty.informacoesbasicas?.tamanho || selectedProperty.informacoesbasicas?.quartos) && (
+                                    <div className="grid grid-cols-2 gap-4">
+                                        {selectedProperty.informacoesbasicas?.tamanho && (
+                                            <div className="bg-white border border-slate-100 rounded-xl p-4 shadow-soft">
+                                                <div className="flex items-center gap-2 mb-1.5 text-slate-400">
+                                                    <ArrowRight className="size-3 rotate-[135deg]" />
+                                                    <span className="text-[9px] font-black uppercase tracking-widest">Metragem</span>
+                                                </div>
+                                                <span className="text-sm font-black text-slate-900">{selectedProperty.informacoesbasicas.tamanho}</span>
+                                            </div>
+                                        )}
+                                        {selectedProperty.informacoesbasicas?.quartos && (
+                                            <div className="bg-white border border-slate-100 rounded-xl p-4 shadow-soft">
+                                                <div className="flex items-center gap-2 mb-1.5 text-slate-400">
+                                                    <Users className="size-3" />
+                                                    <span className="text-[9px] font-black uppercase tracking-widest">Quartos</span>
+                                                </div>
+                                                <span className="text-sm font-black text-slate-900">{selectedProperty.informacoesbasicas.quartos}</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Description */}
+                                {selectedProperty.informacoesbasicas?.descricao && (
+                                    <div className="space-y-2">
+                                        <h4 className="text-xs font-black text-slate-900 uppercase tracking-widest">Sobre o Empreendimento</h4>
+                                        <p className="text-xs text-slate-600 leading-relaxed">{selectedProperty.informacoesbasicas.descricao}</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Sticky Footer */}
+                        <div className="absolute bottom-0 left-0 right-0 p-6 bg-white border-t border-slate-100 flex items-center justify-between gap-4 shadow-lg">
+                            <Button 
+                                variant="outline" 
+                                onClick={() => setSelectedProperty(null)}
+                                className="h-12 rounded-xl font-bold text-xs px-6"
+                            >
+                                Fechar
+                            </Button>
+                            <Button
+                                disabled={isAlreadyInPortfolio || isAddingToPortfolio}
+                                onClick={handleAddToPortfolio}
+                                className={cn(
+                                    "flex-1 h-12 rounded-xl font-bold text-xs gap-2 shadow-sm",
+                                    isAlreadyInPortfolio ? "bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100" : "bg-primary text-slate-900 hover:bg-primary-hover"
+                                )}
+                            >
+                                {isAddingToPortfolio ? (
+                                    <>
+                                        <Loader2 className="size-4 animate-spin" /> Adicionando...
+                                    </>
+                                ) : isAlreadyInPortfolio ? (
+                                    <>
+                                        <Check className="size-4 text-emerald-600" /> ✓ Na minha carteira
+                                    </>
+                                ) : (
+                                    <>
+                                        <Plus className="size-4" /> Adicionar à minha carteira
+                                    </>
+                                )}
+                            </Button>
+                        </div>
+                    </>
+                )}
+            </SheetContent>
+        </Sheet>
+
+        {/* ================= ATALHOS / ÁREAS SECUNDÁRIAS ================= */}
+        <section className="space-y-4 pt-4 border-t border-slate-100">
+            <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 px-1">Atalhos Operacionais</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <Link href="/dashboard/mercado" className="group bg-white p-4 rounded-xl border border-slate-100 shadow-soft hover:border-slate-300 transition-all flex items-center gap-3.5">
+                    <div className="size-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-slate-900 transition-colors">
+                        <BarChart3 className="size-5" />
+                    </div>
+                    <div>
+                        <h4 className="font-bold text-xs text-slate-900">Insights de Mercado</h4>
+                        <p className="text-[10px] text-slate-400 font-medium">Análise via IA</p>
+                    </div>
+                </Link>
+                <Link href="/dashboard/oralink" className="group bg-white p-4 rounded-xl border border-slate-100 shadow-soft hover:border-slate-300 transition-all flex items-center gap-3.5">
+                    <div className="size-10 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                        <Smartphone className="size-5" />
+                    </div>
+                    <div>
+                        <h4 className="font-bold text-xs text-slate-900">Cartão Oralink</h4>
+                        <p className="text-[10px] text-slate-400 font-medium">Bio & Contatos</p>
+                    </div>
+                </Link>
+                <Link href="/dashboard/meu-site" className="group bg-white p-4 rounded-xl border border-slate-100 shadow-soft hover:border-slate-300 transition-all flex items-center gap-3.5">
+                    <div className="size-10 rounded-lg bg-purple-50 flex items-center justify-center text-purple-600 group-hover:bg-purple-600 group-hover:text-white transition-colors">
+                        <Globe className="size-5" />
+                    </div>
+                    <div>
+                        <h4 className="font-bold text-xs text-slate-900">Gestão do Site</h4>
+                        <p className="text-[10px] text-slate-400 font-medium">Layout & Cores</p>
+                    </div>
+                </Link>
+                <Link href="/dashboard/radar-oportunidades" className="group bg-white p-4 rounded-xl border border-slate-100 shadow-soft hover:border-slate-300 transition-all flex items-center gap-3.5">
+                    <div className="size-10 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+                        <Radar className="size-5" />
+                    </div>
+                    <div>
+                        <h4 className="font-bold text-xs text-slate-900">Radar de Rede</h4>
+                        <p className="text-[10px] text-slate-400 font-medium">Parcerias e Ofertas</p>
+                    </div>
+                </Link>
             </div>
-        </div>
+        </section>
+
     </div>
   );
 }
-

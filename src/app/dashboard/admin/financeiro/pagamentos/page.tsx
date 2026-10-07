@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,17 +9,71 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { adminFinanceMockData, MockPayment } from '../mockData';
-import { Search, Filter, Eye, ArrowLeft, Download, Calendar } from 'lucide-react';
-
-// TEMPORARY UI MOCK — replace with financial data source later
+import { Search, Filter, Eye, ArrowLeft, Download, Calendar, Loader2, Mail } from 'lucide-react';
 
 export default function AdminFinanceiroPagamentosPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('Todos');
   const [methodFilter, setMethodFilter] = useState('Todos');
   const [selectedPayment, setSelectedPayment] = useState<MockPayment | null>(null);
+  
+  const [payments, setPayments] = useState<MockPayment[]>(adminFinanceMockData.payments);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const payments = adminFinanceMockData.payments;
+  useEffect(() => {
+    async function loadPayments() {
+      try {
+        const res = await fetch('/api/admin/payments/abacate');
+        const json = await res.json();
+        if (json.success && json.data) {
+          const items = Array.isArray(json.data) ? json.data : (json.data.data || json.data.charges || []);
+          if (items.length > 0) {
+            const mapped = items.map((item: any, idx: number) => {
+              const statusMap: Record<string, string> = {
+                PENDING: 'Pendente',
+                PAID: 'Pago',
+                REFUNDED: 'Reembolsado',
+                EXPIRED: 'Perdido',
+                CANCELLED: 'Perdido'
+              };
+              const createdAt = item.createdAt || item.updatedAt || new Date().toISOString();
+              const dateObj = new Date(createdAt);
+              const dateStr = isNaN(dateObj.getTime()) ? new Date().toLocaleDateString('pt-BR') : dateObj.toLocaleDateString('pt-BR');
+              const timeStr = isNaN(dateObj.getTime()) ? '00:00' : dateObj.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+              const cust = item.customer || {};
+
+              return {
+                id: item.id || item._id || `abacate-${idx}`,
+                clientName: cust.name || 'Cliente AbacatePay',
+                clientEmail: cust.email || '—',
+                clientTaxId: cust.taxId || '—',
+                clientCellphone: cust.cellphone || '—',
+                planName: item.description || item.metadata?.planName || 'Checkout Transparente',
+                amount: Number(item.amount || item.value || 0),
+                method: item.methods?.[0] || item.paymentMethod || 'PIX',
+                date: dateStr,
+                dateTime: `${dateStr} às ${timeStr}`,
+                status: statusMap[item.status] || item.status || 'Pendente',
+                provider: 'AbacatePay',
+                checkoutId: item.id || item.externalId || '—',
+                timeline: [
+                  { time: `${dateStr} ${timeStr}`, event: 'Cobrança obtida via AbacatePay /transparents/list com email do cliente' },
+                  ...(item.status === 'PAID' ? [{ time: `${dateStr} ${timeStr}`, event: 'Pagamento confirmado' }] : [])
+                ]
+              };
+            });
+            setPayments(mapped);
+          }
+        }
+      } catch (err) {
+        console.error('Erro ao buscar pagamentos AbacatePay:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    loadPayments();
+  }, []);
 
   const filteredPayments = payments.filter(p => {
     const matchesSearch = !searchTerm || 
@@ -57,8 +111,11 @@ export default function AdminFinanceiroPagamentosPage() {
               <ArrowLeft className="size-3.5" /> Voltar à Visão Geral
             </Link>
           </div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight">Pagamentos</h1>
-          <p className="text-sm text-slate-500 mt-1">Consulte e acompanhe os pagamentos realizados no OraOra.</p>
+          <div className="flex items-center gap-3">
+            <h1 className="text-3xl font-black text-slate-900 tracking-tight">Pagamentos</h1>
+            {isLoading && <Loader2 className="size-5 animate-spin text-slate-400" />}
+          </div>
+          <p className="text-sm text-slate-500 mt-1">Consulte e acompanhe as cobranças transparentes e dados dos clientes.</p>
         </div>
         <div className="flex items-center gap-3">
           <Button variant="outline" className="text-xs font-bold gap-2">
@@ -143,7 +200,10 @@ export default function AdminFinanceiroPagamentosPage() {
                 <TableRow key={p.id} className="hover:bg-slate-50/50 transition-colors">
                   <TableCell>
                     <div className="font-bold text-slate-900">{p.clientName}</div>
-                    <div className="text-xs text-slate-400">{p.clientEmail}</div>
+                    <div className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
+                      <Mail className="size-3 text-slate-400 shrink-0" />
+                      <span>{p.clientEmail}</span>
+                    </div>
                   </TableCell>
                   <TableCell className="font-medium text-slate-700">{p.planName}</TableCell>
                   <TableCell className="font-black text-slate-900">{formatCurrency(p.amount)}</TableCell>
@@ -181,7 +241,7 @@ export default function AdminFinanceiroPagamentosPage() {
                 </div>
                 <SheetTitle className="text-2xl font-black text-slate-900">Detalhes do Pagamento</SheetTitle>
                 <SheetDescription className="text-xs text-slate-500">
-                  Registro histórico de transação processada na plataforma.
+                  Registro de transação e dados completos do cliente.
                 </SheetDescription>
               </SheetHeader>
 
@@ -204,12 +264,29 @@ export default function AdminFinanceiroPagamentosPage() {
                 </div>
               </div>
 
-              {/* Cliente */}
+              {/* Dados do Cliente com destaque para o e-mail */}
               <div className="space-y-3">
-                <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Cliente</div>
-                <div className="p-4 rounded-2xl border border-slate-100 space-y-1">
-                  <div className="font-bold text-slate-900">{selectedPayment.clientName}</div>
-                  <div className="text-xs text-slate-500">{selectedPayment.clientEmail}</div>
+                <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Dados do Cliente</div>
+                <div className="p-5 rounded-2xl border border-slate-100 space-y-3.5 bg-white shadow-2xs">
+                  <div>
+                    <div className="text-[11px] text-slate-400 font-medium">Nome (name)</div>
+                    <div className="text-sm font-bold text-slate-900">{selectedPayment.clientName}</div>
+                  </div>
+                  <div>
+                    <div className="text-[11px] text-slate-400 font-medium mb-1">E-mail (email)</div>
+                    <div className="flex items-center gap-2 text-xs font-bold text-slate-900 bg-slate-50 px-3 py-2.5 rounded-xl border border-slate-200/80">
+                      <Mail className="size-3.5 text-slate-500 shrink-0" />
+                      <span className="select-all font-mono">{selectedPayment.clientEmail}</span>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-[11px] text-slate-400 font-medium">CPF/CNPJ (taxId)</div>
+                    <div className="text-xs font-mono font-medium text-slate-800">{selectedPayment.clientTaxId || '—'}</div>
+                  </div>
+                  <div>
+                    <div className="text-[11px] text-slate-400 font-medium">Celular / WhatsApp (cellphone)</div>
+                    <div className="text-xs font-mono font-medium text-slate-800">{selectedPayment.clientCellphone || '—'}</div>
+                  </div>
                 </div>
               </div>
 
@@ -219,7 +296,7 @@ export default function AdminFinanceiroPagamentosPage() {
                 <div className="p-4 rounded-2xl border border-slate-100 flex items-center justify-between">
                   <div>
                     <div className="font-bold text-slate-900">{selectedPayment.planName}</div>
-                    <div className="text-xs text-slate-500">Duração: 30 dias / 1 ano</div>
+                    <div className="text-xs text-slate-500">Assinatura OraOra</div>
                   </div>
                   <div className="font-black text-slate-900">{formatCurrency(selectedPayment.amount)}</div>
                 </div>
@@ -234,7 +311,7 @@ export default function AdminFinanceiroPagamentosPage() {
                     <span className="font-bold text-slate-900">{selectedPayment.provider}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-500">ID do Checkout / Transação:</span>
+                    <span className="text-slate-500">ID da Cobrança / Transação:</span>
                     <span className="font-mono font-medium text-slate-700">{selectedPayment.checkoutId}</span>
                   </div>
                 </div>

@@ -11,7 +11,9 @@ import { useState } from 'react';
 // This needs to be more specific, combining user and broker/constructor data
 type CombinedUserData = {
     username: string;
-    userType: 'admin' | 'broker' | 'constructor';
+    userType: 'admin' | 'broker' | 'constructor' | 'imobiliaria';
+    agencyId?: string;
+    role?: string;
     email: string;
     phone?: string;
     whatsapp?: string;
@@ -51,7 +53,7 @@ export default function EditUserPage() {
         setIsSubmitting(true);
 
         const userDocRef = doc(firestore, 'users', id as string);
-        const userDataToUpdate = {
+        const userDataToUpdate: any = {
             username: data.name,
             userType: data.userType,
             isActive: data.isActive,
@@ -69,6 +71,9 @@ export default function EditUserPage() {
             } else if (data.userType === 'constructor') {
                 const constructorDocRef = doc(firestore, 'constructors', id as string);
                 await setDocumentNonBlocking(constructorDocRef, { cnpj: data.cnpj }, { merge: true });
+            } else if (data.userType === 'imobiliaria' && userData?.agencyId) {
+                const agencyDocRef = doc(firestore, 'imobiliarias', userData.agencyId);
+                await setDocumentNonBlocking(agencyDocRef, { name: data.agencyName || data.name }, { merge: true });
             }
             
             toast({

@@ -7,29 +7,39 @@ import { cookies, headers } from 'next/headers';
 import { z } from 'zod';
 
 const createUserSchema = z.object({
-  name: z.string().min(1, 'Nome obrigatório'),
-  email: z.string().email('Email inválido'),
+  name: z.string().trim().min(1, 'Nome do responsável é obrigatório'),
+  email: z.string().trim().email('E-mail inválido'),
   password: z.string().min(6, 'A senha deve ter pelo menos 6 caracteres'),
-  userType: z.enum(['admin', 'broker', 'constructor']),
-  cpf: z.string().optional(),
-  creci: z.string().optional(),
-  cnpj: z.string().optional(),
-  address: z.string().optional(),
-  state: z.string().optional(),
-  city: z.string().optional(),
-  phone: z.string().optional(),
-  whatsapp: z.string().optional(),
+  userType: z.enum(['admin', 'broker', 'constructor', 'imobiliaria']),
+  agencyName: z.string().nullish().transform(val => val?.trim() || undefined),
+  cpf: z.string().nullish().transform(val => val?.trim() || undefined),
+  creci: z.string().nullish().transform(val => val?.trim() || undefined),
+  cnpj: z.string().nullish().transform(val => val?.trim() || undefined),
+  address: z.string().nullish().transform(val => val?.trim() || undefined),
+  state: z.string().nullish().transform(val => val?.trim() || undefined),
+  city: z.string().nullish().transform(val => val?.trim() || undefined),
+  phone: z.string().nullish().transform(val => val?.trim() || undefined),
+  whatsapp: z.string().nullish().transform(val => val?.trim() || undefined),
   isActive: z.boolean(),
-  planId: z.string().optional(),
-  avatarUrl: z.string().optional(),
-  idToken: z.string().optional(),
+  planId: z.string().nullish().transform(val => val?.trim() || undefined),
+  avatarUrl: z.string().nullish().transform(val => val?.trim() || undefined),
+  idToken: z.string().nullish().transform(val => val?.trim() || undefined),
+}).superRefine((data, ctx) => {
+  if (data.userType === 'imobiliaria' && !data.agencyName) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Informe o nome da imobiliária.',
+      path: ['agencyName'],
+    });
+  }
 });
 
 export async function createAdminUserServer(formData: {
   name: string;
   email: string;
   password: string;
-  userType: 'admin' | 'broker' | 'constructor';
+  userType: 'admin' | 'broker' | 'constructor' | 'imobiliaria';
+  agencyName?: string;
   cpf?: string;
   creci?: string;
   cnpj?: string;
@@ -46,7 +56,9 @@ export async function createAdminUserServer(formData: {
   try {
     const validationResult = createUserSchema.safeParse(formData);
     if (!validationResult.success) {
-      const errorMessage = validationResult.error.errors.map(e => e.message).join(', ');
+      const errorMessage = validationResult.error.errors
+        .map(e => (e.path.length > 0 ? `${e.path.join('.')}: ${e.message}` : e.message))
+        .join(', ');
       return { success: false, error: `Dados inválidos: ${errorMessage}` };
     }
 
@@ -129,7 +141,7 @@ export async function createAdminUserServer(formData: {
         email: data.email,
         password: data.password,
         displayName: data.name,
-        disabled: !data.isActive,
+        disabled: data.isActive ? false : true,
       });
     } catch (authError: any) {
       console.error('Erro ao criar usuário no Authentication:', authError);
@@ -143,49 +155,107 @@ export async function createAdminUserServer(formData: {
 
     // Create user profile in Firestore
     try {
-      const userDocRef = adminDb.collection('users').doc(newUid);
-      await userDocRef.set({
-        id: newUid,
-        username: data.name,
-        email: data.email,
-        userType: data.userType,
-        isActive: data.isActive,
-        phone: data.phone || null,
-        whatsapp: data.whatsapp || null,
-        planId: data.planId || null,
-        avatarUrl: data.avatarUrl || '',
-        createdAt: FieldValue.serverTimestamp(),
-      });
+      if (data.userType === 'imobiliaria') {
+        const agencyId = adminDb.collection('imobiliarias').doc().id;
+        const now = FieldValue.serverTimestamp();
 
-      // If broker, create/update brokers collection
-      if (data.userType === 'broker') {
-        const brokerDocRef = adminDb.collection('brokers').doc(newUid);
-        await brokerDocRef.set({
+        // 1. User document
+        const userDocRef = adminDb.collection('users').doc(newUid);
+        await userDocRef.set({
           id: newUid,
-          name: data.name,
+          username: data.name,
           email: data.email,
-          cpf: data.cpf || null,
-          creci: data.creci || null,
-          address: data.address || null,
-          state: data.state || null,
-          city: data.city || null,
-          updatedAt: FieldValue.serverTimestamp(),
-        }, { merge: true });
-      }
+          userType: 'imobiliaria',
+          agencyId: agencyId,
+          role: 'owner',
+          isActive: data.isActive,
+          phone: data.phone || null,
+          whatsapp: data.whatsapp || null,
+          planId: data.planId || null,
+          avatarUrl: data.avatarUrl || '',
+          createdAt: now,
+        });
 
-      // If constructor, create/update constructors collection
-      if (data.userType === 'constructor') {
-        const constructorDocRef = adminDb.collection('constructors').doc(newUid);
-        await constructorDocRef.set({
+        // 2. Organization document
+        const agencyDocRef = adminDb.collection('imobiliarias').doc(agencyId);
+        await agencyDocRef.set({
+          id: agencyId,
+          name: data.agencyName || data.name,
+          ownerUid: newUid,
+          status: data.isActive ? 'active' : 'pending',
+          createdAt: now,
+          updatedAt: now,
+        });
+
+        // 3. Historical membership document
+        const memberDocRef = adminDb.collection('imobiliaria_members').doc();
+        await memberDocRef.set({
+          id: memberDocRef.id,
+          agencyId: agencyId,
+          userId: newUid,
+          role: 'owner',
+          status: data.isActive ? 'active' : 'inactive',
+          joinedAt: now,
+          leftAt: null,
+          createdAt: now,
+          updatedAt: now,
+        });
+
+        // 4. Deterministic active membership lock
+        const userActiveMembershipLockRef = adminDb.collection('imobiliaria_user_active_memberships').doc(newUid);
+        await userActiveMembershipLockRef.set({
+          userId: newUid,
+          agencyId: agencyId,
+          memberId: memberDocRef.id,
+          status: data.isActive ? 'active' : 'inactive',
+          joinedAt: now,
+          updatedAt: now,
+        });
+      } else {
+        const userDocRef = adminDb.collection('users').doc(newUid);
+        await userDocRef.set({
           id: newUid,
-          name: data.name,
+          username: data.name,
           email: data.email,
-          cnpj: data.cnpj || null,
-          address: data.address || null,
-          state: data.state || null,
-          city: data.city || null,
-          updatedAt: FieldValue.serverTimestamp(),
-        }, { merge: true });
+          userType: data.userType,
+          isActive: data.isActive,
+          phone: data.phone || null,
+          whatsapp: data.whatsapp || null,
+          planId: data.planId || null,
+          avatarUrl: data.avatarUrl || '',
+          createdAt: FieldValue.serverTimestamp(),
+        });
+
+        // If broker, create/update brokers collection
+        if (data.userType === 'broker') {
+          const brokerDocRef = adminDb.collection('brokers').doc(newUid);
+          await brokerDocRef.set({
+            id: newUid,
+            name: data.name,
+            email: data.email,
+            cpf: data.cpf || null,
+            creci: data.creci || null,
+            address: data.address || null,
+            state: data.state || null,
+            city: data.city || null,
+            updatedAt: FieldValue.serverTimestamp(),
+          }, { merge: true });
+        }
+
+        // If constructor, create/update constructors collection
+        if (data.userType === 'constructor') {
+          const constructorDocRef = adminDb.collection('constructors').doc(newUid);
+          await constructorDocRef.set({
+            id: newUid,
+            name: data.name,
+            email: data.email,
+            cnpj: data.cnpj || null,
+            address: data.address || null,
+            state: data.state || null,
+            city: data.city || null,
+            updatedAt: FieldValue.serverTimestamp(),
+          }, { merge: true });
+        }
       }
 
     } catch (firestoreError: any) {

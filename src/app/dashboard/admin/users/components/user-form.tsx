@@ -10,7 +10,8 @@ import { useState } from "react";
 // Define a placeholder type for user data
 export type UserFormData = {
     name: string;
-    userType: 'admin' | 'broker' | 'constructor';
+    userType: 'admin' | 'broker' | 'constructor' | 'imobiliaria';
+    agencyName?: string;
     cpf?: string;
     creci?: string;
     cnpj?: string;
@@ -75,6 +76,7 @@ export default function UserForm({ userData, onSave, isEditing, isSubmitting }: 
         broker: 'corretor',
         constructor: 'construtora',
         admin: 'admin', 
+        imobiliaria: 'corretor',
     };
 
     const planTypeForFilter = userTypeToPlanTypeMap[currentUserType as keyof typeof userTypeToPlanTypeMap] || '';
@@ -84,23 +86,32 @@ export default function UserForm({ userData, onSave, isEditing, isSubmitting }: 
     const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         const formData = new FormData(e.currentTarget);
+
+        const getOptionalString = (val: FormDataEntryValue | null): string | undefined => {
+            if (typeof val === 'string' && val.trim() !== '') {
+                return val.trim();
+            }
+            return undefined;
+        };
+
         const data: UserFormData = {
-            name: formData.get('name') as string,
-            email: formData.get('email') as string,
-            userType: formData.get('userType') as 'admin' | 'broker' | 'constructor',
-            cpf: formData.get('cpf') as string,
-            creci: formData.get('creci') as string,
-            cnpj: formData.get('cnpj') as string,
-            address: formData.get('address') as string,
-            state: formData.get('state') as string,
-            city: formData.get('city') as string,
-            phone: formData.get('phone') as string,
-            whatsapp: formData.get('whatsapp') as string,
+            name: ((formData.get('name') as string) || '').trim(),
+            agencyName: getOptionalString(formData.get('agencyName')),
+            email: ((formData.get('email') as string) || '').trim(),
+            userType: formData.get('userType') as 'admin' | 'broker' | 'constructor' | 'imobiliaria',
+            cpf: getOptionalString(formData.get('cpf')),
+            creci: getOptionalString(formData.get('creci')),
+            cnpj: getOptionalString(formData.get('cnpj')),
+            address: getOptionalString(formData.get('address')),
+            state: getOptionalString(formData.get('state')),
+            city: getOptionalString(formData.get('city')),
+            phone: getOptionalString(formData.get('phone')),
+            whatsapp: getOptionalString(formData.get('whatsapp')),
             isActive: (formData.get('isActive') === 'on'),
-            planId: formData.get('planId') as string,
+            planId: getOptionalString(formData.get('planId')),
             avatarUrl: userData?.avatarUrl || '',
-            password: formData.get('password') as string,
-            confirmPassword: formData.get('confirmPassword') as string,
+            password: (formData.get('password') as string) || '',
+            confirmPassword: (formData.get('confirmPassword') as string) || '',
             moduleAccess,
         };
         onSave(data);
@@ -147,9 +158,15 @@ export default function UserForm({ userData, onSave, isEditing, isSubmitting }: 
                             <div className="flex-1 w-full space-y-5">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                                     <div className="col-span-1 md:col-span-2">
-                                        <label className="block text-sm font-medium text-text-main mb-1.5">Nome do Usuário <span className="text-red-500">*</span></label>
-                                        <Input name="name" defaultValue={userData?.name} className="w-full bg-gray-50 border border-gray-200 rounded-lg px-4 py-2.5 text-text-main focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all placeholder-gray-400" placeholder="Ex: Nome Completo" type="text" />
+                                        <label className="block text-sm font-medium text-text-main mb-1.5">Nome do Responsável / Usuário <span className="text-red-500">*</span></label>
+                                        <Input name="name" defaultValue={userData?.name} className="w-full bg-gray-50 border border-gray-200 rounded-lg px-4 py-2.5 text-text-main focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all placeholder-gray-400" placeholder="Ex: Nome do Responsável" type="text" />
                                     </div>
+                                    {currentUserType === 'imobiliaria' && (
+                                        <div className="col-span-1 md:col-span-2">
+                                            <label className="block text-sm font-medium text-text-main mb-1.5">Nome da Imobiliária (Organização)</label>
+                                            <Input name="agencyName" defaultValue={userData?.agencyName} className="w-full bg-gray-50 border border-gray-200 rounded-lg px-4 py-2.5 text-text-main focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all placeholder-gray-400" placeholder="Ex: OraOra Imobiliária" type="text" />
+                                        </div>
+                                    )}
                                     <div>
                                         <label className="block text-sm font-medium text-text-main mb-1.5">Tipo de Usuário <span className="text-red-500">*</span></label>
                                         <div className="relative">
@@ -158,6 +175,7 @@ export default function UserForm({ userData, onSave, isEditing, isSubmitting }: 
                                                 <option value="admin">Administrador</option>
                                                 <option value="broker">Corretor</option>
                                                 <option value="constructor">Construtora</option>
+                                                <option value="imobiliaria">Imobiliária</option>
                                             </select>
                                             <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-text-secondary text-[20px]">expand_more</span>
                                         </div>

@@ -25,12 +25,39 @@ export default function middleware(req: NextRequest) {
     cleanHost = cleanHost.slice(4);
   }
 
-  // 2. Plataforma principal OraOra (sem subdomínio de corretor)
-  if (cleanHost === 'oraora.com.br') {
+  // 2. Não reescrever rotas principais da plataforma
+  const mainRoutes = [
+    '/dashboard',
+    '/imoveis',
+    '/login',
+    '/planos',
+    '/sobre',
+    '/contato',
+    '/ajuda',
+    '/politica-de-privacidade',
+    '/termos-de-uso',
+    '/solicitar-acesso',
+    '/nova-senha',
+    '/esqueceu-a-senha',
+    '/reset-password',
+    '/o-mercado-tem-rosto',
+    '/ora-ia',
+    '/empreendimento',
+    '/radar',
+    '/debug',
+    '/oralink',
+  ];
+
+  if (mainRoutes.some(route => path === route || path.startsWith(`${route}/`))) {
     return NextResponse.next();
   }
 
-  // 3. Subdomínio da OraOra (ex: slug.oraora.com.br)
+  // 3. Plataforma principal OraOra (sem subdomínio de corretor)
+  if (!cleanHost || cleanHost === 'oraora.com.br') {
+    return NextResponse.next();
+  }
+
+  // 4. Subdomínio da OraOra (ex: slug.oraora.com.br)
   if (cleanHost.endsWith('.oraora.com.br')) {
     const sub = cleanHost.slice(0, -'.oraora.com.br'.length);
     if (sub === 'www' || sub === 'app' || !sub) {
@@ -40,22 +67,27 @@ export default function middleware(req: NextRequest) {
     return NextResponse.rewrite(url);
   }
 
-  // 4. Ambientes de desenvolvimento, preview e hospedagem interna
+  // 5. Ambientes de desenvolvimento, preview e hospedagem interna
   const devPlatformDomains = [
     'localhost',
+    '127.0.0.1',
+    '0.0.0.0',
     'web.app',
     'firebase.studio',
     'firebaseapp.com',
     'hosted.app',
     'cloudworkstations.dev',
     'run.app',
+    'googleusercontent.com',
+    'aistudio.google.com',
+    'ais-',
   ];
 
   if (devPlatformDomains.some(d => cleanHost.includes(d))) {
     return NextResponse.next();
   }
 
-  // 5. Domínio próprio do corretor (ex: meudominio.com.br)
+  // 6. Domínio próprio do corretor (ex: meudominio.com.br)
   url.pathname = `/sites/${cleanHost}${path}`;
   return NextResponse.rewrite(url);
 }

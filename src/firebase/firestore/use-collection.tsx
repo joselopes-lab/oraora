@@ -57,6 +57,7 @@ export function useCollection<T = any>(
     setIsLoading(true);
     setError(null);
 
+    console.info('[FIRESTORE TRACE]', { source: 'useCollection', path: errPath, operation: 'onSnapshot' });
     const unsubscribe = onSnapshot(
       memoizedTargetRefOrQuery,
       (snapshot: QuerySnapshot<DocumentData>) => {
@@ -69,6 +70,13 @@ export function useCollection<T = any>(
         setIsLoading(false);
       },
       (firestoreError: FirestoreError) => {
+        console.error('[FIRESTORE DENIED]', {
+          source: 'useCollection',
+          path: errPath,
+          operation: 'onSnapshot',
+          code: firestoreError.code,
+          message: firestoreError.message
+        });
         // ONLY emit permission error if it is actually a permission issue
         if (firestoreError.code === 'permission-denied') {
           const contextualError = new FirestorePermissionError({

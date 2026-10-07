@@ -69,20 +69,47 @@ export const ActivationPanel = ({ userProfile }: { userProfile: any }) => {
       setProgresso({ etapas, concluidas, total: etapas.length });
     };
 
+    console.info('[FIRESTORE TRACE]', { source: 'ActivationPanel', collection: 'brokers', operation: 'onSnapshot', id: userProfile.id });
     const unsubBroker = onSnapshot(doc(firestore, 'brokers', userProfile.id), (docSnap) => {
       brokerData = docSnap.exists() ? docSnap.data() : {};
       updateProgress();
+    }, (error) => {
+      console.error('[FIRESTORE DENIED]', {
+        source: 'ActivationPanel',
+        collection: 'brokers',
+        operation: 'onSnapshot',
+        code: error.code,
+        message: error.message
+      });
     });
 
+    console.info('[FIRESTORE TRACE]', { source: 'ActivationPanel', collection: 'portfolios', operation: 'onSnapshot', id: userProfile.id });
     const unsubPortfolio = onSnapshot(doc(firestore, 'portfolios', userProfile.id), (docSnap) => {
       portfolioData = docSnap.exists() ? docSnap.data() : {};
       updateProgress();
+    }, (error) => {
+      console.error('[FIRESTORE DENIED]', {
+        source: 'ActivationPanel',
+        collection: 'portfolios',
+        operation: 'onSnapshot',
+        code: error.code,
+        message: error.message
+      });
     });
 
     const qAvulso = query(collection(firestore, 'brokerProperties'), where('brokerId', '==', userProfile.id));
+    console.info('[FIRESTORE TRACE]', { source: 'ActivationPanel', collection: 'brokerProperties', operation: 'onSnapshot', query: 'brokerId == userProfile.id' });
     const unsubAvulso = onSnapshot(qAvulso, (snapshot) => {
       avulsoData = snapshot.docs;
       updateProgress();
+    }, (error) => {
+      console.error('[FIRESTORE DENIED]', {
+        source: 'ActivationPanel',
+        collection: 'brokerProperties',
+        operation: 'onSnapshot',
+        code: error.code,
+        message: error.message
+      });
     });
 
     return () => {
@@ -103,14 +130,14 @@ export const ActivationPanel = ({ userProfile }: { userProfile: any }) => {
 
   if (!isOpen) {
     return (
-      <Button className="fixed bottom-4 right-4 z-50 rounded-full shadow-lg" onClick={() => handleToggleOpen(true)}>
+      <Button className="fixed bottom-[68px] md:bottom-20 right-4 md:right-6 z-50 rounded-full shadow-lg h-9 px-3.5 text-xs font-semibold" onClick={() => handleToggleOpen(true)}>
         ⚡ Ativação {porcentagem}%
       </Button>
     );
   }
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 w-80 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl p-4">
+    <div className="fixed bottom-[68px] md:bottom-20 right-4 md:right-6 z-50 w-80 max-w-[calc(100vw-2rem)] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl p-4">
       <div className="flex justify-between items-center mb-4">
         <h3 className="font-bold">⚡ ATIVAÇÃO</h3>
         <Button variant="ghost" size="sm" onClick={() => handleToggleOpen(false)}>−</Button>

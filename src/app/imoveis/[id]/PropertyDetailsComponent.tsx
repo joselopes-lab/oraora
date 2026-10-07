@@ -135,7 +135,7 @@ export default function PropertyDetailsComponent({ initialProperty = null, price
   const [activePoiTypes, setActivePoiTypes] = useState<string[]>([]);
   const [selectedPoi, setSelectedPoi] = useState<Poi | null>(null);
 
-  const { isLoaded } = useJsApiLoader({
+  const { isLoaded, loadError } = useJsApiLoader({
     id: 'google-map-script',
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '',
     libraries: googleMapsLibraries,

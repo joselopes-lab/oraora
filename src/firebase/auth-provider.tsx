@@ -10,7 +10,7 @@ export interface UserProfile {
   id: string;
   username: string;
   email: string;
-  userType: 'admin' | 'broker' | 'constructor' | 'construtora' | 'client';
+  userType: 'admin' | 'broker' | 'constructor' | 'construtora' | 'client' | 'imobiliaria';
   planId?: string;
   planStatus?: string;
   trialStartedAt?: Timestamp;
@@ -67,6 +67,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setProfileLoading(true);
         const userDocRef = doc(firestore, 'users', firebaseUser.uid);
         
+        console.info('[FIRESTORE TRACE]', { source: 'AuthProvider', collection: 'users', operation: 'onSnapshot', uid: firebaseUser.uid });
         profileUnsubscribe = onSnapshot(userDocRef, 
           (userDoc) => {
             if (userDoc.exists()) {
@@ -77,7 +78,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             setProfileLoading(false);
           },
           (error) => {
-              console.error("AuthProvider: Erro ao buscar perfil:", error);
+              console.error('[FIRESTORE DENIED]', {
+                source: 'AuthProvider',
+                collection: 'users',
+                operation: 'onSnapshot',
+                code: error.code,
+                message: error.message
+              });
               setUserProfile(null);
               setProfileLoading(false);
           }

@@ -47,13 +47,11 @@ export function useDoc<T = any>(
     setIsLoading(true);
     setError(null);
 
+    console.info('[FIRESTORE TRACE]', { source: 'useDoc', path: memoizedDocRef.path, operation: 'onSnapshot' });
     const unsubscribe = onSnapshot(
       memoizedDocRef,
       (snapshot: DocumentSnapshot<DocumentData>) => {
         if (snapshot.exists()) {
-          console.log("REQUEST ID LIDO", snapshot.id);
-          console.log("REQUEST RAW", snapshot.data());
-          console.log("DOCUMENTS RAW", snapshot.data()?.documents);
           setData({ ...(snapshot.data() as T), id: snapshot.id });
         } else {
           setData(null);
@@ -62,6 +60,13 @@ export function useDoc<T = any>(
         setIsLoading(false);
       },
       (firestoreError: FirestoreError) => {
+        console.error('[FIRESTORE DENIED]', {
+          source: 'useDoc',
+          path: memoizedDocRef.path,
+          operation: 'onSnapshot',
+          code: firestoreError.code,
+          message: firestoreError.message
+        });
         if (firestoreError.code === 'permission-denied') {
           const contextualError = new FirestorePermissionError({
             operation: 'get',

@@ -28,6 +28,11 @@ export default function NewUserPage() {
             return;
         }
 
+        if (data.userType === 'imobiliaria' && !data.agencyName) {
+            toast({ variant: 'destructive', title: 'Informe o nome da imobiliária.' });
+            return;
+        }
+
         setIsSubmitting(true);
         try {
             const idToken = await auth?.currentUser?.getIdToken();
@@ -39,6 +44,7 @@ export default function NewUserPage() {
 
             const result = await createAdminUserServer({
                 name: data.name,
+                agencyName: data.agencyName,
                 email: data.email,
                 password: data.password,
                 userType: data.userType,

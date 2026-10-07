@@ -7,6 +7,7 @@ import { collection, query, where, orderBy, serverTimestamp, Timestamp, doc, arr
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { normalizeDate } from '@/lib/utils';
 import { formatDistanceToNow, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import Image from 'next/image';

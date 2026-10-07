@@ -1,9 +1,10 @@
 
 import { firebaseConfig } from '@/firebase/config';
 import { initializeApp, getApps, getApp, App, cert, applicationDefault } from 'firebase-admin/app';
-import { getFirestore, Firestore } from 'firebase-admin/firestore';
+import { getFirestore, Firestore, FieldValue } from 'firebase-admin/firestore';
 import { getAuth, Auth } from 'firebase-admin/auth';
 import { getStorage, Storage } from 'firebase-admin/storage';
+export { FieldValue };
 import { GoogleAuth } from 'google-auth-library';
 import fs from 'fs';
 import path from 'path';
@@ -46,7 +47,7 @@ function initializeAdmin(): App {
 }
 
 let _adminDb: Firestore | null = null;
-function getAdminDb(): Firestore {
+export function getAdminDb(): Firestore {
   if (!_adminDb) {
     const app = initializeAdmin();
     _adminDb = getFirestore(app);
@@ -55,7 +56,7 @@ function getAdminDb(): Firestore {
 }
 
 let _adminAuth: Auth | null = null;
-function getAdminAuth(): Auth {
+export function getAdminAuth(): Auth {
   if (!_adminAuth) {
     const app = initializeAdmin();
     _adminAuth = getAuth(app);

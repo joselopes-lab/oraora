@@ -13,6 +13,7 @@ import { CookieConsentBanner } from '@/components/privacy/CookieConsentBanner';
 import { AnalyticsLoader } from '@/components/privacy/AnalyticsLoader';
 import { CONSENT_COOKIE_NAME, ConsentState } from '@/lib/privacy/types';
 import OraPublicChatWidget from '@/app/components/OraPublicChatWidget';
+import { GlobalErrorDebugger } from '@/components/GlobalErrorDebugger';
 
 export const dynamic = 'force-dynamic';
 
@@ -105,6 +106,7 @@ export default async function RootLayout({
         <JsonLd data={generateOrganizationJsonLd()} />
         <FirebaseClientProvider>
           <AuthProvider>
+            <GlobalErrorDebugger />
             <Suspense fallback={null}>
               <ActivityTracker />
             </Suspense>

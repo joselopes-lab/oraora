@@ -41,7 +41,7 @@ type User = {
   id: string;
   username: string;
   email: string;
-  userType: 'admin' | 'broker' | 'constructor' | 'client';
+  userType: 'admin' | 'broker' | 'constructor' | 'client' | 'imobiliaria';
   lastAccess?: Timestamp; 
   isActive: boolean;
   slug?: string; // slug for broker's public site
@@ -86,7 +86,7 @@ function DeleteUserDialog({ user, onDelete }: { user: User; onDelete: (user: Use
 
 
 export default function UserManagementPage() {
-    const [activeTab, setActiveTab] = useState<'admin' | 'constructor' | 'broker'>('admin');
+    const [activeTab, setActiveTab] = useState<'admin' | 'constructor' | 'broker' | 'imobiliaria'>('admin');
     const [searchTerm, setSearchTerm] = useState('');
     const firestore = useFirestore();
     const { toast } = useToast();
@@ -138,6 +138,15 @@ export default function UserManagementPage() {
     const handleDeleteUser = (userToDelete: User) => {
       if (!firestore) return;
       
+      if (userToDelete.userType === 'imobiliaria') {
+        toast({
+          variant: "destructive",
+          title: "Exclusão bloqueada",
+          description: `Não é possível excluir o proprietário da imobiliária "${userToDelete.username}" diretamente nesta tela para evitar registros órfãos. Gerencie a organização antes.`,
+        });
+        return;
+      }
+
       const userDocRef = doc(firestore, 'users', userToDelete.id);
       deleteDocumentNonBlocking(userDocRef);
 
@@ -216,6 +225,14 @@ export default function UserManagementPage() {
               Administradores
               <span className={`absolute bottom-0 left-0 w-full h-0.5 rounded-t-full ${activeTab === 'admin' ? 'bg-primary' : 'bg-transparent group-hover:bg-gray-200'}`}></span>
               <span className={`ml-2 text-xs py-0.5 px-2 rounded-full transition-colors ${activeTab === 'admin' ? 'bg-primary/20 text-text-main' : 'bg-gray-50 text-text-secondary'}`}>{users?.filter(u => u.userType === 'admin').length || 0}</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('imobiliaria')}
+              className={`group relative pb-4 px-1 text-sm transition-colors ${activeTab === 'imobiliaria' ? 'font-bold text-text-main' : 'font-medium text-text-secondary hover:text-text-main'}`}
+            >
+              Imobiliárias
+              <span className={`absolute bottom-0 left-0 w-full h-0.5 rounded-t-full ${activeTab === 'imobiliaria' ? 'bg-primary' : 'bg-transparent group-hover:bg-gray-200'}`}></span>
+              <span className={`ml-2 text-xs py-0.5 px-2 rounded-full transition-colors ${activeTab === 'imobiliaria' ? 'bg-primary/20 text-text-main' : 'bg-gray-50 text-text-secondary'}`}>{users?.filter(u => u.userType === 'imobiliaria').length || 0}</span>
             </button>
             <button
               onClick={() => setActiveTab('constructor')}
@@ -308,6 +325,7 @@ export default function UserManagementPage() {
                 <TableCell className="px-6 py-4 whitespace-nowrap">
                   <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 border border-gray-200">
                     {user.userType === 'admin' && 'Administrador'}
+                    {user.userType === 'imobiliaria' && 'Imobiliária'}
                     {user.userType === 'broker' && 'Corretor'}
                     {user.userType === 'constructor' && 'Construtor'}
                   </span>

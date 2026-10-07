@@ -9,6 +9,7 @@ import { collection, setDoc, updateDoc, query, where, orderBy, Timestamp, limit,
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { normalizeDate } from '@/lib/utils';
 import { format, parseISO, formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import {
@@ -919,22 +920,19 @@ export default function JourneyDetailPage() {
       });
     }
 
-    // Add journey creation
+// Add journey creation
     if (journey?.createdAt) {
-      let createDate = new Date();
-      if (typeof (journey.createdAt as any).toDate === 'function') {
-        createDate = (normalizeDate(journey.createdAt) || new Date());
-      } else {
-        createDate = new Date(journey.createdAt as any);
+      const d = normalizeDate(journey.createdAt);
+      if (d) {
+        items.push({
+          id: 'journey-creation',
+          type: 'timeline',
+          eventType: 'creation',
+          title: 'Abertura da Jornada',
+          description: 'A jornada de compra do cliente foi formalizada no sistema.',
+          date: d,
+        });
       }
-      items.push({
-        id: 'journey-creation',
-        type: 'timeline',
-        eventType: 'creation',
-        title: 'Abertura da Jornada',
-        description: 'A jornada de compra do cliente foi formalizada no sistema.',
-        date: createDate,
-      });
     }
 
     // Sort descending (newest first)

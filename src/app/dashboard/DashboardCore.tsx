@@ -1,6 +1,7 @@
 
 'use client';
 
+import AgentFloatingAssistant from '@/components/ora/AgentFloatingAssistant';
 import { Menu, X } from "lucide-react";
 import {
   Sheet,
@@ -65,6 +66,19 @@ const NavigationLinks = ({ userProfile, pathname, openMenu, handleMouseEnter, ha
           }
         }}
       >
+        {userProfile.userType === 'imobiliaria' && (
+          <>
+            <Link href="/dashboard" className="flex items-center gap-2.5 px-3 py-2 text-sm font-semibold text-slate-900 rounded-lg hover:bg-slate-100 transition-colors">
+              <span className="material-symbols-outlined text-[20px]">apartment</span>
+              Dashboard
+            </Link>
+            <Link href="/dashboard/imobiliaria/equipe" className="flex items-center gap-2.5 px-3 py-2 text-sm font-semibold text-slate-900 rounded-lg hover:bg-slate-100 transition-colors">
+              <span className="material-symbols-outlined text-[20px]">groups</span>
+              Equipe
+            </Link>
+          </>
+        )}
+
         {userProfile.userType === 'broker' && (
           <>
             <Link href="/dashboard" className="flex items-center gap-2.5 px-3 py-2 text-sm font-semibold text-slate-900 rounded-lg hover:bg-slate-100 transition-colors">
@@ -79,8 +93,8 @@ const NavigationLinks = ({ userProfile, pathname, openMenu, handleMouseEnter, ha
                   Clientes
                 </div>
                 <div className="flex flex-col gap-1 pl-9">
-                  <Link href="/dashboard/leads" className="text-sm text-slate-600 hover:text-slate-900 py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">Leads</Link>
-                  <Link href="/dashboard/clientes" className="text-sm text-slate-600 hover:text-slate-900 py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">Base de Clientes</Link>
+                  <Link href="/dashboard/leads" className="text-sm text-slate-600 hover:text-slate-900 py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">Funil de Vendas</Link>
+                  <Link href="/dashboard/clientes" className="text-sm text-slate-600 hover:text-slate-900 py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">Meus Clientes</Link>
                   <Link href="/dashboard/personas" className="text-sm text-slate-600 hover:text-slate-900 py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">Personas</Link>
                 </div>
               </div>
@@ -118,6 +132,7 @@ const NavigationLinks = ({ userProfile, pathname, openMenu, handleMouseEnter, ha
                 <div className="flex flex-col gap-1 pl-9">
                   <Link href="/dashboard/jornada" className="text-sm text-slate-600 hover:text-slate-900 py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">Jornada de Vendas</Link>
                   <Link href="/dashboard/agenda" className="text-sm text-slate-600 hover:text-slate-900 py-1.5 px-2 rounded-md hover:bg-slate-50 transition-colors">Agenda</Link>
+                  <Link href="/dashboard/agente" className="text-sm font-bold text-emerald-600 hover:text-emerald-700 py-1.5 px-2 rounded-md bg-emerald-50 transition-colors flex items-center gap-1.5"><span className="material-symbols-outlined text-[16px]">smart_toy</span>Agente OraOra</Link>
                 </div>
               </div>
             )}
@@ -168,6 +183,7 @@ const NavigationLinks = ({ userProfile, pathname, openMenu, handleMouseEnter, ha
                     Crescimento
                   </div>
                   <div className="flex flex-col gap-1 pl-4">
+                    <Link href="/dashboard/agente" className="text-sm font-bold text-emerald-600 hover:text-emerald-700 py-1 flex items-center gap-1.5"><span className="material-symbols-outlined text-[16px]">smart_toy</span>Agente OraOra</Link>
                     {canAccess('marketing') && <Link href="/dashboard/meu-site" className="text-sm text-slate-600 hover:text-slate-900 py-1">Meu Site</Link>}
                     {canAccess('oralink') && <Link href="/dashboard/oralink" className="text-sm text-slate-600 hover:text-slate-900 py-1">Ora Link</Link>}
                     {canAccess('intelligence') && <Link href="/dashboard/mercado" className="text-sm text-slate-600 hover:text-slate-900 py-1">Inteligência de Mercado</Link>}
@@ -303,6 +319,19 @@ const NavigationLinks = ({ userProfile, pathname, openMenu, handleMouseEnter, ha
 
   return (
     <>
+      {userProfile.userType === 'imobiliaria' && (
+        <>
+          <Link className={navLinkClasses("/dashboard", true)} href="/dashboard">
+            <span className="material-symbols-outlined text-[20px]">apartment</span>
+            Dashboard
+          </Link>
+          <Link className={navLinkClasses("/dashboard/imobiliaria/equipe")} href="/dashboard/imobiliaria/equipe">
+            <span className="material-symbols-outlined text-[20px]">groups</span>
+            Equipe
+          </Link>
+        </>
+      )}
+
       {userProfile.userType === 'broker' && (
         <>
           <Link className={navLinkClasses("/dashboard", true)} href="/dashboard">
@@ -319,8 +348,8 @@ const NavigationLinks = ({ userProfile, pathname, openMenu, handleMouseEnter, ha
                   <span className="material-symbols-outlined text-[16px] ml-0.5">expand_more</span>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" className="w-56" onMouseEnter={() => handleMouseEnter('clientes')} onMouseLeave={handleMouseLeave}>
-                  <DropdownMenuItem asChild><Link href="/dashboard/leads">Leads</Link></DropdownMenuItem>
-                  <DropdownMenuItem asChild><Link href="/dashboard/clientes">Base de Clientes</Link></DropdownMenuItem>
+                  <DropdownMenuItem asChild><Link href="/dashboard/leads">Funil de Vendas</Link></DropdownMenuItem>
+                  <DropdownMenuItem asChild><Link href="/dashboard/clientes">Meus Clientes</Link></DropdownMenuItem>
                   <DropdownMenuItem asChild><Link href="/dashboard/personas">Personas</Link></DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -1800,8 +1829,9 @@ export default function DashboardCore({
           </div>
         </div>
       </footer>
+      {userProfile.userType === 'broker' && <AgentFloatingAssistant />}
       {userProfile.userType === 'admin' && <AIChatWidget />}
-      <ActivationPanel userProfile={userProfile} />
+      {userProfile.userType === 'broker' && <ActivationPanel userProfile={userProfile} />}
     </OnboardingContext.Provider>
   );
 }

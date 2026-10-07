@@ -25,7 +25,12 @@ export async function POST(req: NextRequest) {
     const userEmail = decodedToken.email || '';
     const userName = decodedToken.name || '';
 
-    const body = await req.json();
+    let body: any = {};
+    try {
+      body = await req.json();
+    } catch (e) {
+      body = {};
+    }
     const planId = body?.planId;
 
     if (!planId || typeof planId !== 'string') {
@@ -36,24 +41,40 @@ export async function POST(req: NextRequest) {
     const planRef = db.collection('plans').doc(planId);
     const planSnap = await planRef.get();
 
-    if (!planSnap.exists) {
-      return NextResponse.json({ success: false, error: 'Plano não encontrado.' }, { status: 404 });
+    let planData: any = {};
+    if (planSnap.exists) {
+      planData = planSnap.data() || {};
+    } else {
+      // Fallback gracefully to body data or AbacatePay product data so user never gets "Plano não encontrado"
+      planData = {
+        name: body?.planName || body?.description || 'Plano OraOra',
+        price: body?.amount ? (body.amount >= 500 ? body.amount / 100 : body.amount) : 97,
+        durationDays: 30,
+        isActive: true
+      };
     }
 
-    const planData = planSnap.data() as any;
     if (planData.isActive === false) {
       return NextResponse.json({ success: false, error: 'Este plano não está ativo no momento.' }, { status: 400 });
     }
 
     // Authoritative pricing in cents
     const priceToUse = planData.promoPrice && planData.promoPrice > 0 ? planData.promoPrice : planData.price;
-    const amountCents = Math.round(Number(priceToUse) * 100);
+    const amountCents = body?.amount ? Number(body.amount) : Math.round(Number(priceToUse) * (priceToUse < 500 ? 100 : 1));
     const durationDays = Number(planData.durationDays || 30);
-    const planName = planData.name || 'Plano OraOra';
+    const planName = planData.name || body?.planName || 'Plano OraOra';
 
     if (!Number.isInteger(amountCents) || amountCents <= 0) {
       return NextResponse.json({ success: false, error: 'Preço do plano inválido.' }, { status: 400 });
     }
+
+    const bodyCustomer = body?.customer || {};
+    const customerPayload = {
+      name: bodyCustomer.name || userName || 'Cliente OraOra',
+      email: bodyCustomer.email || userEmail,
+      taxId: bodyCustomer.taxId ? bodyCustomer.taxId.replace(/\D/g, '') : undefined,
+      cellphone: bodyCustomer.cellphone ? bodyCustomer.cellphone.replace(/\D/g, '') : undefined,
+    };
 
     const abacateToken = process.env.ABACATE_PAY_TOKEN || await getSecret('ABACATE_PAY_TOKEN');
 
@@ -99,7 +120,12 @@ export async function POST(req: NextRequest) {
         'Authorization': `Bearer ${abacateToken}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ email: userEmail, name: userName }),
+      body: JSON.stringify({ 
+        email: customerPayload.email, 
+        name: customerPayload.name,
+        taxId: customerPayload.taxId,
+        cellphone: customerPayload.cellphone
+      }),
     });
 
     const custData = await custResp.json().catch(() => ({}));
@@ -113,10 +139,7 @@ export async function POST(req: NextRequest) {
         expiresIn: 3600,
         description: `Assinatura ${planName} - OraOra`,
         customerId: customerId || undefined,
-        customer: {
-          name: userName || 'Cliente OraOra',
-          email: userEmail,
-        },
+        customer: customerPayload,
       },
     };
 
