@@ -39,7 +39,24 @@ export const leadRepository = {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     });
-    return docRef.id;
+
+    const leadId = docRef.id;
+
+    // Dispara notificação interna (não bloqueante)
+    try {
+      const { triggerNewLeadNotification } = await import('@/lib/notifications/lead-events.server');
+      await triggerNewLeadNotification({
+        leadId,
+        brokerId: leadData.brokerId,
+        name: leadData.name,
+        source: leadData.source,
+        propertyName: leadData.propertyName,
+      });
+    } catch (notifError) {
+      console.warn('[LeadRepository] Falha ao disparar notificação:', notifError);
+    }
+
+    return leadId;
   },
 
   async getById(leadId: string): Promise<Lead | null> {

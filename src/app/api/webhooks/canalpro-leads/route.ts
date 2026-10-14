@@ -248,12 +248,13 @@ export async function POST(request: NextRequest) {
 
     // 10. Notificação Interna para o Corretor (Não bloqueante)
     try {
-      await adminDb.collection('notifications').add({
-        userId: brokerId,
-        title: 'Novo Lead do Canal Pro!',
-        message: `Você recebeu um novo contato de ${name} para o imóvel "${propertyName}".`,
-        read: false,
-        createdAt: FieldValue.serverTimestamp(),
+      const { triggerNewLeadNotification } = await import('@/lib/notifications/lead-events.server');
+      await triggerNewLeadNotification({
+        leadId: leadRef.id,
+        brokerId: brokerId,
+        name: name,
+        source: 'Canal Pro',
+        propertyName: propertyName,
       });
     } catch (notifErr) {
       console.warn('[Webhook CanalPro] Falha ao registrar notificação interna:', notifErr);

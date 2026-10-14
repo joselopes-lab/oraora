@@ -3,7 +3,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
-import { cn, formatArea } from '@/lib/utils';
+import { cn, formatArea, formatPhoneMask } from '@/lib/utils';
 import { useUser, useDoc, useFirestore, useMemoFirebase, setDocumentNonBlocking, useAuthContext, useAuth } from '@/firebase';
 import { arrayRemove, arrayUnion, doc, collection, query, where, getDocs, limit, getDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
@@ -11,7 +11,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { createLead } from '@/app/sites/actions';
+import { createLead, getPublicBrokerContact } from '@/app/sites/actions';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -92,18 +92,33 @@ type LeadFormData = z.infer<typeof leadSchema>;
 type PropertyDetailsProps = {
   initialProperty?: Property | null;
   priceTableInfo?: any;
+  initialBroker?: any;
 };
 
 const googleMapsLibraries: Libraries = ['places'];
 
-export default function PropertyDetailsComponent({ initialProperty = null, priceTableInfo = null }: PropertyDetailsProps) {
+const getDisplayPhone = (broker: any) => {
+  if (!broker) return null;
+  const val = broker.whatsapp || broker.contactPhone || broker.phone || broker.mobilePhone || broker.footerContactPhone;
+  return typeof val === 'string' ? val : null;
+};
+
+const getBrokerSiteUrl = (broker: any) => {
+  if (!broker) return null;
+  if (broker.siteUrl) return broker.siteUrl;
+  if (broker.domain) return `https://${broker.domain}`;
+  if (broker.subdomain) return `https://${broker.subdomain}.oraora.com.br`;
+  return null;
+};
+
+export default function PropertyDetailsComponent({ initialProperty = null, priceTableInfo = null, initialBroker = null }: PropertyDetailsProps) {
   const params = useParams();
   const id = params.id as string;
   const firestore = useFirestore();
   const auth = useAuth();
   const { user, userProfile, isReady } = useAuthContext();
   const [property, setProperty] = useState<Property | null>(initialProperty);
-  const [brokerInfo, setBrokerInfo] = useState<any>(null);
+  const [brokerInfo, setBrokerInfo] = useState<any>(initialBroker);
   const [similarProperties, setSimilarProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(!initialProperty);
   const { toast } = useToast();
@@ -199,12 +214,14 @@ export default function PropertyDetailsComponent({ initialProperty = null, price
       setLoading(false);
       const fetchExtra = async () => {
         try {
-          if (propData.brokerId) {
-            const brSnap = await getDoc(doc(firestore, 'brokers', propData.brokerId));
-            if (brSnap.exists()) setBrokerInfo(brSnap.data());
-          } else if (propData.builderId) {
-            const constructorData = await resolveConstructorByBuilderId(firestore, propData.builderId);
-            if (constructorData) setBrokerInfo(constructorData);
+          if (!brokerInfo) {
+            const contact = await getPublicBrokerContact(propData.id, propData.brokerId || propData.builderId);
+            if (contact) {
+              setBrokerInfo(contact);
+            } else if (propData.builderId) {
+              const constructorData = await resolveConstructorByBuilderId(firestore, propData.builderId);
+              if (constructorData) setBrokerInfo({ id: propData.builderId, ...constructorData });
+            }
           }
           if (propData.localizacao?.cidade) {
             const qSim = query(collection(firestore, 'properties'), where('isVisibleOnSite', '==', true), where('localizacao.cidade', '==', propData.localizacao.cidade), limit(5));
@@ -247,12 +264,12 @@ export default function PropertyDetailsComponent({ initialProperty = null, price
 
         if (fallbackProp && fallbackProp.isVisibleOnSite !== false) {
           setProperty(fallbackProp);
-          if (fallbackProp.brokerId) {
-            const brSnap = await getDoc(doc(firestore, 'brokers', fallbackProp.brokerId));
-            if (brSnap.exists()) setBrokerInfo(brSnap.data());
+          const contact = await getPublicBrokerContact(fallbackProp.id, fallbackProp.brokerId || fallbackProp.builderId);
+          if (contact) {
+            setBrokerInfo(contact);
           } else if (fallbackProp.builderId) {
             const constructorData = await resolveConstructorByBuilderId(firestore, fallbackProp.builderId);
-            if (constructorData) setBrokerInfo(constructorData);
+            if (constructorData) setBrokerInfo({ id: fallbackProp.builderId, ...constructorData });
           }
           const qSim = query(collection(firestore, 'properties'), where('isVisibleOnSite', '==', true), where('localizacao.cidade', '==', fallbackProp.localizacao.cidade), limit(5));
           const simSnap = await getDocs(qSim);
@@ -262,7 +279,7 @@ export default function PropertyDetailsComponent({ initialProperty = null, price
       finally { setLoading(false); }
     };
     fetchData();
-  }, [firestore, id, initialProperty]);
+  }, [firestore, id, initialProperty, brokerInfo]);
 
   useEffect(() => {
     if (isLoaded && property) {
@@ -394,10 +411,16 @@ export default function PropertyDetailsComponent({ initialProperty = null, price
     setIsSubmitting(true);
     const result = await createLead({
       brokerId: property.brokerId || property.builderId || '',
-      name: data.name, email: data.email, phone: data.phone,
+      propertyId: property.id,
+      propertyName: property.informacoesbasicas.nome,
+      name: data.name, 
+      email: data.email, 
+      phone: data.phone,
       propertyInterest: property.informacoesbasicas.nome,
       message: data.message,
-      source: 'property_form'
+      source: 'property_form',
+      pageType: 'property_detail',
+      pageUrl: typeof window !== 'undefined' ? window.location.href : '',
     });
     if (result.success) {
       toast({ title: 'Mensagem Enviada!' });
@@ -701,17 +724,106 @@ export default function PropertyDetailsComponent({ initialProperty = null, price
                     <Button disabled={isSubmitting} type="submit" className="w-full h-14 bg-slate-900 hover:bg-black font-bold text-white uppercase tracking-widest text-xs rounded-xl shadow-lg">
                       {isSubmitting ? 'Enviando...' : 'ENVIAR MENSAGEM'}
                     </Button>
-                    <Button 
-                      type="button" 
-                      onClick={() => setIsWhatsAppModalOpen(true)} 
-                      disabled={isSubmitting}
-                      className="w-full h-14 bg-[#25D366] hover:bg-[#20ba5a] text-white font-black rounded-xl shadow-lg flex items-center justify-center gap-2 uppercase text-xs tracking-widest mt-4"
-                    >
-                      <span className="material-symbols-outlined text-xl font-bold">chat</span>
-                      Conversar pelo WhatsApp
-                    </Button>
+                    {brokerInfo?.hasWhatsApp && (
+                      <Button 
+                        type="button" 
+                        onClick={() => setIsWhatsAppModalOpen(true)} 
+                        disabled={isSubmitting}
+                        className="w-full h-14 bg-[#25D366] hover:bg-[#20ba5a] text-white font-black rounded-xl shadow-lg flex items-center justify-center gap-2 uppercase text-xs tracking-widest mt-4"
+                      >
+                        <span className="material-symbols-outlined text-xl font-bold">chat</span>
+                        Conversar pelo WhatsApp
+                      </Button>
+                    )}
                   </form>
                 </div>
+
+                {brokerInfo && (
+                  <div className="bg-white rounded-3xl shadow-float p-8 border border-slate-100 text-center space-y-6">
+                    {/* 1. MARCA DO CORRETOR */}
+                    {(brokerInfo.logoUrl || brokerInfo.brandUrl) && (
+                      <div className="flex justify-center mb-4 w-full">
+                        <div className="relative w-full max-w-[200px] h-[80px]">
+                          <Image 
+                            src={brokerInfo.logoUrl || brokerInfo.brandUrl} 
+                            alt="Marca do Corretor" 
+                            fill
+                            className="object-contain"
+                            referrerPolicy="no-referrer"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 2. IDENTIFICAÇÃO */}
+                    <div className="text-center">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Responsável</span>
+                      <h4 className="text-xl font-bold text-slate-900 leading-tight">
+                        {brokerInfo.displayName || brokerInfo.name || 'Corretor'}
+                      </h4>
+                      {brokerInfo.isVerified && (
+                        <div className="flex items-center justify-center gap-1 text-[10px] text-primary font-black uppercase tracking-wider mt-1">
+                          <span className="material-symbols-outlined text-sm">verified</span>
+                          Profissional Verificado
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 3. TELEFONE */}
+                    {(brokerInfo.phone || getDisplayPhone(brokerInfo)) && (
+                      <div className="flex items-center justify-center gap-2 text-slate-700 font-bold">
+                        <span className="material-symbols-outlined text-black">call</span>
+                        <span className="text-sm">{formatPhoneMask(brokerInfo.phone || getDisplayPhone(brokerInfo))}</span>
+                      </div>
+                    )}
+
+                    {/* 4. INSTAGRAM E SITE */}
+                    {(brokerInfo.instagram || getBrokerSiteUrl(brokerInfo)) && (
+                      <div className="flex items-center justify-center gap-4 text-[11px] font-bold text-black border-t border-slate-50 pt-6">
+                        {brokerInfo.instagram && (
+                          <a 
+                            href={brokerInfo.instagram.startsWith('http') ? brokerInfo.instagram : `https://instagram.com/${brokerInfo.instagram.replace('@', '')}`}
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1.5 hover:text-primary transition-colors"
+                          >
+                            <span className="material-symbols-outlined text-black text-lg">photo_camera</span>
+                            Instagram
+                          </a>
+                        )}
+                        {brokerInfo.instagram && getBrokerSiteUrl(brokerInfo) && (
+                          <span className="text-slate-200">|</span>
+                        )}
+                        {getBrokerSiteUrl(brokerInfo) && (
+                          <a 
+                            href={getBrokerSiteUrl(brokerInfo)} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1.5 hover:text-primary transition-colors"
+                          >
+                            <span className="material-symbols-outlined text-black text-lg">language</span>
+                            Meu site
+                          </a>
+                        )}
+                      </div>
+                    )}
+
+                    {/* 5. BOTÃO DE CONTATO */}
+                    <Button 
+                      type="button" 
+                      onClick={() => setIsWhatsAppModalOpen(true)}
+                      variant="outline"
+                      className="w-full h-14 border-2 border-slate-900 bg-slate-50 text-slate-900 hover:bg-slate-900 hover:text-white font-black rounded-xl transition-all flex items-center justify-center gap-3 uppercase text-[10px] tracking-widest group"
+                    >
+                      <span className="material-symbols-outlined text-xl text-black group-hover:text-white transition-colors">
+                        {brokerInfo.hasWhatsApp ? 'chat' : 'mail'}
+                      </span>
+                      {brokerInfo.hasWhatsApp 
+                        ? `FALAR COM ${(brokerInfo.displayName?.split(' ')[0] || brokerInfo.name?.split(' ')[0] || 'O CORRETOR').toUpperCase()}`
+                        : `SOLICITAR CONTATO COM ${(brokerInfo.displayName?.split(' ')[0] || brokerInfo.name?.split(' ')[0] || 'O CORRETOR').toUpperCase()}`}
+                    </Button>
+                  </div>
+                )}
               </aside>
             </div>
           </div>

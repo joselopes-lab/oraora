@@ -223,3 +223,32 @@ export function normalizeDate(value: unknown): Date | undefined {
   return undefined;
 }
 
+export function hashCode(str: string) {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash) + str.charCodeAt(i);
+    hash |= 0;
+  }
+  return hash;
+}
+
+export function seededShuffle<T>(array: T[], seed: number): T[] {
+  const arr = [...array];
+  let currentIndex = arr.length, randomIndex;
+  let a = seed;
+  
+  function mulberry32() {
+    a = (a + 0x6D2B79F5) | 0;
+    var t = Math.imul(a ^ (a >>> 15), 1 | (a ^ (a >>> 1))) >>> 0;
+    t = ((t ^ (t >>> 11)) * (1 | 0)) >>> 0;
+    return (t ^ (t >>> 14)) >>> 0;
+  }
+
+  while (currentIndex !== 0) {
+    randomIndex = Math.floor((mulberry32() / 4294967296) * currentIndex);
+    currentIndex--;
+    [arr[currentIndex], arr[randomIndex]] = [arr[randomIndex], arr[currentIndex]];
+  }
+  return arr;
+}
+

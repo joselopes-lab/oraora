@@ -378,7 +378,34 @@ export async function updateProjectVisibilityServer(projectId: string, isPublish
       throw new Error('Este empreendimento não pertence a esta construtora.');
     }
 
+    const wasPublished = !!project.isPublished;
+    const nowPublished = isPublished;
+
     await projectRepository.update(projectId, { isPublished });
+
+    // Disparar notificações apenas na transição de publicação (false -> true)
+    if (nowPublished && !wasPublished) {
+      try {
+        // Buscar nome da construtora
+        let builderName = '';
+        const constructorDoc = await adminDb.collection('constructors').doc(constructorId).get();
+        if (constructorDoc.exists) {
+          const cData = constructorDoc.data();
+          builderName = cData?.nome || cData?.name || '';
+        }
+
+        const { triggerProjectPublishedNotification } = await import('@/lib/notifications/project-events.server');
+        await triggerProjectPublishedNotification({
+          projectId,
+          name: project.name,
+          builderName,
+          publishedBy: requesterUserType === 'admin' ? 'admin' : 'constructor'
+        });
+      } catch (notifErr) {
+        console.warn('[ProjectVisibility] Falha ao disparar notificações:', notifErr);
+      }
+    }
+
     revalidatePath(`/dashboard/construtoras/${constructorId}/oralink`);
     revalidatePath(`/oralink`);
 

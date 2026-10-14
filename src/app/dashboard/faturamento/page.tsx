@@ -1,11 +1,21 @@
 'use client';
 import { Button } from "@/components/ui/button";
-import { useAuthContext, useDoc, useFirestore, useMemoFirebase } from "@/firebase";
-import { doc } from "firebase/firestore";
+import { useAuthContext, useDoc, useFirestore, useMemoFirebase, useCollection } from "@/firebase";
+import { doc, collection, query, where, limit } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Check, ShieldCheck, CreditCard, Receipt, AlertCircle, RefreshCcw } from "lucide-react";
-import { useState } from "react";
+import { useState, useMemo } from "react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 type Plan = {
   id: string;
@@ -20,8 +30,34 @@ type Plan = {
   trialDays?: number;
 };
 
+type Payment = {
+  id: string;
+  planNameSnapshot?: string;
+  planName?: string;
+  amount: number;
+  status: string;
+  createdAt: any;
+  provider?: string;
+  providerCheckoutId?: string;
+  externalId?: string;
+};
+
+const getPaymentStatusBadge = (status: string) => {
+  const st = (status || '').toLowerCase();
+  if (st === 'paid' || st === 'pago') {
+    return <Badge className="bg-green-100 text-green-800 border-none font-bold text-[10px] uppercase">Pago</Badge>;
+  }
+  if (st === 'pending' || st === 'pendente') {
+    return <Badge className="bg-amber-100 text-amber-800 border-none font-bold text-[10px] uppercase">Pendente</Badge>;
+  }
+  if (st === 'refunded' || st === 'reembolsado') {
+    return <Badge className="bg-purple-100 text-purple-800 border-none font-bold text-[10px] uppercase">Reembolsado</Badge>;
+  }
+  return <Badge className="bg-slate-100 text-slate-800 border-none font-bold text-[10px] uppercase">{status}</Badge>;
+};
+
 export default function FaturamentoPage() {
-  const { userProfile, isReady } = useAuthContext();
+  const { user, userProfile, isReady } = useAuthContext();
   const firestore = useFirestore();
   const router = useRouter();
   const { toast } = useToast();
@@ -33,6 +69,21 @@ export default function FaturamentoPage() {
     [firestore, planId]
   );
   const { data: plan, isLoading } = useDoc<Plan>(planRef);
+
+  const paymentsQuery = useMemoFirebase(
+    () => (firestore && user ? query(collection(firestore, 'payments'), where('userId', '==', user.uid), limit(100)) : null),
+    [firestore, user]
+  );
+  const { data: payments, isLoading: isPaymentsLoading } = useCollection<Payment>(paymentsQuery);
+
+  const sortedPayments = useMemo(() => {
+    if (!payments) return [];
+    return [...payments].sort((a, b) => {
+      const timeA = typeof a.createdAt === 'number' ? a.createdAt : new Date(a.createdAt || 0).getTime();
+      const timeB = typeof b.createdAt === 'number' ? b.createdAt : new Date(b.createdAt || 0).getTime();
+      return timeB - timeA;
+    });
+  }, [payments]);
 
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
 
@@ -47,163 +98,181 @@ export default function FaturamentoPage() {
     });
   };
 
-  const handleBillingEmailChange = () => {
-    toast({
-      title: 'E-mail de Cobrança',
-      description: 'A alteração de e-mail de cobrança estará disponível em breve.',
-    });
-  };
-
-  if (!isReady || isLoading) {
-    return (
-      <div className="w-full max-w-7xl mx-auto p-10 space-y-8">
-        <div className="h-8 w-48 bg-slate-200 animate-pulse rounded-lg"></div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div className="h-64 bg-slate-100 animate-pulse rounded-3xl"></div>
-          <div className="h-64 bg-slate-100 animate-pulse rounded-3xl"></div>
-        </div>
-      </div>
-    );
-  }
-
-  const isFree = !plan || plan.price === 0;
-
   return (
-    <div className="w-full max-w-6xl mx-auto space-y-8 animate-in fade-in duration-500 text-left pb-20 px-4 md:px-10 pt-4">
-      {/* Header & Back */}
-      <div>
-        <button 
-          onClick={() => router.push('/dashboard')}
-          className="flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-slate-900 transition-colors mb-2 cursor-pointer"
-        >
-          <ArrowLeft className="size-4" /> Voltar ao Dashboard
-        </button>
-        <h1 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tight">Faturamento</h1>
-        <p className="text-slate-500 mt-1 font-medium">Gerencie sua assinatura, dados de cobrança e histórico de pagamentos.</p>
+    <div className="space-y-8 pb-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+      {/* Top Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-8 rounded-3xl border border-slate-200 shadow-soft">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => router.push('/dashboard/planos')}
+              className="text-slate-500 hover:text-slate-900 -ml-2 h-8 px-2 rounded-lg font-bold"
+            >
+              <ArrowLeft className="size-4 mr-1" />
+              Planos e Assinatura
+            </Button>
+          </div>
+          <h1 className="text-3xl font-black text-slate-900 tracking-tight">Faturamento e Pagamentos</h1>
+          <p className="text-sm font-medium text-slate-500">
+            Gerencie sua assinatura, visualize faturas e histórico de pagamentos.
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <Button
+            onClick={() => router.push('/dashboard/planos')}
+            className="h-11 px-6 rounded-xl font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-600/20 transition-all"
+          >
+            Ver Planos Disponíveis
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Main Column */}
+        {/* Main Column: Current Subscription & Payment History */}
         <div className="lg:col-span-2 space-y-8">
-          
-          {/* Current Plan Card */}
+          {/* Current Subscription Card */}
           <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-soft space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-100">
-              <div>
-                <span className="text-xs font-bold uppercase tracking-wider text-primary bg-primary/10 px-3 py-1 rounded-full">
-                  Plano Atual
-                </span>
-                <h3 className="text-2xl font-black text-slate-900 tracking-tight mt-2">
-                  {plan ? plan.name : 'Plano Gratuito'}
-                </h3>
-                {plan?.description && (
-                  <p className="text-sm text-slate-500 font-medium mt-1">{plan.description}</p>
-                )}
-              </div>
-
-              <div className="text-left sm:text-right">
-                <span className="text-3xl font-black text-slate-900 tracking-tight">
-                  {isFree ? 'Grátis' : `R$ ${plan.price.toFixed(2).replace('.', ',')}`}
-                </span>
-                {!isFree && (
-                  <span className="text-xs font-bold text-slate-400 block">
-                    /{plan.billingCycle || 'mês'}
-                  </span>
-                )}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-1">
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Status da Assinatura</span>
-                <div className="flex items-center gap-2">
-                  <span className="size-2.5 bg-green-500 rounded-full animate-pulse"></span>
-                  <span className="text-sm font-bold text-slate-900">Ativo</span>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600 font-black text-xl">
+                  <CreditCard className="size-6" />
+                </div>
+                <div>
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Plano Atual</span>
+                  <h2 className="text-xl font-black text-slate-900">
+                    {plan?.name || userProfile?.planName || 'Plano Gratuito / Inicial'}
+                  </h2>
                 </div>
               </div>
-
-              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-1">
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Próxima Cobrança</span>
-                <p className="text-sm font-bold text-slate-700">Disponível após a ativação do pagamento</p>
-              </div>
+              <Badge className="bg-emerald-100 text-emerald-800 border-none font-bold text-xs uppercase px-3 py-1">
+                Ativo
+              </Badge>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3 pt-2">
-              <Button
-                onClick={() => router.push('/dashboard/planos')}
-                className="bg-slate-900 text-white font-bold h-11 px-6 rounded-xl hover:bg-black transition-all shadow-md"
-              >
-                Alterar plano
-              </Button>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-slate-100">
+              <div>
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-1">Valor</span>
+                <p className="text-lg font-black text-slate-900">
+                  {plan?.price ? `R$ ${plan.price.toFixed(2)}` : 'R$ 0,00'}
+                  <span className="text-xs font-medium text-slate-500 ml-1">/{plan?.billingCycle || 'mês'}</span>
+                </p>
+              </div>
+              <div>
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-1">Renovação</span>
+                <p className="text-sm font-bold text-slate-800">Automática</p>
+              </div>
+              <div>
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-1">Status de Acesso</span>
+                <p className="text-sm font-bold text-emerald-600 flex items-center gap-1">
+                  <ShieldCheck className="size-4" /> Verificado
+                </p>
+              </div>
             </div>
           </div>
 
-          {/* Payment Method Card */}
+          {/* Payment History Table Section */}
           <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-soft space-y-6">
             <div className="flex items-center justify-between">
-              <h3 className="text-xl font-black text-slate-900">Forma de pagamento</h3>
-              <div className="p-2.5 bg-slate-100 text-slate-600 rounded-xl">
-                <CreditCard className="size-5" />
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-slate-700">
+                  <Receipt className="size-5" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-slate-900 tracking-tight">Histórico de Pagamentos</h3>
+                  <p className="text-xs text-slate-500 font-medium">Todos os pagamentos realizados na sua conta</p>
+                </div>
               </div>
             </div>
 
-            <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100 text-center space-y-3">
-              <p className="text-sm font-bold text-slate-700">Nenhuma forma de pagamento cadastrada</p>
-              <p className="text-xs text-slate-500 font-medium max-w-md mx-auto">
-                Você poderá cadastrar sua forma de pagamento quando o pagamento online estiver disponível.
-              </p>
-            </div>
-
-            <div>
-              <Button
-                onClick={handleAddPaymentMethod}
-                variant="outline"
-                className="w-full sm:w-auto h-11 rounded-xl font-bold border-slate-200 text-slate-700 hover:bg-slate-50"
-              >
-                Adicionar forma de pagamento
-              </Button>
-            </div>
-          </div>
-
-          {/* Payment History */}
-          <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-soft space-y-6">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xl font-black text-slate-900">Histórico de pagamentos</h3>
-              <div className="p-2.5 bg-slate-100 text-slate-600 rounded-xl">
-                <Receipt className="size-5" />
+            {isPaymentsLoading ? (
+              <div className="py-12 text-center text-slate-400 text-sm font-medium">Carregando histórico...</div>
+            ) : sortedPayments.length === 0 ? (
+              <div className="py-16 text-center space-y-3 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                <Receipt className="size-10 text-slate-300 mx-auto" />
+                <div className="space-y-1">
+                  <p className="text-sm font-bold text-slate-700">Nenhum pagamento encontrado</p>
+                  <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                    Quando você realizar assinaturas ou compras de planos, os recibos e comprovantes aparecerão aqui.
+                  </p>
+                </div>
               </div>
-            </div>
-
-            <div className="bg-slate-50 rounded-2xl p-8 border border-slate-100 text-center space-y-2">
-              <p className="text-sm font-bold text-slate-700">Nenhum pagamento registrado ainda.</p>
-              <p className="text-xs text-slate-500 font-medium">
-                Seus pagamentos aparecerão aqui após a primeira cobrança.
-              </p>
-            </div>
+            ) : (
+              <div className="rounded-2xl border border-slate-100 overflow-hidden">
+                <Table>
+                  <TableHeader className="bg-slate-50">
+                    <TableRow>
+                      <TableHead className="font-bold text-slate-600 text-xs uppercase">Plano / Descrição</TableHead>
+                      <TableHead className="font-bold text-slate-600 text-xs uppercase">Valor</TableHead>
+                      <TableHead className="font-bold text-slate-600 text-xs uppercase">Status</TableHead>
+                      <TableHead className="font-bold text-slate-600 text-xs uppercase">Data</TableHead>
+                      <TableHead className="font-bold text-slate-600 text-xs uppercase text-right">Referência</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {sortedPayments.map((payment) => {
+                      const dateVal = payment.createdAt?.toDate ? payment.createdAt.toDate() : (payment.createdAt ? new Date(payment.createdAt) : new Date());
+                      return (
+                        <TableRow key={payment.id} className="hover:bg-slate-50/50">
+                          <TableCell className="font-bold text-slate-900">
+                            {payment.planNameSnapshot || payment.planName || 'Assinatura OraOra'}
+                          </TableCell>
+                          <TableCell className="font-bold text-slate-800">
+                            R$ {(payment.amount || 0).toFixed(2)}
+                          </TableCell>
+                          <TableCell>
+                            {getPaymentStatusBadge(payment.status)}
+                          </TableCell>
+                          <TableCell className="text-xs text-slate-500 font-medium">
+                            {isNaN(dateVal.getTime()) ? '-' : dateVal.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                          </TableCell>
+                          <TableCell className="text-right font-mono text-xs text-slate-400">
+                            {payment.externalId || payment.providerCheckoutId || payment.id.slice(0, 8)}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
           </div>
-
         </div>
 
-        {/* Sidebar Column */}
-        <div className="lg:col-span-1 space-y-8">
-          
+        {/* Sidebar: Payment Methods & Billing Info */}
+        <div className="space-y-8">
+          {/* Payment Method Card */}
+          <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-soft space-y-6">
+            <h3 className="text-lg font-black text-slate-900">Forma de Pagamento</h3>
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-white rounded-xl shadow-sm flex items-center justify-center text-slate-700">
+                  <CreditCard className="size-5" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-slate-900">PIX / Cartão</p>
+                  <p className="text-xs text-slate-500">Cobrança automatizada</p>
+                </div>
+              </div>
+              <Badge className="bg-emerald-50 text-emerald-700 border-none font-bold text-[10px] uppercase">Principal</Badge>
+            </div>
+            <Button
+              onClick={handleAddPaymentMethod}
+              variant="outline"
+              className="w-full h-11 rounded-xl font-bold border-slate-200 text-slate-700 hover:bg-slate-50 transition-all"
+            >
+              Adicionar Novo Cartão
+            </Button>
+          </div>
+
           {/* Billing Data Card */}
           <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-soft space-y-6">
-            <h3 className="text-xl font-black text-slate-900">Dados de cobrança</h3>
+            <h3 className="text-lg font-black text-slate-900">Dados de Cobrança</h3>
             
             <div className="space-y-4 text-sm">
               <div className="pb-3 border-b border-slate-100">
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-1">Nome completo</span>
-                <p className="font-bold text-slate-800">{userProfile?.username || 'Não informado'}</p>
-              </div>
-
-              <div className="pb-3 border-b border-slate-100">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">E-mail de cobrança</span>
-                  <button onClick={handleBillingEmailChange} className="text-xs font-bold text-primary hover:underline">
-                    Alterar
-                  </button>
-                </div>
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-1">E-mail de Faturamento</span>
                 <p className="font-bold text-slate-800">{userProfile?.email || 'Não informado'}</p>
               </div>
 

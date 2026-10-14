@@ -20,15 +20,16 @@ import { Button } from '@/components/ui/button';
 import SearchFilters from '@/components/SearchFilters';
 import { Badge } from "@/components/ui/badge";
 import { generateSemanticSlug } from '@/lib/slug';
+import { PlaceHolderImages } from '@/lib/placeholder-images';
 
 
 type Property = {
   id: string;
   builderId?: string;
   brokerId?: string;
-  informacoesbasicas: {
-    nome: string;
-    status: string;
+  informacoesbasicas?: {
+    nome?: string;
+    status?: string;
     valor?: number;
     salePrice?: number;
     rentPrice?: number;
@@ -44,9 +45,9 @@ type Property = {
     latitude?: number;
     longitude?: number;
   };
-  midia: string[];
-  caracteristicasimovel: {
-    tipo: string;
+  midia?: string[];
+  caracteristicasimovel?: {
+    tipo?: string;
     quartos?: string[] | string;
     tamanho?: string;
     vagas?: string;
@@ -132,7 +133,7 @@ export default function SearchResultsComponent({ properties }: SearchResultsComp
 
     const sortedProperties = useMemo(() => {
         let sorted = [...properties];
-        const getPrice = (p: Property) => finality === 'sale' ? (p.informacoesbasicas.salePrice || p.informacoesbasicas.valor || 0) : (p.informacoesbasicas.rentPrice || 0);
+        const getPrice = (p: Property) => finality === 'sale' ? (p.informacoesbasicas?.salePrice || p.informacoesbasicas?.valor || 0) : (p.informacoesbasicas?.rentPrice || 0);
 
         switch (sortBy) {
             case 'price_asc':
@@ -142,10 +143,10 @@ export default function SearchResultsComponent({ properties }: SearchResultsComp
                 sorted.sort((a, b) => getPrice(b) - getPrice(a));
                 break;
             case 'area_asc':
-                sorted.sort((a, b) => (parseInt(String(a.caracteristicasimovel.tamanho || '0')) || 0) - (parseInt(String(b.caracteristicasimovel.tamanho || '0')) || 0));
+                sorted.sort((a, b) => (parseInt(String(a.caracteristicasimovel?.tamanho || '0')) || 0) - (parseInt(String(b.caracteristicasimovel?.tamanho || '0')) || 0));
                 break;
             case 'area_desc':
-                sorted.sort((a, b) => (parseInt(String(b.caracteristicasimovel.tamanho || '0')) || 0) - (parseInt(String(a.caracteristicasimovel.tamanho || '0')) || 0));
+                sorted.sort((a, b) => (parseInt(String(b.caracteristicasimovel?.tamanho || '0')) || 0) - (parseInt(String(a.caracteristicasimovel?.tamanho || '0')) || 0));
                 break;
             default: break;
         }
@@ -177,9 +178,9 @@ export default function SearchResultsComponent({ properties }: SearchResultsComp
     };
 
     const renderPrice = (property: Property) => {
-      const types = property.informacoesbasicas.transactionTypes || ['sale'];
-      const salePrice = property.informacoesbasicas.salePrice || property.informacoesbasicas.valor;
-      const rentPrice = property.informacoesbasicas.rentPrice;
+      const types = property.informacoesbasicas?.transactionTypes || ['sale'];
+      const salePrice = property.informacoesbasicas?.salePrice || property.informacoesbasicas?.valor;
+      const rentPrice = property.informacoesbasicas?.rentPrice;
       const fmt = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2 }).format(v);
 
       if (types.includes('sale') && types.includes('rent')) {
@@ -207,7 +208,7 @@ export default function SearchResultsComponent({ properties }: SearchResultsComp
     };
 
     const renderBadge = (property: Property) => {
-      const types = property.informacoesbasicas.transactionTypes || ['sale'];
+      const types = property.informacoesbasicas?.transactionTypes || ['sale'];
       if (types.includes('sale') && types.includes('rent')) return "Venda + Aluguel";
       if (types.includes('rent')) return "Para Aluguel";
       return "À Venda";
@@ -276,20 +277,26 @@ export default function SearchResultsComponent({ properties }: SearchResultsComp
                                             <button onClick={(e) => handleRadarClick(e, property.id)} className={cn("absolute top-4 right-4 z-10 flex size-9 items-center justify-center rounded-full bg-white/20 backdrop-blur-md text-white hover:bg-white transition-colors group/radar shadow-sm", isSaved && "text-primary bg-white")}>
                                                 <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: isSaved ? "'FILL' 1" : "" }}>radar</span>
                                             </button>
-                                            <Image alt={property.informacoesbasicas.nome} className="h-full w-full object-cover transition duration-700 group-hover:scale-110" src={property.midia[0] || "https://picsum.photos/seed/prop/400/300"} width={400} height={300} />
+                                            <Image 
+                                              alt={property.informacoesbasicas?.nome || 'Imóvel'} 
+                                              className="h-full w-full object-cover transition duration-700 group-hover:scale-110" 
+                                              src={(Array.isArray(property.midia) && property.midia[0]) || PlaceHolderImages.find(img => img.id === 'login-background')?.imageUrl || "https://picsum.photos/seed/prop/400/300"} 
+                                              width={400} 
+                                              height={300} 
+                                            />
                                         </div>
                                         <div className="p-5 flex flex-col flex-1">
-                                            <h3 className="font-bold text-lg text-slate-900 group-hover:text-primary transition-colors truncate mb-1 uppercase tracking-tight">{property.informacoesbasicas.nome}</h3>
+                                            <h3 className="font-bold text-lg text-slate-900 group-hover:text-primary transition-colors truncate mb-1 uppercase tracking-tight">{property.informacoesbasicas?.nome || 'Imóvel'}</h3>
                                             <p className="text-xs text-slate-500 flex items-center gap-1 mb-4 font-medium">
-                                              <span className="material-symbols-outlined text-primary text-base">location_on</span> {property.localizacao.bairro}, {property.localizacao.cidade}
+                                              <span className="material-symbols-outlined text-primary text-base">location_on</span> {property.localizacao?.bairro || 'Localização'}, {property.localizacao?.cidade || 'Pôrto'}
                                             </p>
                                             <div className="mb-4">
                                                 {renderPrice(property)}
                                             </div>
                                             <div className="mt-auto pt-4 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-400 font-black uppercase tracking-widest">
                                                 <div className="flex items-center gap-4">
-                                                  <span className="flex items-center gap-1.5"><span className="material-symbols-outlined text-primary text-base">bed</span> {formatQuartos(property.caracteristicasimovel.quartos)}</span>
-                                                  <span className="flex items-center gap-1.5"><span className="material-symbols-outlined text-primary text-base">square_foot</span> {formatArea(property.caracteristicasimovel.tamanho)}</span>
+                                                  <span className="flex items-center gap-1.5"><span className="material-symbols-outlined text-primary text-base">bed</span> {formatQuartos(property.caracteristicasimovel?.quartos)}</span>
+                                                  <span className="flex items-center gap-1.5"><span className="material-symbols-outlined text-primary text-base">square_foot</span> {formatArea(property.caracteristicasimovel?.tamanho)}</span>
                                                 </div>
                                                 <span className="material-symbols-outlined text-slate-200 group-hover:text-primary transition-colors">arrow_forward</span>
                                             </div>

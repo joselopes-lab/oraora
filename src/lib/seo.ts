@@ -33,7 +33,7 @@ export function getCanonicalUrl(property: any, currentHostname: string, broker?:
   const slug = generateSemanticSlug(property);
   
   if (strategy === "broker" && broker) {
-    return `${getBaseUrl(broker)}/imovel/${slug}`;
+    return `${getBaseUrl(broker)}/imoveis/${slug}`;
   }
   return `${BASE_URL}/imoveis/${slug}`;
 }
@@ -261,4 +261,25 @@ export function calculateAiScore(property: any): number {
   if (property.builderId) score += 10;
   if (property.personaIds?.length) score += 10;
   return score;
+}
+
+// Schema para o Empreendimento (ResidentialDevelopment / Product)
+export function generateProjectJsonLd(project: any, baseUrl: string) {
+  const updatedAt = project.updatedAt?.toDate?.()?.toISOString() || new Date().toISOString();
+  
+  return {
+    "@context": "https://schema.org",
+    "@type": "ResidentialDevelopment",
+    "name": project.tituloComercial || project.name,
+    "url": `${baseUrl}/empreendimento/${project.id}`,
+    "description": project.descricaoCurta || `Conheça o empreendimento ${project.name}`,
+    "image": project.midia?.[0],
+    "address": {
+      "@type": "PostalAddress",
+      "addressLocality": project.localizacao?.cidade,
+      "addressRegion": project.localizacao?.estado,
+      "addressCountry": "BR"
+    },
+    "dateModified": updatedAt
+  };
 }

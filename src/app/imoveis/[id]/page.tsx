@@ -46,6 +46,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
+import { resolvePropertyContact } from '@/app/sites/actions';
+
 export default async function Page({ params }: Props) {
   const { id } = await params;
   const property = await PropertyRepository.findPublicBySlugOrId(id);
@@ -70,6 +72,7 @@ export default async function Page({ params }: Props) {
     }
   }
 
+  const initialBroker = property ? await resolvePropertyContact(property.id, property.brokerId || property.builderId) : null;
   const jsonLd = generatePropertyJsonLd(property, `https://${host}`);
   const orgJsonLd = generateOrganizationJsonLd();
 
@@ -77,7 +80,7 @@ export default async function Page({ params }: Props) {
     <>
       <JsonLd data={jsonLd} />
       <JsonLd data={orgJsonLd} />
-      <PropertyDetailsComponent initialProperty={property} priceTableInfo={priceTableInfo} />
+      <PropertyDetailsComponent initialProperty={property} priceTableInfo={priceTableInfo} initialBroker={initialBroker} />
     </>
   );
 }

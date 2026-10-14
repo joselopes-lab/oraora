@@ -133,9 +133,11 @@ export default function CorretorClientPage() {
       <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled ? 'bg-[#0E140E]/90 backdrop-blur-md border-b border-white/10 py-3.5 shadow-2xl' : 'bg-transparent py-6'}`}>
         <div className="max-w-7xl mx-auto px-6 sm:px-8 flex items-center justify-between">
           <Link href="/corretor" className="flex items-center gap-2 group">
-            <span className="text-2xl font-bold tracking-tight font-display text-white">
-              Ora<span className="text-[#2BF20D]">Ora</span>
-            </span>
+            <img 
+              src="https://firebasestorage.googleapis.com/v0/b/studio-5937631195-8ebfd.firebasestorage.app/o/site-assets%2Flogos%2Fa08e5cdf-9fd3-4be2-85a1-05ff0eaddc58-logo-oraora-p.png?alt=media&token=ba675609-9e91-4c12-a5f7-0daf5b9a9ba2"
+              alt="Logo"
+              className="h-10 w-auto brightness-0 invert"
+            />
           </Link>
 
           <nav className="hidden md:flex items-center gap-8 text-xs font-medium uppercase tracking-widest text-slate-300">
@@ -157,106 +159,53 @@ export default function CorretorClientPage() {
       </header>
 
       {/* 2. HERO | COMISSÃO CAIU. E A PRÓXIMA? */}
-      <section className="relative min-h-[92vh] flex items-center justify-center pt-32 pb-24 px-6 sm:px-8 overflow-hidden">
-        {/* Subtle atmospheric glow */}
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[350px] bg-[#2BF20D]/10 blur-[140px] rounded-full pointer-events-none" />
-
-        <div className="max-w-4xl mx-auto text-center relative z-10 flex flex-col items-center">
-          
-          {/* Bank notification simulation */}
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, ease: "easeOut" }}
-            className="inline-flex items-center gap-3 px-4 py-2 rounded-2xl bg-white/[0.04] border border-white/10 shadow-2xl backdrop-blur-md mb-10"
-          >
-            <div className="size-2 rounded-full bg-[#2BF20D] animate-pulse" />
-            <span className="text-xs sm:text-sm font-mono uppercase tracking-wider text-slate-300">
-              Notificação bancária: <span className="text-white font-medium">Comissão recebida</span>
-            </span>
-          </motion.div>
-
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            className="text-xs sm:text-sm font-mono tracking-[0.25em] text-[#2BF20D] uppercase mb-4"
-          >
-            COMISSÃO CAIU.
-          </motion.p>
-
-          <motion.h1
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.3 }}
-            className="text-5xl sm:text-7xl md:text-8xl font-black font-display tracking-tight text-white mb-8"
-          >
-            E a próxima?
-          </motion.h1>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.5 }}
-            className="space-y-4 text-base sm:text-lg md:text-xl text-slate-300 font-light max-w-2xl leading-relaxed mb-10"
-          >
-            <p className="text-slate-400">
-              Você prospectou. Atendeu. Fez visitas. Negociou. Fechou.
+      <section className="relative pt-32 pb-24 px-6 sm:px-12 border-b border-white/10 bg-cover bg-center bg-no-repeat" style={{ backgroundImage: "url('https://firebasestorage.googleapis.com/v0/b/studio-5937631195-8ebfd.firebasestorage.app/o/images%2Fsite%2Fbgheader.png?alt=media&token=285bc56d-3004-4fbb-a3ec-1c76707273c6')" }}>
+        <div className="max-w-7xl mx-auto w-full grid lg:grid-cols-2 gap-16 items-center relative z-10">
+          {/* Coluna Esquerda: Texto */}
+          <div className="space-y-8">
+            <span className="text-xs font-mono text-[#2BF20D] tracking-widest uppercase">Plataforma de Crescimento</span>
+            <h1 className="text-5xl md:text-7xl font-semibold tracking-tight text-white leading-[1.05]">
+              Comissão caiu.<br />
+              <span className="text-white/60">E a próxima?</span>
+            </h1>
+            <p className="text-xl font-light text-slate-300 leading-relaxed">
+              Cada venda constrói a próxima. Organize sua operação, construa seu patrimônio digital e escale seu negócio com inteligência.
             </p>
-            <p className="text-white font-normal">
-              A venda terminou. <strong className="font-semibold text-white">Seu trabalho não precisa terminar com ela.</strong>
-            </p>
-            <p className="text-slate-300 text-sm sm:text-base">
-              O OraOra ajuda você a transformar o trabalho que faz hoje em estrutura para continuar construindo seu negócio amanhã.
-            </p>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.6, delay: 0.7 }}
-            className="flex flex-col sm:flex-row items-center gap-4 mb-6 w-full sm:w-auto"
-          >
-            <Button
-              onClick={() => setIsModalOpen(true)}
-              className="w-full sm:w-auto h-13 px-8 rounded-full bg-[#2BF20D] hover:bg-[#25D40B] text-[#0E140E] font-bold text-sm tracking-wide transition-all shadow-xl hover:shadow-[#2BF20D]/30"
-            >
-              Quero testar o OraOra
-              <ArrowRight className="size-4 ml-2" />
-            </Button>
-          </motion.div>
-
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.6, delay: 0.8 }}
-            className="text-xs text-slate-400 font-mono"
-          >
-            Acesso gratuito durante a fase de testes.
-          </motion.p>
-
-          <div className="mt-16 pt-8 border-t border-white/5 w-full max-w-md flex items-center justify-center">
-            <span className="text-xs font-mono uppercase tracking-widest text-slate-400">
-              Cada venda constrói a próxima.
-            </span>
+            <div className="flex items-center gap-4">
+              <Button onClick={() => setIsModalOpen(true)} className="h-12 px-8 rounded-full bg-[#2BF20D] hover:bg-[#25D40B] text-[#0E140E] font-semibold text-sm transition-all shadow-lg hover:shadow-[#2BF20D]/20">
+                Quero testar o OraOra
+              </Button>
+            </div>
+            {/* Lista de Recursos */}
+            <div className="flex flex-wrap gap-6 text-sm text-slate-400 font-mono pt-8 border-t border-white/10">
+              <span className="flex items-center gap-2"><Check className="text-[#2BF20D] size-4" /> Gestão de Leads</span>
+              <span className="flex items-center gap-2"><Check className="text-[#2BF20D] size-4" /> Site Próprio</span>
+              <span className="flex items-center gap-2"><Check className="text-[#2BF20D] size-4" /> Inteligência</span>
+            </div>
           </div>
 
+          {/* Coluna Direita: Vazia */}
+          <div className="relative">
+          </div>
         </div>
       </section>
 
       {/* 3. SEGUNDA-FEIRA | COMEÇA TUDO DE NOVO? */}
-      <section className="py-28 px-6 sm:px-8 bg-[#131B13] text-[#F3F6F3] relative border-y border-white/5">
-        <div className="max-w-4xl mx-auto">
+      <section className="py-28 px-6 sm:px-8 bg-[#0E140E] text-[#F3F6F3] relative border-b border-white/5">
+        <div className="max-w-7xl mx-auto">
           
-          <div className="mb-16">
+          <div className="mb-20">
             <p className="text-xs font-mono text-[#2BF20D] tracking-widest uppercase mb-3">Rotina do Corretor</p>
-            <h2 className="text-3xl sm:text-5xl md:text-6xl font-bold font-display tracking-tight text-white leading-tight">
-              Segunda-feira. Começa tudo de novo?
+            <h2 className="text-4xl sm:text-6xl font-semibold tracking-tight text-white mb-6">
+              Segunda-feira.<br />Começa tudo de novo?
             </h2>
+            <p className="text-xl text-slate-400 font-light max-w-xl">
+              Antes de vender, quantas vezes você precisa procurar o que já deveria estar à mão?
+            </p>
           </div>
 
-          {/* Timeline de fragmentos de rotina */}
-          <div className="space-y-4 my-12 border-l border-white/10 pl-6 sm:pl-8 ml-2">
+          {/* Timeline Horizontal */}
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-28">
             {[
               { time: "08:04", title: "WhatsApp.", desc: "Você abre o aplicativo e procura aquela conversa que esfriou na semana passada." },
               { time: "08:17", title: "Contato antigo.", desc: "Manda mensagem para alguns contatos na esperança de reaquecer o interesse." },
@@ -264,31 +213,30 @@ export default function CorretorClientPage() {
               { time: "09:06", title: "Instagram e Portais.", desc: "Republica anúncios e procura compradores para outro imóvel da pauta." },
               { time: "09:42", title: "Ligação e Parceria.", desc: "Chama um parceiro, liga para quem demonstrou interesse e tenta reativar uma negociação." },
             ].map((step, idx) => (
-              <div key={idx} className="relative group py-2">
-                <div className="absolute -left-[31px] sm:-left-[39px] top-4 size-3 rounded-full bg-slate-700 group-hover:bg-[#2BF20D] transition-colors" />
-                <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-4">
-                  <span className="font-mono text-xs text-[#2BF20D] shrink-0 font-medium">{step.time}</span>
-                  <div>
-                    <h3 className="text-base sm:text-lg font-semibold text-white">{step.title}</h3>
-                    <p className="text-sm text-slate-300 font-light mt-0.5">{step.desc}</p>
-                  </div>
-                </div>
+              <div key={idx} className="space-y-4 border-t border-white/20 pt-6 relative">
+                <div className="absolute -top-1.5 size-3 rounded-full bg-[#2BF20D]" />
+                <span className="font-mono text-sm text-[#2BF20D] font-medium">{step.time}</span>
+                <h3 className="text-lg font-semibold text-white">{step.title}</h3>
+                <p className="text-sm text-slate-400 font-light leading-relaxed">{step.desc}</p>
               </div>
             ))}
           </div>
 
-          <div className="mt-16 p-8 rounded-3xl bg-white/[0.03] border border-white/10 space-y-6">
-            <p className="text-sm sm:text-base text-slate-300 font-light">
-              Nada disso está errado. Esse é o ritmo natural de quem atende pessoas reais e fecha negócios.
-            </p>
-            <h3 className="text-2xl sm:text-3xl md:text-4xl font-bold font-display text-white">
-              O problema é precisar começar de novo toda vez.
-            </h3>
-            <p className="text-sm sm:text-base text-slate-300 font-light leading-relaxed">
-              Você já trabalhou muito antes dessa segunda-feira. Atendeu pessoas. Conheceu imóveis. Construiu relacionamentos. Fez parcerias. Entendeu clientes. Negociou. Vendeu.
-            </p>
-            <div className="pt-6 border-t border-white/10">
-              <p className="text-xl sm:text-2xl md:text-3xl font-bold font-display text-[#2BF20D]">
+          {/* Bottom Card */}
+          <div className="rounded-3xl bg-[#131B13] border border-white/10 p-10 grid md:grid-cols-5 gap-8 items-center">
+            <div className="md:col-span-3 space-y-4">
+              <p className="text-sm text-slate-400 font-light">
+                Nada disso está errado. Esse é o ritmo natural de quem atende pessoas reais e fecha negócios.
+              </p>
+              <h3 className="text-3xl font-semibold text-white">
+                O problema é precisar começar de novo toda vez.
+              </h3>
+              <p className="text-sm text-slate-400 font-light">
+                Você já trabalhou muito antes dessa segunda-feira. Atendeu pessoas. Conheceu imóveis. Construiu relacionamentos. Fez parcerias. Entendeu clientes. Negociou. Vendeu.
+              </p>
+            </div>
+            <div className="md:col-span-2 border-l border-white/10 pl-8">
+              <p className="text-3xl font-semibold text-[#2BF20D]">
                 Quanto desse trabalho ficou no seu negócio?
               </p>
             </div>
@@ -297,55 +245,69 @@ export default function CorretorClientPage() {
         </div>
       </section>
 
-      {/* 4. VIRADA DA HISTÓRIA */}
-      <section className="py-32 px-6 sm:px-8 bg-[#0E140E] relative overflow-hidden">
-        <div className="max-w-4xl mx-auto">
+      {/* 4. A MUDANÇA DE POSTURA */}
+      <section id="mudanca-de-postura" className="py-28 px-6 sm:px-8 bg-white text-[#0A0A0A] border-b border-gray-200">
+        <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-16 items-center">
           
-          <div className="text-center max-w-3xl mx-auto mb-20">
-            <p className="text-xs font-mono text-[#2BF20D] tracking-widest uppercase mb-3">A Mudança de Postura</p>
-            <h2 className="text-3xl sm:text-5xl md:text-6xl font-bold font-display tracking-tight text-white">
-              Seu trabalho precisa construir alguma coisa.
-            </h2>
-          </div>
+          {/* Lado Esquerdo: Conteúdo e Interação */}
+          <div className="space-y-10">
+            <div className="space-y-4">
+              <p className="text-xs font-mono text-[#2BF20D] tracking-widest uppercase">A MUDANÇA DE POSTURA</p>
+              <h2 className="text-4xl sm:text-5xl font-bold tracking-tight">
+                Seu trabalho precisa<br />construir alguma coisa.
+              </h2>
+              <p className="text-lg text-gray-600 font-light leading-relaxed max-w-lg">
+                Cada conversa, visita, negociação e venda pode deixar algo construído no seu negócio.
+              </p>
+            </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {[
-              {
-                ephemeral: "Uma conversa pode terminar no WhatsApp.",
-                permanent: "Ou deixar um relacionamento ativo no seu negócio."
-              },
-              {
-                ephemeral: "Uma visita pode acabar quando o cliente vai embora.",
-                permanent: "Ou deixar conhecimento organizado sobre o que ele procura."
-              },
-              {
-                ephemeral: "Uma negociação pode terminar sem venda.",
-                permanent: "Ou deixar informação estruturada para a próxima oportunidade."
-              },
-              {
-                ephemeral: "Uma venda pode terminar quando a comissão cai.",
-                permanent: "Ou ajudar a construir a próxima comissão."
-              }
-            ].map((pair, idx) => (
-              <div key={idx} className="p-6 sm:p-8 rounded-3xl bg-white/[0.02] border border-white/5 flex flex-col justify-between hover:border-[#2BF20D]/30 transition-all duration-300">
-                <div className="space-y-4">
-                  <div className="text-xs font-mono uppercase text-slate-400">Efêmero</div>
-                  <p className="text-sm sm:text-base text-slate-300 font-light">{pair.ephemeral}</p>
-                </div>
-                <div className="mt-8 pt-6 border-t border-white/5 space-y-2">
-                  <div className="text-xs font-mono uppercase text-[#2BF20D] flex items-center gap-1.5 font-medium">
-                    <Sparkles className="size-3" /> Permanente
+            {/* Seletor Interativo */}
+            <div className="space-y-8">
+              <div className="flex border-b border-gray-200">
+                {['Conversa', 'Visita', 'Negociação', 'Venda'].map((option, idx) => (
+                  <button
+                    key={option}
+                    onClick={() => setActiveFicaIndex(idx)}
+                    className={`pb-4 px-4 text-sm font-medium transition-colors ${activeFicaIndex === idx ? 'text-[#2BF20D] border-b-2 border-[#2BF20D]' : 'text-gray-500 hover:text-gray-900'}`}
+                  >
+                    {option}
+                  </button>
+                ))}
+              </div>
+
+              <div className="p-8 rounded-3xl bg-gray-50 border border-gray-100 min-h-[200px] flex flex-col justify-between">
+                <div className="space-y-6">
+                  <div>
+                    <span className="text-xs font-mono uppercase text-gray-400 block mb-2">Efêmero</span>
+                    <p className="text-lg font-medium text-gray-900">
+                      {activeFicaIndex === 0 ? "Uma conversa pode terminar no WhatsApp." : 
+                       activeFicaIndex === 1 ? "Uma visita pode acabar quando o cliente vai embora." :
+                       activeFicaIndex === 2 ? "Uma negociação pode terminar sem venda." :
+                       "Uma venda pode terminar quando a comissão cai."}
+                    </p>
                   </div>
-                  <p className="text-base sm:text-lg font-semibold text-white">{pair.permanent}</p>
+                  <div className="pt-6 border-t border-gray-200">
+                    <span className="text-xs font-mono uppercase text-[#2BF20D] block mb-2 font-bold">Permanente</span>
+                    <p className="text-lg font-bold text-[#2BF20D]">
+                      {activeFicaIndex === 0 ? "Ou deixar um relacionamento ativo no seu negócio." : 
+                       activeFicaIndex === 1 ? "Ou deixar conhecimento organizado sobre o que ele procura." :
+                       activeFicaIndex === 2 ? "Ou deixar informação estruturada para a próxima oportunidade." :
+                       "Ou ajudar a construir a próxima comissão."}
+                    </p>
+                  </div>
                 </div>
               </div>
-            ))}
+            </div>
           </div>
 
-          <div className="mt-16 text-center">
-            <p className="text-xl sm:text-2xl font-serif italic text-slate-300">
-              “Trabalho bom deixa alguma coisa construída.”
-            </p>
+          {/* Lado Direito: Ilustração do Produto */}
+          <div className="relative w-full h-full flex items-center justify-center lg:justify-end">
+            <img 
+              src="https://firebasestorage.googleapis.com/v0/b/studio-5937631195-8ebfd.firebasestorage.app/o/images%2Fsite%2FDashboard%20CRM%20imobilia%CC%81rio%20em%20verde%20suave.png?alt=media&token=aecab788-0d49-48b2-bb26-d1a16f90a9e9"
+              alt="Dashboard CRM Imobiliário"
+              className="w-full max-w-2xl shadow-2xl rounded-2xl"
+              referrerPolicy="no-referrer"
+            />
           </div>
 
         </div>
@@ -798,7 +760,11 @@ export default function CorretorClientPage() {
 
           <div className="pt-8 space-y-6">
             <div className="text-4xl font-black font-display tracking-tight text-white">
-              Ora<span className="text-[#2BF20D]">Ora</span>
+              <img 
+                src="https://firebasestorage.googleapis.com/v0/b/studio-5937631195-8ebfd.firebasestorage.app/o/site-assets%2Flogos%2Fa08e5cdf-9fd3-4be2-85a1-05ff0eaddc58-logo-oraora-p.png?alt=media&token=ba675609-9e91-4c12-a5f7-0daf5b9a9ba2"
+                alt="Logo"
+                className="h-20 w-auto mx-auto brightness-0 invert"
+              />
             </div>
             <p className="text-xs font-mono uppercase tracking-widest text-slate-400">
               Cada venda constrói a próxima.
@@ -821,9 +787,11 @@ export default function CorretorClientPage() {
       <footer className="py-12 px-6 sm:px-8 bg-[#080C08] border-t border-white/5 text-slate-400 text-xs font-mono">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-4">
-            <span className="text-lg font-bold text-white font-display">Ora<span className="text-[#2BF20D]">Ora</span></span>
-            <span className="text-slate-400">|</span>
-            <span>Inteligência Imobiliária</span>
+            <img 
+                src="https://firebasestorage.googleapis.com/v0/b/studio-5937631195-8ebfd.firebasestorage.app/o/site-assets%2Flogos%2Fa08e5cdf-9fd3-4be2-85a1-05ff0eaddc58-logo-oraora-p.png?alt=media&token=ba675609-9e91-4c12-a5f7-0daf5b9a9ba2"
+                alt="Logo"
+                className="h-8 w-auto brightness-0 invert"
+            />
           </div>
 
           <div className="flex flex-wrap items-center gap-6 text-[11px] text-slate-400">

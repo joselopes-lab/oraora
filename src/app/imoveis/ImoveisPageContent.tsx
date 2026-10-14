@@ -9,9 +9,9 @@ import { fetchPublishedProperties } from '@/app/sites/utils';
 
 type Property = {
   id: string;
-  informacoesbasicas: {
-    nome: string;
-    status: string;
+  informacoesbasicas?: {
+    nome?: string;
+    status?: string;
     valor?: number;
     salePrice?: number;
     rentPrice?: number;
@@ -19,14 +19,15 @@ type Property = {
     descricao?: string;
     slug?: string;
   };
-  localizacao: {
-    bairro: string;
-    cidade: string;
-    estado: string;
+  localizacao?: {
+    bairro?: string;
+    neighborhood?: string;
+    cidade?: string;
+    estado?: string;
   };
-  midia: string[];
-  caracteristicasimovel: {
-    tipo: string;
+  midia?: string[];
+  caracteristicasimovel?: {
+    tipo?: string;
     quartos?: string[] | string;
     tamanho?: string;
     vagas?: string;
@@ -67,11 +68,11 @@ export default function ImoveisPageContent() {
 
     return allProperties.filter(property => {
       // 1. Filter by Finality (Transaction Type)
-      const types = property.informacoesbasicas.transactionTypes || ['sale'];
+      const types = property.informacoesbasicas?.transactionTypes || ['sale'];
       if (!types.includes(finality)) return false;
 
       // 2. Filter by Property Type
-      if (propertyTypeParam && propertyTypeParam !== 'all' && property.caracteristicasimovel.tipo !== propertyTypeParam) {
+      if (propertyTypeParam && propertyTypeParam !== 'all' && property.caracteristicasimovel?.tipo !== propertyTypeParam) {
         return false;
       }
       
@@ -82,7 +83,7 @@ export default function ImoveisPageContent() {
 
       // 4. Filter by Cities
       const searchCities = citiesParam ? citiesParam.split(',') : [];
-      if (searchCities.length > 0 && !searchCities.includes(property.localizacao?.cidade)) {
+      if (searchCities.length > 0 && !searchCities.includes(property.localizacao?.cidade || '')) {
         return false;
       }
       
@@ -97,9 +98,10 @@ export default function ImoveisPageContent() {
       // 6. Filter by Rooms (Multi-select)
       const searchRooms = roomsParam ? roomsParam.split(',') : [];
       if (searchRooms.length > 0) {
-        const propertyRoomsArray = Array.isArray(property.caracteristicasimovel.quartos)
-            ? property.caracteristicasimovel.quartos.map(q => q.replace('+', ''))
-            : String(property.caracteristicasimovel.quartos || '').split(',').map(r => r.trim().replace('+', ''));
+        const quartosValue = property.caracteristicasimovel?.quartos;
+        const propertyRoomsArray = Array.isArray(quartosValue)
+            ? quartosValue.map(q => String(q).replace('+', ''))
+            : String(quartosValue || '').split(',').map(r => r.trim().replace('+', ''));
 
         const hasMatchingRoom = searchRooms.some(room => {
             if (room === '4') {
@@ -112,8 +114,8 @@ export default function ImoveisPageContent() {
       
       // 7. Filter by Price
       const priceToCompare = finality === 'sale' 
-        ? (property.informacoesbasicas.salePrice || property.informacoesbasicas.valor || 0)
-        : (property.informacoesbasicas.rentPrice || 0);
+        ? (property.informacoesbasicas?.salePrice || property.informacoesbasicas?.valor || 0)
+        : (property.informacoesbasicas?.rentPrice || 0);
 
       if (minPriceParam && priceToCompare < parseInt(minPriceParam, 10)) return false;
       if (maxPriceParam && priceToCompare > parseInt(maxPriceParam, 10)) return false;
@@ -121,8 +123,9 @@ export default function ImoveisPageContent() {
       // 8. Filter by Search Query
       if (qParam) {
           const q = qParam.toLowerCase();
-          const matchesSearch = property.informacoesbasicas.nome.toLowerCase().includes(q) || 
+          const matchesSearch = (property.informacoesbasicas?.nome || '').toLowerCase().includes(q) || 
                                 (property.localizacao?.bairro || '').toLowerCase().includes(q) ||
+                                (property.localizacao?.neighborhood || '').toLowerCase().includes(q) ||
                                 (property.localizacao?.cidade || '').toLowerCase().includes(q);
           if (!matchesSearch) return false;
       }

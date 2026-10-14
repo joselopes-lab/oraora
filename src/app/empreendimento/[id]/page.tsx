@@ -6,7 +6,7 @@ import { propertyRepository } from '@/repositories/property.repository';
 import { PriceTableRepository } from '@/repositories/price-table.repository';
 import EmpreendimentoLandingClient from './EmpreendimentoLandingClient';
 import { JsonLd } from '@/components/JsonLd';
-import { generatePropertyJsonLd } from '@/lib/seo';
+import { generateProjectJsonLd } from '@/lib/seo';
 
 export const dynamic = 'force-dynamic';
 
@@ -43,6 +43,9 @@ export async function generateMetadata({ params }: PageProps) {
       title,
       description,
       images: image ? [image] : [],
+    },
+    alternates: {
+      canonical: `https://oraora.com.br/empreendimento/${id}`,
     },
   };
 }
@@ -99,27 +102,7 @@ export default async function EmpreendimentoPublicPage({ params }: PageProps) {
   };
 
   // JSON-LD Structured Data
-  const jsonLdData = {
-    '@context': 'https://schema.org',
-    '@type': 'RealEstateListing',
-    name: project.tituloComercial || project.name,
-    description: project.descricaoCurta || project.descricaoCompleta,
-    image: project.midia || [],
-    address: {
-      '@type': 'PostalAddress',
-      streetAddress: project.localizacao?.address || '',
-      addressLocality: project.localizacao?.cidade || '',
-      addressRegion: project.localizacao?.estado || '',
-      postalCode: project.localizacao?.cep || '',
-      addressCountry: 'BR',
-    },
-    offers: {
-      '@type': 'Offer',
-      price: project.precoInicial || 0,
-      priceCurrency: 'BRL',
-      availability: 'https://schema.org/InStock',
-    },
-  };
+  const jsonLdData = generateProjectJsonLd(project, 'https://oraora.com.br');
 
   return (
     <>

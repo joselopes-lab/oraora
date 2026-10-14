@@ -366,9 +366,40 @@ export async function updateProjectPublicationServer(projectId: string, data: {
     }
   }
 
+  const wasPublished = !!project.isPublished;
+  const nowPublished = data.isPublished;
+
   await projectRepository.update(projectId, {
     isPublished: data.isPublished,
   });
+
+  // Disparar notificações apenas na transição de publicação (false -> true)
+  if (nowPublished && !wasPublished) {
+    try {
+      // Buscar nome da construtora para enriquecer a notificação
+      let builderName = '';
+      if (project.builderId) {
+        const builderSnap = await adminDb.collection('constructors').doc(project.builderId).get();
+        if (builderSnap.exists) {
+          const bData = builderSnap.data();
+          builderName = bData?.nome || bData?.name || '';
+        }
+      }
+
+      const { triggerProjectPublishedNotification } = await import('@/lib/notifications/project-events.server');
+      // Identifica se a publicação foi feita por admin ou construtora
+      const publishedBy = ctx.userType === 'admin' ? 'admin' : 'constructor';
+      
+      await triggerProjectPublishedNotification({
+        projectId,
+        name: project.name,
+        builderName,
+        publishedBy
+      });
+    } catch (notifErr) {
+      console.warn('[ProjectPublication] Falha ao disparar notificações:', notifErr);
+    }
+  }
 
   revalidatePath(`/dashboard/construtoras/empreendimentos/${projectId}`);
   revalidatePath('/dashboard/construtoras/empreendimentos');

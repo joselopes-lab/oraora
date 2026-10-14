@@ -177,6 +177,15 @@ service cloud.firestore {
       );
     }
 
+    match /payments/{paymentId} {
+      allow get: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (
+        isAdmin() || 
+        (resource.data.userId == request.auth.uid && request.query.limit <= 100)
+      );
+      allow write: if isAdmin();
+    }
+
     // 8. INTELIGÊNCIA
     match /personas/{personaId} {
       allow read, list: if true;
@@ -327,6 +336,22 @@ service cloud.firestore {
           ])
         );
       }
+    }
+
+    // 13. NOTIFICAÇÕES PRIVADAS
+    match /notifications/{notificationId} {
+      allow get, list: if isSignedIn() && (
+        resource.data.userId == request.auth.uid ||
+        isAdmin()
+      );
+
+      allow update: if isSignedIn() &&
+        resource.data.userId == request.auth.uid &&
+        request.resource.data.diff(resource.data)
+          .affectedKeys().hasOnly(['read']) &&
+        request.resource.data.read is bool;
+
+      allow create, delete: if false;
     }
   }
 }

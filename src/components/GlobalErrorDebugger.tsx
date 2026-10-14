@@ -5,26 +5,26 @@ import { useEffect } from 'react';
 export function GlobalErrorDebugger() {
   useEffect(() => {
     const handleError = (event: ErrorEvent) => {
-      console.error('[GLOBAL-ERROR-DEBUG]', {
-        type: event.type,
+      if (process.env.NODE_ENV !== 'development') return;
+      console.debug('[GLOBAL-ERROR-DEBUG]', {
         message: event.message,
         filename: event.filename,
         lineno: event.lineno,
         colno: event.colno,
-        target: event.target,
-        src: (event.target as any)?.src,
-        href: (event.target as any)?.href,
-        error: event.error,
+        errorName: event.error?.name,
+        errorMessage: event.error?.message,
+        errorStack: event.error?.stack,
+        errorCause: event.error?.cause,
       });
     };
 
     const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
-      console.error('[GLOBAL-UNHANDLED-REJECTION-DEBUG]', {
-        type: event.type,
-        reason: event.reason,
+      if (process.env.NODE_ENV !== 'development') return;
+      console.debug('[GLOBAL-UNHANDLED-REJECTION-DEBUG]', {
         reasonMessage: event.reason?.message,
         reasonStack: event.reason?.stack,
-        target: (event as any).target,
+        reasonName: event.reason?.name,
+        reasonCause: event.reason?.cause,
       });
     };
 

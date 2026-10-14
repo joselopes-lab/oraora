@@ -8,6 +8,7 @@ import { JsonLd } from '@/components/JsonLd';
 import { generatePropertyJsonLd, generateBrokerJsonLd } from '@/lib/seo';
 import { headers } from 'next/headers';
 import React from 'react';
+import { seededShuffle, hashCode } from '@/lib/utils';
 
 // Force dynamic rendering to ensure data is fresh on every request
 export const dynamic = 'force-dynamic';
@@ -133,21 +134,26 @@ export default async function BrokerSitePage({ params }: { params: Promise<{ slu
 
   const allProperties = await getBrokerAllProperties(broker.id);
 
+  // Implement stable mixed ordering per day
+  const today = new Date().toISOString().split('T')[0];
+  const seed = hashCode(broker.id + today);
+  const shuffledProperties = seededShuffle(allProperties, seed);
+
   let featuredProperties: Property[] = [];
   const selectedIds = (broker as any).homepage?.featuredPropertyIds || [];
 
   if (selectedIds.length > 0) {
     selectedIds.forEach((id: string) => {
-      const match = allProperties.find(p => p.id === id);
+      const match = shuffledProperties.find(p => p.id === id);
       if (match) featuredProperties.push(match);
     });
   }
 
-  if (featuredProperties.length === 0 && allProperties.length > 0) {
-    featuredProperties = [...allProperties].sort(() => 0.5 - Math.random()).slice(0, 6);
+  if (featuredProperties.length === 0 && shuffledProperties.length > 0) {
+    featuredProperties = shuffledProperties.slice(0, 6);
   }
 
-  const otherProperties = allProperties.filter(p => !featuredProperties.find(fp => fp.id === p.id));
+  const otherProperties = shuffledProperties.filter(p => !featuredProperties.find(fp => fp.id === p.id));
   const sortedProperties = [...featuredProperties, ...otherProperties];
 
   // Derive active public portfolio neighborhoods for semantic SEO context
